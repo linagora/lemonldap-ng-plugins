@@ -17,3 +17,9 @@
   - [CVE-2024-52946](https://security-tracker.debian.org/tracker/CVE-2024-52946)
   - [CVE-2024-52947](https://security-tracker.debian.org/tracker/CVE-2024-52947)
   - [CVE-2025-31510](https://security-tracker.debian.org/tracker/CVE-2025-31510)
+* [Corresponding Debian packages](./lemonldap-ng-2.0.11+linagora-1.deb.tar.gz)[^1]
+
+
+[^1]: you can use [official Debian packages](https://packages.debian.org/search?keywords=lemonldap&searchon=names&suite=bullseye&section=main)
+but they need some Debian additional dependencies. [These packages](./lemonldap-ng-2.0.11+linagora-1.deb.tar.gz)
+reproduce the community build with security patches.
