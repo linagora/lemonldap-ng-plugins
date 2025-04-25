@@ -18,11 +18,11 @@ This repository contains:
 
 Here are the Lemonldap::NG "LTS" versions:
 
-| Version | Community LTS | Debian LTS[^1] | Limit[^2] |
-| ------- | ------------- | -------------- | --------- |
-|  2.0.11 |      ❌[^3]   |       ✅       |    2026   |
-|  2.16.x |      ✅       |       ✅       |    2028   |
-|  2.21.x |      ✅       |       ✅       |    2030   |
+| Version | Community LTS | [Debian](https://www.debian.org) LTS[^1] | Limit[^2] |
+| ------- | ------------- | ---------------------------------------- | --------- |
+|  2.0.11 |      ❌[^3]   |                    ✅                    |    2026   |
+|  2.16.x |      ✅       |                    ✅                    |    2028   |
+|  2.21.x |      ✅       |                    ✅                    |    2030   |
 
 
 - [LTS community files](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/releases) for 2.16.x and 2.21.x
