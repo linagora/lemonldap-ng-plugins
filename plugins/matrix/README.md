@@ -4,29 +4,14 @@ This plugin allow a Matrix client to exchange its Matrix `access_token` to
 get a LLNG `access_token`. Files:
 
 - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](./MatrixTokenExchange.pm) with its dependency [Lemonldap::NG::Common::Matrix](./Matrix.pm)
-- A [patch for the manager](./manager.patch). Then remember to rebuild other files:
-```shell
-$ perl -MLemonldap::NG::Manager::Build -e 'Lemonldap::NG::Manager::Build->run(
-      structFile   => "/usr/share/lemonldap-ng/manager/htdocs/static/struct.json",
-      confTreeFile => "/usr/share/lemonldap-ng/manager/htdocs/static/js/conftree.js",
-      managerConstantsFile => "/usr/share/perl5/Lemonldap/NG/Common/Conf/ReConstants.pm",
-      managerAttributesFile => "/usr/share/perl5/Lemonldap/NG/Manager/Attributes.pm",
-      defaultValuesFile => "/usr/share/perl5/Lemonldap/NG/Common/Conf/DefaultValues.pm",
-      confConstantsFile => "/usr/share/perl5/Lemonldap/NG/Common/Conf/Constants.pm",
-      firstLmConfFile => "/var/lib/lemonldap-ng/conf/lmConf-1.json",
-      reverseTreeFile => "/usr/share/lemonldap-ng/manager/htdocs/static/reverseTree.json",
-      handlerStatusConstantsFile => "/usr/share/perl5/Lemonldap/NG/Handler/Lib/StatusConstants.pm",
-      portalConstantsFile => "/dev/null",
-      docConstantsFile => "/dev/null",
-      )'
-```
+- A [patch for the manager](./manager.patch) _(remember to [rebuild other files](../UpdateManager.md))_
 
 # Use case
 
 Even if Matrix can be connected to [Lemonldap::NG](https://lemonldap-ng.org)
 via [OpenID-Connect](https://lemonldap-ng.org/documentation/latest/applications/matrix.html),
 the Matrix server uses federation just to authorize the client to access to an account _(it create it on the fly if needed)_,
-then it lost the link with LLNG _(except for [Back-Channel-Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html))_.
+then it losts the link with LLNG _(except for [Back-Channel-Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html))_.
 
 Thus if you develop a Matrix client that needs to access to another OIDC resource server of your SSO space,
 you need to have a valid `access_token`. This is the goal of this plugin.
@@ -47,7 +32,7 @@ curl -XPOST
 --data-urlencode 'subject_token=sid-bbb-aaa-ccc' \
 --data-urlencode 'subject_issuer=m.org' \
 --data-urlencode 'scope=openid profile email' \
---data-urlencode 'audience==rpid' \
+--data-urlencode 'audience=rpid' \
 https://lemon-portal/oauth2/token
 ```
 
