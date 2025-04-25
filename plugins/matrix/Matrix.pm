@@ -1,3 +1,5 @@
+# Copyright Linagora <https://linagora.com>
+# License: GPL-2+
 package Lemonldap::NG::Common::Matrix;
 
 use strict;
