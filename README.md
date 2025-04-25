@@ -15,7 +15,8 @@ Here are the Lemonldap::NG "LTS" versions:
 This repository contains:
 - [Patches for Lemonldap-NG version 2.0.11](./v2.0.11)
 - Various plugins not yet included:
-  - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](plugins/matrix)
+  - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](plugins/matrix): Matrix token exchanger
+  - [Lemonldap::NG::Portal::Plugins::Reports](plugins/reports): various reports
 
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here are released under GPL-2+ license[^4] unless specified.
 
