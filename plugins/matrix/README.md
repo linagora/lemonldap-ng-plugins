@@ -25,10 +25,10 @@ $ perl -MLemonldap::NG::Manager::Build -e 'Lemonldap::NG::Manager::Build->run(
 
 Even if Matrix can be connected to [Lemonldap::NG](https://lemonldap-ng.org)
 via [OpenID-Connect](https://lemonldap-ng.org/documentation/latest/applications/matrix.html),
-the Matrix server uses federation just to authorize the client to access to an account
-_(it create it on the fly)_, then it lost the link with LLNG _(except for [Back-Channel-Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html))_.
+the Matrix server uses federation just to authorize the client to access to an account _(it create it on the fly if needed)_,
+then it lost the link with LLNG _(except for [Back-Channel-Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html))_.
 
-Thus if you develop a Matrix client that needs to access to another server of your SSO space,
+Thus if you develop a Matrix client that needs to access to another OIDC resource server of your SSO space,
 you need to have a valid `access_token`. This is the goal of this plugin.
 
 # How to use it
