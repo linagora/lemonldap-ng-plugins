@@ -6,7 +6,7 @@ Linagora is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/l
 
 This repository contains:
 - [Various plugins not yet included](#lemonldapng-additional-plugins):
-- [LTS files](#long-term-support)
+- [LTS files](#long-term-support-lts)
 
 ## Lemonldap::NG additional plugins
 
