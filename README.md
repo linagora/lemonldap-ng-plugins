@@ -17,6 +17,7 @@ This repository contains:
 - Various plugins not yet included:
   - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](plugins/matrix): Matrix token exchanger
   - [Lemonldap::NG::Portal::Plugins::Reports](plugins/reports): various reports
+  - [Lemonldap::NG::Portal::Plugins::MailAutodiscover](plugins/mail-autodiscover): handles autodiscover.mydomain.tld/autodiscover requests
 
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here are released under GPL-2+ license[^4] unless specified.
 
