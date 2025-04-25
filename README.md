@@ -12,7 +12,7 @@ This repository contains:
 
   - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](plugins/matrix): Matrix token exchanger
   - [Lemonldap::NG::Portal::Plugins::Reports](plugins/reports): various reports
-  - [Lemonldap::NG::Portal::Plugins::MailAutodiscover](plugins/mail-autodiscover): handles autodiscover.mydomain.tld/autodiscover requests
+  - [Lemonldap::NG::Portal::Plugins::MailAutodiscover](plugins/mail-autodiscover): handles `https://autodiscover.mydomain.tld/autodiscover/*` requests
 
 ## Long Term Support (LTS)
 
