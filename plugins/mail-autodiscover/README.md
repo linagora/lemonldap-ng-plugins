@@ -5,8 +5,8 @@ setup a website named `autodiscover.mydomain.tld` and handle `/autodiscover/auto
 queries.
 
 This plugin permits to do it inside LLNG. You just have to add
-`autodiscover.mydomain.tld` inside your web-server configuration to point to
-LLNG portal.
+`autodiscover.mydomain.tld` alias inside your web-server configuration to
+point to LLNG portal.
 
 This plugin also answer `404 Not found` for some specific Outlook requests.
 - `/autodiscover/autodiscover.json`
