@@ -5,8 +5,8 @@
 Linagora is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/project_members) since 2007 and actively continue to contributes.
 
 This repository contains:
-- Various plugins not yet included:
-- LTS patches
+- [Various plugins not yet included](#lemonldapng-additional-plugins):
+- [LTS files](#long-term-support)
 
 ## Lemonldap::NG additional plugins
 
@@ -14,7 +14,7 @@ This repository contains:
   - [Lemonldap::NG::Portal::Plugins::Reports](plugins/reports): various reports
   - [Lemonldap::NG::Portal::Plugins::MailAutodiscover](plugins/mail-autodiscover): handles autodiscover.mydomain.tld/autodiscover requests
 
-## LTS
+## Long Term Support (LTS)
 
 Here are the Lemonldap::NG "LTS" versions:
 
