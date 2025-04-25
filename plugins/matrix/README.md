@@ -35,8 +35,8 @@ you need to have a valid `access_token`. This is the goal of this plugin.
 
 [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](./MatrixTokenExchange.pm)
 use the same logic than [LLNG OpenID Connect Token Exchange](https://lemonldap-ng.org/documentation/latest/oidctokenexchange)
-but with Matrix `access_token`. You just have to authorize a list of [Matrix servers][^1] by setting
-`oidcRPMetaDataOptionsTokenXAuthorizedMatrix` it _(space separated)_ in each OICD Relying Party
+but with Matrix `access_token`. You just have to authorize a list of [Matrix servers][^1] by setting them in
+`oidcRPMetaDataOptionsTokenXAuthorizedMatrix` _(space separated)_ in each OICD Relying Party
 that allows this exchange. Then the software client just have to exchange its
 Matrix `access_token` using "token" endpoint. Example with [curl](https://manpages.debian.org/unstable/curl/curl.1.en.html):
 
