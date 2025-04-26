@@ -20,6 +20,7 @@ you need to have a valid `access_token`. This is the goal of this plugin.
 
 [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](./MatrixTokenExchange.pm)
 use the same logic than [LLNG OpenID Connect Token Exchange](https://lemonldap-ng.org/documentation/latest/oidctokenexchange)
+_(and then requires LLNG version 2.20.0 at least)_
 but with Matrix `access_token`. You just have to authorize a list of [Matrix servers][^1] by setting them in
 `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` _(space separated)_ in each OICD Relying Party
 that allows this exchange. Then the software client just have to exchange its
@@ -52,6 +53,10 @@ https://lemon-portal.domain.tld/oauth2/token
 ```
 
 If client isn't public, add `--basic -u 'client_id:password'`
+
+## Prerequisites
+
+This plugin needs at least LLNG version 2.20.0.
 
 [^1]: In [Matrix specs](https://spec.matrix.org/latest/), a "Matrix server" is the domain part of a Matrix address, not the hostname of the server.
 This plugin follows the [specification](https://spec.matrix.org/v1.14/server-server-api/#server-discovery) to find the server.
