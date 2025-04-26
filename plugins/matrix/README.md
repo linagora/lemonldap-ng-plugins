@@ -26,7 +26,7 @@ that allows this exchange. Then the software client just have to exchange its
 Matrix "federation token" using "token" endpoint. Example with [curl](https://manpages.debian.org/unstable/curl/curl.1.en.html):
 
 ### 1. First get a [federation token](https://spec.matrix.org/v1.14/client-server-api/#openid)
-```Shellsession
+```Shell
 $ curl -XPOST -d '{}' https://matrix-server.domain.tld/_matrix/client/v3/user/@user:domain.tld/openid/request_token
 ```
 Response looks like:
@@ -40,8 +40,8 @@ Response looks like:
 ```
 
 ### 2. use it to get the access_token to access to the OIDC Relying Party "rpid" _(which has `domain.tld` inside its `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` list)_
-```Shellsession
-$ curl -XPOST
+```Shell
+$ curl -XPOST \
 --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
 --data-urlencode 'client_id=rpid' \
 --data-urlencode 'subject_token=SomeT0kenHere' \
