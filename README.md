@@ -30,7 +30,7 @@ Here are the Lemonldap::NG "LTS" versions:
 
 ## License and copyright
 
-Copyright: 2025 [Linagora](https://linagora.com)
+Copyright: 2024-2025 [Linagora](https://linagora.com)
 
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here
 are released under **GPL-2+ license**, unless specified:
