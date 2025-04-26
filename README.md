@@ -30,11 +30,24 @@ Here are the Lemonldap::NG "LTS" versions:
 
 ## License and copyright
 
+Copyright: 2025 [Linagora](https://linagora.com)
+
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here
-are released under **GPL-2+ license[^4]**, copyright
-[Linagora](https://linagora.com/), unless specified.
+are released under **GPL-2+ license**, unless specified:
+
+> These files are free softwares; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either [version 2](./LICENSE), or (at your option)
+any later version.
+>
+> This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+>
+> You should have received a [copy of the GNU General Public License](./LICENSE)
+along with this program.  If not, see http://www.gnu.org/licenses/.
 
 [^1]: [Official Debian repository](https://tracker.debian.org/pkg/lemonldap-ng)
 [^2]: Possible extension via [Linagora's OSSA](https://linagora.com/ossa)
 [^3]: Supported here
-[^4]: Either [GNU General Pulic License version 2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html) or any later version of this license
