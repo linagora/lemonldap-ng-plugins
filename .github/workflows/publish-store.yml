@@ -209,6 +209,14 @@ jobs:
           lemonldap-ng-store check                      # Check for updates
           sudo lemonldap-ng-store remove &lt;plugin-name&gt; # Remove a plugin</pre>
 
+            <h2>GPG Verification</h2>
+            <p>All plugin archives are signed. The GPG key is automatically imported
+            and its fingerprint recorded when you register the store with
+            <code>add-store</code> (Trust On First Use). To enforce signature verification,
+            set <code>gpgVerify = required</code> in the <code>[store]</code> section of
+            <code>lemonldap-ng.ini</code>.</p>
+            <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
+
             <h2>Store URL</h2>
             <p>The machine-readable index is at <a href="index.json"><code>index.json</code></a>.</p>
 
