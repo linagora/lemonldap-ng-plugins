@@ -9,6 +9,7 @@ This plugin permits to do it inside LLNG. You just have to add
 point to LLNG portal.
 
 This plugin also answers `404 Not found` for some specific Outlook requests:
+
 - `/autodiscover/autodiscover.json`
 - `/EWS/*`
 
@@ -16,9 +17,13 @@ This is a way to explain to Outlook that our server isn't an Exchange server.
 
 ## Installation
 
+With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+
 ```
 sudo lemonldap-ng-store install mail-autodiscover --activate
 ```
+
+Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::MailAutodiscover` to `customPlugins` in the LLNG configuration.
 
 ## Configuration
 

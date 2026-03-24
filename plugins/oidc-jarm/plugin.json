@@ -1,0 +1,14 @@
+{
+  "name": "oidc-jarm",
+  "version": "1.0.0",
+  "summary": "JARM - JWT Secured Authorization Response Mode (RFC 9207)",
+  "description": "Implements JARM for both OIDC Provider (sign/encrypt authorization responses) and OIDC Client (request and verify JARM responses from remote OPs). Adds JARM configuration options to OIDC RP and OP metadata in the Manager.",
+  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.20.0",
+  "perl_requires": {},
+  "customPlugins": "::Plugins::OIDCJarm, ::Plugins::OIDCJarmClient",
+  "tags": ["oidc", "security"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "post_install": "Note: the OIDC discovery metadata will not advertise JARM response modes unless you also patch Lemonldap::NG::Common::OpenIDConnect::Metadata (see README.md for the patch)."
+}

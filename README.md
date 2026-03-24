@@ -5,14 +5,35 @@
 Linagora is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/project_members) since 2007 and actively continue to contributes.
 
 This repository contains:
-- [Various plugins not yet included](#lemonldapng-additional-plugins):
+
+- [Plugins for `lemonldap-ng-store`](#lemonldapng-plugins)
 - [LTS files](#lemonldapng-long-term-support-lts)
 
-## Lemonldap::NG additional plugins
+## Lemonldap::NG plugins
 
-  - [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](plugins/matrix): Matrix token exchanger
-  - [Lemonldap::NG::Portal::Plugins::Reports](plugins/reports): various reports
-  - [Lemonldap::NG::Portal::Plugins::MailAutodiscover](plugins/mail-autodiscover): handles `https://autodiscover.mydomain.tld/autodiscover/*` requests
+These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a store via GitHub Pages.
+
+### Installation with `lemonldap-ng-store` (LLNG >= 2.23.0)
+
+```bash
+# Register this store
+sudo lemonldap-ng-store add-store https://linagora.github.io/lemonldap-ng-plugins/
+
+# List available plugins
+lemonldap-ng-store list
+
+# Install a plugin
+sudo lemonldap-ng-store install <plugin-name> --activate
+```
+
+### Available plugins
+
+| Plugin                                         | Description                                               |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| [matrix-token-exchange](plugins/matrix)        | Matrix federation token exchange for OIDC relying parties |
+| [oidc-jarm](plugins/oidc-jarm)                 | JARM — JWT Secured Authorization Response Mode (RFC 9207) |
+| [reports](plugins/reports)                     | Session and browser usage reports (CSV)                   |
+| [mail-autodiscover](plugins/mail-autodiscover) | SMTP/IMAP autodiscover for Outlook and Thunderbird        |
 
 ## Lemonldap::NG Long Term Support (LTS)
 
@@ -20,10 +41,9 @@ Here are the Lemonldap::NG "LTS" versions:
 
 | Version | Community LTS | [Debian](https://www.debian.org) LTS[^1] | Limit[^2] |
 | ------- | ------------- | ---------------------------------------- | --------- |
-|  2.0.11 |      ❌[^3]   |                    ✅                    |    2026   |
-|  2.16.x |      ✅       |                    ✅                    |    2028   |
-|  2.21.x |      ✅       |                    ✅                    |    2030   |
-
+| 2.0.11  | ❌[^3]        | ✅                                       | 2026      |
+| 2.16.x  | ✅            | ✅                                       | 2028      |
+| 2.21.x  | ✅            | ✅                                       | 2030      |
 
 - [LTS community files](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/releases) for 2.16.x and 2.21.x
 - [Linagora files for 2.0.11](./v2.0.11)
@@ -36,18 +56,20 @@ Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here
 are released under **GPL-2+ license**, unless specified:
 
 > These files are free softwares; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either [version 2](./LICENSE), or (at your option)
-any later version.
+> it under the terms of the GNU General Public License as published by
+> the Free Software Foundation; either [version 2](./LICENSE), or (at your option)
+> any later version.
 >
 > This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+> but WITHOUT ANY WARRANTY; without even the implied warranty of
+> MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+> GNU General Public License for more details.
 >
 > You should have received a [copy of the GNU General Public License](./LICENSE)
-along with this program.  If not, see http://www.gnu.org/licenses/.
+> along with this program. If not, see http://www.gnu.org/licenses/.
 
 [^1]: [Official Debian repository](https://tracker.debian.org/pkg/lemonldap-ng)
+
 [^2]: Possible extension via [Linagora's OSSA](https://linagora.com/ossa)
+
 [^3]: Supported here

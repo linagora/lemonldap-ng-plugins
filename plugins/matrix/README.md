@@ -22,11 +22,13 @@ you need to have a valid `access_token`. This is the goal of this plugin.
 
 ## Installation
 
+With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+
 ```
 sudo lemonldap-ng-store install matrix-token-exchange --activate
 ```
 
-Or manually: add `::Plugins::MatrixTokenExchange` to `customPlugins` in the LLNG configuration.
+Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::MatrixTokenExchange` to `customPlugins`, and run `llng-build-manager-files`.
 
 ## How to use it
 
@@ -37,20 +39,24 @@ that allows this exchange. Then the software client just have to exchange its
 Matrix "federation token" using "token" endpoint. Example with [curl](https://manpages.debian.org/unstable/curl/curl.1.en.html):
 
 ### 1. First get a [federation token](https://spec.matrix.org/v1.14/client-server-api/#openid)
+
 ```Shell
 $ curl -XPOST -d '{}' https://matrix-server.domain.tld/_matrix/client/v3/user/@user:domain.tld/openid/request_token
 ```
+
 Response looks like:
+
 ```json
 {
   "access_token": "SomeT0kenHere",
   "expires_in": 3600,
-  "matrix_server_name": "domain.tld", 
+  "matrix_server_name": "domain.tld",
   "token_type": "Bearer"
 }
 ```
 
-### 2. use it to get the access_token to access to the OIDC Relying Party "rpid" _(which has `domain.tld` inside its `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` list)_
+### 2. use it to get the access*token to access to the OIDC Relying Party "rpid" *(which has `domain.tld` inside its `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` list)\_
+
 ```Shell
 $ curl -XPOST \
 --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
@@ -69,5 +75,6 @@ If client isn't public, add `--basic -u 'client_id:password'`
 - LLNG version 2.20.0 or later
 - Perl modules: `Net::DNS`, `Regexp::Common`
 
-[^1]: In [Matrix specs](https://spec.matrix.org/latest/), a "Matrix server" is the domain part of a Matrix address, not the hostname of the server.
-This plugin follows the [specification](https://spec.matrix.org/v1.14/server-server-api/#server-discovery) to find the server.
+[^1]:
+    In [Matrix specs](https://spec.matrix.org/latest/), a "Matrix server" is the domain part of a Matrix address, not the hostname of the server.
+    This plugin follows the [specification](https://spec.matrix.org/v1.14/server-server-api/#server-discovery) to find the server.
