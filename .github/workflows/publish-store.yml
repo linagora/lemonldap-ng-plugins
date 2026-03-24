@@ -34,8 +34,10 @@ jobs:
           STORE_DIR="_site"
           mkdir -p "$STORE_DIR"
 
-          # Export public key for the store
-          echo "${{ vars.GPG_PUBLIC_KEY }}" > "$STORE_DIR/store-key.asc"
+          # Export public key from the imported private key
+          GPG_FINGERPRINT=$(gpg --list-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')
+          gpg --armor --export "$GPG_FINGERPRINT" > "$STORE_DIR/store-key.asc"
+          echo "Exported GPG public key: $GPG_FINGERPRINT"
 
           TAG="${GITHUB_REF_NAME}"
           STORE_URL="${{ github.event.repository.html_url }}"
