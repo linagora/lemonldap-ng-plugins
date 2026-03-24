@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "oidcRPMetaDataOptionsTokenXAuthorizedMatrix": {
+      "type": "text",
+      "documentation": "List of Matrix servers authorized to query for an access_token of this RP"
+    }
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsTokenExchange",
+      "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
+      "nodes": [
+        "oidcRPMetaDataOptionsTokenXAuthorizedMatrix"
+      ]
+    }
+  },
+  "lang": {
+    "oidcRPMetaDataOptionsTokenXAuthorizedMatrix": {
+      "en": "Matrix servers allowed to exchange access_token",
+      "fr": "Serveurs Matrix autorisés à échanger un access_token"
+    }
+  }
+}

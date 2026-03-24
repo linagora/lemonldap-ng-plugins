@@ -1,0 +1,216 @@
+name: Publish Plugin Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build store
+        run: |
+          set -e
+          STORE_DIR="_site"
+          mkdir -p "$STORE_DIR"
+
+          TAG="${GITHUB_REF_NAME}"
+          STORE_URL="${{ github.event.repository.html_url }}"
+          # GitHub Pages URL: https://<owner>.github.io/<repo>/
+          PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+
+          echo "Building store for tag $TAG"
+
+          # Build each plugin archive
+          PLUGINS_JSON="[]"
+          for plugin_dir in plugins/*/; do
+            [ -f "$plugin_dir/plugin.json" ] || continue
+            plugin_name=$(basename "$plugin_dir")
+
+            # Read metadata from plugin.json
+            name=$(jq -r '.name' "$plugin_dir/plugin.json")
+            version=$(jq -r '.version' "$plugin_dir/plugin.json")
+            summary=$(jq -r '.summary // ""' "$plugin_dir/plugin.json")
+            description=$(jq -r '.description // ""' "$plugin_dir/plugin.json")
+            author=$(jq -r '.author // ""' "$plugin_dir/plugin.json")
+            license=$(jq -r '.license // ""' "$plugin_dir/plugin.json")
+            llng_compat=$(jq -r '.llng_compat // ""' "$plugin_dir/plugin.json")
+            perl_requires=$(jq -c '.perl_requires // {}' "$plugin_dir/plugin.json")
+            custom_plugins=$(jq -r '.customPlugins // ""' "$plugin_dir/plugin.json")
+            post_install=$(jq -r '.post_install // ""' "$plugin_dir/plugin.json")
+
+            archive_name="llng-plugin-${name}-${version}.tar.gz"
+
+            echo "  Packaging $name v$version -> $archive_name"
+
+            # Create tar.gz with the expected top-level directory name
+            tar czf "$STORE_DIR/$archive_name" \
+              --transform "s|^plugins/$plugin_name|llng-plugin-${name}-${version}|" \
+              "$plugin_dir"
+
+            # Compute SHA256
+            sha256=$(sha256sum "$STORE_DIR/$archive_name" | cut -d' ' -f1)
+
+            # Read tags if present
+            tags=$(jq -c '.tags // []' "$plugin_dir/plugin.json")
+
+            # Read homepage if present
+            homepage=$(jq -r '.homepage // ""' "$plugin_dir/plugin.json")
+
+            # Build plugin entry for index.json
+            plugin_entry=$(jq -n \
+              --arg name "$name" \
+              --arg version "$version" \
+              --arg summary "$summary" \
+              --arg description "$description" \
+              --arg author "$author" \
+              --arg license "$license" \
+              --arg llng_compat "$llng_compat" \
+              --argjson perl_requires "$perl_requires" \
+              --arg archive "$archive_name" \
+              --arg sha256 "$sha256" \
+              --argjson tags "$tags" \
+              --arg homepage "$homepage" \
+              --arg customPlugins "$custom_plugins" \
+              --arg post_install "$post_install" \
+              --arg published "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+              '{
+                name: $name,
+                version: $version,
+                summary: $summary,
+                description: $description,
+                author: $author,
+                license: $license,
+                llng_compat: $llng_compat,
+                perl_requires: $perl_requires,
+                archive: $archive,
+                sha256: $sha256,
+                tags: $tags,
+                homepage: $homepage,
+                customPlugins: $customPlugins,
+                post_install: $post_install,
+                published: $published
+              }')
+
+            PLUGINS_JSON=$(echo "$PLUGINS_JSON" | jq --argjson entry "$plugin_entry" '. + [$entry]')
+          done
+
+          # Generate index.json
+          jq -n \
+            --arg name "Linagora LLNG Plugins" \
+            --arg url "$PAGES_URL" \
+            --arg updated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --argjson plugins "$PLUGINS_JSON" \
+            '{
+              store: {
+                name: $name,
+                url: $url,
+                updated: $updated
+              },
+              plugins: $plugins
+            }' > "$STORE_DIR/index.json"
+
+          echo "Store index:"
+          jq . "$STORE_DIR/index.json"
+
+          # Generate index.html landing page
+          PLUGIN_COUNT=$(echo "$PLUGINS_JSON" | jq length)
+          PLUGIN_ROWS=""
+          for row in $(echo "$PLUGINS_JSON" | jq -r '.[] | @base64'); do
+            _jq() { echo "$row" | base64 -d | jq -r "$1"; }
+            PLUGIN_ROWS="$PLUGIN_ROWS<tr><td><strong>$(_jq '.name')</strong></td><td>$(_jq '.version')</td><td>$(_jq '.summary')</td><td>$(_jq '.llng_compat')</td></tr>"
+          done
+
+          cat > "$STORE_DIR/index.html" <<HTMLEOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>LemonLDAP::NG Plugin Store</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2em auto; padding: 0 1em; color: #333; }
+              h1 { color: #2c5f2d; }
+              h2 { color: #444; border-bottom: 1px solid #ddd; padding-bottom: .3em; }
+              table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+              th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+              th { background: #f5f5f5; }
+              code, pre { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+              pre { padding: 1em; overflow-x: auto; }
+              .note { background: #e8f5e9; border-left: 4px solid #2c5f2d; padding: 1em; margin: 1em 0; }
+            </style>
+          </head>
+          <body>
+            <h1>LemonLDAP::NG Plugin Store</h1>
+            <p>This store provides <strong>${PLUGIN_COUNT} plugin(s)</strong> for
+            <a href="https://lemonldap-ng.org">LemonLDAP::NG</a>.</p>
+
+            <h2>Available Plugins</h2>
+            <table>
+              <thead><tr><th>Name</th><th>Version</th><th>Summary</th><th>LLNG Compat</th></tr></thead>
+              <tbody>${PLUGIN_ROWS}</tbody>
+            </table>
+
+            <h2>How to Use</h2>
+
+            <h3>1. Register this store</h3>
+            <pre>sudo lemonldap-ng-store add-store ${PAGES_URL}</pre>
+
+            <h3>2. List available plugins</h3>
+            <pre>lemonldap-ng-store list</pre>
+
+            <h3>3. Install a plugin</h3>
+            <pre>sudo lemonldap-ng-store install &lt;plugin-name&gt; --activate</pre>
+
+            <h3>4. Restart the portal</h3>
+            <pre>sudo systemctl restart lemonldap-ng-fastcgi-server</pre>
+
+            <div class="note">
+              <strong>Note:</strong> <code>--activate</code> automatically adds the plugin to
+              <code>customPlugins</code> in your LLNG configuration (requires <code>lemonldap-ng-cli</code>).
+              Without it, you must add the plugin manually via the Manager.
+            </div>
+
+            <h2>Other Commands</h2>
+            <pre>lemonldap-ng-store info &lt;plugin-name&gt;       # Show plugin details
+          lemonldap-ng-store installed                  # List installed plugins
+          lemonldap-ng-store check                      # Check for updates
+          sudo lemonldap-ng-store remove &lt;plugin-name&gt; # Remove a plugin</pre>
+
+            <h2>Store URL</h2>
+            <p>The machine-readable index is at <a href="index.json"><code>index.json</code></a>.</p>
+
+            <p><small>Generated on $(date -u +%Y-%m-%d) from tag ${TAG} &mdash;
+            <a href="${STORE_URL}">Source repository</a></small></p>
+          </body>
+          </html>
+          HTMLEOF
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

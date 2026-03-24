@@ -1,6 +1,3 @@
-# Copyright: Linagora <https://linagora.com>
-# Author   : Xavier Guimard
-# License  : GPL-2+
 package Lemonldap::NG::Common::Matrix;
 
 use strict;

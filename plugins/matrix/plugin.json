@@ -1,0 +1,15 @@
+{
+  "name": "matrix-token-exchange",
+  "version": "1.0.0",
+  "summary": "Matrix token exchange for OIDC relying parties",
+  "description": "Allows Matrix federation tokens to be exchanged for OIDC access tokens, following Matrix spec v1.9 server-server API for OpenID token validation and server discovery.",
+  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.20.0",
+  "perl_requires": {
+    "Net::DNS": "0",
+    "Regexp::Common": "0"
+  },
+  "customPlugins": "::Plugins::MatrixTokenExchange",
+  "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager."
+}

@@ -1,10 +1,14 @@
-# Matrix plugin
+# Matrix Token Exchange
 
-This plugin allow a Matrix client to exchange its Matrix `access_token` to
-get a LLNG `access_token`. Files:
+This plugin allows a Matrix client to exchange its Matrix `access_token` to
+get a LLNG `access_token`.
 
-- [Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](./MatrixTokenExchange.pm) with its dependency [Lemonldap::NG::Common::Matrix](./Matrix.pm)
-- A [patch for the manager](./manager.patch) _(remember to [rebuild other files](../UpdateManager.md))_
+## Files
+
+- `lib/Lemonldap/NG/Portal/Plugins/MatrixTokenExchange.pm` — Portal plugin
+- `lib/Lemonldap/NG/Common/Matrix.pm` — Matrix library (server resolution + token validation)
+- `manager-overrides/matrix.json` — Manager extension (attribute, ctree, translations)
+- `plugin.json` — Plugin metadata
 
 ## Use case
 
@@ -16,11 +20,17 @@ then it losts the link with LLNG _(except for [Back-Channel-Logout](https://open
 Thus if you develop a Matrix client that needs to access to another OIDC resource server of your SSO space,
 you need to have a valid `access_token`. This is the goal of this plugin.
 
+## Installation
+
+```
+sudo lemonldap-ng-store install matrix-token-exchange --activate
+```
+
+Or manually: add `::Plugins::MatrixTokenExchange` to `customPlugins` in the LLNG configuration.
+
 ## How to use it
 
-[Lemonldap::NG::Portal::Plugins::MatrixTokenExchange](./MatrixTokenExchange.pm)
-use the same logic than [LLNG OpenID Connect Token Exchange](https://lemonldap-ng.org/documentation/latest/oidctokenexchange)
-_(and then requires LLNG version 2.20.0 at least)_
+This plugin uses the same logic as [LLNG OpenID Connect Token Exchange](https://lemonldap-ng.org/documentation/latest/oidctokenexchange)
 but with Matrix `access_token`. You just have to authorize a list of [Matrix servers][^1] by setting them in
 `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` _(space separated)_ in each OICD Relying Party
 that allows this exchange. Then the software client just have to exchange its
@@ -56,7 +66,8 @@ If client isn't public, add `--basic -u 'client_id:password'`
 
 ## Prerequisites
 
-This plugin needs at least LLNG version 2.20.0.
+- LLNG version 2.20.0 or later
+- Perl modules: `Net::DNS`, `Regexp::Common`
 
 [^1]: In [Matrix specs](https://spec.matrix.org/latest/), a "Matrix server" is the domain part of a Matrix address, not the hostname of the server.
 This plugin follows the [specification](https://spec.matrix.org/v1.14/server-server-api/#server-discovery) to find the server.

@@ -1,0 +1,16 @@
+{
+  "name": "reports",
+  "version": "1.0.0",
+  "summary": "Session and browser usage reports (CSV)",
+  "description": "Provides API endpoints returning CSV reports: /reports/apps (OIDC offline apps by User-Agent), /reports/browsers (web sessions by User-Agent), /reports/lastcnx (last connection per user from SSO + LDAP). Requires PostgreSQL session storage and LDAP user backend for /reports/lastcnx.",
+  "author": "Xavier Guimard / Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {
+    "DBI": "0",
+    "Date::Parse": "0",
+    "Date::Format": "0"
+  },
+  "customPlugins": "::Plugins::Reports",
+  "post_install": "Protect /reports/* endpoints in your Manager virtual host rules to restrict access to administrators."
+}

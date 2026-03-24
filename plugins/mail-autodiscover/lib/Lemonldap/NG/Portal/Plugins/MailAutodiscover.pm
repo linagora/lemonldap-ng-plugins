@@ -52,7 +52,7 @@ sub init {
     my ($self) = @_;
     $self->addUnauthRoute(
         autodiscover => {
-            'autodiscover.json' => 'notFound',
+            'autodiscover.json' => 'autodiscoverJson',
             'autodiscover.xml'  => 'autodiscover',
         },
         [ 'GET', 'POST' ]
@@ -61,7 +61,7 @@ sub init {
         [ 'GET', 'POST' ]
     )->addAuthRoute(
         autodiscover => {
-            'autodiscover.json' => 'notFound',
+            'autodiscover.json' => 'autodiscoverJson',
             'autodiscover.xml'  => 'autodiscover',
         },
         [ 'GET', 'POST' ]
@@ -85,16 +85,39 @@ sub autodiscover {
     ];
 }
 
-our $NOTFOUND = '<html><body>Not found...</body></html>';
+sub autodiscoverJson {
+    my ( $self, $req, $version, $email ) = @_;
+
+    if ( $version && $version eq 'v1.0' && $email && $email =~ $validEmail ) {
+        my $protocol = $req->param('Protocol') // '';
+
+        # Handle AutodiscoverV1 protocol - redirect to XML autodiscover
+        if ( $protocol =~ /^AutodiscoverV1$/i ) {
+            my $url  = $req->portal . '/autodiscover/autodiscover.xml';
+            my $json = qq({"Protocol":"AutodiscoverV1","Url":"$url"});
+            return [
+                200,
+                [
+                    'Content-Type'   => 'application/json',
+                    'Content-Length' => length($json)
+                ],
+                [$json]
+            ];
+        }
+    }
+
+    return [
+        404,
+        [ 'Content-Type' => 'text/html' ],
+        ['<html><body>Not found...</body></html>']
+    ];
+}
 
 sub notFound {
     return [
         404,
-        [
-            'Content-Type'   => 'text/html',
-            'Content-Length' => length($NOTFOUND)
-        ],
-        [$NOTFOUND]
+        [ 'Content-Type' => 'text/html' ],
+        ['<html><body>Not found...</body></html>']
     ];
 }
 

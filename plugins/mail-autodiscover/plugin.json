@@ -1,0 +1,12 @@
+{
+  "name": "mail-autodiscover",
+  "version": "1.0.0",
+  "summary": "SMTP/IMAP autodiscover for Outlook and Thunderbird",
+  "description": "Handles /autodiscover/autodiscover.xml queries for mail client autoconfiguration. Add autodiscover.mydomain.tld as an alias to your LLNG portal in your web server configuration. Also returns 404 for Exchange-specific endpoints (/EWS, autodiscover.json).",
+  "author": "Xavier Guimard / Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {},
+  "customPlugins": "::Plugins::MailAutodiscover",
+  "post_install": "Edit the $imapServer and $smtpServer variables at the top of MailAutodiscover.pm to match your mail servers. Then add autodiscover.mydomain.tld as a web server alias pointing to the LLNG portal."
+}
