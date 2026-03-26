@@ -5,7 +5,7 @@
   "description": "Implements JARM for both OIDC Provider (sign/encrypt authorization responses) and OIDC Client (request and verify JARM responses from remote OPs). Adds JARM configuration options to OIDC RP and OP metadata in the Manager.",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.20.0",
+  "llng_compat": ">=2.23.0",
   "perl_requires": {},
   "customPlugins": "::Plugins::OIDCJarm, ::Plugins::OIDCJarmClient",
   "tags": ["oidc", "security"],
