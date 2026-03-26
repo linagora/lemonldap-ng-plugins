@@ -1,0 +1,12 @@
+{
+    "name": "json-file",
+    "version": "0.1.0",
+    "summary": "JSON file-based authentication and user backend for development and testing",
+    "author": "Linagora <https://linagora.com>",
+    "license": "GPL-2.0",
+    "llng_compat": ">=2.23.0",
+    "perl_requires": {
+        "JSON": "2.0"
+    },
+    "post_install": "Set the LLNG_JSONUSERS environment variable to point to your JSON users file."
+}

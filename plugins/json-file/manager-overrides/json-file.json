@@ -1,0 +1,42 @@
+{
+    "attributes": {
+        "authentication": {
+            "type": "select",
+            "select": [
+                { "k": "JsonFile", "v": "JSON File (dev/test)" }
+            ]
+        },
+        "userDB": {
+            "type": "select",
+            "select": [
+                { "k": "JsonFile", "v": "JSON File (dev/test)" }
+            ]
+        },
+        "jsonFileUserPath": {
+            "type": "text",
+            "default": "",
+            "documentation": "Path to JSON users file (can also be set via LLNG_JSONUSERS env var)"
+        }
+    },
+    "tree": {
+        "insert_into": "generalParameters/authParams",
+        "insert_after": "demoParams",
+        "nodes": [
+            {
+                "title": "jsonFileParams",
+                "help": "authdemo.html",
+                "nodes": ["jsonFileUserPath"]
+            }
+        ]
+    },
+    "lang": {
+        "jsonFileParams": {
+            "en": "JSON File parameters",
+            "fr": "Paramètres JsonFile"
+        },
+        "jsonFileUserPath": {
+            "en": "Path to JSON users file",
+            "fr": "Chemin du fichier JSON des utilisateurs"
+        }
+    }
+}

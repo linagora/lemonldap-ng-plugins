@@ -34,6 +34,7 @@ sudo lemonldap-ng-store install <plugin-name> --activate
 | [oidc-jarm](plugins/oidc-jarm)                 | JARM — JWT Secured Authorization Response Mode (RFC 9207) |
 | [reports](plugins/reports)                     | Session and browser usage reports (CSV)                   |
 | [mail-autodiscover](plugins/mail-autodiscover) | SMTP/IMAP autodiscover for Outlook and Thunderbird        |
+| [json-file](plugins/json-file)                 | JSON file-based Auth/UserDB backend for dev/test          |
 
 ## Lemonldap::NG Long Term Support (LTS)
 
