@@ -219,6 +219,10 @@ jobs:
             <code>lemonldap-ng.ini</code>.</p>
             <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
 
+            <h2>Documentation</h2>
+            <p>Full documentation for each plugin is available on the
+            <a href="https://github.com/linagora/lemonldap-ng-plugins/?tab=readme-ov-file#lemonldapng-plugins">project README</a>.</p>
+
             <h2>Store URL</h2>
             <p>The machine-readable index is at <a href="index.json"><code>index.json</code></a>.</p>
 

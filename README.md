@@ -11,7 +11,7 @@ This repository contains:
 
 ## Lemonldap::NG plugins
 
-These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a store via GitHub Pages.
+These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/).
 
 ### Installation with `lemonldap-ng-store` (LLNG >= 2.23.0)
 
