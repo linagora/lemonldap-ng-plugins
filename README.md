@@ -26,6 +26,10 @@ lemonldap-ng-store list
 sudo lemonldap-ng-store install <plugin-name> --activate
 ```
 
+### Manual installation
+
+See doc of wanted plugin.
+
 ### Available plugins
 
 | Plugin                                         | Description                                               |
