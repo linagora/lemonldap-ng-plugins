@@ -5,56 +5,29 @@
 ## @class
 # Authenticate users against a JSON file.
 # Inherits from Demo authentication backend.
-# JSON file path is read from jsonFileUserPath config parameter
-# or LLNG_JSONUSERS environment variable.
+#
+# Requires UserDB::JsonFile (or userDB = Same) to be configured.
+# Passwords are retrieved from the UserDB module at authenticate time.
 package Lemonldap::NG::Portal::Auth::JsonFile;
 
 use strict;
 use Mouse;
-use JSON;
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_BADCREDENTIALS);
 
 extends 'Lemonldap::NG::Portal::Auth::Demo';
 
 our $VERSION = '0.1.0';
 
-has passwords => ( is => 'rw', default => sub { {} } );
-
 sub init {
     my ($self) = @_;
 
-    my $file = $self->conf->{jsonFileUserPath} || $ENV{LLNG_JSONUSERS};
-    unless ($file) {
+    my $userDB = $self->conf->{userDB};
+    unless ( $userDB eq 'JsonFile' || $userDB eq 'Same' ) {
         $self->logger->error(
-            "jsonFileUserPath not set in configuration"
-              . " and LLNG_JSONUSERS environment variable is not set" );
+            "Auth::JsonFile requires userDB to be set to 'JsonFile' or 'Same'"
+        );
         return 0;
     }
-    unless ( -r $file ) {
-        $self->logger->error("Cannot read JSON users file: $file");
-        return 0;
-    }
-
-    my $json;
-    eval {
-        open my $fh, '<', $file or die "Cannot open $file: $!";
-        local $/;
-        $json = JSON::decode_json(<$fh>);
-        close $fh;
-    };
-    if ($@) {
-        $self->logger->error("Failed to load JSON users file: $@");
-        return 0;
-    }
-
-    # Extract passwords from user entries
-    my %passwords;
-    if ( $json->{users} ) {
-        for my $user ( keys %{ $json->{users} } ) {
-            $passwords{$user} = $json->{users}{$user}{password} // $user;
-        }
-    }
-    $self->passwords( \%passwords );
 
     $self->logger->warn(
         "Using JsonFile authentication backend (development/test only)");
@@ -65,7 +38,14 @@ sub init {
 sub authenticate {
     my ( $self, $req ) = @_;
 
-    my $password = $self->passwords->{ $req->{user} };
+    my $userDB = $self->p->_userDB;
+    unless ( $userDB && $userDB->isa('Lemonldap::NG::Portal::UserDB::JsonFile') )
+    {
+        $self->logger->error("Auth::JsonFile: UserDB::JsonFile is not loaded");
+        return PE_BADCREDENTIALS;
+    }
+
+    my $password = $userDB->passwords->{ $req->{user} };
     unless ( defined $password && $password eq $req->data->{password} ) {
         $self->userLogger->warn("Bad password for $req->{user}");
         $self->setSecurity($req);

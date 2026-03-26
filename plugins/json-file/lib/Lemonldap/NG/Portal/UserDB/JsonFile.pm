@@ -6,6 +6,8 @@
 # Load user attributes and groups from a JSON file.
 # Inherits from Demo userDB backend, replacing its accounts and groups
 # data with content from the JSON file.
+#
+# Also stores passwords for use by Auth::JsonFile.
 # JSON file path is read from jsonFileUserPath config parameter
 # or LLNG_JSONUSERS environment variable.
 package Lemonldap::NG::Portal::UserDB::JsonFile;
@@ -17,6 +19,8 @@ use JSON;
 extends 'Lemonldap::NG::Portal::UserDB::Demo';
 
 our $VERSION = '0.1.0';
+
+has passwords => ( is => 'rw', default => sub { {} } );
 
 sub init {
     my ($self) = @_;
@@ -49,8 +53,10 @@ sub init {
     %Lemonldap::NG::Portal::UserDB::Demo::demoAccounts = ();
     %Lemonldap::NG::Portal::UserDB::Demo::demoGroups   = ();
 
+    my %passwords;
     if ( $json->{users} ) {
         for my $user ( keys %{ $json->{users} } ) {
+            $passwords{$user} = $json->{users}{$user}{password} // $user;
             my %attrs = %{ $json->{users}{$user} };
             delete $attrs{password};
             $attrs{uid} //= $user;
@@ -58,6 +64,7 @@ sub init {
               \%attrs;
         }
     }
+    $self->passwords( \%passwords );
 
     if ( $json->{groups} ) {
         %Lemonldap::NG::Portal::UserDB::Demo::demoGroups =
