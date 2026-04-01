@@ -232,7 +232,7 @@ jobs:
 
             <h3>3. Install plugins</h3>
             <pre>sudo apt update
-sudo apt install linagora-lemonldap-ng-plugin-json-file linagora-lemonldap-ng-plugin-matrix-token-exchange</pre>
+            sudo apt install linagora-lemonldap-ng-plugin-json-file linagora-lemonldap-ng-plugin-matrix-token-exchange</pre>
 
             <div class="note">
               <strong>LLNG &lt; 2.23.0:</strong> the <code>linagora-lemonldap-ng-store</code>
