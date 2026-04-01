@@ -219,6 +219,28 @@ jobs:
             <code>lemonldap-ng.ini</code>.</p>
             <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
 
+            <h2>Debian Repository</h2>
+            <p>All plugins are also available as Debian packages. The rebuild of
+            Manager files is triggered only once, even when installing multiple
+            plugins simultaneously.</p>
+
+            <h3>1. Import the GPG key</h3>
+            <pre>curl -fsSL ${PAGES_URL}store-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/linagora-llng-plugins.gpg</pre>
+
+            <h3>2. Add the repository</h3>
+            <pre>echo "deb [signed-by=/usr/share/keyrings/linagora-llng-plugins.gpg] ${PAGES_URL}debian stable main" | sudo tee /etc/apt/sources.list.d/linagora-llng-plugins.list</pre>
+
+            <h3>3. Install plugins</h3>
+            <pre>sudo apt update
+sudo apt install linagora-lemonldap-ng-plugin-json-file linagora-lemonldap-ng-plugin-matrix-token-exchange</pre>
+
+            <div class="note">
+              <strong>LLNG &lt; 2.23.0:</strong> the <code>linagora-lemonldap-ng-store</code>
+              package is available in this repository and provides
+              <code>lemonldap-ng-store</code> for older LemonLDAP::NG versions.
+              It is pulled automatically as a dependency when needed.
+            </div>
+
             <h2>Documentation</h2>
             <p>Full documentation for each plugin is available on the
             <a href="https://github.com/linagora/lemonldap-ng-plugins/?tab=readme-ov-file#lemonldapng-plugins">project README</a>.</p>
@@ -231,6 +253,17 @@ jobs:
           </body>
           </html>
           HTMLEOF
+
+      - name: Build Debian packages
+        run: |
+          chmod +x debian/build-debs.sh
+          TAG="${GITHUB_REF_NAME#v}"
+          TAG="$TAG" debian/build-debs.sh _debs
+
+      - name: Build APT repository
+        run: |
+          chmod +x debian/build-repo.sh
+          GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" debian/build-repo.sh _debs _site/debian
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

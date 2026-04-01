@@ -11,7 +11,7 @@ This repository contains:
 
 ## Lemonldap::NG plugins
 
-These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/).
+These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
 
 ### Installation with `lemonldap-ng-store` (LLNG >= 2.23.0)
 
@@ -29,6 +29,28 @@ sudo lemonldap-ng-store install <plugin-name> --activate
 ### Manual installation
 
 See doc of wanted plugin.
+
+### Installation with Debian packages
+
+All plugins are also available as Debian packages. A [Debian repository](https://linagora.github.io/lemonldap-ng-plugins/debian) is published alongside the store.
+
+```bash
+# Import the GPG key
+curl -fsSL https://linagora.github.io/lemonldap-ng-plugins/store-key.asc \
+  | sudo gpg --dearmor -o /usr/share/keyrings/linagora-llng-plugins.gpg
+
+# Add the repository
+echo "deb [signed-by=/usr/share/keyrings/linagora-llng-plugins.gpg] https://linagora.github.io/lemonldap-ng-plugins/debian stable main" \
+  | sudo tee /etc/apt/sources.list.d/linagora-llng-plugins.list
+
+# Install plugins
+sudo apt update
+sudo apt install linagora-lemonldap-ng-plugin-json-file
+```
+
+The Manager rebuild is triggered only once via dpkg triggers, even when installing multiple plugins simultaneously.
+
+> **LLNG < 2.23.0:** the `linagora-lemonldap-ng-store` package is available in this repository and provides `lemonldap-ng-store` for older LemonLDAP::NG versions. It is pulled automatically when needed.
 
 ### Available plugins
 
