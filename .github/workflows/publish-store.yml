@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Import GPG key
         run: |
@@ -147,6 +147,9 @@ jobs:
           echo "Store index:"
           jq . "$STORE_DIR/index.json"
 
+          # Copy logo
+          cp linagora.png "$STORE_DIR/linagora.png"
+
           # Generate index.html landing page
           PLUGIN_COUNT=$(echo "$PLUGINS_JSON" | jq length)
           PLUGIN_ROWS=""
@@ -161,95 +164,118 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>LINAGORA's LemonLDAP::NG Plugin Store</title>
+            <title>Linagora's LemonLDAP::NG Plugin Store</title>
             <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 2em auto; padding: 0 1em; color: #333; }
-              h1 { color: #2c5f2d; }
-              h2 { color: #444; border-bottom: 1px solid #ddd; padding-bottom: .3em; }
-              table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-              th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-              th { background: #f5f5f5; }
-              code, pre { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-              pre { padding: 1em; overflow-x: auto; }
-              .note { background: #e8f5e9; border-left: 4px solid #2c5f2d; padding: 1em; margin: 1em 0; }
+              :root { --primary: #c8102e; --primary-light: #fdeaed; --gray: #f8f9fa; --border: #e0e0e0; }
+              * { box-sizing: border-box; margin: 0; padding: 0; }
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; line-height: 1.6; }
+              .header { background: linear-gradient(135deg, var(--primary) 0%, #8b0a1e 100%); color: #fff; padding: 2em 1em; text-align: center; }
+              .header img { height: 36px; margin-bottom: 1em; }
+              .header h1 { font-size: 1.8em; font-weight: 600; margin-bottom: .3em; }
+              .header p { opacity: .9; font-size: 1.1em; }
+              .container { max-width: 960px; margin: 0 auto; padding: 2em 1em; }
+              h2 { color: var(--primary); font-size: 1.3em; margin: 2em 0 .8em; padding-bottom: .4em; border-bottom: 2px solid var(--primary-light); }
+              h3 { color: #555; font-size: 1em; margin: 1.2em 0 .4em; }
+              table { border-collapse: collapse; width: 100%; margin: 1em 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
+              th { background: var(--primary); color: #fff; padding: 10px 14px; text-align: left; font-weight: 500; }
+              td { padding: 10px 14px; border-top: 1px solid var(--border); }
+              tr:nth-child(even) { background: var(--gray); }
+              code { background: #eee; padding: 2px 6px; border-radius: 3px; font-size: .9em; }
+              pre { background: #1e1e1e; color: #d4d4d4; padding: 1em 1.2em; border-radius: 6px; overflow-x: auto; font-size: .85em; line-height: 1.5; margin: .6em 0; }
+              .note { background: var(--primary-light); border-left: 4px solid var(--primary); padding: 1em 1.2em; border-radius: 0 6px 6px 0; margin: 1em 0; }
+              .note strong { color: var(--primary); }
+              .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1em; margin: 1em 0; }
+              .card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 1.2em; }
+              .card h3 { margin: 0 0 .5em; color: var(--primary); }
+              .card pre { font-size: .8em; }
+              .footer { text-align: center; padding: 2em 1em; color: #888; font-size: .85em; border-top: 1px solid var(--border); margin-top: 2em; }
+              .footer a { color: var(--primary); }
+              .badge { display: inline-block; background: var(--primary); color: #fff; font-size: .75em; padding: 2px 8px; border-radius: 10px; vertical-align: middle; }
             </style>
           </head>
           <body>
-            <h1>LINAGORA's LemonLDAP::NG Plugin Store</h1>
-            <p>This store provides <strong>${PLUGIN_COUNT} plugin(s)</strong> for
-            <a href="https://lemonldap-ng.org">LemonLDAP::NG</a>.</p>
-
-            <h2>Available Plugins</h2>
-            <table>
-              <thead><tr><th>Name</th><th>Version</th><th>Summary</th><th>LLNG Compat</th></tr></thead>
-              <tbody>${PLUGIN_ROWS}</tbody>
-            </table>
-
-            <h2>How to Use</h2>
-
-            <h3>1. Register this store</h3>
-            <pre>sudo lemonldap-ng-store add-store ${PAGES_URL}</pre>
-
-            <h3>2. List available plugins</h3>
-            <pre>lemonldap-ng-store list</pre>
-
-            <h3>3. Install a plugin</h3>
-            <pre>sudo lemonldap-ng-store install &lt;plugin-name&gt; --activate</pre>
-
-            <h3>4. Restart the portal</h3>
-            <pre>sudo systemctl restart lemonldap-ng-fastcgi-server</pre>
-
-            <div class="note">
-              <strong>Note:</strong> <code>--activate</code> automatically adds the plugin to
-              <code>customPlugins</code> in your LLNG configuration (requires <code>lemonldap-ng-cli</code>).
-              Without it, you must add the plugin manually via the Manager.
+            <div class="header">
+              <img src="linagora.png" alt="Linagora">
+              <h1>LemonLDAP::NG Plugin Store</h1>
+              <p><span class="badge">${PLUGIN_COUNT} plugins</span> ready to install</p>
             </div>
 
-            <h2>Other Commands</h2>
-            <pre>lemonldap-ng-store info &lt;plugin-name&gt;       # Show plugin details
+            <div class="container">
+              <h2>Available Plugins</h2>
+              <table>
+                <thead><tr><th>Name</th><th>Version</th><th>Description</th><th>Compat</th></tr></thead>
+                <tbody>${PLUGIN_ROWS}</tbody>
+              </table>
+
+              <h2>Quick Start</h2>
+              <div class="cards">
+                <div class="card">
+                  <h3>1. Register this store</h3>
+                  <pre>sudo lemonldap-ng-store add-store \\
+            ${PAGES_URL}</pre>
+                </div>
+                <div class="card">
+                  <h3>2. Browse &amp; install</h3>
+                  <pre>lemonldap-ng-store list
+          sudo lemonldap-ng-store install \\
+            &lt;plugin&gt; --activate</pre>
+                </div>
+                <div class="card">
+                  <h3>3. Restart</h3>
+                  <pre>sudo systemctl restart \\
+            lemonldap-ng-fastcgi-server</pre>
+                </div>
+              </div>
+
+              <div class="note">
+                <strong>Tip:</strong> <code>--activate</code> automatically adds the plugin to
+                <code>customPlugins</code> via <code>lemonldap-ng-cli</code>.
+              </div>
+
+              <h2>Other Commands</h2>
+              <pre>lemonldap-ng-store info &lt;plugin-name&gt;       # Show plugin details
           lemonldap-ng-store installed                  # List installed plugins
           lemonldap-ng-store check                      # Check for updates
           sudo lemonldap-ng-store remove &lt;plugin-name&gt; # Remove a plugin</pre>
 
-            <h2>GPG Verification</h2>
-            <p>All plugin archives are signed. The GPG key is automatically imported
-            and its fingerprint recorded when you register the store with
-            <code>add-store</code> (Trust On First Use). To enforce signature verification,
-            set <code>gpgVerify = required</code> in the <code>[store]</code> section of
-            <code>lemonldap-ng.ini</code>.</p>
-            <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
+              <h2>GPG Verification</h2>
+              <p>All archives are signed. The key is imported automatically on
+              <code>add-store</code> (Trust On First Use). Set
+              <code>gpgVerify = required</code> in <code>[store]</code> to enforce it.</p>
+              <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
 
-            <h2>Debian Repository</h2>
-            <p>All plugins are also available as Debian packages. The rebuild of
-            Manager files is triggered only once, even when installing multiple
-            plugins simultaneously.</p>
+              <h2>Debian Repository</h2>
+              <p>All plugins are also available as <a href="debian/">Debian packages</a>.</p>
 
-            <h3>1. Import the GPG key</h3>
-            <pre>curl -fsSL ${PAGES_URL}store-key.asc | sudo gpg --dearmor -o /usr/share/keyrings/linagora-llng-plugins.gpg</pre>
+              <h3>Setup</h3>
+              <pre>curl -fsSL ${PAGES_URL}store-key.asc \\
+            | sudo gpg --dearmor -o /usr/share/keyrings/linagora-llng-plugins.gpg
 
-            <h3>2. Add the repository</h3>
-            <pre>echo "deb [signed-by=/usr/share/keyrings/linagora-llng-plugins.gpg] ${PAGES_URL}debian stable main" | sudo tee /etc/apt/sources.list.d/linagora-llng-plugins.list</pre>
+          echo "deb [signed-by=/usr/share/keyrings/linagora-llng-plugins.gpg] \\
+            ${PAGES_URL}debian stable main" \\
+            | sudo tee /etc/apt/sources.list.d/linagora-llng-plugins.list
 
-            <h3>3. Install plugins</h3>
-            <pre>sudo apt update
-            sudo apt install linagora-lemonldap-ng-plugin-json-file linagora-lemonldap-ng-plugin-matrix-token-exchange</pre>
+          sudo apt update
+          sudo apt install linagora-lemonldap-ng-plugin-&lt;name&gt;</pre>
 
-            <div class="note">
-              <strong>LLNG &lt; 2.23.0:</strong> the <code>linagora-lemonldap-ng-store</code>
-              package is available in this repository and provides
-              <code>lemonldap-ng-store</code> for older LemonLDAP::NG versions.
-              It is pulled automatically as a dependency when needed.
+              <div class="note">
+                <strong>LLNG &lt; 2.23.0:</strong> the <code>linagora-lemonldap-ng-store</code>
+                package in this repository provides <code>lemonldap-ng-store</code> for
+                older versions. It is pulled automatically when needed.
+              </div>
+
+              <h2>Links</h2>
+              <p>
+                <a href="index.json">Store index (JSON)</a> &middot;
+                <a href="https://github.com/linagora/lemonldap-ng-plugins">Source repository</a> &middot;
+                <a href="https://lemonldap-ng.org">LemonLDAP::NG</a>
+              </p>
             </div>
 
-            <h2>Documentation</h2>
-            <p>Full documentation for each plugin is available on the
-            <a href="https://github.com/linagora/lemonldap-ng-plugins/?tab=readme-ov-file#lemonldapng-plugins">project README</a>.</p>
-
-            <h2>Store URL</h2>
-            <p>The machine-readable index is at <a href="index.json"><code>index.json</code></a>.</p>
-
-            <p><small>Generated on $(date -u +%Y-%m-%d) from tag ${TAG} &mdash;
-            <a href="${STORE_URL}">Source repository</a></small></p>
+            <div class="footer">
+              Generated on $(date -u +%Y-%m-%d) from tag ${TAG}<br>
+              &copy; <a href="https://linagora.com">Linagora</a>
+            </div>
           </body>
           </html>
           HTMLEOF
@@ -266,7 +292,7 @@ jobs:
           GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" debian/build-repo.sh _debs _site/debian
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: _site
 
@@ -279,4 +305,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
