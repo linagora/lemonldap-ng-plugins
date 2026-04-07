@@ -154,6 +154,12 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   # Build Depends
   depends="$(build_perl_depends "$perl_requires" "liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store")"
 
+  # Add inter-plugin dependencies
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    depends="${depends}, linagora-lemonldap-ng-plugin-${dep}"
+  done < <(jq -r '.depends // [] | .[]' "$plugin_json")
+
   # control file
   cat > "${PKG_BUILD}/DEBIAN/control" <<EOF
 Package: ${pkg_name}

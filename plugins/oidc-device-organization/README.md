@@ -30,6 +30,10 @@ With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 sudo lemonldap-ng-store install oidc-device-organization --activate
 ```
 
+> **Important:** `::Plugins::OIDCDeviceAuthorization` must appear **before**
+> `::Plugins::OIDCDeviceOrganization` in `customPlugins` so that the hooks
+> it provides are registered first.
+
 ## Configuration
 
 For each OIDC RP:
