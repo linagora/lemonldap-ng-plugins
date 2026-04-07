@@ -1,0 +1,28 @@
+{
+  "attributes": {
+    "oidcRPMetaDataOptionsDeviceOwnership": {
+      "type": "select",
+      "select": [
+        { "k": "", "v": "user (default)" },
+        { "k": "organization", "v": "organization" }
+      ],
+      "default": "",
+      "documentation": "Device ownership type: user (token tied to approving user) or organization (token identifies the client)"
+    }
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_after": "oidcRPMetaDataOptionsAllowDeviceAuthorization",
+      "nodes": [
+        "oidcRPMetaDataOptionsDeviceOwnership"
+      ]
+    }
+  },
+  "lang": {
+    "oidcRPMetaDataOptionsDeviceOwnership": {
+      "en": "Device ownership",
+      "fr": "Propriété du device"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "attributes": {
+    "oidcServiceDeviceAuthorizationExpiration": {
+      "type": "int",
+      "default": 600,
+      "documentation": "OpenID Connect Device Authorization code TTL (RFC 8628)"
+    },
+    "oidcServiceDeviceAuthorizationPollingInterval": {
+      "type": "int",
+      "default": 5,
+      "documentation": "OpenID Connect Device Authorization polling interval (RFC 8628)"
+    },
+    "oidcServiceDeviceAuthorizationUserCodeLength": {
+      "type": "int",
+      "default": 8,
+      "documentation": "OpenID Connect Device Authorization user code length (RFC 8628)"
+    },
+    "oidcRPMetaDataOptionsAllowDeviceAuthorization": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Enable Device Authorization Grant (RFC 8628)"
+    }
+  },
+  "tree": {
+    "insert_into": "oidcServiceMetaData",
+    "insert_after": "oidcServiceMetaDataTimeouts",
+    "nodes": [
+      {
+        "title": "oidcServiceMetaDataDeviceAuthorization",
+        "help": "oidcdeviceauthorization.html",
+        "form": "simpleInputContainer",
+        "nodes": [
+          "oidcServiceDeviceAuthorizationExpiration",
+          "oidcServiceDeviceAuthorizationPollingInterval",
+          "oidcServiceDeviceAuthorizationUserCodeLength"
+        ]
+      }
+    ]
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_after": "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
+      "nodes": [
+        "oidcRPMetaDataOptionsAllowDeviceAuthorization"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceMetaDataDeviceAuthorization": {
+      "en": "Device Authorization (RFC 8628)",
+      "fr": "Autorisation d'appareil (RFC 8628)"
+    },
+    "oidcServiceDeviceAuthorizationExpiration": {
+      "en": "Device code expiration",
+      "fr": "Expiration du code appareil"
+    },
+    "oidcServiceDeviceAuthorizationPollingInterval": {
+      "en": "Polling interval",
+      "fr": "Intervalle de polling"
+    },
+    "oidcServiceDeviceAuthorizationUserCodeLength": {
+      "en": "User code length",
+      "fr": "Longueur du code utilisateur"
+    },
+    "oidcRPMetaDataOptionsAllowDeviceAuthorization": {
+      "en": "Allow Device Authorization Grant (RFC 8628)",
+      "fr": "Autoriser le Device Authorization Grant (RFC 8628)"
+    }
+  }
+}

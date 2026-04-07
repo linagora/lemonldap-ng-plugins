@@ -1,0 +1,14 @@
+{
+  "name": "oidc-device-organization",
+  "version": "0.1.0",
+  "summary": "Organization Device Ownership for OIDC Device Authorization",
+  "description": "Extension to RFC 8628 Device Authorization Grant. When a RP is configured with organization ownership, tokens issued via Device Authorization Grant identify the client application rather than the approving admin. Useful for enrolling servers, kiosks, and IoT devices that belong to the organization.",
+  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.23.0",
+  "perl_requires": {},
+  "customPlugins": "::Plugins::OIDCDeviceOrganization",
+  "tags": ["oidc", "device", "organization", "bastion"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "post_install": "This plugin requires the oidc-device-authorization plugin to be installed and active."
+}
