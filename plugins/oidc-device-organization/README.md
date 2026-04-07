@@ -11,6 +11,7 @@ who approved the device enrollment. With organization ownership, the token
 identifies the **client application** (the enrolled device) instead.
 
 This is useful for:
+
 - Server enrollment (bastions, CI/CD runners)
 - Kiosks and shared devices
 - IoT devices
@@ -33,11 +34,12 @@ sudo lemonldap-ng-store install oidc-device-organization --activate
 
 For each OIDC RP:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
+| Parameter                              | Default          | Description                                   |
+| -------------------------------------- | ---------------- | --------------------------------------------- |
 | `oidcRPMetaDataOptionsDeviceOwnership` | _(empty = user)_ | `organization` to enable org device ownership |
 
 When set to `organization`:
+
 - The admin approves the device enrollment
 - The resulting token's subject (`sub`) is the `client_id` instead of the admin
 - The token survives the admin leaving the organization

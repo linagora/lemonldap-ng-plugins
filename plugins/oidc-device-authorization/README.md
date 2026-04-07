@@ -37,17 +37,17 @@ add `::Plugins::OIDCDeviceAuthorization` to `customPlugins`, and run
 
 In the Manager under **OpenID Connect Service** > **Device Authorization**:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcServiceDeviceAuthorizationExpiration` | `600` | Device code TTL (seconds) |
-| `oidcServiceDeviceAuthorizationPollingInterval` | `5` | Min polling interval (seconds) |
-| `oidcServiceDeviceAuthorizationUserCodeLength` | `8` | User code length |
+| Parameter                                       | Default | Description                    |
+| ----------------------------------------------- | ------- | ------------------------------ |
+| `oidcServiceDeviceAuthorizationExpiration`      | `600`   | Device code TTL (seconds)      |
+| `oidcServiceDeviceAuthorizationPollingInterval` | `5`     | Min polling interval (seconds) |
+| `oidcServiceDeviceAuthorizationUserCodeLength`  | `8`     | User code length               |
 
 ### Per-RP Settings
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcRPMetaDataOptionsAllowDeviceAuthorization` | `0` | Enable for this RP |
+| Parameter                                       | Default | Description        |
+| ----------------------------------------------- | ------- | ------------------ |
+| `oidcRPMetaDataOptionsAllowDeviceAuthorization` | `0`     | Enable for this RP |
 
 ## See Also
 

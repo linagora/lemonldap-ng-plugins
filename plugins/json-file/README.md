@@ -121,13 +121,13 @@ JSON attributes to session variables. The default `exportedVars` mapping
 
 ## Differences from the Demo backend
 
-| Feature | Demo | JsonFile |
-|---------|------|----------|
-| User accounts | Hardcoded (dwho, rtyler, msmith) | Loaded from JSON file |
-| Passwords | Always equal to username | Defined per user in JSON |
-| Attributes | Fixed set | Any attributes in JSON |
-| Groups | Hardcoded | Defined in JSON |
-| Reload | Requires restart | Reloads on config reload |
+| Feature       | Demo                             | JsonFile                 |
+| ------------- | -------------------------------- | ------------------------ |
+| User accounts | Hardcoded (dwho, rtyler, msmith) | Loaded from JSON file    |
+| Passwords     | Always equal to username         | Defined per user in JSON |
+| Attributes    | Fixed set                        | Any attributes in JSON   |
+| Groups        | Hardcoded                        | Defined in JSON          |
+| Reload        | Requires restart                 | Reloads on config reload |
 
 ## Keycloak-inspired usage
 

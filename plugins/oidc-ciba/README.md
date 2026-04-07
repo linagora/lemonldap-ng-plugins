@@ -41,26 +41,26 @@ into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCCIBA` to
 
 In the Manager, under **OpenID Connect Service** > **CIBA**:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcServiceMetaDataCibaURI` | `bc-authorize` | CIBA endpoint path |
-| `oidcServiceMetaDataCibaCallbackURI` | `ciba-callback` | Callback endpoint path |
-| `oidcServiceCibaExpiration` | `120` | Default auth_req_id TTL (seconds) |
-| `oidcServiceCibaMaxExpiration` | `300` | Maximum auth_req_id TTL (seconds) |
-| `oidcServiceCibaInterval` | `5` | Minimum polling interval (seconds) |
-| `oidcServiceCibaAuthenticationChannelUrl` | | External auth channel URL |
-| `oidcServiceCibaAuthenticationChannelSecret` | | Secret for outgoing auth channel requests |
-| `oidcServiceCibaCallbackSecret` | | Secret expected from auth channel callbacks |
+| Parameter                                    | Default         | Description                                 |
+| -------------------------------------------- | --------------- | ------------------------------------------- |
+| `oidcServiceMetaDataCibaURI`                 | `bc-authorize`  | CIBA endpoint path                          |
+| `oidcServiceMetaDataCibaCallbackURI`         | `ciba-callback` | Callback endpoint path                      |
+| `oidcServiceCibaExpiration`                  | `120`           | Default auth_req_id TTL (seconds)           |
+| `oidcServiceCibaMaxExpiration`               | `300`           | Maximum auth_req_id TTL (seconds)           |
+| `oidcServiceCibaInterval`                    | `5`             | Minimum polling interval (seconds)          |
+| `oidcServiceCibaAuthenticationChannelUrl`    |                 | External auth channel URL                   |
+| `oidcServiceCibaAuthenticationChannelSecret` |                 | Secret for outgoing auth channel requests   |
+| `oidcServiceCibaCallbackSecret`              |                 | Secret expected from auth channel callbacks |
 
 ### Per-RP Settings
 
 For each OIDC RP:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcRPMetaDataOptionsAllowCIBA` | `0` | Enable CIBA for this RP |
-| `oidcRPMetaDataOptionsCIBAMode` | `poll` | Delivery mode: `poll` or `ping` |
-| `oidcRPMetaDataOptionsCIBANotificationEndpoint` | | Client notification URL (ping mode) |
+| Parameter                                       | Default | Description                         |
+| ----------------------------------------------- | ------- | ----------------------------------- |
+| `oidcRPMetaDataOptionsAllowCIBA`                | `0`     | Enable CIBA for this RP             |
+| `oidcRPMetaDataOptionsCIBAMode`                 | `poll`  | Delivery mode: `poll` or `ping`     |
+| `oidcRPMetaDataOptionsCIBANotificationEndpoint` |         | Client notification URL (ping mode) |
 
 ## How It Works
 

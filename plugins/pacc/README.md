@@ -37,40 +37,40 @@ In the Manager, go to **OpenID Connect Service** > **PACC Configuration**:
 
 ### Main Parameters
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `paccEnabled` | 0 | Enable the PACC endpoint |
-| `paccAllowNativeClientRegistration` | 1 | Allow dynamic registration for native clients with loopback URIs |
-| `paccStrictNativeClientOnly` | 1 | Reject non-native client registrations in strict mode |
+| Parameter                           | Default | Description                                                      |
+| ----------------------------------- | ------- | ---------------------------------------------------------------- |
+| `paccEnabled`                       | 0       | Enable the PACC endpoint                                         |
+| `paccAllowNativeClientRegistration` | 1       | Allow dynamic registration for native clients with loopback URIs |
+| `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations in strict mode            |
 
 ### IMAP Settings
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `paccImapEnabled` | 0 | Enable IMAP in PACC response |
-| `paccImapHostname` | | IMAP server hostname |
-| `paccImapPort` | 993 | IMAP server port |
-| `paccImapAuth` | `OAuth2 sasl-SCRAM-SHA-256-PLUS` | Authentication methods (space-separated) |
+| Parameter          | Default                          | Description                              |
+| ------------------ | -------------------------------- | ---------------------------------------- |
+| `paccImapEnabled`  | 0                                | Enable IMAP in PACC response             |
+| `paccImapHostname` |                                  | IMAP server hostname                     |
+| `paccImapPort`     | 993                              | IMAP server port                         |
+| `paccImapAuth`     | `OAuth2 sasl-SCRAM-SHA-256-PLUS` | Authentication methods (space-separated) |
 
 ### SMTP Settings
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `paccSmtpEnabled` | 0 | Enable SMTP in PACC response |
-| `paccSmtpHostname` | | SMTP server hostname |
-| `paccSmtpPort` | 465 | SMTP server port |
-| `paccSmtpAuth` | `OAuth2` | Authentication methods (space-separated) |
+| Parameter          | Default  | Description                              |
+| ------------------ | -------- | ---------------------------------------- |
+| `paccSmtpEnabled`  | 0        | Enable SMTP in PACC response             |
+| `paccSmtpHostname` |          | SMTP server hostname                     |
+| `paccSmtpPort`     | 465      | SMTP server port                         |
+| `paccSmtpAuth`     | `OAuth2` | Authentication methods (space-separated) |
 
 ### Other Protocols
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `paccJmapEnabled` | 0 | Enable JMAP |
-| `paccJmapUrl` | | JMAP service URL |
-| `paccCalDavEnabled` | 0 | Enable CalDAV |
-| `paccCalDavUrl` | | CalDAV service URL |
-| `paccCardDavEnabled` | 0 | Enable CardDAV |
-| `paccCardDavUrl` | | CardDAV service URL |
+| Parameter            | Default | Description         |
+| -------------------- | ------- | ------------------- |
+| `paccJmapEnabled`    | 0       | Enable JMAP         |
+| `paccJmapUrl`        |         | JMAP service URL    |
+| `paccCalDavEnabled`  | 0       | Enable CalDAV       |
+| `paccCalDavUrl`      |         | CalDAV service URL  |
+| `paccCardDavEnabled` | 0       | Enable CardDAV      |
+| `paccCardDavUrl`     |         | CardDAV service URL |
 
 ## Example Response
 

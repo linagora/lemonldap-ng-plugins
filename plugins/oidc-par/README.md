@@ -34,15 +34,15 @@ to `customPlugins`, and run `llng-build-manager-files`.
 
 In the Manager, under **OpenID Connect Service**:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcServiceMetaDataPushedAuthURI` | `par` | PAR endpoint path |
-| `oidcServicePushedAuthExpiration` | `60` | PAR request_uri TTL in seconds |
+| Parameter                          | Default | Description                    |
+| ---------------------------------- | ------- | ------------------------------ |
+| `oidcServiceMetaDataPushedAuthURI` | `par`   | PAR endpoint path              |
+| `oidcServicePushedAuthExpiration`  | `60`    | PAR request_uri TTL in seconds |
 
 For each OIDC RP:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
+| Parameter                  | Default  | Description                                    |
+| -------------------------- | -------- | ---------------------------------------------- |
 | `oidcRPMetaDataOptionsPAR` | disabled | PAR mode: `disabled`, `allowed`, or `required` |
 
 When set to `required`, the RP **must** use PAR — direct authorization
@@ -52,8 +52,8 @@ requests without a `request_uri` are rejected.
 
 For each remote OP:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
+| Parameter                     | Default  | Description                                                    |
+| ----------------------------- | -------- | -------------------------------------------------------------- |
 | `oidcOPMetaDataOptionsUsePAR` | Disabled | `Disabled`, `Allowed` (use if OP advertises it), or `Required` |
 
 The client automatically reads `pushed_authorization_request_endpoint` from

@@ -54,13 +54,25 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 ### Available plugins
 
-| Plugin                                         | Description                                               |
-| ---------------------------------------------- | --------------------------------------------------------- |
-| [matrix-token-exchange](plugins/matrix)        | Matrix federation token exchange for OIDC relying parties |
-| [oidc-jarm](plugins/oidc-jarm)                 | JARM — JWT Secured Authorization Response Mode (RFC 9207) |
-| [reports](plugins/reports)                     | Session and browser usage reports (CSV)                   |
-| [mail-autodiscover](plugins/mail-autodiscover) | SMTP/IMAP autodiscover for Outlook and Thunderbird        |
-| [json-file](plugins/json-file)                 | JSON file-based Auth/UserDB backend for dev/test          |
+| Plugin                                         | Description                                                | Status |
+| ---------------------------------------------- | ---------------------------------------------------------- | ------ |
+| [matrix-token-exchange](plugins/matrix)        | Matrix federation token exchange for OIDC relying parties  | stable |
+| [reports](plugins/reports)                     | Session and browser usage reports (CSV)                    | stable |
+| [mail-autodiscover](plugins/mail-autodiscover) | SMTP/IMAP autodiscover for Outlook and Thunderbird         | stable |
+| [json-file](plugins/json-file)                 | JSON file-based Auth/UserDB backend for dev/test           | stable |
+| [pam-access](plugins/pam-access)               | PAM access token generation and authorization for SSH/sudo | beta   |
+| [ssh-ca](plugins/ssh-ca)                       | SSH Certificate Authority                                  | beta   |
+
+#### OIDC extensions
+
+| Plugin                                                         | Description                                               | Status |
+| -------------------------------------------------------------- | --------------------------------------------------------- | ------ |
+| [pacc](plugins/pacc)                                           | PACC — Provider Automatic Configuration for Clients       | beta   |
+| [oidc-jarm](plugins/oidc-jarm)                                 | JARM — JWT Secured Authorization Response Mode (RFC 9207) | beta   |
+| [oidc-par](plugins/oidc-par)                                   | Pushed Authorization Requests (RFC 9126)                  | beta   |
+| [oidc-ciba](plugins/oidc-ciba)                                 | Client-Initiated Backchannel Authentication (CIBA)        | beta   |
+| [oidc-device-authorization](plugins/oidc-device-authorization) | Device Authorization Grant (RFC 8628)                     | beta   |
+| [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
 
 ## Lemonldap::NG Long Term Support (LTS)
 
@@ -77,7 +89,7 @@ Here are the Lemonldap::NG "LTS" versions:
 
 ## License and copyright
 
-Copyright: 2024-2025 [Linagora](https://linagora.com)
+Copyright: 2024-2026 [Linagora](https://linagora.com)
 
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here
 are released under **GPL-2+ license**, unless specified:

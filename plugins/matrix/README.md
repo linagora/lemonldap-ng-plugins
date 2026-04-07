@@ -22,7 +22,7 @@ you need to have a valid `access_token`. This is the goal of this plugin.
 
 ## Installation
 
-With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+With `lemonldap-ng-store` _(LLNG >= 2.24.0)_ or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```
 sudo lemonldap-ng-store install matrix-token-exchange --activate

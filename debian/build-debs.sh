@@ -81,12 +81,12 @@ Package: linagora-lemonldap-ng-store
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-common-perl (<< 2.23.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
-Conflicts: liblemonldap-ng-common-perl (>= 2.23.0~)
+Depends: liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
+Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
 Section: web
 Priority: optional
 Description: Plugin store manager for LemonLDAP::NG (backport)
- Provides lemonldap-ng-store for LemonLDAP::NG versions prior to 2.23.0.
+ Provides lemonldap-ng-store for LemonLDAP::NG versions prior to 2.24.0.
 EOF
 
 # triggers file
@@ -152,7 +152,7 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   install_dir "${PKG_BUILD}/DEBIAN"
 
   # Build Depends
-  depends="$(build_perl_depends "$perl_requires" "liblemonldap-ng-common-perl (>= 2.23.0) | linagora-lemonldap-ng-store")"
+  depends="$(build_perl_depends "$perl_requires" "liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store")"
 
   # control file
   cat > "${PKG_BUILD}/DEBIAN/control" <<EOF
