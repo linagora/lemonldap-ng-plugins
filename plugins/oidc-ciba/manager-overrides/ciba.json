@@ -1,0 +1,165 @@
+{
+  "attributes": {
+    "oidcServiceMetaDataCibaURI": {
+      "type": "text",
+      "default": "bc-authorize",
+      "documentation": "OpenID Connect CIBA backchannel authentication endpoint URI"
+    },
+    "oidcServiceMetaDataCibaCallbackURI": {
+      "type": "text",
+      "default": "ciba-callback",
+      "documentation": "OpenID Connect CIBA callback endpoint URI"
+    },
+    "oidcServiceCibaExpiration": {
+      "type": "int",
+      "default": 120,
+      "documentation": "CIBA auth_req_id default expiration (seconds)"
+    },
+    "oidcServiceCibaMaxExpiration": {
+      "type": "int",
+      "default": 300,
+      "documentation": "CIBA auth_req_id maximum expiration (seconds)"
+    },
+    "oidcServiceCibaInterval": {
+      "type": "int",
+      "default": 5,
+      "documentation": "CIBA polling interval (seconds)"
+    },
+    "oidcServiceCibaAuthenticationChannelUrl": {
+      "type": "url",
+      "documentation": "External authentication channel URL for CIBA notifications"
+    },
+    "oidcServiceCibaAuthenticationChannelSecret": {
+      "type": "password",
+      "documentation": "Secret for authenticating to the external authentication channel"
+    },
+    "oidcServiceCibaCallbackSecret": {
+      "type": "password",
+      "documentation": "Secret expected from the authentication channel callback"
+    },
+    "oidcRPMetaDataOptionsAllowCIBA": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Allow CIBA (Client-Initiated Backchannel Authentication) flow"
+    },
+    "oidcRPMetaDataOptionsCIBAMode": {
+      "type": "select",
+      "select": [
+        { "k": "poll", "v": "Poll" },
+        { "k": "ping", "v": "Ping" }
+      ],
+      "default": "poll",
+      "documentation": "CIBA token delivery mode"
+    },
+    "oidcRPMetaDataOptionsCIBANotificationEndpoint": {
+      "type": "url",
+      "documentation": "Client notification endpoint (ping mode only)"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataEndPoints",
+      "insert_after": "oidcServiceMetaDataRpLogoutReturnURI",
+      "nodes": [
+        "oidcServiceMetaDataCibaURI"
+      ]
+    },
+    {
+      "insert_into": "oidcServiceMetaData",
+      "insert_after": "oidcServiceMetaDataSessions",
+      "nodes": [
+        {
+          "title": "oidcServiceCiba",
+          "help": "ciba.html",
+          "form": "simpleInputContainer",
+          "nodes": [
+            "oidcServiceMetaDataCibaCallbackURI",
+            "oidcServiceCibaExpiration",
+            "oidcServiceCibaMaxExpiration",
+            "oidcServiceCibaInterval",
+            "oidcServiceCibaAuthenticationChannelUrl",
+            "oidcServiceCibaAuthenticationChannelSecret",
+            "oidcServiceCibaCallbackSecret"
+          ]
+        }
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_after": "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
+      "nodes": [
+        "oidcRPMetaDataOptionsAllowCIBA"
+      ]
+    },
+    "_oidcRPMetaDataNodeCiba": {
+      "target": "oidcRPMetaDataNode",
+      "insert_before": "oidcRPMetaDataOptionsActivation",
+      "nodes": [
+        {
+          "title": "ciba",
+          "form": "simpleInputContainer",
+          "nodes": [
+            "oidcRPMetaDataOptionsCIBAMode",
+            "oidcRPMetaDataOptionsCIBANotificationEndpoint"
+          ]
+        }
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceCiba": {
+      "en": "CIBA (Backchannel Authentication)",
+      "fr": "CIBA (Authentification Backchannel)"
+    },
+    "oidcServiceMetaDataCibaURI": {
+      "en": "CIBA endpoint URI",
+      "fr": "URI du endpoint CIBA"
+    },
+    "oidcServiceMetaDataCibaCallbackURI": {
+      "en": "CIBA callback endpoint URI",
+      "fr": "URI du point de terminaison callback CIBA"
+    },
+    "oidcServiceCibaExpiration": {
+      "en": "CIBA default expiration (seconds)",
+      "fr": "Expiration CIBA par défaut (secondes)"
+    },
+    "oidcServiceCibaMaxExpiration": {
+      "en": "CIBA maximum expiration (seconds)",
+      "fr": "Expiration CIBA maximale (secondes)"
+    },
+    "oidcServiceCibaInterval": {
+      "en": "CIBA polling interval (seconds)",
+      "fr": "Intervalle de polling CIBA (secondes)"
+    },
+    "oidcServiceCibaAuthenticationChannelUrl": {
+      "en": "External authentication channel URL",
+      "fr": "URL du canal d'authentification externe"
+    },
+    "oidcServiceCibaAuthenticationChannelSecret": {
+      "en": "Authentication channel secret",
+      "fr": "Secret du canal d'authentification"
+    },
+    "oidcServiceCibaCallbackSecret": {
+      "en": "Callback secret",
+      "fr": "Secret de callback"
+    },
+    "oidcRPMetaDataOptionsAllowCIBA": {
+      "en": "Allow CIBA",
+      "fr": "Autoriser CIBA"
+    },
+    "ciba": {
+      "en": "CIBA",
+      "fr": "CIBA"
+    },
+    "oidcRPMetaDataOptionsCIBAMode": {
+      "en": "CIBA delivery mode",
+      "fr": "Mode de livraison CIBA"
+    },
+    "oidcRPMetaDataOptionsCIBANotificationEndpoint": {
+      "en": "CIBA notification endpoint",
+      "fr": "Endpoint de notification CIBA"
+    }
+  }
+}

@@ -11,7 +11,28 @@ our $VERSION = '2.23.0';
 
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
-use constant hook => { oidcGenerateAuthorizationResponse => 'wrapResponseInJwt', };
+use constant hook => {
+    oidcGenerateAuthorizationResponse => 'wrapResponseInJwt',
+    oidcGenerateMetadata              => 'addJarmMetadata',
+};
+
+sub addJarmMetadata {
+    my ( $self, $req, $metadata ) = @_;
+
+    # Add JARM response modes
+    push @{ $metadata->{response_modes_supported} },
+      "query.jwt", "fragment.jwt", "form_post.jwt", "jwt";
+
+    # Add JARM algorithm metadata
+    $metadata->{authorization_signing_alg_values_supported} =
+      $metadata->{id_token_signing_alg_values_supported};
+    $metadata->{authorization_encryption_alg_values_supported} =
+      $metadata->{id_token_encryption_alg_values_supported};
+    $metadata->{authorization_encryption_enc_values_supported} =
+      $metadata->{id_token_encryption_enc_values_supported};
+
+    return PE_OK;
+}
 
 sub wrapResponseInJwt {
     my ( $self, $req, $oidc_request, $rp, $response_params ) = @_;

@@ -1,0 +1,221 @@
+{
+  "attributes": {
+    "paccEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable PACC endpoint for mail client autoconfiguration"
+    },
+    "paccAllowNativeClientRegistration": {
+      "type": "bool",
+      "default": 1,
+      "documentation": "Allow dynamic registration for native clients even if globally disabled"
+    },
+    "paccStrictNativeClientOnly": {
+      "type": "bool",
+      "default": 1,
+      "documentation": "Reject registration if not all redirect_uris are loopback (native client)"
+    },
+    "paccImapEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable IMAP server in PACC configuration"
+    },
+    "paccImapHostname": {
+      "type": "hostname",
+      "documentation": "IMAP server hostname"
+    },
+    "paccImapPort": {
+      "type": "int",
+      "default": 993,
+      "documentation": "IMAP server port"
+    },
+    "paccImapAuth": {
+      "type": "text",
+      "default": "OAuth2 sasl-SCRAM-SHA-256-PLUS",
+      "documentation": "IMAP authentication methods (space-separated)"
+    },
+    "paccSmtpEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable SMTP server in PACC configuration"
+    },
+    "paccSmtpHostname": {
+      "type": "hostname",
+      "documentation": "SMTP server hostname"
+    },
+    "paccSmtpPort": {
+      "type": "int",
+      "default": 465,
+      "documentation": "SMTP server port"
+    },
+    "paccSmtpAuth": {
+      "type": "text",
+      "default": "OAuth2",
+      "documentation": "SMTP authentication methods (space-separated)"
+    },
+    "paccJmapEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable JMAP in PACC configuration"
+    },
+    "paccJmapUrl": {
+      "type": "url",
+      "documentation": "JMAP service URL"
+    },
+    "paccCalDavEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable CalDAV in PACC configuration"
+    },
+    "paccCalDavUrl": {
+      "type": "url",
+      "documentation": "CalDAV service URL"
+    },
+    "paccCardDavEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable CardDAV in PACC configuration"
+    },
+    "paccCardDavUrl": {
+      "type": "url",
+      "documentation": "CardDAV service URL"
+    }
+  },
+  "ctrees": {
+    "oidcServiceDynamicRegistration": {
+      "insert_after": "oidcServiceDynamicRegistrationExtraClaims",
+      "nodes_append": [
+        {
+          "title": "paccConfiguration",
+          "help": "pacc.html",
+          "nodes": [
+            "paccEnabled",
+            "paccAllowNativeClientRegistration",
+            "paccStrictNativeClientOnly",
+            {
+              "title": "paccImapSettings",
+              "help": "pacc.html#imap-settings",
+              "form": "simpleInputContainer",
+              "nodes": [
+                "paccImapEnabled",
+                "paccImapHostname",
+                "paccImapPort",
+                "paccImapAuth"
+              ]
+            },
+            {
+              "title": "paccSmtpSettings",
+              "help": "pacc.html#smtp-settings",
+              "form": "simpleInputContainer",
+              "nodes": [
+                "paccSmtpEnabled",
+                "paccSmtpHostname",
+                "paccSmtpPort",
+                "paccSmtpAuth"
+              ]
+            },
+            {
+              "title": "paccOtherProtocols",
+              "help": "pacc.html#other-protocols",
+              "form": "simpleInputContainer",
+              "nodes": [
+                "paccJmapEnabled",
+                "paccJmapUrl",
+                "paccCalDavEnabled",
+                "paccCalDavUrl",
+                "paccCardDavEnabled",
+                "paccCardDavUrl"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "lang": {
+    "paccConfiguration": {
+      "en": "PACC Configuration",
+      "fr": "Configuration PACC"
+    },
+    "paccEnabled": {
+      "en": "Enable PACC endpoint",
+      "fr": "Activer le point d'accès PACC"
+    },
+    "paccAllowNativeClientRegistration": {
+      "en": "Allow native client registration",
+      "fr": "Autoriser l'enregistrement des clients natifs"
+    },
+    "paccStrictNativeClientOnly": {
+      "en": "Strict native client only mode",
+      "fr": "Mode strict clients natifs uniquement"
+    },
+    "paccImapSettings": {
+      "en": "IMAP Settings",
+      "fr": "Paramètres IMAP"
+    },
+    "paccImapEnabled": {
+      "en": "Enable IMAP configuration",
+      "fr": "Activer la configuration IMAP"
+    },
+    "paccImapHostname": {
+      "en": "IMAP server hostname",
+      "fr": "Nom d'hôte du serveur IMAP"
+    },
+    "paccImapPort": {
+      "en": "IMAP server port",
+      "fr": "Port du serveur IMAP"
+    },
+    "paccImapAuth": {
+      "en": "IMAP authentication methods",
+      "fr": "Méthodes d'authentification IMAP"
+    },
+    "paccSmtpSettings": {
+      "en": "SMTP Settings",
+      "fr": "Paramètres SMTP"
+    },
+    "paccSmtpEnabled": {
+      "en": "Enable SMTP configuration",
+      "fr": "Activer la configuration SMTP"
+    },
+    "paccSmtpHostname": {
+      "en": "SMTP server hostname",
+      "fr": "Nom d'hôte du serveur SMTP"
+    },
+    "paccSmtpPort": {
+      "en": "SMTP server port",
+      "fr": "Port du serveur SMTP"
+    },
+    "paccSmtpAuth": {
+      "en": "SMTP authentication methods",
+      "fr": "Méthodes d'authentification SMTP"
+    },
+    "paccOtherProtocols": {
+      "en": "Other Protocols",
+      "fr": "Autres protocoles"
+    },
+    "paccJmapEnabled": {
+      "en": "Enable JMAP configuration",
+      "fr": "Activer la configuration JMAP"
+    },
+    "paccJmapUrl": {
+      "en": "JMAP service URL",
+      "fr": "URL du service JMAP"
+    },
+    "paccCalDavEnabled": {
+      "en": "Enable CalDAV configuration",
+      "fr": "Activer la configuration CalDAV"
+    },
+    "paccCalDavUrl": {
+      "en": "CalDAV service URL",
+      "fr": "URL du service CalDAV"
+    },
+    "paccCardDavEnabled": {
+      "en": "Enable CardDAV configuration",
+      "fr": "Activer la configuration CardDAV"
+    },
+    "paccCardDavUrl": {
+      "en": "CardDAV service URL",
+      "fr": "URL du service CardDAV"
+    }
+  }
+}

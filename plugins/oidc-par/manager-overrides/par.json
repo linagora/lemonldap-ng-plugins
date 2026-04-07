@@ -1,0 +1,84 @@
+{
+  "attributes": {
+    "oidcServiceMetaDataPushedAuthURI": {
+      "type": "text",
+      "default": "par",
+      "documentation": "OpenID Connect Pushed Authorization Request (PAR) endpoint"
+    },
+    "oidcServicePushedAuthExpiration": {
+      "type": "int",
+      "default": 60,
+      "documentation": "PAR request_uri TTL in seconds"
+    },
+    "oidcRPMetaDataOptionsPAR": {
+      "type": "select",
+      "select": [
+        { "k": "", "v": "disabled" },
+        { "k": "allowed", "v": "allowed" },
+        { "k": "required", "v": "required" }
+      ],
+      "default": "",
+      "documentation": "Pushed Authorization Requests (PAR) mode"
+    },
+    "oidcOPMetaDataOptionsUsePAR": {
+      "type": "select",
+      "select": [
+        { "k": "", "v": "Disabled" },
+        { "k": "allowed", "v": "Allowed (use if available)" },
+        { "k": "required", "v": "Required" }
+      ],
+      "default": "",
+      "documentation": "Use Pushed Authorization Requests (RFC 9126)"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataEndPoints",
+      "insert_after": "oidcServiceMetaDataRevokeURI",
+      "nodes": [
+        "oidcServiceMetaDataPushedAuthURI"
+      ]
+    },
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataTimeouts",
+      "insert_after": "oidcServiceOfflineSessionExpiration",
+      "nodes": [
+        "oidcServicePushedAuthExpiration"
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsSecurity",
+      "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
+      "nodes": [
+        "oidcRPMetaDataOptionsPAR"
+      ]
+    },
+    "oidcOPMetaDataNode": {
+      "insert_into": "oidcOPMetaDataOptions",
+      "insert_after": "oidcOPMetaDataOptionsRequireIss",
+      "nodes": [
+        "oidcOPMetaDataOptionsUsePAR"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceMetaDataPushedAuthURI": {
+      "en": "PAR endpoint URI",
+      "fr": "URI de l'endpoint PAR"
+    },
+    "oidcServicePushedAuthExpiration": {
+      "en": "PAR request expiration (s)",
+      "fr": "Expiration des requêtes PAR (s)"
+    },
+    "oidcRPMetaDataOptionsPAR": {
+      "en": "Pushed Authorization Requests (PAR)",
+      "fr": "Requêtes d'autorisation poussées (PAR)"
+    },
+    "oidcOPMetaDataOptionsUsePAR": {
+      "en": "Use PAR (Pushed Authorization Requests)",
+      "fr": "Utiliser PAR (Pushed Authorization Requests)"
+    }
+  }
+}
