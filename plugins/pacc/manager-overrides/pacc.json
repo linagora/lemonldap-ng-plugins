@@ -81,56 +81,55 @@
       "documentation": "CardDAV service URL"
     }
   },
-  "ctrees": {
-    "oidcServiceDynamicRegistration": {
-      "insert_after": "oidcServiceDynamicRegistrationExtraClaims",
-      "nodes_append": [
-        {
-          "title": "paccConfiguration",
-          "help": "pacc.html",
-          "nodes": [
-            "paccEnabled",
-            "paccAllowNativeClientRegistration",
-            "paccStrictNativeClientOnly",
-            {
-              "title": "paccImapSettings",
-              "help": "pacc.html#imap-settings",
-              "form": "simpleInputContainer",
-              "nodes": [
-                "paccImapEnabled",
-                "paccImapHostname",
-                "paccImapPort",
-                "paccImapAuth"
-              ]
-            },
-            {
-              "title": "paccSmtpSettings",
-              "help": "pacc.html#smtp-settings",
-              "form": "simpleInputContainer",
-              "nodes": [
-                "paccSmtpEnabled",
-                "paccSmtpHostname",
-                "paccSmtpPort",
-                "paccSmtpAuth"
-              ]
-            },
-            {
-              "title": "paccOtherProtocols",
-              "help": "pacc.html#other-protocols",
-              "form": "simpleInputContainer",
-              "nodes": [
-                "paccJmapEnabled",
-                "paccJmapUrl",
-                "paccCalDavEnabled",
-                "paccCalDavUrl",
-                "paccCardDavEnabled",
-                "paccCardDavUrl"
-              ]
-            }
-          ]
-        }
-      ]
-    }
+  "tree": {
+    "insert_into": "oidcServiceMetaData/oidcServiceDynamicRegistration",
+    "insert_after": "oidcServiceDynamicRegistrationExtraClaims",
+    "nodes": [
+      {
+        "title": "paccConfiguration",
+        "help": "pacc.html",
+        "nodes": [
+          "paccEnabled",
+          "paccAllowNativeClientRegistration",
+          "paccStrictNativeClientOnly",
+          {
+            "title": "paccImapSettings",
+            "help": "pacc.html#imap-settings",
+            "form": "simpleInputContainer",
+            "nodes": [
+              "paccImapEnabled",
+              "paccImapHostname",
+              "paccImapPort",
+              "paccImapAuth"
+            ]
+          },
+          {
+            "title": "paccSmtpSettings",
+            "help": "pacc.html#smtp-settings",
+            "form": "simpleInputContainer",
+            "nodes": [
+              "paccSmtpEnabled",
+              "paccSmtpHostname",
+              "paccSmtpPort",
+              "paccSmtpAuth"
+            ]
+          },
+          {
+            "title": "paccOtherProtocols",
+            "help": "pacc.html#other-protocols",
+            "form": "simpleInputContainer",
+            "nodes": [
+              "paccJmapEnabled",
+              "paccJmapUrl",
+              "paccCalDavEnabled",
+              "paccCalDavUrl",
+              "paccCardDavEnabled",
+              "paccCardDavUrl"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "lang": {
     "paccConfiguration": {
