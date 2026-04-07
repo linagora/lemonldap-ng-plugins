@@ -189,7 +189,11 @@ jobs:
               .card h3 { margin: 0 0 .5em; color: var(--primary); }
               .card pre { font-size: .8em; }
               .footer { text-align: center; padding: 2em 1em; color: #888; font-size: .85em; border-top: 1px solid var(--border); margin-top: 2em; }
-              .footer a { color: var(--primary); }
+              .footer a { color: var(--primary); text-decoration: none; }
+              .footer a:hover { text-decoration: underline; }
+              .footer-links { list-style: none; padding: 0; margin: 0 auto 1em; display: inline-block; text-align: left; }
+              .footer-links li { padding: .2em 0; }
+              .footer-links li::before { content: "\203a\00a0"; color: var(--primary); }
               .badge { display: inline-block; background: var(--primary); color: #fff; font-size: .75em; padding: 2px 8px; border-radius: 10px; vertical-align: middle; }
             </style>
           </head>
@@ -264,17 +268,18 @@ jobs:
                 older versions. It is pulled automatically when needed.
               </div>
 
-              <h2>Links</h2>
-              <p>
-                <a href="index.json">Store index (JSON)</a> &middot;
-                <a href="https://github.com/linagora/lemonldap-ng-plugins">Source repository</a> &middot;
-                <a href="https://lemonldap-ng.org">LemonLDAP::NG</a>
-              </p>
             </div>
 
             <div class="footer">
-              Generated on $(date -u +%Y-%m-%d) from tag ${TAG}<br>
-              &copy; <a href="https://linagora.com">Linagora</a>
+              <ul class="footer-links">
+                <li><a href="index.json">Store index (JSON)</a></li>
+                <li><a href="store-key.asc">GPG public key</a></li>
+                <li><a href="debian/">Debian packages</a></li>
+                <li><a href="https://github.com/linagora/lemonldap-ng-plugins">Source repository</a></li>
+                <li><a href="https://lemonldap-ng.org">LemonLDAP::NG</a></li>
+                <li><a href="https://linagora.com">Linagora</a></li>
+              </ul>
+              <p>Generated on $(date -u +%Y-%m-%d) from tag ${TAG}</p>
             </div>
           </body>
           </html>
