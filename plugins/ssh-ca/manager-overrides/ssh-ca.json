@@ -1,0 +1,115 @@
+{
+  "attributes": {
+    "sshCaActivation": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "SSH CA activation"
+    },
+    "sshCaKeyType": {
+      "type": "select",
+      "select": [
+        { "k": "ed25519", "v": "Ed25519" },
+        { "k": "ecdsa", "v": "ECDSA" },
+        { "k": "rsa", "v": "RSA" }
+      ],
+      "default": "ed25519",
+      "documentation": "SSH CA key type"
+    },
+    "sshCaKeyRef": {
+      "type": "text",
+      "documentation": "SSH CA key reference (key ID from LLNG keys)"
+    },
+    "sshCaCertMaxValidity": {
+      "type": "int",
+      "default": 365,
+      "documentation": "SSH certificate max validity (days)"
+    },
+    "sshCaPrincipalSources": {
+      "type": "text",
+      "default": "$uid",
+      "documentation": "SSH certificate principal sources (Perl expression)"
+    },
+    "sshCaKrlPath": {
+      "type": "text",
+      "default": "/var/lib/lemonldap-ng/ssh/revoked_keys",
+      "documentation": "Path to SSH Key Revocation List file"
+    },
+    "sshCaSerialPath": {
+      "type": "text",
+      "default": "/var/lib/lemonldap-ng/ssh/serial",
+      "documentation": "Path to SSH certificate serial number file"
+    },
+    "portalDisplaySshCa": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Display SSH CA signing tab in portal"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "generalParameters/portalParams/portalCustomization/portalTabs",
+      "insert_after": "portalDisplayOfflineTokens",
+      "nodes": [
+        "portalDisplaySshCa"
+      ]
+    },
+    {
+      "insert_into": "generalParameters/plugins",
+      "insert_after": "oidcOfflineTokens",
+      "nodes": [
+        {
+          "title": "sshCa",
+          "help": "sshca.html",
+          "form": "simpleInputContainer",
+          "nodes": [
+            "sshCaActivation",
+            "sshCaKeyType",
+            "sshCaKeyRef",
+            "sshCaCertMaxValidity",
+            "sshCaPrincipalSources",
+            "sshCaKrlPath",
+            "sshCaSerialPath"
+          ]
+        }
+      ]
+    }
+  ],
+  "lang": {
+    "sshCa": {
+      "en": "SSH CA",
+      "fr": "CA SSH"
+    },
+    "sshCaActivation": {
+      "en": "Activation",
+      "fr": "Activation"
+    },
+    "sshCaKeyType": {
+      "en": "CA key type",
+      "fr": "Type de clé CA"
+    },
+    "sshCaKeyRef": {
+      "en": "CA key reference",
+      "fr": "Référence de la clé CA"
+    },
+    "sshCaCertMaxValidity": {
+      "en": "Maximum validity (days)",
+      "fr": "Validité maximale (jours)"
+    },
+    "sshCaPrincipalSources": {
+      "en": "Principal sources",
+      "fr": "Sources des principals"
+    },
+    "sshCaKrlPath": {
+      "en": "KRL file path",
+      "fr": "Chemin du fichier KRL"
+    },
+    "sshCaSerialPath": {
+      "en": "Serial file path",
+      "fr": "Chemin du fichier de série"
+    },
+    "portalDisplaySshCa": {
+      "en": "Display SSH CA tab",
+      "fr": "Afficher l'onglet CA SSH"
+    }
+  }
+}

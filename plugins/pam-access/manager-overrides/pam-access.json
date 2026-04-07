@@ -1,0 +1,181 @@
+{
+  "attributes": {
+    "pamAccessActivation": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "PAM access token generation activation"
+    },
+    "pamAccessTokenDuration": {
+      "type": "int",
+      "default": 600,
+      "documentation": "Default PAM access token validity (seconds)"
+    },
+    "pamAccessMaxDuration": {
+      "type": "int",
+      "default": 3600,
+      "documentation": "Maximum PAM access token validity (seconds)"
+    },
+    "pamAccessServerGroups": {
+      "type": "keyTextContainer",
+      "default": { "default": 1 },
+      "documentation": "Authorization rules per PAM server group (legacy, use SSH/Sudo rules)"
+    },
+    "pamAccessSshRules": {
+      "type": "keyTextContainer",
+      "default": {},
+      "documentation": "SSH authorization rules per server group"
+    },
+    "pamAccessSudoRules": {
+      "type": "keyTextContainer",
+      "default": {},
+      "documentation": "Sudo authorization rules per server group"
+    },
+    "pamAccessRp": {
+      "type": "text",
+      "default": "pam-access",
+      "documentation": "OIDC RP name for PAM tokens"
+    },
+    "pamAccessHeartbeatInterval": {
+      "type": "int",
+      "default": 300,
+      "documentation": "Expected heartbeat interval from PAM servers (seconds)"
+    },
+    "pamAccessInactiveThreshold": {
+      "type": "int",
+      "default": 900,
+      "documentation": "Time after which a PAM server is considered inactive (seconds)"
+    },
+    "pamAccessHeartbeatRequired": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Require recent heartbeat for /pam/authorize requests"
+    },
+    "pamAccessExportedVars": {
+      "type": "keyTextContainer",
+      "default": {},
+      "documentation": "Exported variables for PAM user provisioning"
+    },
+    "pamAccessOfflineEnabled": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Enable offline mode for PAM authorization caching"
+    },
+    "pamAccessOfflineTtl": {
+      "type": "int",
+      "default": 86400,
+      "documentation": "Default offline authorization cache TTL (seconds)"
+    },
+    "portalDisplayPamAccess": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Display PAM access token tab in portal"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "generalParameters/portalParams/portalCustomization/portalTabs",
+      "insert_after": "portalDisplayOfflineTokens",
+      "nodes": [
+        "portalDisplayPamAccess"
+      ]
+    },
+    {
+      "insert_into": "generalParameters/plugins",
+      "insert_after": "oidcOfflineTokens",
+      "nodes": [
+        {
+          "title": "pamAccess",
+          "help": "pamaccess.html",
+          "form": "simpleInputContainer",
+          "nodes": [
+            "pamAccessActivation",
+            "pamAccessTokenDuration",
+            "pamAccessMaxDuration",
+            {
+              "title": "pamAccessAuthzRules",
+              "form": "simpleInputContainer",
+              "nodes": [
+                "pamAccessServerGroups",
+                "pamAccessSshRules",
+                "pamAccessSudoRules"
+              ]
+            },
+            "pamAccessRp",
+            "pamAccessHeartbeatInterval",
+            "pamAccessInactiveThreshold",
+            "pamAccessHeartbeatRequired",
+            "pamAccessExportedVars",
+            "pamAccessOfflineEnabled",
+            "pamAccessOfflineTtl"
+          ]
+        }
+      ]
+    }
+  ],
+  "lang": {
+    "pamAccess": {
+      "en": "PAM Access",
+      "fr": "Accès PAM"
+    },
+    "pamAccessActivation": {
+      "en": "Activation",
+      "fr": "Activation"
+    },
+    "pamAccessTokenDuration": {
+      "en": "Default token duration",
+      "fr": "Durée par défaut du token"
+    },
+    "pamAccessMaxDuration": {
+      "en": "Maximum token duration",
+      "fr": "Durée maximale du token"
+    },
+    "pamAccessAuthzRules": {
+      "en": "Authorization rules",
+      "fr": "Règles d'autorisation"
+    },
+    "pamAccessServerGroups": {
+      "en": "Server groups",
+      "fr": "Groupes de serveurs"
+    },
+    "pamAccessSshRules": {
+      "en": "SSH rules",
+      "fr": "Règles SSH"
+    },
+    "pamAccessSudoRules": {
+      "en": "Sudo rules",
+      "fr": "Règles sudo"
+    },
+    "pamAccessRp": {
+      "en": "OIDC Relying Party",
+      "fr": "Fournisseur de service OIDC"
+    },
+    "pamAccessHeartbeatInterval": {
+      "en": "Heartbeat interval",
+      "fr": "Intervalle de heartbeat"
+    },
+    "pamAccessInactiveThreshold": {
+      "en": "Inactive threshold",
+      "fr": "Seuil d'inactivité"
+    },
+    "pamAccessHeartbeatRequired": {
+      "en": "Require heartbeat",
+      "fr": "Exiger le heartbeat"
+    },
+    "pamAccessExportedVars": {
+      "en": "Exported variables",
+      "fr": "Variables exportées"
+    },
+    "pamAccessOfflineEnabled": {
+      "en": "Enable offline mode",
+      "fr": "Activer le mode hors ligne"
+    },
+    "pamAccessOfflineTtl": {
+      "en": "Offline cache TTL",
+      "fr": "TTL du cache hors ligne"
+    },
+    "portalDisplayPamAccess": {
+      "en": "Display PAM access token tab",
+      "fr": "Afficher l'onglet token d'accès PAM"
+    }
+  }
+}
