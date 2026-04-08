@@ -17,10 +17,20 @@ COMMON_VERSION="${TAG#v}"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
+# Perl modules whose Debian package name doesn't follow the lib<name>-perl convention
+declare -A PERL_DEB_MAP=(
+  ["Date::Parse"]="libtimedate-perl"
+  ["Date::Format"]="libtimedate-perl"
+)
+
 # Convert a Perl module name to a Debian package name
 # e.g. Net::DNS -> libnet-dns-perl
 perl_mod_to_deb() {
   local mod="$1"
+  if [ -n "${PERL_DEB_MAP[$mod]+x}" ]; then
+    echo "${PERL_DEB_MAP[$mod]}"
+    return
+  fi
   echo "$mod" | tr '[:upper:]' '[:lower:]' | sed 's/::/-/g' | sed 's/^/lib/' | sed 's/$/-perl/'
 }
 
