@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "oidcRPMetaDataOptionsAllowScopeApplications": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Allow 'applications' scope to expose portal menu applications in userinfo"
+    }
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_after": "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
+      "nodes": [
+        "oidcRPMetaDataOptionsAllowScopeApplications"
+      ]
+    }
+  },
+  "lang": {
+    "oidcRPMetaDataOptionsAllowScopeApplications": {
+      "en": "Allow applications scope",
+      "fr": "Autoriser le scope applications"
+    }
+  }
+}

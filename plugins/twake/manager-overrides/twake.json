@@ -1,0 +1,75 @@
+{
+  "attributes": {
+    "twakeWellKnown": {
+      "type": "keyTextContainer",
+      "documentation": ".well-known/twake-configuration content"
+    },
+    "twakeAppAccounts": {
+      "type": "bool",
+      "documentation": "Enable Twake applicative accounts"
+    },
+    "twakeAppLdapBranch": {
+      "type": "text",
+      "documentation": "LDAP branch for applicative accounts"
+    },
+    "twakeAppEntryFields": {
+      "type": "text",
+      "documentation": "Attributes to copy from user to applicative account"
+    },
+    "twakeAdminTokens": {
+      "type": "text",
+      "documentation": "Admin tokens for API access (comma/semicolon separated)"
+    }
+  },
+  "tree": {
+    "insert_into": "generalParameters/plugins",
+    "insert_after": "compactConf",
+    "nodes": [
+      {
+        "title": "twake",
+        "nodes": [
+          "twakeWellKnown",
+          {
+            "title": "appAcounts",
+            "nodes": [
+              "twakeAppAccounts",
+              "twakeAppLdapBranch",
+              "twakeAppEntryFields",
+              "twakeAdminTokens"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "lang": {
+    "twake": {
+      "en": "Twake",
+      "fr": "Twake"
+    },
+    "twakeWellKnown": {
+      "en": ".well-known/twake-configuration content",
+      "fr": "Contenu de .well-known/twake-configuration"
+    },
+    "twakeAppAccounts": {
+      "en": "Activation",
+      "fr": "Activation"
+    },
+    "twakeAppLdapBranch": {
+      "en": "Accounts LDAP branch",
+      "fr": "Branche LDAP des comptes"
+    },
+    "twakeAppEntryFields": {
+      "en": "Attributes to copy",
+      "fr": "Attributs à recopier"
+    },
+    "twakeAdminTokens": {
+      "en": "Admin tokens",
+      "fr": "Tokens d'administration"
+    },
+    "appAcounts": {
+      "en": "Applicative accounts",
+      "fr": "Comptes applicatifs"
+    }
+  }
+}

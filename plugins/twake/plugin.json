@@ -1,0 +1,17 @@
+{
+  "name": "twake",
+  "version": "0.1.0",
+  "summary": "Twake integration: well-known endpoint and applicative accounts",
+  "description": "Provides Twake integration for LemonLDAP::NG: a .well-known/twake-configuration endpoint and LDAP-based applicative account management (create/delete/list accounts with generated passwords).",
+  "author": "Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {
+    "String::Random": "0",
+    "Digest::SHA": "0",
+    "MIME::Base64": "0"
+  },
+  "customPlugins": "::Plugins::TwakeWellknown, ::Plugins::TwakeAppAccounts",
+  "tags": ["twake", "ldap", "accounts"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+}

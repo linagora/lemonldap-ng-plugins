@@ -62,6 +62,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [json-file](plugins/json-file)                 | JSON file-based Auth/UserDB backend for dev/test           | stable |
 | [pam-access](plugins/pam-access)               | PAM access token generation and authorization for SSH/sudo | beta   |
 | [ssh-ca](plugins/ssh-ca)                       | SSH Certificate Authority                                  | beta   |
+| [twake](plugins/twake)                         | Twake well-known endpoint and applicative accounts         | beta   |
 
 #### OIDC extensions
 
@@ -73,6 +74,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-ciba](plugins/oidc-ciba)                                 | Client-Initiated Backchannel Authentication (CIBA)        | beta   |
 | [oidc-device-authorization](plugins/oidc-device-authorization) | Device Authorization Grant (RFC 8628)                     | beta   |
 | [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
+| [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
 
 ## Lemonldap::NG Long Term Support (LTS)
 

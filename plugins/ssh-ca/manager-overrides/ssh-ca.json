@@ -47,7 +47,7 @@
   },
   "tree": [
     {
-      "insert_into": "generalParameters/portalParams/portalCustomization/portalTabs",
+      "insert_into": "generalParameters/portalParams/portalMenu/portalModules",
       "insert_after": "portalDisplayOfflineTokens",
       "nodes": [
         "portalDisplaySshCa"
