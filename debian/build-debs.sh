@@ -94,7 +94,7 @@ Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
 Depends: liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
-Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
+Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~), liblemonldap-ng-portal-perl (>= 2.23.0~)
 Section: web
 Priority: optional
 Description: Plugin store manager for LemonLDAP::NG (backport)
@@ -136,6 +136,10 @@ for pm_file in "${REPO_ROOT}/store/lib/Lemonldap/NG/Common/Store.pm" \
   rel="${pm_file#${REPO_ROOT}/store/lib/}"
   install_file "$pm_file" "${STORE_BUILD}/usr/share/perl5/${rel}"
 done
+
+# Install OIDCPlugin.pm backport (needed by OIDC plugins on LLNG < 2.23.0)
+install_file "${REPO_ROOT}/store/lib/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm" \
+  "${STORE_BUILD}/usr/share/perl5/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm"
 
 dpkg-deb --root-owner-group --build "${STORE_BUILD}" \
   "${OUTPUT_DIR}/linagora-lemonldap-ng-store_${COMMON_VERSION}_all.deb"
