@@ -21,6 +21,8 @@ trap 'rm -rf "$WORKDIR"' EXIT
 declare -A PERL_DEB_MAP=(
   ["Date::Parse"]="libtimedate-perl"
   ["Date::Format"]="libtimedate-perl"
+  ["URI::Escape"]="liburi-perl"
+  ["URI"]="liburi-perl"
 )
 
 # Convert a Perl module name to a Debian package name
