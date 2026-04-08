@@ -178,17 +178,17 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   done < <(jq -r '.depends // [] | .[]' "$plugin_json")
 
   # control file
-  cat > "${PKG_BUILD}/DEBIAN/control" <<EOF
-Package: ${pkg_name}
-Version: ${version}
-Architecture: all
-Maintainer: ${maintainer}
-Pre-Depends: ${pre_depends}
-${depends:+Depends: ${depends}}
-Section: web
-Priority: optional
-Description: ${summary}
-EOF
+  {
+    echo "Package: ${pkg_name}"
+    echo "Version: ${version}"
+    echo "Architecture: all"
+    echo "Maintainer: ${maintainer}"
+    echo "Pre-Depends: ${pre_depends}"
+    [ -n "$depends" ] && echo "Depends: ${depends}"
+    echo "Section: web"
+    echo "Priority: optional"
+    echo "Description: ${summary}"
+  } > "${PKG_BUILD}/DEBIAN/control"
 
   # Install Perl modules: lib/Lemonldap/NG/**/*.pm -> /usr/share/perl5/Lemonldap/NG/**/*.pm
   if [ -d "${plugin_dir}/lib" ]; then
