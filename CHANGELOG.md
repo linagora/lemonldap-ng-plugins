@@ -8,6 +8,8 @@
   and LDAP-based applicative account management.
 - **oidc-scope-applications**: OIDC `applications` scope exposing the portal
   application menu in the userinfo response.
+- **fixed-logout-redirection**: Force redirect to a fixed URL after logout,
+  bypassing the default portal logout page.
 
 ## v0.1.3 - 2026-04-07
 
@@ -36,6 +38,7 @@
 - **ssh-ca**: SSH Certificate Authority. Portal interface for signing user
   SSH public keys, admin interface for certificate management and revocation,
   KRL support.
+
 ### Changed
 
 - **oidc-jarm**: Use `oidcGenerateMetadata` hook to advertise JARM support

@@ -32,10 +32,10 @@ into `/etc/lemonldap-ng/manager-overrides.d/`, add
 
 In the Manager under **General Parameters** > **Plugins** > **Twake**:
 
-| Parameter | Description |
-|-----------|-------------|
-| `twakeWellKnown` | Key/value pairs served at `/.well-known/twake-configuration` |
-| `twakeAppAccounts` | Enable applicative account management |
-| `twakeAppLdapBranch` | LDAP branch where accounts are stored |
-| `twakeAppEntryFields` | User attributes to copy to accounts (comma-separated) |
-| `twakeAdminTokens` | Admin tokens for API access (comma/semicolon separated) |
+| Parameter             | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `twakeWellKnown`      | Key/value pairs served at `/.well-known/twake-configuration` |
+| `twakeAppAccounts`    | Enable applicative account management                        |
+| `twakeAppLdapBranch`  | LDAP branch where accounts are stored                        |
+| `twakeAppEntryFields` | User attributes to copy to accounts (comma-separated)        |
+| `twakeAdminTokens`    | Admin tokens for API access (comma/semicolon separated)      |

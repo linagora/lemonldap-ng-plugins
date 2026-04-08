@@ -1,0 +1,15 @@
+{
+  "name": "fixed-logout-redirection",
+  "version": "0.1.0",
+  "summary": "Force redirect to a fixed URL after logout",
+  "description": "Redirects the user to a configured URL after logout, bypassing the default portal logout page. The target domain is automatically added to trustedDomains.",
+  "author": "Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {
+    "URI": "0"
+  },
+  "customPlugins": "::Plugins::FixedRedirectOnLogout",
+  "tags": ["logout", "redirect"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+}

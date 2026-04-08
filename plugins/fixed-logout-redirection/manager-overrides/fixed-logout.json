@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "fixedLogoutRedirection": {
+      "type": "text",
+      "documentation": "Fixed logout redirection URL"
+    }
+  },
+  "tree": {
+    "insert_into": "generalParameters/portalParams/portalCustomization/forms",
+    "insert_after": "activeTimer",
+    "nodes": [
+      "fixedLogoutRedirection"
+    ]
+  },
+  "lang": {
+    "fixedLogoutRedirection": {
+      "en": "Fixed logout redirection",
+      "fr": "Redirection fixe après déconnexion"
+    }
+  }
+}

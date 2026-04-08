@@ -33,9 +33,9 @@ into `/etc/lemonldap-ng/manager-overrides.d/`, add
 
 For each OIDC RP, enable in the Manager:
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcRPMetaDataOptionsAllowScopeApplications` | `0` | Allow applications scope |
+| Parameter                                     | Default | Description              |
+| --------------------------------------------- | ------- | ------------------------ |
+| `oidcRPMetaDataOptionsAllowScopeApplications` | `0`     | Allow applications scope |
 
 The RP then requests `scope=openid applications` in the authorization request.
 

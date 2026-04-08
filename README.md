@@ -54,15 +54,16 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 ### Available plugins
 
-| Plugin                                         | Description                                                | Status |
-| ---------------------------------------------- | ---------------------------------------------------------- | ------ |
-| [matrix-token-exchange](plugins/matrix)        | Matrix federation token exchange for OIDC relying parties  | stable |
-| [reports](plugins/reports)                     | Session and browser usage reports (CSV)                    | stable |
-| [mail-autodiscover](plugins/mail-autodiscover) | SMTP/IMAP autodiscover for Outlook and Thunderbird         | stable |
-| [json-file](plugins/json-file)                 | JSON file-based Auth/UserDB backend for dev/test           | stable |
-| [pam-access](plugins/pam-access)               | PAM access token generation and authorization for SSH/sudo | beta   |
-| [ssh-ca](plugins/ssh-ca)                       | SSH Certificate Authority                                  | beta   |
-| [twake](plugins/twake)                         | Twake well-known endpoint and applicative accounts         | beta   |
+| Plugin                                                       | Description                                                | Status |
+| ------------------------------------------------------------ | ---------------------------------------------------------- | ------ |
+| [matrix-token-exchange](plugins/matrix)                      | Matrix federation token exchange for OIDC relying parties  | stable |
+| [reports](plugins/reports)                                   | Session and browser usage reports (CSV)                    | stable |
+| [mail-autodiscover](plugins/mail-autodiscover)               | SMTP/IMAP autodiscover for Outlook and Thunderbird         | stable |
+| [json-file](plugins/json-file)                               | JSON file-based Auth/UserDB backend for dev/test           | stable |
+| [pam-access](plugins/pam-access)                             | PAM access token generation and authorization for SSH/sudo | beta   |
+| [ssh-ca](plugins/ssh-ca)                                     | SSH Certificate Authority                                  | beta   |
+| [twake](plugins/twake)                                       | Twake well-known endpoint and applicative accounts         | beta   |
+| [fixed-logout-redirection](plugins/fixed-logout-redirection) | Force redirect to a fixed URL after logout                 | beta   |
 
 #### OIDC extensions
 
