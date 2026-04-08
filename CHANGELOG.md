@@ -13,6 +13,19 @@
 - **external-menu**: Redirect authenticated users to an external URL instead
   of showing the portal menu (LLNG < 2.23.0, included in core after).
 
+### New Debian packages
+
+- **linagora-llng-build-manager-files**: backport of `llng-build-manager-files`
+  with `--plugins-dir` support for LLNG < 2.23.0. Required when using plugins
+  with manager-overrides on older versions.
+
+### Changed
+
+- Plugins use `Pre-Depends` on the store so dpkg triggers are registered
+  before plugin files are installed
+- Store rebuild now fails with actionable error when the Manager is installed
+  but `llng-build-manager-files` is missing
+
 ## v0.1.3 - 2026-04-07
 
 ### New plugins (beta)

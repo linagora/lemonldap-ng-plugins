@@ -50,7 +50,13 @@ sudo apt install linagora-lemonldap-ng-plugin-json-file
 
 The Manager rebuild is triggered only once via dpkg triggers, even when installing multiple plugins simultaneously.
 
-> **LLNG < 2.23.0:** the `linagora-lemonldap-ng-store` package is available in this repository and provides `lemonldap-ng-store` for older LemonLDAP::NG versions. It is pulled automatically when needed.
+> **LLNG < 2.24.0:** the `linagora-lemonldap-ng-store` package is available in this repository and provides `lemonldap-ng-store` for older LemonLDAP::NG versions. It is pulled automatically when needed.
+
+> **LLNG < 2.23.0:** if you use plugins with manager-overrides, install the `linagora-llng-build-manager-files` package to get `llng-build-manager-files` with `--plugins-dir` support:
+>
+> ```bash
+> sudo apt install linagora-llng-build-manager-files
+> ```
 
 ### Available plugins
 
