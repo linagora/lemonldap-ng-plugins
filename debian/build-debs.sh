@@ -247,6 +247,71 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     done < <(find "${plugin_dir}/manager-overrides" -maxdepth 1 -name "*.json")
   fi
 
+  # Install portal-templates/ -> /usr/share/lemonldap-ng/portal/templates/
+  if [ -d "${plugin_dir}/portal-templates" ]; then
+    while IFS= read -r tpl_file; do
+      rel="${tpl_file#${plugin_dir}/portal-templates/}"
+      install_file "$tpl_file" "${PKG_BUILD}/usr/share/lemonldap-ng/portal/templates/${rel}"
+    done < <(find "${plugin_dir}/portal-templates" -type f)
+  fi
+
+  # Install portal-static/ -> /usr/share/lemonldap-ng/portal/htdocs/static/
+  if [ -d "${plugin_dir}/portal-static" ]; then
+    while IFS= read -r static_file; do
+      rel="${static_file#${plugin_dir}/portal-static/}"
+      install_file "$static_file" "${PKG_BUILD}/usr/share/lemonldap-ng/portal/htdocs/static/${rel}"
+    done < <(find "${plugin_dir}/portal-static" -type f)
+  fi
+
+  # Install portal-translations/*.json: merge into portal language files
+  if [ -d "${plugin_dir}/portal-translations" ]; then
+    while IFS= read -r tr_file; do
+      lang_name="$(basename "$tr_file")"
+      dst="/usr/share/lemonldap-ng/portal/htdocs/static/languages/${lang_name}"
+      dst_build="${PKG_BUILD}${dst}"
+      # postinst will merge these at install time
+      install_file "$tr_file" "${PKG_BUILD}/usr/share/lemonldap-ng/portal/plugin-translations/${name}/${lang_name}"
+    done < <(find "${plugin_dir}/portal-translations" -name "*.json")
+
+    # Add postinst to merge translations
+    cat > "${PKG_BUILD}/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -e
+LANG_DIR="/usr/share/lemonldap-ng/portal/htdocs/static/languages"
+PLUGIN_TR_DIR="/usr/share/lemonldap-ng/portal/plugin-translations"
+
+merge_translations() {
+  for plugin_dir in "$PLUGIN_TR_DIR"/*/; do
+    [ -d "$plugin_dir" ] || continue
+    for tr_file in "$plugin_dir"*.json; do
+      [ -f "$tr_file" ] || continue
+      lang="$(basename "$tr_file")"
+      target="${LANG_DIR}/${lang}"
+      [ -f "$target" ] || continue
+      # Merge: add keys from plugin that don't exist in target
+      if command -v python3 >/dev/null 2>&1; then
+        python3 -c "
+import json, sys
+with open('$target') as f: base = json.load(f)
+with open('$tr_file') as f: ext = json.load(f)
+base.update({k:v for k,v in ext.items() if k not in base})
+with open('$target','w') as f: json.dump(base, f, ensure_ascii=False, indent=0, sort_keys=True)
+" 2>/dev/null || true
+      fi
+    done
+  done
+}
+
+case "$1" in
+  configure)
+    merge_translations
+    ;;
+esac
+exit 0
+POSTINST
+    chmod 0755 "${PKG_BUILD}/DEBIAN/postinst"
+  fi
+
   dpkg-deb --root-owner-group --build "${PKG_BUILD}" "${OUTPUT_DIR}/${pkg_name}_${version}_all.deb"
   echo "  -> ${pkg_name}_${version}_all.deb"
 done

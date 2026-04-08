@@ -1,0 +1,15 @@
+{
+  "application": "Application",
+  "authorize": "Autoriser",
+  "clientId": "ID Client",
+  "deny": "Refuser",
+  "deviceApproved": "Appareil approuvé",
+  "deviceApprovedMsg": "L'appareil a été autorisé. Vous pouvez fermer cette fenêtre.",
+  "deviceAuthorization": "Autorisation d'appareil",
+  "deviceAuthorizationMsg": "Entrez le code affiché sur votre appareil pour l'autoriser.",
+  "deviceDenied": "Appareil refusé",
+  "deviceDeniedMsg": "L'autorisation de l'appareil a été refusée. Vous pouvez fermer cette fenêtre.",
+  "requestedScope": "Scope demandé",
+  "userCode": "Code de l'appareil",
+  "userCodeHelp": "Entrez le code à 8 caractères affiché sur votre appareil"
+}

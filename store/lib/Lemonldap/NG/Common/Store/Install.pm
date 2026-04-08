@@ -196,6 +196,26 @@ sub installFiles {
         print "  $w\n";
     }
 
+    # Merge portal translations (additive JSON merge)
+    my $tr_src = "$plugin_dir/portal-translations";
+    if ( -d $tr_src ) {
+        my $tr_dest = "$DEFAULT_PORTALSTATICDIR/languages";
+        if ( -d $tr_dest ) {
+            my ( $ok, $files, $err ) =
+              $self->_mergeTranslations( $tr_src, $tr_dest );
+            unless ($ok) {
+                push @warnings, "Failed to merge translations: $err";
+            }
+            else {
+                push @installed_files, @$files;
+            }
+        }
+        else {
+            push @warnings,
+              "Skipping portal-translations: $tr_dest does not exist";
+        }
+    }
+
     return ( 1, \@installed_files );
 }
 
@@ -268,6 +288,53 @@ sub _copyTree {
         return ( 0, \@files, $err );
     }
 
+    return ( 1, \@files, undef );
+}
+
+# Merge translation JSON files: add keys from source that don't exist in target
+# Returns (success, files_list, error)
+sub _mergeTranslations {
+    my ( $self, $src_dir, $dest_dir ) = @_;
+
+    my @files;
+    opendir my $dh, $src_dir or return ( 0, [], "Cannot open $src_dir: $!" );
+    while ( my $file = readdir $dh ) {
+        next unless $file =~ /\.json$/;
+        my $src  = "$src_dir/$file";
+        my $dest = "$dest_dir/$file";
+        next unless -f $dest;    # Only merge into existing language files
+
+        eval {
+            open my $fh, '<', $dest or die "Cannot read $dest: $!";
+            local $/;
+            my $base = JSON::from_json(<$fh>);
+            close $fh;
+
+            open $fh, '<', $src or die "Cannot read $src: $!";
+            my $ext = JSON::from_json(<$fh>);
+            close $fh;
+
+            # Add new keys (don't overwrite existing)
+            my $changed = 0;
+            for my $k ( keys %$ext ) {
+                unless ( exists $base->{$k} ) {
+                    $base->{$k} = $ext->{$k};
+                    $changed++;
+                }
+            }
+
+            if ($changed) {
+                open $fh, '>', $dest or die "Cannot write $dest: $!";
+                print $fh JSON->new->utf8->canonical->indent->encode($base);
+                close $fh;
+                push @files, $dest;
+            }
+        };
+        if ($@) {
+            return ( 0, \@files, "Merge $file failed: $@" );
+        }
+    }
+    closedir $dh;
     return ( 1, \@files, undef );
 }
 

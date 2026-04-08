@@ -1,0 +1,15 @@
+{
+  "application": "Application",
+  "authorize": "Authorize",
+  "clientId": "Client ID",
+  "deny": "Deny",
+  "deviceApproved": "Device Approved",
+  "deviceApprovedMsg": "The device has been authorized. You can close this window.",
+  "deviceAuthorization": "Device Authorization",
+  "deviceAuthorizationMsg": "Enter the code displayed on your device to authorize it.",
+  "deviceDenied": "Device Denied",
+  "deviceDeniedMsg": "The device authorization has been denied. You can close this window.",
+  "requestedScope": "Requested scope",
+  "userCode": "Device Code",
+  "userCodeHelp": "Enter the 8-character code shown on your device"
+}
