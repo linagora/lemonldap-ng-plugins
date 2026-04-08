@@ -174,7 +174,11 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   # Add inter-plugin dependencies
   while IFS= read -r dep; do
     [ -z "$dep" ] && continue
-    depends="${depends}, linagora-lemonldap-ng-plugin-${dep}"
+    if [ -n "$depends" ]; then
+      depends="${depends}, linagora-lemonldap-ng-plugin-${dep}"
+    else
+      depends="linagora-lemonldap-ng-plugin-${dep}"
+    fi
   done < <(jq -r '.depends // [] | .[]' "$plugin_json")
 
   # control file
