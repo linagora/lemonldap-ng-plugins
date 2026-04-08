@@ -10,6 +10,8 @@
   application menu in the userinfo response.
 - **fixed-logout-redirection**: Force redirect to a fixed URL after logout,
   bypassing the default portal logout page.
+- **external-menu**: Redirect authenticated users to an external URL instead
+  of showing the portal menu (LLNG < 2.23.0, included in core after).
 
 ## v0.1.3 - 2026-04-07
 

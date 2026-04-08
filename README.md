@@ -64,6 +64,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [ssh-ca](plugins/ssh-ca)                                     | SSH Certificate Authority                                  | beta   |
 | [twake](plugins/twake)                                       | Twake well-known endpoint and applicative accounts         | beta   |
 | [fixed-logout-redirection](plugins/fixed-logout-redirection) | Force redirect to a fixed URL after logout                 | beta   |
+| [external-menu](plugins/external-menu)                       | Redirect authenticated users to an external menu URL       | beta   |
 
 #### OIDC extensions
 
