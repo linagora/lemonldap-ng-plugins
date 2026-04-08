@@ -142,6 +142,36 @@ dpkg-deb --root-owner-group --build "${STORE_BUILD}" \
 echo "  -> linagora-lemonldap-ng-store_${COMMON_VERSION}_all.deb"
 
 ##############################################################################
+# Build linagora-llng-build-manager-files
+##############################################################################
+echo "Building linagora-llng-build-manager-files ${COMMON_VERSION}..."
+
+BMF_BUILD="${WORKDIR}/build-manager-files"
+install_dir "${BMF_BUILD}/DEBIAN"
+
+cat > "${BMF_BUILD}/DEBIAN/control" <<EOF
+Package: linagora-llng-build-manager-files
+Version: ${COMMON_VERSION}
+Architecture: all
+Maintainer: Linagora <https://linagora.com>
+Depends: liblemonldap-ng-manager-perl
+Conflicts: liblemonldap-ng-manager-perl (>= 2.23.0~)
+Section: web
+Priority: optional
+Description: llng-build-manager-files with plugin overrides support (backport)
+ Provides llng-build-manager-files with --plugins-dir support for
+ LemonLDAP::NG Manager versions prior to 2.23.0. Install this package
+ if you use plugins with manager-overrides on LLNG < 2.23.0.
+EOF
+
+install -D -m 0755 "${REPO_ROOT}/store/scripts/llng-build-manager-files" \
+  "${BMF_BUILD}/usr/share/lemonldap-ng/bin/llng-build-manager-files"
+
+dpkg-deb --root-owner-group --build "${BMF_BUILD}" \
+  "${OUTPUT_DIR}/linagora-llng-build-manager-files_${COMMON_VERSION}_all.deb"
+echo "  -> linagora-llng-build-manager-files_${COMMON_VERSION}_all.deb"
+
+##############################################################################
 # Build individual plugin packages
 ##############################################################################
 for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do

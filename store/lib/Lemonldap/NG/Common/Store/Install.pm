@@ -297,6 +297,15 @@ sub rebuildManager {
     # Find llng-build-manager-files
     my $cmd = _findBuildScript();
     unless ($cmd) {
+
+        # Check if the manager is installed but llng-build-manager-files is missing
+        if ( eval { require Lemonldap::NG::Manager; 1 } ) {
+            return ( 0,
+                    "llng-build-manager-files not found but the Manager is installed.\n"
+                  . "If you are using LemonLDAP::NG < 2.23.0, install the\n"
+                  . "linagora-llng-build-manager-files package to enable\n"
+                  . "manager rebuild with plugin overrides." );
+        }
         return ( 1,
             'llng-build-manager-files not found, skipping manager rebuild' );
     }
