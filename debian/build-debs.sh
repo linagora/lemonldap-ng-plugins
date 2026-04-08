@@ -164,7 +164,12 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   install_dir "${PKG_BUILD}/DEBIAN"
 
   # Build Depends
-  depends="$(build_perl_depends "$perl_requires" "liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store")"
+  # Pre-Depends ensures the store (and its triggers) is fully configured
+  # before the plugin installs files into the overrides directory
+  pre_depends="liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store"
+  depends="$(build_perl_depends "$perl_requires" "")"
+  # Remove leading ", " from depends if base was empty
+  depends="${depends#, }"
 
   # Add inter-plugin dependencies
   while IFS= read -r dep; do
@@ -178,7 +183,8 @@ Package: ${pkg_name}
 Version: ${version}
 Architecture: all
 Maintainer: ${maintainer}
-Depends: ${depends}
+Pre-Depends: ${pre_depends}
+${depends:+Depends: ${depends}}
 Section: web
 Priority: optional
 Description: ${summary}
