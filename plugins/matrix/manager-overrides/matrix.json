@@ -7,7 +7,7 @@
   },
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsTokenExchange",
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsAdvanced",
       "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
       "nodes": [
         "oidcRPMetaDataOptionsTokenXAuthorizedMatrix"

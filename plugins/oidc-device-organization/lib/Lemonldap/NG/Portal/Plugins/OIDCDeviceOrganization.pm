@@ -74,6 +74,7 @@ sub handleOrganizationDevice {
         _user                      => $client_id,
         _approved_by               => $approved_by,
         _approved_at => $device_auth->{approved_at} || time,
+        _deviceOrg                 => 1,
 
         # Set _utime far enough in the future so this session outlives
         # normal SSO sessions. The device will use refresh tokens to
