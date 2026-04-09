@@ -155,7 +155,7 @@ jobs:
           PLUGIN_ROWS=""
           for row in $(echo "$PLUGINS_JSON" | jq -r '.[] | @base64'); do
             _jq() { echo "$row" | base64 -d | jq -r "$1"; }
-            PLUGIN_ROWS="$PLUGIN_ROWS<tr><td><strong>$(_jq '.name')</strong></td><td>$(_jq '.version')</td><td>$(_jq '.summary')</td><td>$(_jq '.llng_compat')</td></tr>"
+            PLUGIN_ROWS="$PLUGIN_ROWS<tr><td><strong><a href=\"${STORE_URL}/tree/main/plugins/$(_jq '.name')#readme\">$(_jq '.name')</a></strong></td><td>$(_jq '.version')</td><td>$(_jq '.summary')</td><td>$(_jq '.llng_compat')</td></tr>"
           done
 
           cat > "$STORE_DIR/index.html" <<HTMLEOF
@@ -195,6 +195,8 @@ jobs:
               .footer-links li { padding: .2em 0; }
               .footer-links li::before { content: "\203a\00a0"; color: var(--primary); }
               .badge { display: inline-block; background: var(--primary); color: #fff; font-size: .75em; padding: 2px 8px; border-radius: 10px; vertical-align: middle; }
+              td a { color: var(--primary); text-decoration: none; font-weight: 600; }
+              td a:hover { text-decoration: underline; }
             </style>
           </head>
           <body>
