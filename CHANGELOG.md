@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.5 - 2026-04-09
+
+### New plugins (beta)
+
+- **captchetat**: CaptchEtat captcha module — integrates the French government
+  CAPTCHA service (PISTE platform) with OAuth2 authentication, image display
+  and audio playback for accessibility.
+
 ## v0.1.4 - 2026-04-08
 
 ### New plugins (beta)

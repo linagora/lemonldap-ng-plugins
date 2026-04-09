@@ -1,0 +1,11 @@
+{
+  "name": "captchetat",
+  "version": "0.1.0",
+  "summary": "CaptchEtat captcha module for LemonLDAP::NG",
+  "description": "Integrates the French government CaptchEtat (PISTE) captcha service as a captcha module for LemonLDAP::NG portal. Supports image and audio captcha with OAuth2 authentication against the PISTE API.",
+  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "license": "AGPL-3.0",
+  "llng_compat": "<2.23.0",
+  "tags": ["captcha", "captchetat", "piste"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+}
