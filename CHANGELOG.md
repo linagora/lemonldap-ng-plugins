@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.1.7 - 2026-04-10
+
+### Security
+
+- Reject symlinks and hardlinks in plugin archives
+- Sanitize archive and signature filenames from remote store index
+- Validate Perl module names before `require` (prevent code injection)
+- Validate `customPlugins` module names against `Lemonldap::NG::` namespace
+- Replace shell-interpolated command execution with safe list-form calls
+- Restrict `manager-overrides/` to JSON-only in `llng-build-manager-files`
+
 ## v0.1.6 - 2026-04-10
 
 ### New plugins (beta)
