@@ -96,13 +96,28 @@ jobs:
           cd llng
           make SKIP_DOCUMENTATION=1
 
-      - name: Place test files
+      - name: Place plugin files
         run: |
           PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+
+          # Copy lib/ into lemonldap-ng-portal/blib/lib (no overwrite)
+          if [ -d "$PLUGIN_DIR/lib" ]; then
+            find "$PLUGIN_DIR/lib" -name '*.pm' | while read src; do
+              rel="${src#$PLUGIN_DIR/lib/}"
+              dst="llng/lemonldap-ng-portal/blib/lib/$rel"
+              if [ ! -f "$dst" ]; then
+                mkdir -p "$(dirname "$dst")"
+                cp "$src" "$dst"
+                echo "COPY: $rel"
+              else
+                echo "SKIP (exists): $rel"
+              fi
+            done
+          fi
+
+          # Copy test files into lemonldap-ng-portal/t/
           cp -v "$PLUGIN_DIR"/t/*.t llng/lemonldap-ng-portal/t/ 2>/dev/null || true
-          # Copy helper modules if any
           cp -v "$PLUGIN_DIR"/t/*.pm llng/lemonldap-ng-portal/t/ 2>/dev/null || true
-          # Copy test data subdirectories if any
           for subdir in "$PLUGIN_DIR"/t/*/; do
             [ -d "$subdir" ] || continue
             cp -rv "$subdir" llng/lemonldap-ng-portal/t/
@@ -127,7 +142,6 @@ jobs:
 
           echo "Running: prove $TEST_FILES"
           prove -v \
-            -I$PLUGIN_DIR/lib \
             -I../lemonldap-ng-common/blib/lib \
             -I../lemonldap-ng-handler/blib/lib \
             -I../lemonldap-ng-manager/blib/lib \

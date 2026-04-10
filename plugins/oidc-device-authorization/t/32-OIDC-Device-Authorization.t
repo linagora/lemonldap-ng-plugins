@@ -21,6 +21,7 @@ my $op = LLNG::Manager::Test->new( {
             authentication                           => 'Demo',
             userDB                                   => 'Same',
             issuerDBOpenIDConnectActivation          => 1,
+            customPlugins                            => '::Plugins::OIDCDeviceAuthorization',
             oidcServiceDeviceAuthorizationExpiration => 600,
             oidcServiceDeviceAuthorizationPollingInterval => 5,
             oidcServiceDeviceAuthorizationUserCodeLength  => 8,
