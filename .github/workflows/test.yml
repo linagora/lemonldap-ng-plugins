@@ -115,6 +115,38 @@ jobs:
             done
           fi
 
+          # Copy portal-templates/ into site/templates/ (no overwrite)
+          if [ -d "$PLUGIN_DIR/portal-templates" ]; then
+            cp -rvn "$PLUGIN_DIR/portal-templates/"* llng/lemonldap-ng-portal/site/templates/
+          fi
+
+          # Copy portal-static/ into site/htdocs/static/ (no overwrite)
+          if [ -d "$PLUGIN_DIR/portal-static" ]; then
+            cp -rvn "$PLUGIN_DIR/portal-static/"* llng/lemonldap-ng-portal/site/htdocs/static/
+          fi
+
+          # Merge portal-translations/ into site/htdocs/static/languages/
+          if [ -d "$PLUGIN_DIR/portal-translations" ]; then
+            for tr_file in "$PLUGIN_DIR"/portal-translations/*.json; do
+              [ -f "$tr_file" ] || continue
+              lang="$(basename "$tr_file")"
+              target="llng/lemonldap-ng-portal/site/htdocs/static/languages/$lang"
+              if [ -f "$target" ]; then
+                # Merge keys from plugin that don't exist in target
+                python3 -c "
+import json, sys
+with open('$target') as f: base = json.load(f)
+with open('$tr_file') as f: ext = json.load(f)
+base.update({k:v for k,v in ext.items() if k not in base})
+with open('$target','w') as f: json.dump(base, f, ensure_ascii=False, indent=0, sort_keys=True)
+"
+                echo "MERGED: $lang"
+              else
+                cp -v "$tr_file" "$target"
+              fi
+            done
+          fi
+
           # Copy test files into lemonldap-ng-portal/t/
           cp -v "$PLUGIN_DIR"/t/*.t llng/lemonldap-ng-portal/t/ 2>/dev/null || true
           cp -v "$PLUGIN_DIR"/t/*.pm llng/lemonldap-ng-portal/t/ 2>/dev/null || true
