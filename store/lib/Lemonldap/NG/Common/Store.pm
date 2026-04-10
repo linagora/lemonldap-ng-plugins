@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Getopt::Long   qw(:config pass_through);
 use File::Temp     qw(tempdir tempfile);
-use File::Basename qw(dirname);
+use File::Basename qw(dirname basename);
 
 use Lemonldap::NG::Common::Store::Config;
 use Lemonldap::NG::Common::Store::Remote;
@@ -123,13 +123,13 @@ sub cmd_addStore {
         if ($dl_ok) {
 
             # Import the key and capture fingerprint from import output
-            my $import_out = `gpg --batch --import '$tmp_path' 2>&1`;
+            my $import_out = _capture( 'gpg', '--batch', '--import', $tmp_path );
             my $import_ok  = $? == 0;
 
             # Extract fingerprint: try gpg --with-colons on the file
             my $fp_output =
-                 `gpg --with-colons --show-keys '$tmp_path' 2>/dev/null`
-              || `gpg --with-colons --import-options show-only --import '$tmp_path' 2>/dev/null`
+                 _capture( 'gpg', '--with-colons', '--show-keys', $tmp_path )
+              || _capture( 'gpg', '--with-colons', '--import-options', 'show-only', '--import', $tmp_path )
               || '';
             my ($fingerprint) = $fp_output =~ /^fpr:+([A-F0-9]+)/m;
 
@@ -379,10 +379,16 @@ sub _installOne {
 
     # 4. Download archive
     $store_url =~ s|/+$||;
-    my $archive_url = "$store_url/$plugin->{archive}";
+
+    # Sanitize archive/signature filenames from remote index
+    my $archive_basename = basename( $plugin->{archive} || '' );
+    die "Invalid archive name\n"
+      unless $archive_basename =~ /^[a-zA-Z0-9._-]+\.tar\.gz$/;
+
+    my $archive_url = "$store_url/$archive_basename";
 
     my $tmpdir       = tempdir( CLEANUP => 1 );
-    my $archive_file = "$tmpdir/$plugin->{archive}";
+    my $archive_file = "$tmpdir/$archive_basename";
 
     my $remote = Lemonldap::NG::Common::Store::Remote->new(
         timeout  => $config->httpTimeout,
@@ -415,8 +421,11 @@ sub _installOne {
     if ( $config->gpgVerify ne 'disabled' ) {
         my $sig_file;
         if ( $plugin->{signature} ) {
-            my $sig_url = "$store_url/$plugin->{signature}";
-            $sig_file = "$tmpdir/$plugin->{signature}";
+            my $sig_basename = basename( $plugin->{signature} || '' );
+            die "Invalid signature name\n"
+              unless $sig_basename =~ /^[a-zA-Z0-9._-]+\.asc$/;
+            my $sig_url = "$store_url/$sig_basename";
+            $sig_file = "$tmpdir/$sig_basename";
             print "  Downloading GPG signature...\n";
             my ( $sig_ok, $sig_err ) =
               $remote->downloadFile( $sig_url, $sig_file );
@@ -802,7 +811,7 @@ sub _activateCustomPlugins {
     }
 
     # Read current customPlugins value
-    my $current = `$cli --json 1 get customPlugins 2>/dev/null`;
+    my $current = _capture( $cli, '--json', '1', 'get', 'customPlugins' );
     chomp $current;
 
     # Parse: cli outputs JSON, could be "value" or null
@@ -827,8 +836,9 @@ sub _activateCustomPlugins {
     }
 
     my $new_value = join( ', ', @existing );
-    my $output    = `$cli --yes 1 set customPlugins '$new_value' 2>&1`;
-    my $exit      = $? >> 8;
+    my $output =
+      _capture( $cli, '--yes', '1', 'set', 'customPlugins', $new_value );
+    my $exit = $? >> 8;
 
     if ( $exit != 0 ) {
         return ( 0, "Failed to update customPlugins: $output" );
@@ -839,13 +849,24 @@ sub _activateCustomPlugins {
 
 sub _checkPerlModule {
     my ( $module, $min_version ) = @_;
-    eval "require $module";
+    return 0 unless $module =~ /^\w+(?:::\w+)*$/;
+    eval "require $module";    ## no critic (BuiltinFunctions::ProhibitStringyEval)
     return 0 if $@;
     if ( $min_version && $min_version ne '0' ) {
         eval { $module->VERSION($min_version) };
         return 0 if $@;
     }
     return 1;
+}
+
+# Safe capture of command output (avoids shell interpolation)
+sub _capture {
+    my @cmd = @_;
+    open my $fh, '-|', @cmd or return '';
+    local $/;
+    my $output = <$fh>;
+    close $fh;
+    return $output // '';
 }
 
 sub _usage {

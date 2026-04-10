@@ -79,9 +79,21 @@ sub verifyGpg {
 
     push @cmd, $sig_file, $archive_file;
 
-    # Execute gpg --verify
-    my $output = `@cmd 2>&1`;
-    my $exit   = $? >> 8;
+    # Execute gpg --verify (list form avoids shell interpolation)
+    # Redirect stderr to stdout via dup2
+    my $pid = open my $fh, '-|';
+    unless ( defined $pid ) {
+        return ( 0, "Cannot fork: $!" );
+    }
+    if ( $pid == 0 ) {
+        open STDERR, '>&', STDOUT;
+        exec @cmd;
+        die "Cannot exec gpg: $!";
+    }
+    local $/;
+    my $output = <$fh>;
+    close $fh;
+    my $exit = $? >> 8;
 
     if ( $exit != 0 ) {
         if ( $self->{gpgVerify} eq 'required' ) {

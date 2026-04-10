@@ -57,9 +57,14 @@ sub extractAndValidate {
     }
 
     # Security: validate all paths before extraction
-    for my $file ( $tar->list_files() ) {
+    for my $entry ( $tar->get_files() ) {
+        my $file = $entry->name;
         if ( $file =~ /\.\./ ) {
             return ( 0, "Archive contains path traversal: $file", undef );
+        }
+        if ( $entry->is_symlink || $entry->is_hardlink ) {
+            return ( 0,
+                "Archive contains symlink or hardlink: $file", undef );
         }
     }
 
@@ -235,6 +240,13 @@ sub _copyTree {
                 my $src_full  = "$src/$rel";
                 my $dest_full = "$dest/$rel";
 
+                # Refuse to follow symlinks
+                if ( -l $src_full ) {
+                    $self->{_error} =
+                      "Refusing to follow symlink: $rel";
+                    return;
+                }
+
                 if ( -d $src_full ) {
 
                     # Create directory
@@ -382,8 +394,15 @@ sub rebuildManager {
             "Manager plugins dir not found ($plugins_dir), skipping rebuild" );
     }
 
-    my $output = `$cmd --plugins-dir='$plugins_dir' 2>&1`;
-    my $exit   = $? >> 8;
+    my $output;
+    {
+        open my $fh, '-|', $cmd, "--plugins-dir=$plugins_dir"
+          or return ( 0, "Cannot execute $cmd: $!" );
+        local $/;
+        $output = <$fh>;
+        close $fh;
+    }
+    my $exit = $? >> 8;
 
     if ( $exit != 0 ) {
         return ( 0, "Manager rebuild failed (exit $exit):\n$output" );
