@@ -1,0 +1,136 @@
+name: Test Plugins
+
+on:
+  push:
+    branches: ['*']
+    tags-ignore: ['v*']
+  pull_request:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.find.outputs.matrix }}
+      has_tests: ${{ steps.find.outputs.has_tests }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: find
+        run: |
+          plugins='[]'
+          for d in plugins/*/; do
+            [ -d "$d/t" ] || continue
+            name=$(basename "$d")
+            plugins=$(echo "$plugins" | jq --arg n "$name" '. + [$n]')
+          done
+          echo "matrix={\"plugin\":$(echo $plugins)}" >> "$GITHUB_OUTPUT"
+          if [ "$(echo "$plugins" | jq length)" -gt 0 ]; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: discover
+    if: needs.discover.outputs.has_tests == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout plugins
+        uses: actions/checkout@v5
+
+      - name: Determine LLNG version
+        id: version
+        run: |
+          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          COMPAT=$(jq -r '.llng_compat // ""' "$PLUGIN_DIR/plugin.json")
+
+          # Parse minimum version from llng_compat
+          # ">=2.23.0" -> "v2.23.0", "<2.23.0" or "" -> HEAD
+          TAG=""
+          if echo "$COMPAT" | grep -qE '^\s*>='; then
+            VER=$(echo "$COMPAT" | sed -E 's/^\s*>=\s*//')
+            TAG="v${VER}"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved LLNG version: '${TAG:-HEAD}'"
+
+      - name: Clone LemonLDAP::NG
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          REPO="https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git"
+          if [ -n "$TAG" ]; then
+            # Check if tag exists, fall back to HEAD if not
+            if git ls-remote --tags "$REPO" "$TAG" | grep -q "$TAG"; then
+              echo "Cloning LLNG at tag $TAG"
+              git clone --depth=1 --branch "$TAG" "$REPO" llng
+            else
+              echo "Tag $TAG not found, using HEAD"
+              git clone --depth=1 "$REPO" llng
+            fi
+          else
+            echo "No minimum version, using HEAD"
+            git clone --depth=1 "$REPO" llng
+          fi
+
+      - name: Install LLNG build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends devscripts equivs
+          cd llng
+          sudo mk-build-deps -i -t 'apt-get -y --no-install-recommends' debian/control
+
+      - name: Install plugin extra build dependencies
+        run: |
+          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          BUILD_DEPS=$(jq -r '.build_depends // [] | .[]' "$PLUGIN_DIR/plugin.json")
+          if [ -n "$BUILD_DEPS" ]; then
+            echo "Installing extra build deps: $BUILD_DEPS"
+            sudo apt-get install -y --no-install-recommends $BUILD_DEPS
+          fi
+
+      - name: Build LemonLDAP::NG
+        run: |
+          cd llng
+          make SKIP_DOCUMENTATION=1
+
+      - name: Place test files
+        run: |
+          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          cp -v "$PLUGIN_DIR"/t/*.t llng/lemonldap-ng-portal/t/ 2>/dev/null || true
+          # Copy helper modules if any
+          cp -v "$PLUGIN_DIR"/t/*.pm llng/lemonldap-ng-portal/t/ 2>/dev/null || true
+          # Copy test data subdirectories if any
+          for subdir in "$PLUGIN_DIR"/t/*/; do
+            [ -d "$subdir" ] || continue
+            cp -rv "$subdir" llng/lemonldap-ng-portal/t/
+          done
+
+      - name: Run tests
+        run: |
+          PLUGIN_DIR="../../plugins/${{ matrix.plugin }}"
+          cd llng/lemonldap-ng-portal
+
+          # Collect test file names
+          TEST_FILES=""
+          for t in $PLUGIN_DIR/t/*.t; do
+            [ -f "$t" ] || continue
+            TEST_FILES="$TEST_FILES t/$(basename "$t")"
+          done
+
+          if [ -z "$TEST_FILES" ]; then
+            echo "No .t files found"
+            exit 0
+          fi
+
+          echo "Running: prove $TEST_FILES"
+          prove -v \
+            -I$PLUGIN_DIR/lib \
+            -I../lemonldap-ng-common/blib/lib \
+            -I../lemonldap-ng-handler/blib/lib \
+            -I../lemonldap-ng-manager/blib/lib \
+            -Iblib/lib \
+            -I. \
+            $TEST_FILES

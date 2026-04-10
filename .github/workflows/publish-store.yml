@@ -70,6 +70,7 @@ jobs:
 
             # Create tar.gz with the expected top-level directory name
             tar czf "$STORE_DIR/$archive_name" \
+              --exclude='*/t' \
               --transform "s|^plugins/$plugin_name|llng-plugin-${name}-${version}|" \
               "$plugin_dir"
 
