@@ -233,6 +233,9 @@ sub _copyTree {
 
     File::Find::find( {
             wanted => sub {
+                # Stop processing if a previous error occurred
+                return if $self->{_error};
+
                 my $rel = $File::Find::name;
                 $rel =~ s|^\Q$src\E/?||;
                 return unless $rel;    # Skip root

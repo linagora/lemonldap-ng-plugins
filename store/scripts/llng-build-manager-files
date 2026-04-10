@@ -151,7 +151,7 @@ my $constants =
 my @ext_files;
 if (@plugins_dirs) {
     for my $dir (@plugins_dirs) {
-        my @files = sort( glob("$dir/*.pm"), glob("$dir/*.json") );
+        my @files = sort glob("$dir/*.json");
         verbose @files
           ? "Found " . scalar(@files) . " extension file(s) in $dir\n"
           : "No extension files found in $dir\n";

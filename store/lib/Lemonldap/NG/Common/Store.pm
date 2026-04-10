@@ -825,6 +825,9 @@ sub _activateCustomPlugins {
 
     for my $mod (@to_add) {
         $mod =~ s/^\s+|\s+$//g;
+        unless ( $mod =~ /^(?:::\w+(?:::\w+)*|Lemonldap::NG::\w+(?:::\w+)*)$/ ) {
+            return ( 0, "Invalid module name in customPlugins: $mod" );
+        }
         unless ( grep { $_ eq $mod } @existing ) {
             push @existing, $mod;
             $changed = 1;

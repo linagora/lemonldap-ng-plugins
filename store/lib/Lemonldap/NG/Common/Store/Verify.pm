@@ -140,14 +140,10 @@ sub checkTransport {
 }
 
 sub _findGpg {
-    for my $path ( '/usr/bin/gpg', '/usr/local/bin/gpg' ) {
+    for my $dir ( '/usr/bin', '/usr/local/bin', split /:/, $ENV{PATH} || '' ) {
+        my $path = "$dir/gpg";
         return $path if -x $path;
     }
-
-    # Try PATH
-    my $which = `which gpg 2>/dev/null`;
-    chomp $which;
-    return $which if $which && -x $which;
     return undef;
 }
 
