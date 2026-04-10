@@ -132,14 +132,15 @@ jobs:
               lang="$(basename "$tr_file")"
               target="llng/lemonldap-ng-portal/site/htdocs/static/languages/$lang"
               if [ -f "$target" ]; then
-                # Merge keys from plugin that don't exist in target
-                python3 -c "
+                # Merge: add plugin keys into existing language file
+                python3 -c '
 import json, sys
-with open('$target') as f: base = json.load(f)
-with open('$tr_file') as f: ext = json.load(f)
+target, src = sys.argv[1], sys.argv[2]
+with open(target) as f: base = json.load(f)
+with open(src) as f: ext = json.load(f)
 base.update({k:v for k,v in ext.items() if k not in base})
-with open('$target','w') as f: json.dump(base, f, ensure_ascii=False, indent=0, sort_keys=True)
-"
+with open(target,"w") as f: json.dump(base, f, ensure_ascii=False, indent=0, sort_keys=True)
+' "$target" "$tr_file"
                 echo "MERGED: $lang"
               else
                 cp -v "$tr_file" "$target"
