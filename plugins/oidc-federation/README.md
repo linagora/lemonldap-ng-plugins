@@ -85,11 +85,6 @@ RPs can include a `trust_chain` in dynamic registration requests. If a valid
 trust chain to a configured trust anchor is found, registration is approved
 (even if standard dynamic registration is disabled).
 
-## Dependencies
-
-- `Crypt::JWT` — JWT signing and verification
-- `Crypt::PK::RSA` / `Crypt::PK::ECC` — JWK generation (from CryptX)
-
 ## See Also
 
 - [OpenID Federation 1.0](https://openid.net/specs/openid-federation-1_0.html)
