@@ -83,6 +83,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-device-authorization](plugins/oidc-device-authorization) | Device Authorization Grant (RFC 8628)                     | beta   |
 | [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
 | [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
+| [oidc-federation](plugins/oidc-federation)                     | OpenID Connect Federation (server side)                   | beta   |
 
 ## Lemonldap::NG Long Term Support (LTS)
 

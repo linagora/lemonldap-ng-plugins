@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.1.6 - 2026-04-10
+
+### New plugins (beta)
+
+- **oidc-federation**: OpenID Connect Federation (server side). Entity
+  Configuration endpoint, trust chain resolution, subordinate statement
+  issuance, metadata policy enforcement, and automatic RP resolution via
+  federation trust anchors.
+
 ## v0.1.5 - 2026-04-09
 
 ### New plugins (beta)

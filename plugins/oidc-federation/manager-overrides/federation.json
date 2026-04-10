@@ -1,0 +1,103 @@
+{
+  "attributes": {
+    "oidcFederationEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable OpenID Federation support"
+    },
+    "oidcFederationEntityId": {
+      "type": "text",
+      "documentation": "OpenID Federation entity identifier (defaults to issuer URL)"
+    },
+    "oidcFederationAuthorityHints": {
+      "type": "text",
+      "documentation": "OpenID Federation authority hints (space-separated entity IDs)"
+    },
+    "oidcFederationSigningKey": {
+      "type": "text",
+      "default": "default-oidc-sig",
+      "documentation": "Key ID used for signing federation entity statements"
+    },
+    "oidcFederationSigningAlg": {
+      "type": "select",
+      "select": [
+        { "k": "RS256", "v": "RS256" },
+        { "k": "RS384", "v": "RS384" },
+        { "k": "RS512", "v": "RS512" },
+        { "k": "ES256", "v": "ES256" },
+        { "k": "ES384", "v": "ES384" },
+        { "k": "ES512", "v": "ES512" }
+      ],
+      "default": "RS256",
+      "documentation": "Algorithm for signing federation entity statements"
+    },
+    "oidcFederationTrustAnchors": {
+      "type": "keyTextContainer",
+      "default": {},
+      "documentation": "OpenID Federation trust anchors (entity ID => JWKS JSON)"
+    },
+    "oidcRPMetaDataOptionsFederationEntityId": {
+      "type": "text",
+      "documentation": "OpenID Federation entity identifier for this RP"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData",
+      "insert_after": "oidcServiceDynamicRegistration",
+      "title": "oidcServiceFederation",
+      "help": "openidconnectservice.html#federation",
+      "nodes": [
+        "oidcFederationEnabled",
+        "oidcFederationEntityId",
+        "oidcFederationAuthorityHints",
+        "oidcFederationSigningKey",
+        "oidcFederationSigningAlg",
+        "oidcFederationTrustAnchors"
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions",
+      "insert_after": "oidcRPMetaDataOptionsDisplayName",
+      "nodes": [
+        "oidcRPMetaDataOptionsFederationEntityId"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceFederation": {
+      "en": "Federation",
+      "fr": "Fédération"
+    },
+    "oidcFederationEnabled": {
+      "en": "Enable OpenID Federation",
+      "fr": "Activer OpenID Federation"
+    },
+    "oidcFederationEntityId": {
+      "en": "Entity identifier",
+      "fr": "Identifiant d'entité"
+    },
+    "oidcFederationAuthorityHints": {
+      "en": "Authority hints (space-separated)",
+      "fr": "Authority hints (séparés par des espaces)"
+    },
+    "oidcFederationSigningKey": {
+      "en": "Signing key ID",
+      "fr": "ID de la clé de signature"
+    },
+    "oidcFederationSigningAlg": {
+      "en": "Signing algorithm",
+      "fr": "Algorithme de signature"
+    },
+    "oidcFederationTrustAnchors": {
+      "en": "Trust anchors",
+      "fr": "Ancres de confiance"
+    },
+    "oidcRPMetaDataOptionsFederationEntityId": {
+      "en": "Federation entity ID",
+      "fr": "ID d'entité de fédération"
+    }
+  }
+}
