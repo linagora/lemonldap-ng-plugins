@@ -49,7 +49,7 @@
   ],
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsSecurity",
+      "insert_into": "oidcRPMetaDataOptions/security",
       "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
       "nodes": [
         "oidcRPMetaDataOptionsPAR"

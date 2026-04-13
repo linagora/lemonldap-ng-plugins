@@ -87,8 +87,8 @@
   ],
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
-      "insert_after": "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsAdvanced",
+      "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
       "nodes": [
         "oidcRPMetaDataOptionsAllowCIBA"
       ]
