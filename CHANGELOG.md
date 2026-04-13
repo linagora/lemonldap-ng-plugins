@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.8 - 2026-04-13
+
+### Improvements
+
+- **pam-access**, **ssh-ca**: Replace MenuTab with standalone pages
+  (`addAuthRouteWithRedirect` + `sendHtml`). Fixes incompatibility with
+  `external-menu` plugin. Access control is now handled via portal
+  `locationRules`. Remove `portalDisplayPamAccess` and `portalDisplaySshCa`
+  configuration parameters.
+
 ## v0.1.7 - 2026-04-10
 
 ### Security
