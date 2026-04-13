@@ -14,6 +14,34 @@
       var copyBtn = document.getElementById('copySshCert');
       var errorMsg = document.getElementById('sshCaErrorMessage');
       var validitySelect = document.getElementById('sshValidity');
+      var myCertsDiv = document.getElementById('sshMyCerts');
+      var myCertsBody = document.getElementById('sshMyCertsBody');
+
+      // Load user's existing certificates
+      function loadMyCerts() {
+        $.getJSON(scriptname + 'ssh/mycerts', function (data) {
+          if (data.certificates && data.certificates.length > 0) {
+            myCertsBody.innerHTML = '';
+            data.certificates.forEach(function (cert) {
+              var tr = document.createElement('tr');
+              var issuedDate = cert.issued_at ? new Date(cert.issued_at * 1000).toLocaleDateString() : '-';
+              var expiresDate = cert.expires_at ? new Date(cert.expires_at * 1000).toLocaleDateString() : '-';
+              var statusClass = cert.status === 'active' ? 'text-success' : (cert.status === 'expired' ? 'text-muted' : 'text-danger');
+              var statusText = translationFields['sshCertStatus_' + cert.status] || cert.status;
+              tr.innerHTML = '<td><code class="small">' + $('<span>').text(cert.key_id || '-').html() + '</code></td>'
+                + '<td>' + $('<span>').text(cert.principals || '-').html() + '</td>'
+                + '<td>' + issuedDate + '</td>'
+                + '<td>' + expiresDate + '</td>'
+                + '<td class="' + statusClass + '">' + statusText + '</td>';
+              myCertsBody.appendChild(tr);
+            });
+            myCertsDiv.classList.remove('d-none');
+          } else {
+            myCertsDiv.classList.add('d-none');
+          }
+        });
+      }
+      loadMyCerts();
 
       // Filter validity options based on max validity
       if (validitySelect) {
@@ -65,6 +93,7 @@
               principalsSpan.textContent = data.principals.join(', ');
               validUntilSpan.textContent = data.valid_until;
               resultDiv.classList.remove('d-none');
+              loadMyCerts();
             }
           },
           error: function error(xhr, status, _error) {

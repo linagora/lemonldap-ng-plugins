@@ -108,6 +108,12 @@ sub init {
         ['POST']
     );
 
+    # GET /ssh/mycerts - List current user's certificates (auth required)
+    $self->addAuthRoute(
+        ssh => { mycerts => 'sshMyCerts' },
+        ['GET']
+    );
+
     # GET /ssh/admin - Display the revocation interface (auth required, admin)
     $self->addAuthRoute(
         ssh => { admin => 'sshAdminInterface' },
@@ -717,6 +723,46 @@ sub _pemToSshPublicKey {
     return "$sshKey\n";
 }
 
+# GET /ssh/mycerts - List current user's certificates
+sub sshMyCerts {
+    my ( $self, $req ) = @_;
+
+    my $sshCerts = [];
+    if ( $req->userData->{_sshCerts} ) {
+        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
+        if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
+            $sshCerts = [];
+        }
+    }
+
+    my $now = time();
+    my @certs;
+    for my $cert (@$sshCerts) {
+        my $status = 'active';
+        if ( $cert->{revoked_at} ) {
+            $status = 'revoked';
+        }
+        elsif ( $cert->{expires_at} && $cert->{expires_at} < $now ) {
+            $status = 'expired';
+        }
+        push @certs,
+          {
+            serial     => $cert->{serial},
+            key_id     => $cert->{key_id},
+            principals => $cert->{principals},
+            issued_at  => $cert->{issued_at},
+            expires_at => $cert->{expires_at},
+            status     => $status,
+          };
+    }
+
+    # Sort by issued_at descending (newest first)
+    @certs =
+      sort { ( $b->{issued_at} || 0 ) <=> ( $a->{issued_at} || 0 ) } @certs;
+
+    return $self->p->sendJSONresponse( $req, { certificates => \@certs } );
+}
+
 # =============================================================================
 # ADMIN INTERFACE METHODS
 # =============================================================================
@@ -1005,7 +1051,7 @@ sub _storeCertificate {
     # Add new certificate
     push @$sshCerts, $certRecord;
 
-    # Update persistent session
+    # Update persistent session (also updates live session)
     $self->p->updatePersistentSession( $req,
         { _sshCerts => to_json($sshCerts) } );
 

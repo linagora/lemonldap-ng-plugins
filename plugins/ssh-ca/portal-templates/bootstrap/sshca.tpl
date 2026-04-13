@@ -43,6 +43,24 @@
         </div>
       </form>
 
+      <div id="sshMyCerts" class="d-none mb-4">
+        <h5 trspan="sshMyCertsTitle">My Certificates</h5>
+        <div class="table-responsive">
+          <table class="table table-sm table-striped">
+            <thead>
+              <tr>
+                <th trspan="sshKeyId">Key ID</th>
+                <th trspan="sshPrincipals">Principals</th>
+                <th trspan="sshIssuedAt">Issued</th>
+                <th trspan="sshValidUntil">Valid until</th>
+                <th trspan="sshCertStatus">Status</th>
+              </tr>
+            </thead>
+            <tbody id="sshMyCertsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="sshCaResult" class="d-none">
         <div class="alert alert-success">
           <h5 trspan="sshCertGenerated">Your SSH Certificate</h5>

@@ -17,5 +17,11 @@
   "sshPrincipals": "Principals",
   "sshPublicKey": "SSH Public Key",
   "sshPublicKeyHelp": "Paste the contents of your ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub file",
+  "sshCertStatus": "Status",
+  "sshCertStatus_active": "Active",
+  "sshCertStatus_expired": "Expired",
+  "sshCertStatus_revoked": "Revoked",
+  "sshIssuedAt": "Issued",
+  "sshMyCertsTitle": "My Certificates",
   "sshValidUntil": "Valid until"
 }

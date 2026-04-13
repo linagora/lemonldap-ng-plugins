@@ -17,5 +17,11 @@
   "sshPrincipals": "Identites",
   "sshPublicKey": "Clef publique SSH",
   "sshPublicKeyHelp": "Collez le contenu de votre fichier ~/.ssh/id_ed25519.pub ou ~/.ssh/id_rsa.pub",
+  "sshCertStatus": "Statut",
+  "sshCertStatus_active": "Actif",
+  "sshCertStatus_expired": "Expiré",
+  "sshCertStatus_revoked": "Révoqué",
+  "sshIssuedAt": "Émis le",
+  "sshMyCertsTitle": "Mes certificats",
   "sshValidUntil": "Valide jusqu'au"
 }
