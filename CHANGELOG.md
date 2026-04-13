@@ -1,18 +1,29 @@
 # Changelog
 
-## v0.1.9 - 2026-04-13
+## v0.1.10 - 2026-04-13
 
 ### Improvements
 
 - **ssh-ca**: Display user's existing certificates on /ssh page with
   status (active/expired/revoked). New `GET /ssh/mycerts` endpoint.
   List refreshes automatically after signing a new certificate.
+- **pam-access**: Remove legacy `pamAccessServerGroups` configuration.
+  Only `pamAccessSshRules` and `pamAccessSudoRules` are used now.
 
 ### Bug fixes
 
 - **pam-access**: Fix token generation (missing POST /pam route).
 - **Debian packages**: Fix portal translations not being merged at
   install time (replace Python3 with Perl in postinst scripts).
+- **manager-overrides**: Fix ctree/tree paths for 8 plugins. Options
+  now appear correctly in the Manager UI:
+  - oidc-device-authorization, oidc-device-organization,
+    oidc-scope-applications: insert into RP security options
+  - oidc-jarm: insert JARM algorithms into RP algorithms section
+  - oidc-par: insert PAR option into RP security options
+  - oidc-ciba: insert CIBA option into RP advanced options
+  - external-menu: fix tree path to advancedParams/portalRedirection
+  - fixed-logout-redirection: fix tree path to advancedParams/forms
 
 ## v0.1.8 - 2026-04-13
 
