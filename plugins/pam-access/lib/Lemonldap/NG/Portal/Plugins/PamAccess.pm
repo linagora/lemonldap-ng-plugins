@@ -427,10 +427,9 @@ sub _checkPamRule {
         }
     }
 
-    # For other services, fall back to legacy rules
+    # For other services, deny
     else {
-        $result->{authorized} =
-          $self->_evaluateRule( $req, $server_group, 'legacy' );
+        $result->{authorized} = 0;
     }
 
     # Also compute sudo_allowed for SSH requests (for response)
@@ -452,20 +451,12 @@ sub _evaluateRule {
     my $rules;
     if ( $rule_type eq 'ssh' ) {
         $rules = $self->conf->{pamAccessSshRules} || {};
-
-        # Fallback to legacy rules if SSH rules not defined
-        if ( !%$rules ) {
-            $rules = $self->conf->{pamAccessServerGroups} || {};
-        }
     }
     elsif ( $rule_type eq 'sudo' ) {
         $rules = $self->conf->{pamAccessSudoRules} || {};
-
-        # No fallback for sudo - if not defined, sudo is denied
     }
     else {
-        # Legacy mode
-        $rules = $self->conf->{pamAccessServerGroups} || {};
+        return 0;
     }
 
     my $rule;
@@ -1324,20 +1315,6 @@ Default token validity in seconds (default: 600)
 =item pamAccessMaxDuration
 
 Maximum token validity in seconds (default: 3600)
-
-=item pamAccessServerGroups
-
-Hash of server group names to authorization rules. Each PAM server can
-specify its group via the C<server_group> parameter in the authorize request.
-If a server's group is not found, the 'default' group rule is used.
-
-Example:
-  {
-    "production" => '$hGroup->{ops}',
-    "staging"    => '$hGroup->{ops} or $hGroup->{dev}',
-    "dev"        => '$hGroup->{dev} or $uid eq "admin"',
-    "default"    => '1'
-  }
 
 =item pamAccessRp
 

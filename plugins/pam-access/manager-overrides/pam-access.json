@@ -15,11 +15,6 @@
       "default": 3600,
       "documentation": "Maximum PAM access token validity (seconds)"
     },
-    "pamAccessServerGroups": {
-      "type": "keyTextContainer",
-      "default": { "default": 1 },
-      "documentation": "Authorization rules per PAM server group (legacy, use SSH/Sudo rules)"
-    },
     "pamAccessSshRules": {
       "type": "keyTextContainer",
       "default": {},
@@ -83,7 +78,6 @@
               "title": "pamAccessAuthzRules",
               "form": "simpleInputContainer",
               "nodes": [
-                "pamAccessServerGroups",
                 "pamAccessSshRules",
                 "pamAccessSudoRules"
               ]
@@ -120,10 +114,6 @@
     "pamAccessAuthzRules": {
       "en": "Authorization rules",
       "fr": "Règles d'autorisation"
-    },
-    "pamAccessServerGroups": {
-      "en": "Server groups",
-      "fr": "Groupes de serveurs"
     },
     "pamAccessSshRules": {
       "en": "SSH rules",
