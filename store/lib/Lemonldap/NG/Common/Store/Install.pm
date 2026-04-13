@@ -392,14 +392,14 @@ sub rebuildManager {
             'llng-build-manager-files not found, skipping manager rebuild' );
     }
 
-    unless ( -d $plugins_dir ) {
-        return ( 1,
-            "Manager plugins dir not found ($plugins_dir), skipping rebuild" );
+    my @args = ($cmd);
+    if ( -d $plugins_dir ) {
+        push @args, "--plugins-dir=$plugins_dir";
     }
 
     my $output;
     {
-        open my $fh, '-|', $cmd, "--plugins-dir=$plugins_dir"
+        open my $fh, '-|', @args
           or return ( 0, "Cannot execute $cmd: $!" );
         local $/;
         $output = <$fh>;
