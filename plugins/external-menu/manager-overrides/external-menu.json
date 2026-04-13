@@ -7,7 +7,7 @@
     }
   },
   "tree": {
-    "insert_into": "generalParameters/portalParams/portalCustomization/redirection/portalRedirection",
+    "insert_into": "generalParameters/advancedParams/portalRedirection",
     "insert_after": "jsRedirect",
     "nodes": [
       "externalMenu"

@@ -12,7 +12,7 @@
   },
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_into": "oidcRPMetaDataOptions/security",
       "insert_after": "oidcRPMetaDataOptionsAllowDeviceAuthorization",
       "nodes": [
         "oidcRPMetaDataOptionsDeviceOwnership"

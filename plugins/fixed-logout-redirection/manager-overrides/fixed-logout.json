@@ -6,7 +6,7 @@
     }
   },
   "tree": {
-    "insert_into": "generalParameters/portalParams/portalCustomization/forms",
+    "insert_into": "generalParameters/advancedParams/forms",
     "insert_after": "activeTimer",
     "nodes": [
       "fixedLogoutRedirection"

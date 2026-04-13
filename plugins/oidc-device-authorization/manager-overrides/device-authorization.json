@@ -39,7 +39,7 @@
   },
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsBasic",
+      "insert_into": "oidcRPMetaDataOptions/security",
       "insert_after": "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
       "nodes": [
         "oidcRPMetaDataOptionsAllowDeviceAuthorization"
