@@ -13,7 +13,7 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 
 use strict;
 use Mouse;
-use JSON qw(from_json to_json);
+use JSON                                   qw(from_json to_json);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -56,39 +56,41 @@ sub init {
     }
 
     # Routes for authenticated users (token generation interface)
-    $self->addAuthRouteWithRedirect( pam => 'pamInterface', ['GET'] )
-      ->addAuthRoute( pam => 'generateToken', ['POST'] );
+    $self->addAuthRouteWithRedirect(
+        pam => { '*' => 'pamInterface' },
+        ['GET']
+      )
 
-    # Route for server-to-server authorization (Bearer token auth)
-    $self->addUnauthRoute(
+      # Route for server-to-server authorization (Bearer token auth)
+      ->addUnauthRoute(
         pam => { authorize => 'authorize' },
         ['POST']
-    );
+      )
 
-    # Route for server heartbeat (refresh token based)
-    $self->addUnauthRoute(
+      # Route for server heartbeat (refresh token based)
+      ->addUnauthRoute(
         pam => { heartbeat => 'heartbeat' },
         ['POST']
-    );
+      )
 
-    # Route for one-time token verification (server-to-server)
-    $self->addUnauthRoute(
+      # Route for one-time token verification (server-to-server)
+      ->addUnauthRoute(
         pam => { verify => 'verifyToken' },
         ['POST']
-    );
+      )
 
-    # Route for NSS user info lookup (server-to-server)
-    $self->addUnauthRoute(
+      # Route for NSS user info lookup (server-to-server)
+      ->addUnauthRoute(
         pam => { userinfo => 'userinfo' },
         ['POST']
-    );
+      )
 
-    # Route for bastion token generation (bastion -> LLNG)
-    # Returns a JWT that proves the bastion has a valid session
-    $self->addUnauthRoute(
+      # Route for bastion token generation (bastion -> LLNG)
+      # Returns a JWT that proves the bastion has a valid session
+      ->addUnauthRoute(
         pam => { 'bastion-token' => 'bastionToken' },
         ['POST']
-    );
+      );
 
     return 1;
 }
@@ -103,13 +105,12 @@ sub pamInterface {
         $req,
         'pamaccess',
         params => {
-            TOKEN => '',
-            LOGIN => $req->userData->{ $self->conf->{whatToTrace} } || '',
-            EXPIRES_IN       => '',
-            SHOW_TOKEN       => 0,
-            DEFAULT_DURATION => $self->conf->{pamAccessTokenDuration}
-              || 600,
-            MAX_DURATION => $self->conf->{pamAccessMaxDuration} || 3600,
+            TOKEN      => '',
+            LOGIN      => $req->userData->{ $self->conf->{whatToTrace} } || '',
+            EXPIRES_IN => '',
+            SHOW_TOKEN => 0,
+            DEFAULT_DURATION => $self->conf->{pamAccessTokenDuration} || 600,
+            MAX_DURATION     => $self->conf->{pamAccessMaxDuration}   || 3600,
             js => "$self->{p}->{staticPrefix}/common/js/pamaccess.js",
         }
     );
@@ -260,7 +261,8 @@ sub authorize {
     # 4. Lookup user (without active session)
     $req->user($user);
     $req->data->{_pamAuthorize} = 1;
-    $req->steps( [
+    $req->steps(
+        [
             'getUser',                 'setSessionInfo',
             $self->p->groupsAndMacros, 'setLocalGroups'
         ]
@@ -827,7 +829,8 @@ sub userinfo {
     # 3. Lookup user in backend
     $req->user($user);
     $req->data->{_pamUserinfo} = 1;
-    $req->steps( [
+    $req->steps(
+        [
             'getUser',                 'setSessionInfo',
             $self->p->groupsAndMacros, 'setLocalGroups'
         ]
@@ -1009,7 +1012,8 @@ sub bastionToken {
     # Lookup user groups if available
     $req->user($user);
     $req->data->{_pamBastionToken} = 1;
-    $req->steps( [
+    $req->steps(
+        [
             'getUser',                 'setSessionInfo',
             $self->p->groupsAndMacros, 'setLocalGroups'
         ]
