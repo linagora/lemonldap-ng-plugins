@@ -61,6 +61,12 @@ sub init {
         ['GET']
       )
 
+      # POST /pam - Generate a new PAM access token (auth required)
+      ->addAuthRoute(
+        pam => { '*' => 'generateToken' },
+        ['POST']
+      )
+
       # Route for server-to-server authorization (Bearer token auth)
       ->addUnauthRoute(
         pam => { authorize => 'authorize' },
