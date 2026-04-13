@@ -27,13 +27,6 @@ extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'SSHCA';
 
-# MenuTab configuration - compiled rule for displaying the tab
-has _rule => ( is => 'rw' );
-
-sub rule { $_[0]->_rule }
-
-with 'Lemonldap::NG::Portal::MenuTab';
-
 has key => (
     is      => 'rw',
     lazy    => 1,
@@ -51,19 +44,6 @@ has sshPrivKey => ( is => 'rw' );
 
 sub init {
     my ($self) = @_;
-
-    # Compile display rule for MenuTab
-    my $rule = $self->conf->{portalDisplaySshCa} // 0;
-    $rule = $self->p->HANDLER->substitute($rule);
-    my $sub  = $self->p->HANDLER->buildSub($rule);
-    unless ($sub) {
-        $self->logger->error(
-            'SSHCA: Bad portalDisplaySshCa rule: '
-              . $self->p->HANDLER->tsv->{jail}->error
-        );
-        return 0;
-    }
-    $self->_rule($sub);
 
     # Check parameters
     unless ( $self->key
@@ -143,41 +123,27 @@ sub init {
         ['POST']
     );
 
-    # GET /ssh/* - Display the signing interface (auth required, wildcard route)
-    $self->addAuthRoute( ssh => { '*' => 'sshInterface' }, ['GET'] );
+    # GET /ssh - Display the signing interface (standalone page, auth required)
+    $self->addAuthRouteWithRedirect( ssh => 'sshInterface', ['GET'] );
 
     $self->logger->debug('SSH CA plugin initialized');
 
     return 1;
 }
 
-# MENUTAB - Display method for the portal menu tab
-
-sub display {
-    my ( $self, $req ) = @_;
-
-    # Max validity in days (default 365 days = 1 year)
-    my $maxValidityDays = $self->conf->{sshCaCertMaxValidity} || 365;
-
-    return {
-        logo => 'certificate',
-        name => 'SSHCA',
-        id   => 'sshca',
-        html => $self->loadTemplate(
-            $req, 'sshca',
-            params => {
-                MAX_VALIDITY_DAYS => $maxValidityDays,
-                js => "$self->{p}->{staticPrefix}/common/js/sshca.js",
-            }
-        ),
-    };
-}
-
-# GET /ssh - Display the signing interface
+# GET /ssh - Display the signing interface (standalone page)
 sub sshInterface {
     my ( $self, $req ) = @_;
 
-    return $self->p->do( $req, [ sub { PE_OK } ] );
+    my $maxValidityDays = $self->conf->{sshCaCertMaxValidity} || 365;
+
+    return $self->p->sendHtml(
+        $req, 'sshca',
+        params => {
+            MAX_VALIDITY_DAYS => $maxValidityDays,
+            js => "$self->{p}->{staticPrefix}/common/js/sshca.js",
+        }
+    );
 }
 
 # =============================================================================

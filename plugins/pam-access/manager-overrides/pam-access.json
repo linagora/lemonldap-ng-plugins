@@ -64,21 +64,9 @@
       "type": "int",
       "default": 86400,
       "documentation": "Default offline authorization cache TTL (seconds)"
-    },
-    "portalDisplayPamAccess": {
-      "type": "boolOrExpr",
-      "default": 0,
-      "documentation": "Display PAM access token tab in portal"
     }
   },
   "tree": [
-    {
-      "insert_into": "generalParameters/portalParams/portalMenu/portalModules",
-      "insert_after": "portalDisplayOfflineTokens",
-      "nodes": [
-        "portalDisplayPamAccess"
-      ]
-    },
     {
       "insert_into": "generalParameters/plugins",
       "insert_after": "oidcOfflineTokens",
@@ -172,10 +160,6 @@
     "pamAccessOfflineTtl": {
       "en": "Offline cache TTL",
       "fr": "TTL du cache hors ligne"
-    },
-    "portalDisplayPamAccess": {
-      "en": "Display PAM access token tab",
-      "fr": "Afficher l'onglet token d'accès PAM"
     }
   }
 }

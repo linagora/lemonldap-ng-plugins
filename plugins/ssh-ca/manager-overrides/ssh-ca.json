@@ -38,21 +38,9 @@
       "type": "text",
       "default": "/var/lib/lemonldap-ng/ssh/serial",
       "documentation": "Path to SSH certificate serial number file"
-    },
-    "portalDisplaySshCa": {
-      "type": "boolOrExpr",
-      "default": 0,
-      "documentation": "Display SSH CA signing tab in portal"
     }
   },
   "tree": [
-    {
-      "insert_into": "generalParameters/portalParams/portalMenu/portalModules",
-      "insert_after": "portalDisplayOfflineTokens",
-      "nodes": [
-        "portalDisplaySshCa"
-      ]
-    },
     {
       "insert_into": "generalParameters/plugins",
       "insert_after": "oidcOfflineTokens",
@@ -106,10 +94,6 @@
     "sshCaSerialPath": {
       "en": "Serial file path",
       "fr": "Chemin du fichier de série"
-    },
-    "portalDisplaySshCa": {
-      "en": "Display SSH CA tab",
-      "fr": "Afficher l'onglet CA SSH"
     }
   }
 }

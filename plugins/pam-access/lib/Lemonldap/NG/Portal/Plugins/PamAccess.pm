@@ -26,14 +26,6 @@ extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'PamAccess';
 
-# MenuTab configuration - rule for displaying the tab
-has rule => (
-    is      => 'ro',
-    lazy    => 1,
-    builder => sub { $_[0]->conf->{portalDisplayPamAccess} // 0 },
-);
-with 'Lemonldap::NG::Portal::MenuTab';
-
 # Access to OIDC module for token generation/validation
 has oidc => (
     is      => 'ro',
@@ -64,7 +56,7 @@ sub init {
     }
 
     # Routes for authenticated users (token generation interface)
-    $self->addAuthRoute( pam => 'pamInterface', ['GET'] )
+    $self->addAuthRouteWithRedirect( pam => 'pamInterface', ['GET'] )
       ->addAuthRoute( pam => 'generateToken', ['POST'] );
 
     # Route for server-to-server authorization (Bearer token auth)
@@ -101,39 +93,26 @@ sub init {
     return 1;
 }
 
-# MENUTAB - Display method for the portal menu tab
-
-sub display {
-    my ( $self, $req ) = @_;
-
-    return {
-        logo => 'key',
-        name => 'PamAccess',
-        id   => 'pamaccess',
-        html => $self->loadTemplate(
-            $req,
-            'pamaccess',
-            params => {
-                TOKEN => '',
-                LOGIN => $req->userData->{ $self->conf->{whatToTrace} } || '',
-                EXPIRES_IN       => '',
-                SHOW_TOKEN       => 0,
-                DEFAULT_DURATION => $self->conf->{pamAccessTokenDuration}
-                  || 600,
-                MAX_DURATION => $self->conf->{pamAccessMaxDuration} || 3600,
-                js => "$self->{p}->{staticPrefix}/common/js/pamaccess.js",
-            }
-        ),
-    };
-}
-
 # ROUTE HANDLERS
 
-# GET /pam - Display the token generation interface
+# GET /pam - Display the token generation interface (standalone page)
 sub pamInterface {
     my ( $self, $req ) = @_;
 
-    return $self->p->do( $req, [ sub { PE_OK } ] );
+    return $self->p->sendHtml(
+        $req,
+        'pamaccess',
+        params => {
+            TOKEN => '',
+            LOGIN => $req->userData->{ $self->conf->{whatToTrace} } || '',
+            EXPIRES_IN       => '',
+            SHOW_TOKEN       => 0,
+            DEFAULT_DURATION => $self->conf->{pamAccessTokenDuration}
+              || 600,
+            MAX_DURATION => $self->conf->{pamAccessMaxDuration} || 3600,
+            js => "$self->{p}->{staticPrefix}/common/js/pamaccess.js",
+        }
+    );
 }
 
 # POST /pam - Generate a new PAM access token (one-time use)
