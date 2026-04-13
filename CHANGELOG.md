@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.9 - 2026-04-13
+
+### Improvements
+
+- **ssh-ca**: Display user's existing certificates on /ssh page with
+  status (active/expired/revoked). New `GET /ssh/mycerts` endpoint.
+  List refreshes automatically after signing a new certificate.
+
+### Bug fixes
+
+- **Debian packages**: Fix portal translations not being merged at
+  install time (replace Python3 with Perl in postinst scripts).
+
 ## v0.1.8 - 2026-04-13
 
 ### Improvements
