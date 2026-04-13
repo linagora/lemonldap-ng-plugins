@@ -10,6 +10,7 @@
 
 ### Bug fixes
 
+- **pam-access**: Fix token generation (missing POST /pam route).
 - **Debian packages**: Fix portal translations not being merged at
   install time (replace Python3 with Perl in postinst scripts).
 
