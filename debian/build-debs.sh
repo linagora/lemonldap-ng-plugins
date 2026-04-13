@@ -289,15 +289,16 @@ merge_translations() {
       target="${LANG_DIR}/${lang}"
       [ -f "$target" ] || continue
       # Merge: add keys from plugin that don't exist in target
-      if command -v python3 >/dev/null 2>&1; then
-        python3 -c "
-import json, sys
-with open('$target') as f: base = json.load(f)
-with open('$tr_file') as f: ext = json.load(f)
-base.update({k:v for k,v in ext.items() if k not in base})
-with open('$target','w') as f: json.dump(base, f, ensure_ascii=False, indent=0, sort_keys=True)
-" 2>/dev/null || true
-      fi
+      perl -MJSON -e '
+        open my $tf, "<", $ARGV[0] or die $!;
+        local $/; my $base = decode_json(<$tf>); close $tf;
+        open my $sf, "<", $ARGV[1] or die $!;
+        my $ext = decode_json(<$sf>); close $sf;
+        for (keys %$ext) { $base->{$_} //= $ext->{$_} }
+        open my $of, ">", $ARGV[0] or die $!;
+        print $of JSON->new->utf8->pretty->canonical->encode($base);
+        close $of;
+      ' "$target" "$tr_file" 2>/dev/null || true
     done
   done
 }
