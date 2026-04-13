@@ -96,6 +96,9 @@ sub init {
         $self->addUnauthRoute(
             ssh => { revoked => 'sshCaKrl' },
             ['GET']
+        )->addAuthRoute(
+            ssh => { revoked => 'sshCaKrl' },
+            ['GET']
         );
     }
 
@@ -124,7 +127,10 @@ sub init {
     );
 
     # GET /ssh - Display the signing interface (standalone page, auth required)
-    $self->addAuthRouteWithRedirect( ssh => 'sshInterface', ['GET'] );
+    $self->addAuthRouteWithRedirect(
+        ssh => { '*' => 'sshInterface' },
+        ['GET']
+    );
 
     $self->logger->debug('SSH CA plugin initialized');
 
@@ -218,7 +224,8 @@ sub sshCaSign {
 
     my $userPubKey = $body->{public_key};
     unless ($userPubKey) {
-        return $self->p->sendError( $req, 'public_key parameter required', 400 );
+        return $self->p->sendError( $req, 'public_key parameter required',
+            400 );
     }
 
    # Validate SSH public key format: type, base64, optional comment, single line
@@ -226,7 +233,8 @@ sub sshCaSign {
     unless ( $userPubKey =~
         /\A(ssh-\w+|ecdsa-sha2-\w+)\s+[A-Za-z0-9+\/]+={0,2}(?:\s+[^\r\n]*)?\z/ )
     {
-        return $self->p->sendError( $req, 'Invalid SSH public key format', 400 );
+        return $self->p->sendError( $req, 'Invalid SSH public key format',
+            400 );
     }
 
     # Get validity from request (in days) or default to 30 days
@@ -854,7 +862,8 @@ sub sshCertRevoke {
     my $reason    = $body->{reason} || '';
 
     unless ( $sessionId && $serial ) {
-        return $self->p->sendError( $req, 'session_id and serial required', 400 );
+        return $self->p->sendError( $req, 'session_id and serial required',
+            400 );
     }
 
     # Get current admin user
@@ -873,7 +882,8 @@ sub sshCertRevoke {
           || {},
     };
 
-    my $psession = Lemonldap::NG::Common::Session->new( {
+    my $psession = Lemonldap::NG::Common::Session->new(
+        {
             %$moduleOptions,
             id    => $sessionId,
             force => 1,
