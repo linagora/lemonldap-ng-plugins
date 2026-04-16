@@ -2,7 +2,7 @@ name: Test Plugins
 
 on:
   push:
-    branches: ['*']
+    branches: [main]
     tags-ignore: ['v*']
   pull_request:
 

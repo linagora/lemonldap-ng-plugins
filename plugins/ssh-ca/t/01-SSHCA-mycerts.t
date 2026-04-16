@@ -7,23 +7,36 @@ use File::Temp qw(tempdir);
 
 BEGIN {
     require 't/test-lib.pm';
-    eval "use Crypt::PK::Ed25519";
-    plan skip_all => "Crypt::PK::Ed25519 not available" if $@;
 }
 
-# Check ssh-keygen is available
+# Check ssh-keygen and openssl are available
 system("which ssh-keygen >/dev/null 2>&1") == 0
   or plan skip_all => "ssh-keygen not available";
+system("which openssl >/dev/null 2>&1") == 0
+  or plan skip_all => "openssl not available";
 
 my $debug = 'error';
 
-# Generate Ed25519 key pair in PEM format for SSH CA
+# Generate RSA key pair in PEM format for SSH CA
+# RSA PEM is directly usable by ssh-keygen -s (no conversion needed)
 my ( $ca_private_key, $ca_public_key );
 {
-    my $pk = Crypt::PK::Ed25519->new;
-    $pk->generate_key;
-    $ca_private_key = $pk->export_key_pem('private');
-    $ca_public_key  = $pk->export_key_pem('public');
+    my $tmpdir = tempdir( CLEANUP => 1 );
+    system(
+"openssl genrsa 2048 2>/dev/null | openssl rsa -traditional -out $tmpdir/ca.key 2>/dev/null"
+    ) == 0
+      or plan skip_all => "openssl key generation failed";
+    system("openssl rsa -in $tmpdir/ca.key -pubout -out $tmpdir/ca.pub 2>/dev/null"
+    ) == 0
+      or plan skip_all => "openssl pubkey extraction failed";
+
+    local $/;
+    open my $fh, '<', "$tmpdir/ca.key" or die;
+    $ca_private_key = <$fh>;
+    close $fh;
+    open $fh, '<', "$tmpdir/ca.pub" or die;
+    $ca_public_key = <$fh>;
+    close $fh;
 }
 
 # Generate a user SSH public key to sign
@@ -88,7 +101,7 @@ expectOK($res);
 
 my $sshPubKey = $res->[2]->[0];
 ok( $sshPubKey,                         'Got SSH public key' );
-like( $sshPubKey, qr/^ssh-ed25519\s+/,  'Public key is in SSH ed25519 format' );
+like( $sshPubKey, qr/^ssh-rsa\s+/,  'Public key is in SSH RSA format' );
 like( $sshPubKey, qr/LLNG-SSH-CA/,       'Public key has LLNG comment' );
 count(3);
 
@@ -219,7 +232,7 @@ ok(
 );
 $payload = expectJSON($res);
 ok( $payload->{certificate},                'Got certificate' );
-like( $payload->{certificate}, qr/^ssh-ed25519-cert/, 'Certificate format is correct' );
+like( $payload->{certificate}, qr/-cert-v\d+\@openssh\.com/, 'Certificate format is correct' );
 ok( $payload->{serial},                     'Got serial' );
 ok( $payload->{key_id},                     'Got key_id' );
 like( $payload->{key_id}, qr/dwho\@llng-/, 'Key ID contains username' );

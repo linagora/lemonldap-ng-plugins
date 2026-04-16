@@ -7,22 +7,34 @@ use File::Temp qw(tempdir);
 
 BEGIN {
     require 't/test-lib.pm';
-    eval "use Crypt::PK::Ed25519";
-    plan skip_all => "Crypt::PK::Ed25519 not available" if $@;
 }
 
 system("which ssh-keygen >/dev/null 2>&1") == 0
   or plan skip_all => "ssh-keygen not available";
+system("which openssl >/dev/null 2>&1") == 0
+  or plan skip_all => "openssl not available";
 
 my $debug = 'error';
 
-# Generate Ed25519 key pair
+# Generate RSA key pair in PEM format for SSH CA
 my ( $ca_private_key, $ca_public_key );
 {
-    my $pk = Crypt::PK::Ed25519->new;
-    $pk->generate_key;
-    $ca_private_key = $pk->export_key_pem('private');
-    $ca_public_key  = $pk->export_key_pem('public');
+    my $tmpdir = tempdir( CLEANUP => 1 );
+    system(
+"openssl genrsa 2048 2>/dev/null | openssl rsa -traditional -out $tmpdir/ca.key 2>/dev/null"
+    ) == 0
+      or plan skip_all => "openssl key generation failed";
+    system("openssl rsa -in $tmpdir/ca.key -pubout -out $tmpdir/ca.pub 2>/dev/null"
+    ) == 0
+      or plan skip_all => "openssl pubkey extraction failed";
+
+    local $/;
+    open my $fh, '<', "$tmpdir/ca.key" or die;
+    $ca_private_key = <$fh>;
+    close $fh;
+    open $fh, '<', "$tmpdir/ca.pub" or die;
+    $ca_public_key = <$fh>;
+    close $fh;
 }
 
 # Generate user SSH public key
