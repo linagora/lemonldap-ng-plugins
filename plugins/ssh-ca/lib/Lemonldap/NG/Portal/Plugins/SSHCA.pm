@@ -1050,10 +1050,10 @@ sub _storeCertificate {
         expires_at => $args{expires_at},
     };
 
-    # Get existing certificates from persistent session
+    # Get existing certificates from session
     my $sshCerts = [];
-    if ( $req->sessionInfo->{_sshCerts} ) {
-        $sshCerts = eval { from_json( $req->sessionInfo->{_sshCerts} ) };
+    if ( $req->userData->{_sshCerts} ) {
+        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
         if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
             $self->logger->warn("SSH CA: Corrupted _sshCerts, resetting: $@");
             $sshCerts = [];
