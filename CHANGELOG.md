@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.11 - 2026-04-16
+
+### Bug fixes
+
+- **ssh-ca**: Fix "Route ssh redefined" warning. `addAuthRouteWithRedirect`
+  was overwriting the `ssh` unauth route HASH (containing `/ssh/ca` and
+  `/ssh/revoked` sub-routes) with a leaf CODE ref. Replace with explicit
+  `addAuthRoute` + `addUnauthRoute` using `'*'` sub-routes, and chain all
+  route registrations.
+
 ## v0.1.10 - 2026-04-13
 
 ### Improvements
