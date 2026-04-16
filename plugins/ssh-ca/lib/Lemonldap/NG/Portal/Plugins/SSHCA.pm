@@ -85,14 +85,55 @@ sub init {
     $self->addUnauthRoute(
         ssh => { ca => 'sshCaPublicKey' },
         ['GET']
-    );
+    )
+
+      # POST /ssh/sign - Sign user's SSH key (auth required)
+      ->addAuthRoute(
+        ssh => { sign => 'sshCaSign' },
+        ['POST']
+      )
+
+      # GET /ssh/mycerts - List current user's certificates (auth required)
+      ->addAuthRoute(
+        ssh => { mycerts => 'sshMyCerts' },
+        ['GET']
+      )
+
+      # GET /ssh/admin - Display the revocation interface (auth required, admin)
+      ->addAuthRoute(
+        ssh => { admin => 'sshAdminInterface' },
+        ['GET']
+      )
+
+      # GET /ssh/certs - List/search certificates (auth required, admin)
+      ->addAuthRoute(
+        ssh => { certs => 'sshCertsList' },
+        ['GET']
+      )
+
+      # POST /ssh/revoke - Revoke a certificate (auth required, admin)
+      ->addAuthRoute(
+        ssh => { revoke => 'sshCertRevoke' },
+        ['POST']
+      )
+
+      # GET /ssh - Display the signing interface (standalone page, auth required)
+      ->addAuthRoute(
+        ssh => { '*' => 'sshInterface' },
+        ['GET']
+      )
+
+      # Redirect unauthenticated users to portal for /ssh (except /ssh/ca and /ssh/revoked)
+      ->addUnauthRoute(
+        ssh => { '*' => 'sshRedirectToPortal' },
+        ['GET']
+      );
 
     # GET /ssh/revoked - Key Revocation List (no auth required)
     unless ( $self->conf->{sshCaKrlPath} ) {
         $self->logger->error('SSH CA: No KRL path configured');
     }
     else {
-
         $self->addUnauthRoute(
             ssh => { revoked => 'sshCaKrl' },
             ['GET']
@@ -102,45 +143,16 @@ sub init {
         );
     }
 
-    # POST /ssh/sign - Sign user's SSH key (auth required)
-    $self->addAuthRoute(
-        ssh => { sign => 'sshCaSign' },
-        ['POST']
-    );
-
-    # GET /ssh/mycerts - List current user's certificates (auth required)
-    $self->addAuthRoute(
-        ssh => { mycerts => 'sshMyCerts' },
-        ['GET']
-    );
-
-    # GET /ssh/admin - Display the revocation interface (auth required, admin)
-    $self->addAuthRoute(
-        ssh => { admin => 'sshAdminInterface' },
-        ['GET']
-    );
-
-    # GET /ssh/certs - List/search certificates (auth required, admin)
-    $self->addAuthRoute(
-        ssh => { certs => 'sshCertsList' },
-        ['GET']
-    );
-
-    # POST /ssh/revoke - Revoke a certificate (auth required, admin)
-    $self->addAuthRoute(
-        ssh => { revoke => 'sshCertRevoke' },
-        ['POST']
-    );
-
-    # GET /ssh - Display the signing interface (standalone page, auth required)
-    $self->addAuthRouteWithRedirect(
-        ssh => { '*' => 'sshInterface' },
-        ['GET']
-    );
-
     $self->logger->debug('SSH CA plugin initialized');
 
     return 1;
+}
+
+# Redirect unauthenticated users to portal (preserving REQUEST_URI)
+sub sshRedirectToPortal {
+    my ( $self, $req ) = @_;
+    $self->p->api->goToPortal( $req, $req->{env}->{REQUEST_URI} );
+    return $self->p->sendRedirection($req);
 }
 
 # GET /ssh - Display the signing interface (standalone page)
