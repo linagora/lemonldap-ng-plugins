@@ -100,18 +100,18 @@ jobs:
         run: |
           PLUGIN_DIR="plugins/${{ matrix.plugin }}"
 
-          # Copy lib/ into lemonldap-ng-portal/blib/lib (no overwrite)
+          # Copy lib/ into lemonldap-ng-portal/blib/lib (overwrite to replace built-in modules)
           if [ -d "$PLUGIN_DIR/lib" ]; then
             find "$PLUGIN_DIR/lib" -name '*.pm' | while read src; do
               rel="${src#$PLUGIN_DIR/lib/}"
               dst="llng/lemonldap-ng-portal/blib/lib/$rel"
-              if [ ! -f "$dst" ]; then
-                mkdir -p "$(dirname "$dst")"
-                cp "$src" "$dst"
-                echo "COPY: $rel"
+              mkdir -p "$(dirname "$dst")"
+              if [ -f "$dst" ]; then
+                echo "OVERRIDE: $rel"
               else
-                echo "SKIP (exists): $rel"
+                echo "COPY: $rel"
               fi
+              cp "$src" "$dst"
             done
           fi
 
