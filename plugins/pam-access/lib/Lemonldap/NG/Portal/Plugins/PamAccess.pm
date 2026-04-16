@@ -55,20 +55,8 @@ sub init {
         return 0;
     }
 
-    # Routes for authenticated users (token generation interface)
-    $self->addAuthRouteWithRedirect(
-        pam => { '*' => 'pamInterface' },
-        ['GET']
-      )
-
-      # POST /pam - Generate a new PAM access token (auth required)
-      ->addAuthRoute(
-        pam => { '*' => 'generateToken' },
-        ['POST']
-      )
-
-      # Route for server-to-server authorization (Bearer token auth)
-      ->addUnauthRoute(
+    # Route for server-to-server authorization (Bearer token auth)
+    $self->addUnauthRoute(
         pam => { authorize => 'authorize' },
         ['POST']
       )
@@ -96,12 +84,37 @@ sub init {
       ->addUnauthRoute(
         pam => { 'bastion-token' => 'bastionToken' },
         ['POST']
+      )
+
+      # Redirect unauthenticated users to portal for /pam
+      ->addUnauthRoute(
+        pam => { '*' => 'pamRedirectToPortal' },
+        ['GET']
+      )
+
+      # Routes for authenticated users (token generation interface)
+      ->addAuthRoute(
+        pam => { '*' => 'pamInterface' },
+        ['GET']
+      )
+
+      # POST /pam - Generate a new PAM access token (auth required)
+      ->addAuthRoute(
+        pam => { '*' => 'generateToken' },
+        ['POST']
       );
 
     return 1;
 }
 
 # ROUTE HANDLERS
+
+# Redirect unauthenticated users to portal (preserving REQUEST_URI)
+sub pamRedirectToPortal {
+    my ( $self, $req ) = @_;
+    $self->p->api->goToPortal( $req, $req->{env}->{REQUEST_URI} );
+    return $self->p->sendRedirection($req);
+}
 
 # GET /pam - Display the token generation interface (standalone page)
 sub pamInterface {

@@ -9,6 +9,11 @@
   `/ssh/revoked` sub-routes) with a leaf CODE ref. Replace with explicit
   `addAuthRoute` + `addUnauthRoute` using `'*'` sub-routes, and chain all
   route registrations.
+- **pam-access**: Fix "Conflict detected between 2 extensions" error.
+  Same root cause: `addAuthRouteWithRedirect` set `pam` as a CODE leaf
+  in unauth routes (for both GET and POST), then chained `addUnauthRoute`
+  calls with POST sub-routes (`authorize`, `heartbeat`, etc.) conflicted
+  with the existing CODE ref.
 
 ## v0.1.10 - 2026-04-13
 
