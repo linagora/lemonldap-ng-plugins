@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.1.14 - (Unreleased)
+
+### New plugins
+
+- **vault-conf-backend**: LemonLDAP::NG configuration backend storing the
+  LLNG configuration in OpenBAO / HashiCorp Vault via the KV v2 secret
+  engine. Installs `Lemonldap::NG::Common::Conf::Backends::OpenBAO`
+
 ## v0.1.13 2026-04-17
 
 ### New plugins
