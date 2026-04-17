@@ -38,6 +38,14 @@ my $op = LLNG::Manager::Test->new( {
                 # claim `department` should pull session attr `dept`
                 department => 'dept',
             },
+
+            # Inject derived session attributes via LLNG macros:
+            #   - `dept`  is the explicit-mapping target for `department`
+            #   - `title` is the identity-fallback target for `title`
+            macros => {
+                dept  => '"Engineering"',
+                title => '"Developer"',
+            },
             oidcRPMetaDataExportedVars => {
                 rp => {
 
@@ -66,12 +74,6 @@ my $op = LLNG::Manager::Test->new( {
     }
 );
 my $res;
-
-# Inject session attributes the plugin is expected to resolve.
-#   - `dept`  is the explicit-mapping target for claim `department`
-#   - `title` is the identity-fallback target for claim `title`
-$op->p->setLocalMacro( 'dept',  sub { 'Engineering' } );
-$op->p->setLocalMacro( 'title', sub { 'Developer' } );
 
 # Authenticate
 my $query = "user=french&password=french";
