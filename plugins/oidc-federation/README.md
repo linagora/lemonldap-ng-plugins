@@ -32,28 +32,28 @@ to `customPlugins`, and run `llng-build-manager-files`.
 
 In the Manager, under **OpenID Connect Service > Federation**:
 
-| Parameter                        | Default          | Description                                                 |
-| -------------------------------- | ---------------- | ----------------------------------------------------------- |
-| `oidcFederationEnabled`          | `0`              | Enable OpenID Federation support                            |
-| `oidcFederationEntityId`         | _(issuer URL)_   | Federation entity identifier (defaults to OIDC issuer)      |
-| `oidcFederationAuthorityHints`   | _(empty)_        | Space-separated list of superior entity IDs                 |
-| `oidcFederationSigningKey`       | `default-oidc-sig` | Key ID used for signing entity statements                 |
-| `oidcFederationSigningAlg`       | `RS256`          | Signing algorithm (RS256/384/512, ES256/384/512)            |
-| `oidcFederationTrustAnchors`     | `{}`             | Trust anchors mapping entity IDs to their JWKS              |
+| Parameter                      | Default            | Description                                            |
+| ------------------------------ | ------------------ | ------------------------------------------------------ |
+| `oidcFederationEnabled`        | `0`                | Enable OpenID Federation support                       |
+| `oidcFederationEntityId`       | _(issuer URL)_     | Federation entity identifier (defaults to OIDC issuer) |
+| `oidcFederationAuthorityHints` | _(empty)_          | Space-separated list of superior entity IDs            |
+| `oidcFederationSigningKey`     | `default-oidc-sig` | Key ID used for signing entity statements              |
+| `oidcFederationSigningAlg`     | `RS256`            | Signing algorithm (RS256/384/512, ES256/384/512)       |
+| `oidcFederationTrustAnchors`   | `{}`               | Trust anchors mapping entity IDs to their JWKS         |
 
 For each OIDC RP _(dynamically filled)_:
 
-| Parameter                               | Default  | Description                         |
-| --------------------------------------- | -------- | ----------------------------------- |
-| `oidcRPMetaDataOptionsFederationEntityId` | _(empty)_ | Federation entity ID for this RP   |
+| Parameter                                 | Default   | Description                      |
+| ----------------------------------------- | --------- | -------------------------------- |
+| `oidcRPMetaDataOptionsFederationEntityId` | _(empty)_ | Federation entity ID for this RP |
 
 ## Endpoints
 
-| Endpoint                                       | Method | Description                            |
-| ---------------------------------------------- | ------ | -------------------------------------- |
-| `/.well-known/openid-federation`               | GET    | Entity Configuration (self-signed JWT) |
-| `/oauth2/federation_fetch?sub=<entity_id>`     | GET    | Subordinate Statement about a known RP |
-| `/oauth2/federation_list`                      | GET    | List of subordinate entity IDs         |
+| Endpoint                                   | Method | Description                            |
+| ------------------------------------------ | ------ | -------------------------------------- |
+| `/.well-known/openid-federation`           | GET    | Entity Configuration (self-signed JWT) |
+| `/oauth2/federation_fetch?sub=<entity_id>` | GET    | Subordinate Statement about a known RP |
+| `/oauth2/federation_list`                  | GET    | List of subordinate entity IDs         |
 
 ## How It Works
 
@@ -62,6 +62,7 @@ For each OIDC RP _(dynamically filled)_:
 The `/.well-known/openid-federation` endpoint serves the provider's Entity
 Configuration as a self-signed JWT (`application/entity-statement+jwt`),
 containing:
+
 - OIDC Provider metadata
 - Federation entity metadata (fetch/list endpoints)
 - Authority hints (pointers to superior entities)

@@ -1,8 +1,10 @@
-# Linagora's plugins for Lemonldap::NG
+# [LINAGORA](https://linagora.com)'s plugins for Lemonldap::NG
 
 [Lemonldap::NG](https://lemonldap-ng.org/) is the leader SSO in France and one of the best Open-Source SSO in the world.
 
-Linagora is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/project_members) since 2007 and actively continue to contributes.
+[LINAGORA](https://linagora.com) is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/project_members) since 2007 and actively continue to contributes.
+
+Several of these plugins power [**Open Bastion**](https://github.com/linagora/open-bastion), an open-source SSH bastion that relies on LemonLDAP::NG for centralized authentication and authorization. In particular, the [pam-access](plugins/pam-access), [ssh-ca](plugins/ssh-ca), [oidc-device-authorization](plugins/oidc-device-authorization), and [oidc-device-organization](plugins/oidc-device-organization) plugins provide the PAM integration, SSH certificate signing, and server enrollment used by Open Bastion.
 
 This repository contains:
 
@@ -85,7 +87,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
 | [oidc-federation](plugins/oidc-federation)                     | OpenID Connect Federation (server side)                   | beta   |
 
-## Lemonldap::NG Long Term Support (LTS)
+## Lemonldap::NG Long Term Support by LINAGORA (LTS)
 
 Here are the Lemonldap::NG "LTS" versions:
 
@@ -96,11 +98,11 @@ Here are the Lemonldap::NG "LTS" versions:
 | 2.21.x  | ✅            | ✅                                       | 2030      |
 
 - [LTS community files](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/releases) for 2.16.x and 2.21.x
-- [Linagora files for 2.0.11](./v2.0.11)
+- [LINAGORA files for 2.0.11](./v2.0.11)
 
 ## License and copyright
 
-Copyright: 2024-2026 [Linagora](https://linagora.com)
+Copyright: 2024-2026 [LINAGORA](https://linagora.com)
 
 Following [Lemonldap::NG](https://lemonldap-ng.org/) License, all files here
 are released under **GPL-2+ license**, unless specified:
@@ -120,6 +122,6 @@ are released under **GPL-2+ license**, unless specified:
 
 [^1]: [Official Debian repository](https://tracker.debian.org/pkg/lemonldap-ng)
 
-[^2]: Possible extension via [Linagora's OSSA](https://linagora.com/ossa)
+[^2]: Possible extension via [LINAGORA's OSSA](https://linagora.com/ossa)
 
 [^3]: Supported here

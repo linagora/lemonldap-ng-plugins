@@ -36,13 +36,13 @@ into `/etc/lemonldap-ng/manager-overrides.d/`, add `::Plugins::SSHCA` to
 
 In the Manager under **General Parameters** > **Plugins** > **SSH CA**:
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `sshCaKeyRef` | Reference to the SSH CA key in LLNG keys store | _(required)_ |
-| `sshCaKrlPath` | Path to the KRL file on disk | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
-| `sshCaSerialPath` | Path to the serial counter file | `/var/lib/lemonldap-ng/ssh/serial` |
-| `sshCaCertMaxValidity` | Maximum certificate validity in days | `365` |
-| `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid` |
+| Parameter               | Description                                                               | Default                                  |
+| ----------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
+| `sshCaKeyRef`           | Reference to the SSH CA key in LLNG keys store                            | _(required)_                             |
+| `sshCaKrlPath`          | Path to the KRL file on disk                                              | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
+| `sshCaSerialPath`       | Path to the serial counter file                                           | `/var/lib/lemonldap-ng/ssh/serial`       |
+| `sshCaCertMaxValidity`  | Maximum certificate validity in days                                      | `365`                                    |
+| `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid`                                   |
 
 ### CA key setup
 
@@ -57,6 +57,7 @@ from the request. The `sshCaPrincipalSources` parameter is a template string
 where `$varname` references are replaced with session attribute values.
 
 Examples:
+
 - `$uid` → principal is the user's uid (e.g. `john`)
 - `$uid $mail` → two principals: uid and email (e.g. `john`, `john@example.com`)
 
@@ -64,26 +65,26 @@ Examples:
 
 ### Public endpoints (no authentication)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/ssh/ca` | Returns the CA public key in SSH format. Servers use this to configure `TrustedUserCAKeys`. |
-| GET | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Returns empty body if no KRL exists yet. |
+| Method | Path           | Description                                                                                                        |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/ssh/ca`      | Returns the CA public key in SSH format. Servers use this to configure `TrustedUserCAKeys`.                        |
+| GET    | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Returns empty body if no KRL exists yet. |
 
 ### User endpoints (authentication required)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/ssh` | User interface for signing SSH keys |
-| POST | `/ssh/sign` | Sign a user's SSH public key |
-| GET | `/ssh/mycerts` | List the current user's certificates (JSON) |
+| Method | Path           | Description                                 |
+| ------ | -------------- | ------------------------------------------- |
+| GET    | `/ssh`         | User interface for signing SSH keys         |
+| POST   | `/ssh/sign`    | Sign a user's SSH public key                |
+| GET    | `/ssh/mycerts` | List the current user's certificates (JSON) |
 
 ### Admin endpoints (authentication + access control required)
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/ssh/admin` | Admin interface for searching and revoking certificates |
-| GET | `/ssh/certs` | Search all certificates across all users (JSON) |
-| POST | `/ssh/revoke` | Revoke a certificate by session ID and serial |
+| Method | Path          | Description                                             |
+| ------ | ------------- | ------------------------------------------------------- |
+| GET    | `/ssh/admin`  | Admin interface for searching and revoking certificates |
+| GET    | `/ssh/certs`  | Search all certificates across all users (JSON)         |
+| POST   | `/ssh/revoke` | Revoke a certificate by session ID and serial           |
 
 **Important:** Admin endpoints have no built-in access control beyond
 authentication. You must configure `locationRules` on the portal vhost to
@@ -168,6 +169,7 @@ Request (JSON):
 ```
 
 This does two things:
+
 1. Marks the certificate as revoked in the user's persistent session
 2. Updates the KRL file on disk via `ssh-keygen -k [-u] -s ca.pub -f <krlPath>`
 
