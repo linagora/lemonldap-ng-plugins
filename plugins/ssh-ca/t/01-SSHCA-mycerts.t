@@ -152,7 +152,7 @@ my $id = $portal->login('dwho');
 ok(
     $res = $portal->_get(
         '/ssh',
-        cookie => 'text/html',
+        accept => 'text/html',
         cookie => "lemonldap=$id",
     ),
     'GET /ssh interface'

@@ -724,9 +724,17 @@ sub _pemToSshPublicKey {
                 open my $fh, '>', $keyFile or die "Cannot write: $!";
                 print $fh $pemKey;
                 close $fh;
-                $sshKey = `ssh-keygen -i -m PKCS8 -f $keyFile 2>/dev/null`;
-                chomp $sshKey if $sshKey;
-                $sshKey = undef unless $sshKey;
+                $sshKey = `ssh-keygen -i -m PKCS8 -f $keyFile 2>&1`;
+                my $exit = $? >> 8;
+                if ( $exit != 0 ) {
+                    $self->logger->error(
+                        "SSH CA: ssh-keygen -i failed (exit $exit): $sshKey");
+                    $sshKey = undef;
+                }
+                else {
+                    chomp $sshKey;
+                    $sshKey = undef unless $sshKey;
+                }
             }
         };
     }

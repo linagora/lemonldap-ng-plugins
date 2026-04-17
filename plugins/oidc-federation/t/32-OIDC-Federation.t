@@ -32,7 +32,7 @@ $ta_jwk->{use} = 'sig';
 
 # Federated RP: generate a fresh RSA key pair
 my $rp_pk = Crypt::PK::RSA->new();
-$rp_pk->generate_key(256);
+$rp_pk->generate_key(256);    # 256 bytes = 2048 bits
 my $rp_private_pem = $rp_pk->export_key_pem('private');
 my $rp_jwk         = $rp_pk->export_key_jwk( 'public', 1 );
 $rp_jwk->{kid} = 'rp-fed-key-1';
