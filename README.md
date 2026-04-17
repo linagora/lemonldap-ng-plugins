@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://linagora.com"><img src="linagora.png" alt="LINAGORA" width="300"></a>
+</p>
+
 # [LINAGORA](https://linagora.com)'s plugins for Lemonldap::NG
 
 [Lemonldap::NG](https://lemonldap-ng.org/) is the leader SSO in France and one of the best Open-Source SSO in the world.
