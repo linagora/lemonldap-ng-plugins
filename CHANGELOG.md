@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.1.13 2026-04-17
+
+### New plugins
+
+- **oidc-global-scopes**: define OIDC scopes globally for all relying
+  parties, with optional claim-to-session-attribute mapping. Two new
+  config parameters under OIDC Service > Scopes:
+  `oidcServiceGlobalExtraScopes` (scope → claims) and
+  `oidcServiceGlobalClaimMapping` (claim → session attribute).
+  Claim resolution falls back from per-RP Exported Attributes to
+  the global mapping, then to the identity. Requires LLNG ≥ 2.23.0.
+
+### New companion Debian package
+
+- **linagora-llng-crowdsec-filters**: ships a corpus of
+  CrowdSec-compatible HTTP filters to
+  `/var/lib/lemonldap-ng/crowdsec-filters/` for use with LLNG's
+  `crowdsecFilters` option. Includes HTTP probing scenarios
+  (`http-sqli-probing`, `http-xss-probing`), log4j / Jira / ThinkPHP
+  CVE triggers, and curated `url_*` / `urlskip_*` block/skip lists.
+  A scheduled workflow refreshes `http-cve-probing` weekly from
+  CrowdSec's trendy CVE URIs feed. MIT-licensed content imported
+  from crowdsec.net.
+
+### Tests
+
+- **oidc-global-scopes**: 39 tests (global scope enrichment,
+  `allowOnlyDeclaredScopes` preservation, explicit claim mapping,
+  identity fallback, per-RP declaration precedence, silent skip of
+  unresolvable claims).
+
+### Documentation
+
+- Reference the `oidc-global-scopes` plugin and the
+  `linagora-llng-crowdsec-filters` companion package in the main
+  README.
+
 ## v0.1.12 2026-04-17
 
 ### Bug fixes

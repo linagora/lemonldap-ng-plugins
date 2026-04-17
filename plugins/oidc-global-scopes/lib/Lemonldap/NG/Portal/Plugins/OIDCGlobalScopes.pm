@@ -28,7 +28,7 @@ use strict;
 use Mouse;
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
 
-our $VERSION = '0.2.0';
+our $VERSION = '0.1.13';
 
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 

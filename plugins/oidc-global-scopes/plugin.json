@@ -1,6 +1,6 @@
 {
   "name": "oidc-global-scopes",
-  "version": "0.2.0",
+  "version": "0.1.13",
   "summary": "Global OIDC scope and claim definitions for all relying parties",
   "description": "Allows defining extra claims on existing scopes (e.g. add 'department' to 'profile') or entirely new scopes with associated claims, applied globally to all OIDC relying parties without per-RP configuration. Supports a fallback claim-to-session-attribute mapping so global scope claims work even when the RP has not declared them in its Exported Attributes.",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
