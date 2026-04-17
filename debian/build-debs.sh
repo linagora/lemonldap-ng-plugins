@@ -218,7 +218,7 @@ cat > "${CSF_BUILD}/usr/share/doc/linagora-llng-crowdsec-filters/copyright" <<'C
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: linagora-llng-crowdsec-filters
 Source: https://github.com/linagora/lemonldap-ng-plugins
-Comment: imported from crowdsec.net, copyright CrowdSecurity.
+Comment: partially imported from crowdsec.net, copyright CrowdSecurity.
  Pattern data (URI lists, backdoor filenames, probe strings) originates from
  https://hub-data.crowdsec.net/ and https://github.com/crowdsecurity/hub,
  both MIT-licensed. Regex transformations and LemonLDAP::NG scenario
@@ -227,9 +227,9 @@ Comment: imported from crowdsec.net, copyright CrowdSecurity.
 Files: *
 Copyright: 2025 CrowdSecurity
            2025 Linagora <https://linagora.com>
-License: MIT
+License: Expat
 
-License: MIT
+License: Expat
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
  in the Software without restriction, including without limitation the rights
