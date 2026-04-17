@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.1.12 (unreleased)
+
+### Bug fixes
+
+- **ssh-ca**: Fix signed keys not displayed in mycerts endpoint.
+  `_storeCertificate` was reading existing certificates from
+  `$req->sessionInfo` (not populated on auth route requests) instead of
+  `$req->userData`, causing each new signing to overwrite the previous
+  certificate list.
+- **ssh-ca**: Fix RSA public key conversion when `Crypt::PK::RSA` lacks
+  `export_key_openssh`. Falls back to `ssh-keygen -i -m PKCS8`.
+
+### Tests
+
+- **ssh-ca**: 248 tests (public endpoints, signing, security, mycerts
+  accumulation, cross-session persistence, admin listing, revocation, KRL)
+- **pam-access**: 300 tests (token generation, device enrollment, verify,
+  authorize with server groups and sudo rules, offline mode, bastion JWT)
+- **oidc-ciba**: 17 tests (metadata, backchannel auth, poll/approve/deny,
+  callback auth, ping mode, direct auth)
+- **oidc-par**: 115 tests (server-side PAR, client-side PAR, private_key_jwt)
+- **oidc-federation**: 52 tests (entity config, discovery, list, fetch,
+  end-to-end federated RP enrollment)
+- **oidc-jarm**: 17 tests (full JARM flow with response_mode=query.jwt)
+- **pacc**: 40 tests (PACC metadata endpoint, disabled/no-servers states)
+- **matrix**: 123 tests (online and offline Matrix token exchange)
+
+### Documentation
+
+- **ssh-ca**: Expanded README with full configuration, endpoint details,
+  KRL management, and server-side SSH setup
+
+### CI
+
+- Install all sibling plugins (lib + templates) for each test job
+- Override built-in LLNG modules with plugin versions
+- Trigger push CI only on main (avoid duplicate runs on PRs)
+- Add per-plugin apt build dependencies via plugin.json
+
 ## v0.1.11 - 2026-04-16
 
 ### Bug fixes
