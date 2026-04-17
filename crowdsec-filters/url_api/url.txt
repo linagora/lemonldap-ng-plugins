@@ -1,0 +1,10 @@
+/api/config
+/api/credentials
+/api/docs
+/api/info
+/api/keys
+/api/login
+/api/settings.json
+/api/users
+/swagger.json
+/graphql
