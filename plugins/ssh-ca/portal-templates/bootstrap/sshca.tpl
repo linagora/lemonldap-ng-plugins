@@ -87,12 +87,12 @@
         <div class="alert alert-info">
           <h6 trspan="sshCaInstructions">How to use this certificate</h6>
           <ol class="mb-0">
-            <li trspan="sshCaStep1">Save the certificate to a file next to your private key:</li>
-            <pre class="bg-light p-2 mt-1 mb-2"><code>~/.ssh/id_ed25519-cert.pub</code></pre>
+            <li trspan="sshCaStep1">Save the certificate next to your private key, adding <code>-cert.pub</code> to its name:</li>
+            <pre class="bg-light p-2 mt-1 mb-2"><code>~/.ssh/mykey.pub      &rarr;  ~/.ssh/mykey-cert.pub</code></pre>
             <li trspan="sshCaStep2">SSH will automatically use the certificate when connecting:</li>
             <pre class="bg-light p-2 mt-1 mb-2"><code>ssh user@server</code></pre>
-            <li trspan="sshCaStep3">Or specify it explicitly:</li>
-            <pre class="bg-light p-2 mt-1 mb-0"><code>ssh -i ~/.ssh/id_ed25519 user@server</code></pre>
+            <li trspan="sshCaStep3">Or specify the private key explicitly (SSH finds the matching certificate):</li>
+            <pre class="bg-light p-2 mt-1 mb-0"><code>ssh -i ~/.ssh/mykey user@server</code></pre>
           </ol>
         </div>
       </div>

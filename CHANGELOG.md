@@ -12,7 +12,12 @@
 - **ssh-ca**: Fix RSA public key conversion when `Crypt::PK::RSA` lacks
   `export_key_openssh`. Falls back to `ssh-keygen -i -m PKCS8`.
 
-### Tests
+### Improvements
+
+- **ssh-ca**: Fix hardcoded key filename in post-signing instructions.
+  Explain the `-cert.pub` naming convention instead.
+
+### Tests (1048 total across 9 plugins)
 
 - **ssh-ca**: 248 tests (public endpoints, signing, security, mycerts
   accumulation, cross-session persistence, admin listing, revocation, KRL)
@@ -31,6 +36,8 @@
 
 - **ssh-ca**: Expanded README with full configuration, endpoint details,
   KRL management, and server-side SSH setup
+- **captchetat**: Note AGPL-3.0 license in README
+- Reference Open Bastion project in main README
 
 ### CI
 
