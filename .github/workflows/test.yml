@@ -115,7 +115,7 @@ jobs:
                 else
                   echo "$plugin_name: COPY $rel"
                 fi
-                cp "$src" "$dst"
+                cp -f "$src" "$dst"
               done
             fi
 
