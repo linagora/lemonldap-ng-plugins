@@ -176,6 +176,84 @@ dpkg-deb --root-owner-group --build "${BMF_BUILD}" \
 echo "  -> linagora-llng-build-manager-files_${COMMON_VERSION}_all.deb"
 
 ##############################################################################
+# Build linagora-llng-crowdsec-filters
+##############################################################################
+echo "Building linagora-llng-crowdsec-filters ${COMMON_VERSION}..."
+
+CSF_BUILD="${WORKDIR}/crowdsec-filters"
+CSF_SRC="${REPO_ROOT}/crowdsec-filters"
+install_dir "${CSF_BUILD}/DEBIAN"
+
+cat > "${CSF_BUILD}/DEBIAN/control" <<EOF
+Package: linagora-llng-crowdsec-filters
+Version: ${COMMON_VERSION}
+Architecture: all
+Maintainer: Linagora <https://linagora.com>
+Recommends: liblemonldap-ng-portal-perl (>= 2.23.0~)
+Section: web
+Priority: optional
+Description: CrowdSec-compatible HTTP filters for LemonLDAP::NG (>= 2.23.0)
+ Pattern files consumed by the LemonLDAP::NG built-in CrowdSec agent to
+ detect and report suspicious HTTP requests (admin probing, backdoors,
+ trending CVE URIs, path traversal, WordPress scans, etc.). Installs under
+ /var/lib/lemonldap-ng/crowdsec-filters/. Point the portal's
+ crowdsecFilters parameter to that directory and set crowdsecAgent /
+ crowdsecMachineId / crowdsecPassword to push alerts to your LAPI.
+EOF
+
+# Install filters preserving dotfiles (.scenario, .maxfailures, .timewindow)
+CSF_DEST="${CSF_BUILD}/var/lib/lemonldap-ng/crowdsec-filters"
+install_dir "${CSF_DEST}"
+( cd "${CSF_SRC}" && find . -mindepth 1 -type d ! -name '.' \
+    -exec install -d -m 0755 "${CSF_DEST}/{}" \; )
+( cd "${CSF_SRC}" && find . -type f ! -name 'README.md' | while IFS= read -r f; do
+    install -D -m 0644 "${CSF_SRC}/${f#./}" "${CSF_DEST}/${f#./}"
+  done )
+
+# Ship README and copyright under /usr/share/doc/<pkg>/
+install_file "${CSF_SRC}/README.md" \
+  "${CSF_BUILD}/usr/share/doc/linagora-llng-crowdsec-filters/README"
+
+cat > "${CSF_BUILD}/usr/share/doc/linagora-llng-crowdsec-filters/copyright" <<'COPYRIGHT'
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: linagora-llng-crowdsec-filters
+Source: https://github.com/linagora/lemonldap-ng-plugins
+Comment: imported from crowdsec.net, copyright CrowdSecurity.
+ Pattern data (URI lists, backdoor filenames, probe strings) originates from
+ https://hub-data.crowdsec.net/ and https://github.com/crowdsecurity/hub,
+ both MIT-licensed. Regex transformations and LemonLDAP::NG scenario
+ metadata (.scenario, .maxfailures, .timewindow) are authored by Linagora.
+
+Files: *
+Copyright: 2025 CrowdSecurity
+           2025 Linagora <https://linagora.com>
+License: MIT
+
+License: MIT
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+COPYRIGHT
+
+dpkg-deb --root-owner-group --build "${CSF_BUILD}" \
+  "${OUTPUT_DIR}/linagora-llng-crowdsec-filters_${COMMON_VERSION}_all.deb"
+echo "  -> linagora-llng-crowdsec-filters_${COMMON_VERSION}_all.deb"
+
+##############################################################################
 # Build individual plugin packages
 ##############################################################################
 for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
