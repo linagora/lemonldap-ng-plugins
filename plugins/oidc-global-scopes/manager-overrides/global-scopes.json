@@ -1,0 +1,36 @@
+{
+  "attributes": {
+    "oidcServiceGlobalExtraScopes": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "Global extra scopes and claims applied to all OIDC relying parties. Key: scope name, Value: space-separated claim names."
+    },
+    "oidcServiceGlobalClaimMapping": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "Fallback mapping for global scope claims not declared in an RP's Exported Attributes. Key: claim name, Value: session attribute (optionally followed by ;type;array, same syntax as oidcRPMetaDataExportedVars). If a claim used in oidcServiceGlobalExtraScopes is missing from an RP's Exported Attributes, this mapping is consulted; if still not found, the claim name itself is used as the session attribute."
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData",
+      "insert_after": "oidcServiceAllowOnlyDeclaredScopes",
+      "nodes": [
+        "oidcServiceGlobalExtraScopes",
+        "oidcServiceGlobalClaimMapping"
+      ]
+    }
+  ],
+  "lang": {
+    "oidcServiceGlobalExtraScopes": {
+      "en": "Global extra scopes",
+      "fr": "Scopes supplémentaires globaux"
+    },
+    "oidcServiceGlobalClaimMapping": {
+      "en": "Global claim mapping (fallback)",
+      "fr": "Correspondance globale des claims (repli)"
+    }
+  }
+}
