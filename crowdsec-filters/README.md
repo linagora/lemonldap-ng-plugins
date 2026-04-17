@@ -44,6 +44,20 @@ Each subdirectory is one filter:
 - `.maxfailures` — matches before the scenario triggers
 - `.timewindow` — sliding window (seconds)
 
+Filter families:
+
+- `http-*` — scenario-based detection filters (report to CrowdSec on match).
+  Covers admin probing, backdoors, WordPress scans, SQLi / XSS probing,
+  path traversal, sensitive files, and a handful of targeted CVEs
+  (CVE-2021-41773, CVE-2021-44228 log4j, CVE-2021-26086 Jira,
+  CVE-2024-0012 PAN-OS, CVE-2024-38475 Apache, CVE-2018-20062 ThinkPHP,
+  plus the `http-cve-probing` trending list).
+- `url_sensitive`, `url_admin`, `url_api` — generic URL probing filters
+  (secret leak paths, admin/panel probing, API endpoint scans).
+- `url_scanner` — catch-all signature list for broad scanner detection.
+- `urlskip_icons`, `urlskip_robots` — allowlists of URIs that must not
+  trigger any filter (favicons/manifests and crawler-standard files).
+
 ## `http-cve-probing`
 
 Snapshot of trending-CVE URIs from CrowdSec's

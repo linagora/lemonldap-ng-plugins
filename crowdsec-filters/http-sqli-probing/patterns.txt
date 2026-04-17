@@ -1,3 +1,7 @@
+# SQL injection probing patterns
+# Source: https://hub-data.crowdsec.net/web/sqli_probe_patterns.txt
+# Literal substring match (URL-encoded or raw)
+
 %40%40version
 ..xp_cmdshell
 information_schema.tables

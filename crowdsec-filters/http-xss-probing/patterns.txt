@@ -1,3 +1,7 @@
+# XSS probing patterns
+# Source: https://hub-data.crowdsec.net/web/xss_probe_patterns.txt
+# Literal substring match
+
 <img
 <svg
 <script
