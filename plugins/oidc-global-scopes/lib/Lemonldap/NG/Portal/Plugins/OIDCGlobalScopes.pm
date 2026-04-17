@@ -9,8 +9,16 @@ package Lemonldap::NG::Portal::Plugins::OIDCGlobalScopes;
 # Configuration:
 #   oidcServiceGlobalExtraScopes (keyTextContainer):
 #     key   = scope name (existing like "profile" or new like "corporate")
-#     value = space-separated list of claim names (must be declared in
-#             the RP's exported vars)
+#     value = space-separated list of claim names
+#
+#   oidcServiceGlobalClaimMapping (keyTextContainer, optional):
+#     key   = claim name
+#     value = session attribute (optionally ";type;array")
+#
+# Claim resolution order per claim:
+#   1. per-RP oidcRPMetaDataExportedVars (wins if declared)
+#   2. oidcServiceGlobalClaimMapping     (fallback)
+#   3. identity: claim name == session attribute name
 #
 # Examples:
 #   profile   => department employee_id
@@ -91,13 +99,16 @@ sub resolveGlobalScopes {
     my ( $self, $req, $scope_values, $rp ) = @_;
 
     my $requested = $req->param('scope') || '';
+    my %requested = map { $_ => 1 } grep { length } split /\s+/, $requested;
     my %granted = map { $_ => 1 } @$scope_values;
 
     foreach my $scope ( keys %{ $self->globalScopes } ) {
 
         # Only re-add scopes that were actually requested by the RP
-        # but got filtered out by oidcServiceAllowOnlyDeclaredScopes
-        if ( $requested =~ /\b\Q$scope\E\b/ && !$granted{$scope} ) {
+        # but got filtered out by oidcServiceAllowOnlyDeclaredScopes.
+        # Split on whitespace so scope names containing non-word
+        # characters (e.g. "api:read") match correctly.
+        if ( $requested{$scope} && !$granted{$scope} ) {
             push @$scope_values, $scope;
             $self->logger->debug(
                 "OIDCGlobalScopes: re-added global scope '$scope' for RP $rp");

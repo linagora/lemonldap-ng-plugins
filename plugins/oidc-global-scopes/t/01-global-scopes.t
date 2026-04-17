@@ -29,6 +29,12 @@ my $op = LLNG::Manager::Test->new( {
                 profile   => 'department',
                 corporate => 'department title',
             },
+
+            # Inject derived session attributes via LLNG macros
+            macros => {
+                department => '"Engineering"',
+                title      => '"Developer"',
+            },
             oidcRPMetaDataExportedVars => {
                 rp => {
                     email      => "mail",
@@ -59,11 +65,8 @@ my $op = LLNG::Manager::Test->new( {
 );
 my $res;
 
-# Set session attributes for testing
-# Demo user "french" has: uid=french, cn=Frédéric Accents, mail=fa@badwolf.org
-# We need to inject department and title into the demo session
-$op->p->setLocalMacro( 'department', sub { 'Engineering' } );
-$op->p->setLocalMacro( 'title',      sub { 'Developer' } );
+# Demo user "french" has: uid=french, cn=Frédéric Accents, mail=fa@badwolf.org.
+# department/title are injected via the `macros` ini above.
 
 # Authenticate
 my $query = "user=french&password=french";
@@ -171,6 +174,10 @@ my $op2 = LLNG::Manager::Test->new( {
             oidcServiceGlobalExtraScopes    => {
                 corporate => 'department title',
             },
+            macros => {
+                department => '"Engineering"',
+                title      => '"Developer"',
+            },
             oidcRPMetaDataExportedVars => {
                 rp => {
                     email      => "mail",
@@ -198,9 +205,6 @@ my $op2 = LLNG::Manager::Test->new( {
         }
     }
 );
-
-$op2->p->setLocalMacro( 'department', sub { 'Engineering' } );
-$op2->p->setLocalMacro( 'title',      sub { 'Developer' } );
 
 $query = "user=french&password=french";
 ok(

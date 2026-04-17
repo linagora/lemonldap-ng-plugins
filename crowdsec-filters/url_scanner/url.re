@@ -1016,7 +1016,7 @@
 ^/claroline/claroline/install/index\.php
 ^/class/
 ^/classes/
-^/classifieds/Site_Admin/admin\.php\ 
+^/classifieds/Site_Admin/admin\.php
 ^/clearsite/about\.php
 ^/clicknet/index\.php
 ^/clicknetcms/index\.php
@@ -2124,7 +2124,7 @@
 ^/lne/LightNEasy\.php\?do=login
 ^/lne/index\.php
 ^/loader/
-^/localclassifieds/classifieds/Site_Admin/admin\.php\ 
+^/localclassifieds/classifieds/Site_Admin/admin\.php
 ^/locales/
 ^/log\-in
 ^/log/
@@ -3187,7 +3187,6 @@
 ^/stash/login
 ^/stat/
 ^/static
-^/static/twake/images/favicon\.ico\\x22\ rel=\\x22icon\\x22\ type=\\x22image/x\-icon\\x22\ sizes=\\x2216x16\ 32x32\ 48x48\ 64x64\ 128x128
 ^/statistic/
 ^/statistics/
 ^/statistics/awstats\.pl\?framename=mainright
@@ -3474,7 +3473,6 @@
 ^/ttc/index\.php
 ^/ttc/upload/account\-login\.php
 ^/ttwm/tt/index\.php
-^/tunnel\"\ 200\ 139121\ \"\-\"\ \"\-\"\ rt=0\.448\ ut=0\.038
 ^/tutos/ChangeLog
 ^/tutos/php/mytutos\.php
 ^/tvs/Start\.do
