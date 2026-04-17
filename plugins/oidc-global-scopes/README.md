@@ -36,10 +36,10 @@ into `/etc/lemonldap-ng/manager-overrides.d/`, add
 In the Manager, go to **OIDC Service > Scopes** and configure
 **Global extra scopes** (`oidcServiceGlobalExtraScopes`):
 
-| Key (scope)  | Value (claims)                      |
-| ------------ | ----------------------------------- |
-| `profile`    | `department employee_id`            |
-| `corporate`  | `department manager office_location`|
+| Key (scope) | Value (claims)                       |
+| ----------- | ------------------------------------ |
+| `profile`   | `department employee_id`             |
+| `corporate` | `department manager office_location` |
 
 Each key is a scope name (existing or new), and each value is a
 space-separated list of claim names.
@@ -64,11 +64,11 @@ Missing session values are silently skipped.
 
 Example global mapping:
 
-| Key (claim)       | Value (session attribute)          |
-| ----------------- | ---------------------------------- |
-| `department`      | `department`                       |
-| `office_location` | `physicalDeliveryOfficeName`       |
-| `roles`           | `groups;string;array`              |
+| Key (claim)       | Value (session attribute)    |
+| ----------------- | ---------------------------- |
+| `department`      | `department`                 |
+| `office_location` | `physicalDeliveryOfficeName` |
+| `roles`           | `groups;string;array`        |
 
 ## How it works
 

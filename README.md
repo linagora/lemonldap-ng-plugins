@@ -90,6 +90,16 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
 | [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
 | [oidc-federation](plugins/oidc-federation)                     | OpenID Connect Federation (server side)                   | beta   |
+| [oidc-global-scopes](plugins/oidc-global-scopes)               | Global OIDC scopes and claim mapping for all RPs          | beta   |
+
+### Companion Debian packages
+
+Extra Debian-only packages published in the same APT repository, for use
+outside the `lemonldap-ng-store` workflow:
+
+| Package                          | Description                                                                                                                                                                                                 |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `linagora-llng-crowdsec-filters` | [CrowdSec-compatible HTTP filters](crowdsec-filters) for `crowdsecFilters` — scanners, admin probes, CVE exploit signatures. Installs to `/var/lib/lemonldap-ng/crowdsec-filters/`. Requires LLNG ≥ 2.23.0. |
 
 ## Lemonldap::NG Long Term Support by LINAGORA (LTS)
 

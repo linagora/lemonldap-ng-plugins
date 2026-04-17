@@ -16,12 +16,12 @@ Files are installed under `/var/lib/lemonldap-ng/crowdsec-filters/`.
 
 In the LemonLDAP::NG Manager, set:
 
-| Parameter          | Value                                      |
-|--------------------|--------------------------------------------|
-| `crowdsecFilters`  | `/var/lib/lemonldap-ng/crowdsec-filters`   |
-| `crowdsecAgent`    | `http://crowdsec:8080` (your LAPI URL)     |
-| `crowdsecMachineId`| machine id registered on the LAPI          |
-| `crowdsecPassword` | password for that machine id               |
+| Parameter           | Value                                    |
+| ------------------- | ---------------------------------------- |
+| `crowdsecFilters`   | `/var/lib/lemonldap-ng/crowdsec-filters` |
+| `crowdsecAgent`     | `http://crowdsec:8080` (your LAPI URL)   |
+| `crowdsecMachineId` | machine id registered on the LAPI        |
+| `crowdsecPassword`  | password for that machine id             |
 
 Register the portal on the CrowdSec LAPI beforehand:
 
