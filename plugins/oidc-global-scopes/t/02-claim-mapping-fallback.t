@@ -58,8 +58,8 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
                 },
             },
-            oidcServicePrivateKeySig => oidc_key_op_private_sig,
-            oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            oidcServicePrivateKeySig => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig  => oidc_cert_op_public_sig(),
             customPlugins =>
               'Lemonldap::NG::Portal::Plugins::OIDCGlobalScopes',
         }
@@ -163,8 +163,8 @@ my $op2 = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
                 },
             },
-            oidcServicePrivateKeySig => oidc_key_op_private_sig,
-            oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            oidcServicePrivateKeySig => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig  => oidc_cert_op_public_sig(),
             customPlugins =>
               'Lemonldap::NG::Portal::Plugins::OIDCGlobalScopes',
         }
