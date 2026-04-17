@@ -713,8 +713,29 @@ sub _pemToSshPublicKey {
             require Crypt::PK::RSA;
             my $pk = Crypt::PK::RSA->new( \$pemKey );
 
-            # RSA keys can use export_key_openssh
-            $sshKey = $pk->export_key_openssh;
+            if ( $pk->can('export_key_openssh') ) {
+                $sshKey = $pk->export_key_openssh;
+            }
+            else {
+                # Fallback: use ssh-keygen to convert PEM public key
+                require File::Temp;
+                my $tmpdir  = File::Temp::tempdir( CLEANUP => 1 );
+                my $keyFile = "$tmpdir/key.pub";
+                open my $fh, '>', $keyFile or die "Cannot write: $!";
+                print $fh $pemKey;
+                close $fh;
+                $sshKey = `ssh-keygen -i -m PKCS8 -f $keyFile 2>&1`;
+                my $exit = $? >> 8;
+                if ( $exit != 0 ) {
+                    $self->logger->error(
+                        "SSH CA: ssh-keygen -i failed (exit $exit): $sshKey");
+                    $sshKey = undef;
+                }
+                else {
+                    chomp $sshKey;
+                    $sshKey = undef unless $sshKey;
+                }
+            }
         };
     }
 

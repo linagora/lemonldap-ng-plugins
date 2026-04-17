@@ -10,6 +10,7 @@
     "Net::DNS": "0",
     "Regexp::Common": "0"
   },
+  "build_depends": ["libnet-dns-perl", "libregexp-common-perl"],
   "customPlugins": "::Plugins::MatrixTokenExchange",
   "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager."
 }

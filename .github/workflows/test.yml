@@ -2,7 +2,7 @@ name: Test Plugins
 
 on:
   push:
-    branches: ['*']
+    branches: [main]
     tags-ignore: ['v*']
   pull_request:
 
@@ -100,47 +100,52 @@ jobs:
         run: |
           PLUGIN_DIR="plugins/${{ matrix.plugin }}"
 
-          # Copy lib/ into lemonldap-ng-portal/blib/lib (no overwrite)
-          if [ -d "$PLUGIN_DIR/lib" ]; then
-            find "$PLUGIN_DIR/lib" -name '*.pm' | while read src; do
-              rel="${src#$PLUGIN_DIR/lib/}"
-              dst="llng/lemonldap-ng-portal/blib/lib/$rel"
-              if [ ! -f "$dst" ]; then
+          # Install lib/ and assets from ALL plugins (tests may depend on sibling plugins)
+          for d in plugins/*/; do
+            plugin_name=$(basename "$d")
+
+            # Copy lib/ into lemonldap-ng-portal/blib/lib (overwrite to replace built-in modules)
+            if [ -d "$d/lib" ]; then
+              find "$d/lib" -name '*.pm' | while read src; do
+                rel="${src#$d/lib/}"
+                dst="llng/lemonldap-ng-portal/blib/lib/$rel"
                 mkdir -p "$(dirname "$dst")"
-                cp "$src" "$dst"
-                echo "COPY: $rel"
-              else
-                echo "SKIP (exists): $rel"
-              fi
-            done
-          fi
+                if [ -f "$dst" ]; then
+                  echo "$plugin_name: OVERRIDE $rel"
+                else
+                  echo "$plugin_name: COPY $rel"
+                fi
+                cp -f "$src" "$dst"
+              done
+            fi
 
-          # Copy portal-templates/ into site/templates/ (no overwrite)
-          if [ -d "$PLUGIN_DIR/portal-templates" ]; then
-            cp -rvn "$PLUGIN_DIR/portal-templates/"* llng/lemonldap-ng-portal/site/templates/
-          fi
+            # Copy portal-templates/ into site/templates/ (overwrite)
+            if [ -d "$d/portal-templates" ]; then
+              cp -rv "$d/portal-templates/"* llng/lemonldap-ng-portal/site/templates/
+            fi
 
-          # Copy portal-static/ into site/htdocs/static/ (no overwrite)
-          if [ -d "$PLUGIN_DIR/portal-static" ]; then
-            cp -rvn "$PLUGIN_DIR/portal-static/"* llng/lemonldap-ng-portal/site/htdocs/static/
-          fi
+            # Copy portal-static/ into site/htdocs/static/ (no overwrite)
+            if [ -d "$d/portal-static" ]; then
+              cp -rvn "$d/portal-static/"* llng/lemonldap-ng-portal/site/htdocs/static/
+            fi
 
-          # Merge portal-translations/ into site/htdocs/static/languages/
-          if [ -d "$PLUGIN_DIR/portal-translations" ]; then
-            for tr_file in "$PLUGIN_DIR"/portal-translations/*.json; do
-              [ -f "$tr_file" ] || continue
-              lang="$(basename "$tr_file")"
-              target="llng/lemonldap-ng-portal/site/htdocs/static/languages/$lang"
-              if [ -f "$target" ]; then
-                jq -s '.[0] * .[1]' "$target" "$tr_file" > "$target.tmp" && mv "$target.tmp" "$target"
-                echo "MERGED: $lang"
-              else
-                cp -v "$tr_file" "$target"
-              fi
-            done
-          fi
+            # Merge portal-translations/ into site/htdocs/static/languages/
+            if [ -d "$d/portal-translations" ]; then
+              for tr_file in "$d"/portal-translations/*.json; do
+                [ -f "$tr_file" ] || continue
+                lang="$(basename "$tr_file")"
+                target="llng/lemonldap-ng-portal/site/htdocs/static/languages/$lang"
+                if [ -f "$target" ]; then
+                  jq -s '.[0] * .[1]' "$target" "$tr_file" > "$target.tmp" && mv "$target.tmp" "$target"
+                  echo "$plugin_name: MERGED $lang"
+                else
+                  cp "$tr_file" "$target"
+                fi
+              done
+            fi
+          done
 
-          # Copy test files into lemonldap-ng-portal/t/
+          # Copy test files from the plugin under test into lemonldap-ng-portal/t/
           cp -v "$PLUGIN_DIR"/t/*.t llng/lemonldap-ng-portal/t/ 2>/dev/null || true
           cp -v "$PLUGIN_DIR"/t/*.pm llng/lemonldap-ng-portal/t/ 2>/dev/null || true
           for subdir in "$PLUGIN_DIR"/t/*/; do
