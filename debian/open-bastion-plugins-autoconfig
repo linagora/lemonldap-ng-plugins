@@ -117,7 +117,8 @@ sub _eq {
         return (defined $a && defined $b && "$a" eq "$b")
             || (!defined $a && !defined $b);
     }
-    return encode_json($a) eq encode_json($b);
+    my $canon = JSON->new->canonical(1)->utf8(0);
+    return $canon->encode($a) eq $canon->encode($b);
 }
 
 # Run a shell command, capture stdout, die on error.
@@ -167,36 +168,37 @@ sub version_lt {
 sub plan_custom_plugins {
     my ($has_autoloader, $llng_version) = @_;
 
+    my @all_plugins = (
+        '::Plugins::PamAccess',
+        '::Plugins::SSHCA',
+        '::Plugins::OIDCDeviceAuthorization',
+        '::Plugins::OIDCDeviceOrganization',
+    );
+
     # Explicit user overrides
-    if (defined $opt{'custom-plugins'} && !$opt{'custom-plugins'}) {
+    if (defined $opt{'custom-plugins'}) {
+        if ($opt{'custom-plugins'}) {
+            log_info('customPlugins: --custom-plugins → force-adding 4 plugins');
+            return [@all_plugins];
+        }
         log_info('customPlugins: --no-custom-plugins → skipped');
         return [];
     }
 
-    my @modules;
     if ($has_autoloader) {
         if (version_lt($llng_version, '2.24.0')) {
             # Module available but not in default @pList
-            @modules = ('::Plugins::Autoloader');
             log_info("customPlugins: LLNG < 2.24.0 with Autoloader module → add Autoloader");
-        } else {
-            # Nothing to add: Autoloader is in default @pList
-            log_info("customPlugins: LLNG >= 2.24.0 → Autoloader is default, nothing to add");
-            @modules = ();
+            return ['::Plugins::Autoloader'];
         }
-    } else {
-        # No Autoloader at all: fallback to explicit plugin list
-        @modules = (
-            '::Plugins::PamAccess',
-            '::Plugins::SSHCA',
-            '::Plugins::OIDCDeviceAuthorization',
-            '::Plugins::OIDCDeviceOrganization',
-        );
-        log_info("customPlugins: no Autoloader → add 4 plugins manually");
+        # Autoloader is in default @pList
+        log_info("customPlugins: LLNG >= 2.24.0 → Autoloader is default, nothing to add");
+        return [];
     }
 
-    @modules = () if defined $opt{'custom-plugins'} && !$opt{'custom-plugins'};
-    return \@modules;
+    # No Autoloader at all: fallback to explicit plugin list
+    log_info("customPlugins: no Autoloader → add 4 plugins manually");
+    return [@all_plugins];
 }
 
 sub apply_custom_plugins {
@@ -251,18 +253,22 @@ sub ensure_oidc_service {
     # Service signing keys
     my $has_priv = $conf->{oidcServicePrivateKeySig};
     my $has_pub  = $conf->{oidcServicePublicKeySig};
+    my $had_kid  = $conf->{oidcServiceKeyIdSig};
     if (!$has_priv || !$has_pub || $opt{force}) {
         log_info('Generating OIDC service RSA 2048 signing keys');
         my ($priv, $pub) = generate_oidc_keys();
         $conf->{oidcServicePrivateKeySig} = $priv;
         $conf->{oidcServicePublicKeySig}  = $pub;
-        $conf->{oidcServiceKeyIdSig}    //= _random_hex(8);
+        $conf->{oidcServiceKeyIdSig}      = _random_hex(8);
         log_change('oidcServicePrivateKeySig (generated)');
         log_change('oidcServicePublicKeySig (generated)');
-        log_change('oidcServiceKeyIdSig') if !$has_priv;
+        log_change('oidcServiceKeyIdSig' . ($had_kid ? ' (rotated)' : ' (generated)'));
     } else {
         log_keep('oidcServicePrivateKeySig');
         log_keep('oidcServicePublicKeySig');
+        set_if_missing($conf, 'oidcServiceKeyIdSig', _random_hex(8),
+            'oidcServiceKeyIdSig')
+            unless $had_kid;
     }
 }
 
@@ -320,10 +326,10 @@ sub ensure_pam_rp {
         log_change("oidcRPMetaDataExportedVars.$rp");
         log_change("oidcRPMetaDataScopeRules.$rp");
     } else {
+        # RP treated as atomic: if the admin has it defined we leave it alone.
         log_keep("oidcRPMetaDataOptions.$rp");
-        # Merge missing sub-options without overwriting what the admin set
-        merge_hash($conf->{oidcRPMetaDataOptions}, $rp, $opts,
-            "oidcRPMetaDataOptions.$rp") if 0;  # disabled: treat RP as atomic
+        log_keep("oidcRPMetaDataExportedVars.$rp");
+        log_keep("oidcRPMetaDataScopeRules.$rp");
     }
 }
 
@@ -347,15 +353,17 @@ sub ensure_ssh_ca {
         log_keep("keys.$ref");
     }
 
+    # sshCaCertMaxValidity is in DAYS (see SSHCA.pm). 1 day = short-lived
+    # certificates, aligned with an open-bastion workflow where users
+    # re-issue certs frequently via the portal.
     my %defaults = (
-        sshCaActivation          => 1,
-        sshCaKeyType             => 'ed25519',
-        sshCaKeyRef              => $ref,
-        sshCaCertDefaultValidity => 60,
-        sshCaCertMaxValidity     => 480,
-        sshCaPrincipalSources    => '$uid',
-        sshCaSerialPath          => "$opt{'ssh-dir'}/serial",
-        sshCaKrlPath             => "$opt{'ssh-dir'}/revoked_keys",
+        sshCaActivation       => 1,
+        sshCaKeyType          => 'ed25519',
+        sshCaKeyRef           => $ref,
+        sshCaCertMaxValidity  => 1,
+        sshCaPrincipalSources => '$uid',
+        sshCaSerialPath       => "$opt{'ssh-dir'}/serial",
+        sshCaKrlPath          => "$opt{'ssh-dir'}/revoked_keys",
     );
     for my $k (sort keys %defaults) {
         set_if_missing($conf, $k, $defaults{$k}, $k);
@@ -433,8 +441,14 @@ sub _slurp {
 sub _random_hex {
     my $n = shift;
     open(my $fh, '<', '/dev/urandom') or fatal("cannot open /dev/urandom: $!");
-    my $raw;
-    read($fh, $raw, $n);
+    my $raw = '';
+    my $got = 0;
+    while ($got < $n) {
+        my $r = read($fh, $raw, $n - $got, $got);
+        defined $r or fatal("cannot read /dev/urandom: $!");
+        $r > 0    or fatal("short read from /dev/urandom");
+        $got += $r;
+    }
     close($fh);
     return unpack('H*', $raw);
 }
