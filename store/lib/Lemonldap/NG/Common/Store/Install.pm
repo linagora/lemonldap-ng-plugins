@@ -429,7 +429,7 @@ sub rebuildManager {
     return ( 1, 'Manager files rebuilt successfully' );
 }
 
-# Placeholder __BINDIR__ is replaced at install time by the Makefile
+# Hardcoded for the Debian backport (upstream LLNG uses __BINDIR__ here)
 my $DEFAULT_BINDIR = '/usr/share/lemonldap-ng/bin';
 
 sub _findBuildScript {

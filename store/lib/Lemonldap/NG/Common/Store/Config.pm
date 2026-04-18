@@ -7,9 +7,8 @@ use Lemonldap::NG::Common::Conf::Constants qw(DEFAULTCONFFILE DEFAULTSECTION);
 
 our $VERSION = '2.23.0';
 
-# Default values for [store] section
-# Placeholders __CONFDIR__, __DATADIR__, __CACHEDIR__ are replaced at install
-# time by the Makefile with actual installation paths.
+# Default values for [store] section (paths hardcoded for the Debian
+# backport; upstream LLNG uses __CONFDIR__/__DATADIR__/__CACHEDIR__ here).
 my %DEFAULTS = (
     managerOverridesDir => '/etc/lemonldap-ng/manager-overrides.d',
     autoloadDir         => '/etc/lemonldap-ng/autoload.d',

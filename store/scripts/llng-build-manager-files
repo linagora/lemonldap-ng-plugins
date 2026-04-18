@@ -48,10 +48,10 @@ my $VERSION = '2.23.0';
 # Default paths - placeholders replaced during installation
 # These can all be overridden via command line options
 #############################################################################
-my $DEFAULT_MANAGERSTATICDIR = '__MANAGERSTATICDIR__';
-my $DEFAULT_PERLLIBDIR       = '__INSTALLSITELIB__';
-my $DEFAULT_DOCDIR           = '__DOCDIR__';
-my $DEFAULT_LANGDIR          = '__MANAGERSTATICDIR__/languages';
+my $DEFAULT_MANAGERSTATICDIR = '/usr/share/lemonldap-ng/manager/htdocs/static';
+my $DEFAULT_PERLLIBDIR       = '/usr/share/perl5';
+my $DEFAULT_DOCDIR           = '/usr/share/doc/lemonldap-ng';
+my $DEFAULT_LANGDIR          = '/usr/share/lemonldap-ng/manager/htdocs/static/languages';
 
 # Command line options
 my @plugins_dirs;
