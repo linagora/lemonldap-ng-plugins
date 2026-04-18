@@ -399,18 +399,18 @@ sub ensure_pam_access {
         set_if_missing($conf, $k, $defaults{$k}, $k);
     }
 
-    # Default-deny rules (admin fills groups later)
+    # SSH: default-deny, admin fills per-group rules later.
+    # Sudo: intentionally not initialised. In an open-bastion deployment
+    # sudo authorization is not driven by pamAccessSudoRules but by a
+    # regular /etc/sudoers entry granting privileges to a Unix group
+    # populated on the fly through NSS from pamAccessExportedVars.groups.
+    # Absent config key => plugin returns sudo_allowed:0, which is the
+    # safe default.
     if (!exists $conf->{pamAccessSshRules} || $opt{force}) {
         $conf->{pamAccessSshRules} = { default => 'deny' };
         log_change('pamAccessSshRules = { default: "deny" }');
     } else {
         log_keep('pamAccessSshRules');
-    }
-    if (!exists $conf->{pamAccessSudoRules} || $opt{force}) {
-        $conf->{pamAccessSudoRules} = { default => 'deny' };
-        log_change('pamAccessSudoRules = { default: "deny" }');
-    } else {
-        log_keep('pamAccessSudoRules');
     }
 
     # Exported vars: minimal useful set for PAM NSS
