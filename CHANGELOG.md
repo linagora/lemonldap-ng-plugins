@@ -2,6 +2,25 @@
 
 ## v0.1.14 - (Unreleased)
 
+### Store / packaging
+
+- Sync `linagora-lemonldap-ng-store` with the upstream LLNG #3580 branch:
+  store now understands an `autoload` field in `plugin.json` and drops a
+  JSON rule into `/etc/lemonldap-ng/autoload.d/` instead of editing
+  `customPlugins` when `--activate` is used.
+- Ship the upstream `::Plugins::Autoloader` as part of the store
+  package (back-port for LLNG < 2.24.0) and register it in
+  `customPlugins` at `configure` time, so plugins installed from the
+  store load automatically without any manual config edit.
+- Autoload rules are now strictly conditional: each entry has a mandatory
+  `condition` (same grammar as `@pList` keys) and `module` pair; the
+  plugin loads only when the condition is truthy against the running
+  configuration. Plugins without a natural trigger key (`reports`,
+  `mail-autodiscover`) keep the `customPlugins` path with `--activate`.
+- `llng-build-manager-files` now warns (instead of failing silently) when
+  an `insert_after`/`insert_before` reference is missing, and both fall
+  back to append-at-end.
+
 ### New plugins
 
 - **vault-conf-backend**: LemonLDAP::NG configuration backend storing the

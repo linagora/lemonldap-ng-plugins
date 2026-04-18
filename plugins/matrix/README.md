@@ -25,7 +25,7 @@ you need to have a valid `access_token`. This is the goal of this plugin.
 With `lemonldap-ng-store` _(LLNG >= 2.24.0)_ or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```
-sudo lemonldap-ng-store install matrix-token-exchange --activate
+sudo lemonldap-ng-store install matrix-token-exchange
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::MatrixTokenExchange` to `customPlugins`, and run `llng-build-manager-files`.

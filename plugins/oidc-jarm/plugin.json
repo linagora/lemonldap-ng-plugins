@@ -8,7 +8,20 @@
   "llng_compat": ">=2.23.0",
   "perl_requires": {},
   "customPlugins": "::Plugins::OIDCJarm, ::Plugins::OIDCJarmClient",
-  "tags": ["oidc", "security"],
+  "tags": [
+    "oidc",
+    "security"
+  ],
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
-  "post_install": "Note: the OIDC discovery metadata will not advertise JARM response modes unless you also patch Lemonldap::NG::Common::OpenIDConnect::Metadata (see README.md for the patch)."
+  "post_install": "Note: the OIDC discovery metadata will not advertise JARM response modes unless you also patch Lemonldap::NG::Common::OpenIDConnect::Metadata (see README.md for the patch).",
+  "autoload": [
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsJarm",
+      "module": "::Plugins::OIDCJarm"
+    },
+    {
+      "condition": "or::oidcOPMetaDataOptions/*/oidcOPMetaDataOptionsResponseMode",
+      "module": "::Plugins::OIDCJarmClient"
+    }
+  ]
 }

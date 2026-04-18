@@ -10,6 +10,16 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::SSHCA",
-  "tags": ["ssh", "certificate", "ca"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "ssh",
+    "certificate",
+    "ca"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "sshCaActivation",
+      "module": "::Plugins::SSHCA"
+    }
+  ]
 }

@@ -8,6 +8,15 @@
   "llng_compat": ">=2.23.0",
   "perl_requires": {},
   "customPlugins": "::Plugins::OpenIDFederation",
-  "tags": ["oidc", "federation"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "federation"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "oidcFederationEnabled",
+      "module": "::Plugins::OpenIDFederation"
+    }
+  ]
 }

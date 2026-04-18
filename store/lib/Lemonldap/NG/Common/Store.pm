@@ -123,13 +123,15 @@ sub cmd_addStore {
         if ($dl_ok) {
 
             # Import the key and capture fingerprint from import output
-            my $import_out = _capture( 'gpg', '--batch', '--import', $tmp_path );
-            my $import_ok  = $? == 0;
+            my $import_out =
+              _capture( 'gpg', '--batch', '--import', $tmp_path );
+            my $import_ok = $? == 0;
 
             # Extract fingerprint: try gpg --with-colons on the file
             my $fp_output =
-                 _capture( 'gpg', '--with-colons', '--show-keys', $tmp_path )
-              || _capture( 'gpg', '--with-colons', '--import-options', 'show-only', '--import', $tmp_path )
+              _capture( 'gpg', '--with-colons', '--show-keys', $tmp_path )
+              || _capture( 'gpg', '--with-colons', '--import-options',
+                'show-only', '--import', $tmp_path )
               || '';
             my ($fingerprint) = $fp_output =~ /^fpr:+([A-F0-9]+)/m;
 
@@ -301,6 +303,7 @@ sub cmd_install {
     my $config    = $opts->{config};
     my $installer = Lemonldap::NG::Common::Store::Install->new(
         managerOverridesDir => $config->managerOverridesDir,
+        autoloadDir         => $config->autoloadDir,
         allowOverwrite      => $opts->{allow_overwrite},
     );
     my $state =
@@ -473,16 +476,39 @@ sub _installOne {
 
     print "  Installed " . scalar(@$files_or_err) . " file(s)\n";
 
-    # 11. Activate plugin if --activate and customPlugins declared
-    if ( $opts->{activate} && $meta->{customPlugins} ) {
-        print "  Activating plugin...\n";
-        my ( $act_ok, $act_msg ) =
-          _activateCustomPlugins( $meta->{customPlugins} );
-        print "  $act_msg\n";
+    # Detect actual autoload files installed: trust the archive's
+    # autoload/ directory rather than the plugin.json flag, so an
+    # out-of-date metadata field never short-circuits --activate for a
+    # plugin that has no rule to install.
+    my $autoload_dir       = $installer->{autoloadDir};
+    my @autoload_installed = $autoload_dir
+      ? grep {
+               defined $_
+            && index( $_, "$autoload_dir/" ) == 0
+            && /\.json\z/
+      } @$files_or_err
+      : ();
+
+    # 11. Activate plugin if --activate was requested
+    if ( $opts->{activate} ) {
+        if (@autoload_installed) {
+            print
+"  Warning: --activate is ignored, this plugin ships an autoload rule\n";
+        }
+        elsif ( $meta->{customPlugins} ) {
+            print "  Activating plugin...\n";
+            my ( $act_ok, $act_msg ) =
+              _activateCustomPlugins( $meta->{customPlugins} );
+            print "  $act_msg\n";
+        }
     }
 
     # 12. Post-install instructions
-    if ( $meta->{customPlugins} && !$opts->{activate} ) {
+    if (@autoload_installed) {
+        print
+"  Plugin is autoloaded from the autoload directory, no further action needed.\n";
+    }
+    elsif ( $meta->{customPlugins} && !$opts->{activate} ) {
         print
 "  Note: add to customPlugins in LLNG configuration: $meta->{customPlugins}\n";
     }
@@ -503,7 +529,9 @@ sub cmd_remove {
       Lemonldap::NG::Common::Store::State->new( stateFile => $config->stateFile,
       );
     my $installer = Lemonldap::NG::Common::Store::Install->new(
-        managerOverridesDir => $config->managerOverridesDir, );
+        managerOverridesDir => $config->managerOverridesDir,
+        autoloadDir         => $config->autoloadDir,
+    );
 
     my $errors  = 0;
     my $removed = 0;
@@ -669,7 +697,9 @@ sub cmd_verify {
 
     # Extract and validate structure
     my $installer = Lemonldap::NG::Common::Store::Install->new(
-        managerOverridesDir => $config->managerOverridesDir, );
+        managerOverridesDir => $config->managerOverridesDir,
+        autoloadDir         => $config->autoloadDir,
+    );
 
     print "Validating archive structure...\n";
     my ( $ok, $meta, $plugin_dir ) = $installer->extractAndValidate($file);
@@ -705,7 +735,9 @@ sub cmd_rebuild {
     my $config = $opts->{config};
 
     my $installer = Lemonldap::NG::Common::Store::Install->new(
-        managerOverridesDir => $config->managerOverridesDir, );
+        managerOverridesDir => $config->managerOverridesDir,
+        autoloadDir         => $config->autoloadDir,
+    );
 
     print "Rebuilding manager files...\n";
     my ( $ok, $msg ) = $installer->rebuildManager();
@@ -825,7 +857,8 @@ sub _activateCustomPlugins {
 
     for my $mod (@to_add) {
         $mod =~ s/^\s+|\s+$//g;
-        unless ( $mod =~ /^(?:::\w+(?:::\w+)*|Lemonldap::NG::\w+(?:::\w+)*)$/ ) {
+        unless ( $mod =~ /^(?:::\w+(?:::\w+)*|Lemonldap::NG::\w+(?:::\w+)*)$/ )
+        {
             return ( 0, "Invalid module name in customPlugins: $mod" );
         }
         unless ( grep { $_ eq $mod } @existing ) {

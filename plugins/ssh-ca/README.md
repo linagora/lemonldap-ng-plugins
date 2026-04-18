@@ -24,7 +24,7 @@ passwordless authentication on servers that trust the CA.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install ssh-ca --activate
+sudo lemonldap-ng-store install ssh-ca
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `portal-templates/`

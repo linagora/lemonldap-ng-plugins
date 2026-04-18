@@ -12,6 +12,16 @@
     "Digest::SHA": "0"
   },
   "customPlugins": "::Plugins::OIDCDeviceAuthorization",
-  "tags": ["oidc", "device", "rfc8628"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "device",
+    "rfc8628"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsAllowDeviceAuthorization",
+      "module": "::Plugins::OIDCDeviceAuthorization"
+    }
+  ]
 }

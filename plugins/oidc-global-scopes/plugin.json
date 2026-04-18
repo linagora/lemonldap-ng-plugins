@@ -8,6 +8,17 @@
   "llng_compat": ">=2.23.0",
   "perl_requires": {},
   "customPlugins": "::Plugins::OIDCGlobalScopes",
-  "tags": ["oidc", "scope", "claims", "global"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "scope",
+    "claims",
+    "global"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "oidcServiceGlobalExtraScopes",
+      "module": "::Plugins::OIDCGlobalScopes"
+    }
+  ]
 }

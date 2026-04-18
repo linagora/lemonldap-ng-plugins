@@ -8,7 +8,7 @@ the default portal logout page.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install fixed-logout-redirection --activate
+sudo lemonldap-ng-store install fixed-logout-redirection
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`
