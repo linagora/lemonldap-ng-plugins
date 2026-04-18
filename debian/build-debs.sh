@@ -356,6 +356,52 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     done < <(find "${plugin_dir}/manager-overrides" -maxdepth 1 -name "*.json")
   fi
 
+  # Generate autoload rule(s) from plugin.json.autoload.
+  # Each entry maps to /etc/lemonldap-ng/autoload.d/NN-slug[-i].json so the
+  # Autoloader plugin (shipped by linagora-lemonldap-ng-store and/or part
+  # of the default @pList on LLNG >= 2.24.0) picks them up at portal init.
+  autoload_json=$(jq -c '.autoload // null' "$plugin_json")
+  if [ "$autoload_json" != "null" ]; then
+    autoload_dest="${PKG_BUILD}/etc/lemonldap-ng/autoload.d"
+    install_dir "$autoload_dest"
+    slug=$(echo "$name" | tr 'A-Z' 'a-z' | tr -cs 'a-z0-9' '-' \
+        | sed -e 's/^-//' -e 's/-$//')
+    [ -n "$slug" ] || slug="$name"
+    custom_plugins_for_autoload=$(jq -r '.customPlugins // ""' "$plugin_json")
+
+    _write_autoload_entry() {
+        local entry="$1" out_file="$2"
+        echo "$entry" | jq --arg cp "$custom_plugins_for_autoload" '
+            del(.priority)
+            | if .module == null or .module == "" then .module = $cp else . end
+        ' > "$out_file"
+    }
+
+    case "$(echo "$autoload_json" | jq -r 'type')" in
+      array)
+        count=$(echo "$autoload_json" | jq 'length')
+        i=0
+        while [ "$i" -lt "$count" ]; do
+          entry=$(echo "$autoload_json" | jq -c ".[$i]")
+          prio=$(echo "$entry" | jq -r '.priority // 50')
+          prio_padded=$(printf '%02d' "$prio" 2>/dev/null || echo "$prio")
+          _write_autoload_entry "$entry" \
+            "${autoload_dest}/${prio_padded}-${slug}-${i}.json"
+          i=$((i + 1))
+        done
+        ;;
+      object)
+        prio=$(echo "$autoload_json" | jq -r '.priority // 50')
+        prio_padded=$(printf '%02d' "$prio" 2>/dev/null || echo "$prio")
+        _write_autoload_entry "$autoload_json" \
+          "${autoload_dest}/${prio_padded}-${slug}.json"
+        ;;
+      *)
+        echo "  Warning: plugin.json .autoload must be object or array, skipping"
+        ;;
+    esac
+  fi
+
   # Install portal-templates/ -> /usr/share/lemonldap-ng/portal/templates/
   if [ -d "${plugin_dir}/portal-templates" ]; then
     while IFS= read -r tpl_file; do
