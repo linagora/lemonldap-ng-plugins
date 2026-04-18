@@ -88,28 +88,6 @@ sub set_if_missing {
     return 0;
 }
 
-# Merge a hash into conf->{$key} without overwriting existing subkeys.
-sub merge_hash {
-    my ($conf, $key, $new, $label_prefix) = @_;
-    $conf->{$key} //= {};
-    my $h = $conf->{$key};
-    my $changed = 0;
-    for my $k (sort keys %$new) {
-        if (!exists $h->{$k} || $opt{force}) {
-            if (exists $h->{$k} && _eq($h->{$k}, $new->{$k})) {
-                log_keep("$label_prefix.$k");
-                next;
-            }
-            $h->{$k} = $new->{$k};
-            log_change("$label_prefix.$k");
-            $changed++;
-        } else {
-            log_keep("$label_prefix.$k");
-        }
-    }
-    return $changed;
-}
-
 sub _eq {
     my ($a, $b) = @_;
     return 0 if ref($a) ne ref($b);
