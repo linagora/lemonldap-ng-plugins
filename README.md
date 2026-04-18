@@ -68,17 +68,19 @@ exact condition used.
 
 ### Quick try with Docker
 
-While waiting for the LLNG 2.23.0 release, you can try the plugins out of the box
-with the [`yadd/lemonldap-ng-*`](https://github.com/guimard/llng-docker) Docker images
-(tags `>= 2.22` or `latest`). The [base image](https://github.com/guimard/llng-docker/blob/master/base/Dockerfile)
-installs `linagora-lemonldap-ng-store` and pre-registers this store, so
-`lemonldap-ng-store install <plugin>` works immediately inside the container.
+The [`yadd/lemonldap-ng-*`](https://github.com/guimard/llng-docker) Docker
+images (tags `latest` or `>= 2.22.2`) ship with `linagora-lemonldap-ng-store`
+pre-installed, this store pre-registered, and `::Plugins::Autoloader`
+enabled by default. Installing any plugin is a one-liner, no
+`customPlugins` edit needed:
 
 ```bash
 docker run --rm -it -p 80:80 yadd/lemonldap-ng-full:latest
 # then, inside the container:
 lemonldap-ng-store list
 lemonldap-ng-store install oidc-par
+# …then toggle the feature in the Manager (e.g. enable PAR on an RP) and
+# reload the portal — the plugin autoloads because its condition is now truthy.
 ```
 
 Available images include `lemonldap-ng-full`, `lemonldap-ng-portal`,
