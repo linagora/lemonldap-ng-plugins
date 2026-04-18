@@ -225,9 +225,14 @@ for my $ext_file (@ext_files) {
               if $t && %$t;
         }
     }
-    push @{ $ext_ctrees->{$_} },
-      { ext => $ext->{ctrees}{$_}, file => $ext_file }
-      for keys %{ $ext->{ctrees} || {} };
+    for my $ctree_name ( keys %{ $ext->{ctrees} || {} } ) {
+        my $spec  = $ext->{ctrees}{$ctree_name};
+        my @specs = ref $spec eq 'ARRAY' ? @$spec : ($spec);
+        for my $s (@specs) {
+            push @{ $ext_ctrees->{$ctree_name} },
+              { ext => $s, file => $ext_file };
+        }
+    }
 
     # Collect translations
     if ( $ext->{lang} && %{ $ext->{lang} } ) {
@@ -666,8 +671,11 @@ sub merge_ctrees {
     my ( $core_ctrees, $ext_ctrees, $ext_file ) = @_;
 
     for my $ctree_name ( keys %$ext_ctrees ) {
-        apply_ctree_extension( $core_ctrees, $ctree_name,
-            $ext_ctrees->{$ctree_name}, $ext_file );
+        my $spec = $ext_ctrees->{$ctree_name};
+        my @specs = ref $spec eq 'ARRAY' ? @$spec : ($spec);
+        for my $s (@specs) {
+            apply_ctree_extension( $core_ctrees, $ctree_name, $s, $ext_file );
+        }
     }
 }
 
