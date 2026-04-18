@@ -472,5 +472,79 @@ POSTINST
   echo "  -> ${pkg_name}_${version}_all.deb"
 done
 
+##############################################################################
+# Build open-bastion-plugins meta-package
+##############################################################################
+echo "Building open-bastion-plugins ${COMMON_VERSION}..."
+
+OBP_BUILD="${WORKDIR}/open-bastion-plugins"
+install_dir "${OBP_BUILD}/DEBIAN"
+
+cat > "${OBP_BUILD}/DEBIAN/control" <<EOF
+Package: open-bastion-plugins
+Version: ${COMMON_VERSION}
+Architecture: all
+Maintainer: Linagora <https://linagora.com>
+Depends: linagora-lemonldap-ng-plugin-pam-access,
+ linagora-lemonldap-ng-plugin-ssh-ca,
+ linagora-lemonldap-ng-plugin-oidc-device-authorization,
+ linagora-lemonldap-ng-plugin-oidc-device-organization,
+ liblemonldap-ng-common-perl,
+ libjson-perl,
+ openssl,
+ openssh-client
+Section: web
+Priority: optional
+Description: LemonLDAP::NG plugins bundle for open-bastion
+ Meta-package pulling the LLNG plugins required by an open-bastion
+ deployment (PAM access, SSH CA, OIDC Device Authorization Grant and
+ OIDC Device Organization) and shipping the
+ open-bastion-plugins-autoconfig bootstrap helper.
+EOF
+
+# Ship the autoconfig helper
+install_script "${REPO_ROOT}/debian/open-bastion-plugins-autoconfig" \
+    "${OBP_BUILD}/usr/bin/open-bastion-plugins-autoconfig"
+
+# postinst: create the SSH CA runtime dir (serial + KRL live here).
+# We deliberately do NOT auto-run the helper: the admin triggers it when
+# the LLNG backend and local keys are ready.
+cat > "${OBP_BUILD}/DEBIAN/postinst" <<'POSTINST'
+#!/bin/sh
+set -e
+SSH_DIR=/var/lib/lemonldap-ng/ssh
+case "$1" in
+  configure)
+    if [ ! -d "$SSH_DIR" ]; then
+      mkdir -p "$SSH_DIR"
+      chmod 0750 "$SSH_DIR"
+      if getent passwd www-data >/dev/null 2>&1; then
+        chown www-data:www-data "$SSH_DIR" || true
+      fi
+    fi
+    cat <<'MSG'
+
+open-bastion-plugins installed.
+
+To bootstrap the LemonLDAP::NG configuration for an open-bastion
+deployment, run (idempotent, safe to re-run):
+
+  sudo open-bastion-plugins-autoconfig --verbose
+
+Preview first with:
+
+  sudo open-bastion-plugins-autoconfig --dry-run --verbose
+
+MSG
+    ;;
+esac
+exit 0
+POSTINST
+chmod 0755 "${OBP_BUILD}/DEBIAN/postinst"
+
+dpkg-deb --root-owner-group --build "${OBP_BUILD}" \
+  "${OUTPUT_DIR}/open-bastion-plugins_${COMMON_VERSION}_all.deb"
+echo "  -> open-bastion-plugins_${COMMON_VERSION}_all.deb"
+
 echo "Done. Packages written to ${OUTPUT_DIR}/"
 ls -lh "${OUTPUT_DIR}/"*.deb
