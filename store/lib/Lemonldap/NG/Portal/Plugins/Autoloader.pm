@@ -22,8 +22,10 @@ use constant DEFAULT_DIR => (
   )
   . '/autoload.d';
 
-# Valid module-name pattern (Perl identifier with optional leading "::").
-my $MODULE_RE = qr/^(?:::)?[A-Za-z_][A-Za-z0-9_:]*$/;
+# Valid module-name pattern: proper ::-separated identifiers, with the
+# optional leading "::" shortcut (resolved under Lemonldap::NG::Portal).
+# Matches the grammar accepted by customPlugins: no single ':' chars.
+my $MODULE_RE = qr/^(?:::)?[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*$/;
 
 sub init {
     my ($self) = @_;
@@ -41,8 +43,13 @@ sub init {
     for my $file (@files) {
         my $path = "$dir/$file";
         my $rule = eval { _readJson($path) };
-        if ( $@ or !defined $rule ) {
-            $self->logger->error("Invalid autoload file $path: $@");
+        if ($@) {
+            chomp( my $err = $@ );
+            $self->logger->error("Cannot parse autoload file $path: $err");
+            next;
+        }
+        unless ( defined $rule ) {
+            $self->logger->debug("Autoload file $path decoded to null, skipping");
             next;
         }
         for my $mod ( $self->_resolve( $rule, $path ) ) {
@@ -76,9 +83,14 @@ sub _resolve {
 
     my @out;
     for my $entry (@entries) {
-        unless ( ref $entry eq 'HASH' and defined $entry->{module} ) {
-            $self->logger->warn(
-                "Autoload entry in $path lacks a 'module' field");
+        unless ( ref $entry eq 'HASH'
+            and defined $entry->{module}
+            and defined $entry->{condition} )
+        {
+            $self->logger->error(
+                "Autoload entry in $path lacks 'module' or 'condition'"
+                  . " (both are mandatory, same grammar as Main::Plugins"
+                  . " \@pList pairs)" );
             next;
         }
         my $mod = $entry->{module};
@@ -88,9 +100,7 @@ sub _resolve {
             next;
         }
 
-        if ( defined( my $cond = $entry->{condition} ) ) {
-            next unless $self->_evalCondition($cond);
-        }
+        next unless $self->_evalCondition( $entry->{condition} );
         push @out, $mod;
     }
     return @out;
@@ -122,38 +132,57 @@ autoloading for LemonLDAP::NG
 =head1 DESCRIPTION
 
 At initialization, this plugin scans C<autoloadDir> (default
-F</etc/lemonldap-ng/autoload.d>) for JSON rule files and loads each
-declared plugin through the regular
-L<Lemonldap::NG::Portal::Main::Init/loadPlugin> entry point.
+F</etc/lemonldap-ng/autoload.d>) for JSON rule files and, for each
+entry, applies the exact same logic as the static C<@pList> array of
+L<Lemonldap::NG::Portal::Main::Plugins>: the C<condition> is evaluated
+against the running configuration, and the module is loaded via
+L<Lemonldap::NG::Portal::Main::Init/loadPlugin> I<only when the
+condition is truthy>.
 
 This lets third-party plugins installed by the plugin store (or by any
 packaging system) declare themselves without the admin having to edit
-C<customPlugins> in the LLNG configuration.
+C<customPlugins> in the LLNG configuration, while preserving the
+opt-in semantics of the core plugin list: a plugin only runs when the
+configuration asks for it.
 
 =head1 FILE FORMAT
 
 One file per plugin, named C<NN-slug.json> (the C<NN> numeric prefix
-controls the loading order via lexicographic sort).
+controls the loading order via lexicographic sort). Each entry is the
+JSON equivalent of one C<< condition => module >> pair in
+C<Portal::Main::Plugins::@pList>:
 
   {
     "name": "MyFoo",
-    "module": "::Plugins::MyFoo",
-    "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsMyFoo"
+    "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsMyFoo",
+    "module": "::Plugins::MyFoo"
   }
 
 =over
+
+=item C<condition>
+
+Mandatory. Same C<< type::path/sub/key >> grammar as C<@pList> keys:
+
+=over
+
+=item *
+
+C<or::path/*/key> walks C<$conf> following each path segment; C<*>
+iterates over hash keys, and the predicate is true as soon as any
+leaf is truthy.
+
+=item *
+
+A bare configuration-key name is interpreted as a plain boolean
+check on that key.
+
+=back
 
 =item C<module>
 
 Mandatory. Module name, same syntax as C<customPlugins> entries.
 Names starting with C<::> are resolved under C<Lemonldap::NG::Portal>.
-
-=item C<condition>
-
-Optional. When set, the plugin is loaded only if the condition evaluates
-to true against the running LLNG configuration. Uses the same
-C<< type::path/sub/key >> grammar as the static C<@pList>. Omitted means
-unconditional loading.
 
 =item C<name>
 
@@ -163,6 +192,11 @@ Informational only.
 
 An aggregated form is also accepted:
 
-  { "plugins": [ { "module": "::Plugins::Foo" }, ... ] }
+  {
+    "plugins": [
+      { "condition": "...", "module": "::Plugins::Foo" },
+      ...
+    ]
+  }
 
 =cut

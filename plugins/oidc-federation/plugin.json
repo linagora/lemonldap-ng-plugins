@@ -15,6 +15,7 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "oidcFederationEnabled",
       "module": "::Plugins::OpenIDFederation"
     }
   ]

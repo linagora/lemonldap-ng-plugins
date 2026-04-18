@@ -18,6 +18,7 @@
   "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager.",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsTokenXAuthorizedMatrix",
       "module": "::Plugins::MatrixTokenExchange"
     }
   ]

@@ -18,9 +18,11 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsPAR",
       "module": "::Plugins::OIDCPushedAuthRequest"
     },
     {
+      "condition": "or::oidcOPMetaDataOptions/*/oidcOPMetaDataOptionsUsePAR",
       "module": "::Plugins::OIDCPushedAuthRequestClient"
     }
   ]

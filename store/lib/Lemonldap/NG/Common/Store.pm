@@ -476,9 +476,22 @@ sub _installOne {
 
     print "  Installed " . scalar(@$files_or_err) . " file(s)\n";
 
+    # Detect actual autoload files installed: trust the archive's
+    # autoload/ directory rather than the plugin.json flag, so an
+    # out-of-date metadata field never short-circuits --activate for a
+    # plugin that has no rule to install.
+    my $autoload_dir       = $installer->{autoloadDir};
+    my @autoload_installed = $autoload_dir
+      ? grep {
+               defined $_
+            && index( $_, "$autoload_dir/" ) == 0
+            && /\.json\z/
+      } @$files_or_err
+      : ();
+
     # 11. Activate plugin if --activate was requested
     if ( $opts->{activate} ) {
-        if ( $meta->{autoload} ) {
+        if (@autoload_installed) {
             print
 "  Warning: --activate is ignored, this plugin ships an autoload rule\n";
         }
@@ -491,7 +504,7 @@ sub _installOne {
     }
 
     # 12. Post-install instructions
-    if ( $meta->{autoload} ) {
+    if (@autoload_installed) {
         print
 "  Plugin is autoloaded from the autoload directory, no further action needed.\n";
     }

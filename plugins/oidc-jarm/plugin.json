@@ -16,9 +16,11 @@
   "post_install": "Note: the OIDC discovery metadata will not advertise JARM response modes unless you also patch Lemonldap::NG::Common::OpenIDConnect::Metadata (see README.md for the patch).",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsJarm",
       "module": "::Plugins::OIDCJarm"
     },
     {
+      "condition": "or::oidcOPMetaDataOptions/*/oidcOPMetaDataOptionsResponseMode",
       "module": "::Plugins::OIDCJarmClient"
     }
   ]

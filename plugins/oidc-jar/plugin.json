@@ -18,6 +18,15 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsJarSigAlg",
+      "module": "::Plugins::OIDCJar"
+    },
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsJarEncAlg",
+      "module": "::Plugins::OIDCJar"
+    },
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsRequireSignedRequestObject",
       "module": "::Plugins::OIDCJar"
     }
   ]

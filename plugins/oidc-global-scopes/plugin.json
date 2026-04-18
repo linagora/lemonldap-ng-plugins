@@ -17,6 +17,7 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "oidcServiceGlobalExtraScopes",
       "module": "::Plugins::OIDCGlobalScopes"
     }
   ]

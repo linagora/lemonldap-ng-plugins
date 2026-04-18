@@ -48,10 +48,10 @@ my $VERSION = '2.23.0';
 # Default paths - placeholders replaced during installation
 # These can all be overridden via command line options
 #############################################################################
-my $DEFAULT_MANAGERSTATICDIR = '/usr/share/lemonldap-ng/manager/htdocs/static';
-my $DEFAULT_PERLLIBDIR       = '/usr/share/perl5';
-my $DEFAULT_DOCDIR           = '/usr/share/doc/lemonldap-ng';
-my $DEFAULT_LANGDIR          = '/usr/share/lemonldap-ng/manager/htdocs/static/languages';
+my $DEFAULT_MANAGERSTATICDIR = '__MANAGERSTATICDIR__';
+my $DEFAULT_PERLLIBDIR       = '__INSTALLSITELIB__';
+my $DEFAULT_DOCDIR           = '__DOCDIR__';
+my $DEFAULT_LANGDIR          = '__MANAGERSTATICDIR__/languages';
 
 # Command line options
 my @plugins_dirs;
@@ -151,7 +151,7 @@ my $constants =
 my @ext_files;
 if (@plugins_dirs) {
     for my $dir (@plugins_dirs) {
-        my @files = sort glob("$dir/*.json");
+        my @files = sort( glob("$dir/*.pm"), glob("$dir/*.json") );
         verbose @files
           ? "Found " . scalar(@files) . " extension file(s) in $dir\n"
           : "No extension files found in $dir\n";
@@ -582,10 +582,12 @@ sub merge_tree {
     my $insert_before = $ext_tree->{insert_before};
 
     if ($insert_after) {
-        insert_nodes_after( $target->{nodes}, $insert_after, $nodes );
+        insert_nodes_after( $target->{nodes}, $insert_after, $nodes,
+            $ext_file );
     }
     elsif ($insert_before) {
-        insert_nodes_before( $target->{nodes}, $insert_before, $nodes );
+        insert_nodes_before( $target->{nodes}, $insert_before, $nodes,
+            $ext_file );
     }
     else {
         # Default: append at end
@@ -618,35 +620,46 @@ sub find_tree_node {
 }
 
 sub insert_nodes_after {
-    my ( $nodes_array, $after_title, $new_nodes ) = @_;
+    my ( $nodes_array, $after_title, $new_nodes, $ext_file ) = @_;
 
     for my $i ( 0 .. $#$nodes_array ) {
         my $node  = $nodes_array->[$i];
         my $title = ref($node) eq 'HASH' ? $node->{title} : $node;
+        next unless defined $title;
         if ( $title eq $after_title ) {
             splice @$nodes_array, $i + 1, 0, @$new_nodes;
             return;
         }
     }
 
-    # If not found, append at end
+    # Reference not found in the target: append at end rather than failing.
+    warn "Warning"
+      . ( $ext_file ? " [$ext_file]" : "" )
+      . ": insert_after reference '$after_title' not found, appending at end\n";
     push @$nodes_array, @$new_nodes;
 }
 
 sub insert_nodes_before {
-    my ( $nodes_array, $before_title, $new_nodes ) = @_;
+    my ( $nodes_array, $before_title, $new_nodes, $ext_file ) = @_;
 
     for my $i ( 0 .. $#$nodes_array ) {
         my $node  = $nodes_array->[$i];
         my $title = ref($node) eq 'HASH' ? $node->{title} : $node;
+        next unless defined $title;
         if ( $title eq $before_title ) {
             splice @$nodes_array, $i, 0, @$new_nodes;
             return;
         }
     }
 
-    # If not found, prepend at beginning
-    unshift @$nodes_array, @$new_nodes;
+    # Reference not found in the target: append at end (consistent with
+    # insert_nodes_after). Prepending at position 0 would reorder
+    # unrelated, unrelated nodes and is almost never what the admin
+    # meant when the sibling is simply missing.
+    warn "Warning"
+      . ( $ext_file ? " [$ext_file]" : "" )
+      . ": insert_before reference '$before_title' not found, appending at end\n";
+    push @$nodes_array, @$new_nodes;
 }
 
 sub merge_ctrees {
@@ -706,10 +719,11 @@ sub apply_ctree_extension {
     }
 
     if ($insert_after) {
-        insert_nodes_after( $target_array, $insert_after, $nodes );
+        insert_nodes_after( $target_array, $insert_after, $nodes, $ext_file );
     }
     elsif ($insert_before) {
-        insert_nodes_before( $target_array, $insert_before, $nodes );
+        insert_nodes_before( $target_array, $insert_before, $nodes,
+            $ext_file );
     }
     else {
         push @$target_array, @$nodes;
@@ -1094,6 +1108,10 @@ Insert new nodes before the node with this title.
 
 If neither C<insert_after> nor C<insert_before> is specified, nodes are appended
 at the end.
+
+If C<insert_after> or C<insert_before> refers to a sibling that does not
+exist in the target tree, nodes are also appended at the end and a
+warning is printed on stderr pointing to the offending extension file.
 
 =head1 TRANSLATIONS
 

@@ -16,7 +16,7 @@ This is an instant image, no history in it.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```
-sudo lemonldap-ng-store install reports
+sudo lemonldap-ng-store install reports --activate
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::Reports` to `customPlugins` in the LLNG configuration.

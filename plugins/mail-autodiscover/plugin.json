@@ -8,10 +8,5 @@
   "llng_compat": ">=2.0.0",
   "perl_requires": {},
   "customPlugins": "::Plugins::MailAutodiscover",
-  "post_install": "Edit the $imapServer and $smtpServer variables at the top of MailAutodiscover.pm to match your mail servers. Then add autodiscover.mydomain.tld as a web server alias pointing to the LLNG portal.",
-  "autoload": [
-    {
-      "module": "::Plugins::MailAutodiscover"
-    }
-  ]
+  "post_install": "Edit the $imapServer and $smtpServer variables at the top of MailAutodiscover.pm to match your mail servers. Then add autodiscover.mydomain.tld as a web server alias pointing to the LLNG portal."
 }

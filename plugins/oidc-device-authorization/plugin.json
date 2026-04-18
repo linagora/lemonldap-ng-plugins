@@ -20,6 +20,7 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsAllowDeviceAuthorization",
       "module": "::Plugins::OIDCDeviceAuthorization"
     }
   ]

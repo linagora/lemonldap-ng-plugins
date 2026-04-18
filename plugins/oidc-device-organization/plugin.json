@@ -21,6 +21,7 @@
   "post_install": "This plugin requires the oidc-device-authorization plugin to be installed and active.",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsDeviceOwnership",
       "module": "::Plugins::OIDCDeviceOrganization"
     }
   ]

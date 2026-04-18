@@ -37,25 +37,34 @@ sudo lemonldap-ng-store install <plugin-name>
 
 ### Plugin activation: autoload vs. `customPlugins`
 
-Each plugin in this store ships an `autoload` rule. What happens at install
-time depends on whether the
+Most plugins in this store ship an `autoload` rule. Each rule is the JSON
+equivalent of one `condition => module` pair of LLNG's static
+`Portal::Main::Plugins::@pList`: both **`condition`** and **`module`** are
+mandatory, and the plugin is loaded **only when the condition is truthy**
+against the running configuration — exactly as the core plugin list does.
+
+What happens at install time depends on whether the
 [`Autoloader`](https://lemonldap-ng.org/documentation/latest/plugincustom.html#autoload-directory)
 plugin is loaded by your portal:
 
 - **With Autoloader loaded** (default in LLNG >= 2.24.0, or when
   `::Plugins::Autoloader` is present in `customPlugins` — the
-  `linagora-lemonldap-ng-store` backport deb adds it automatically for LLNG
-  < 2.24.0): nothing else to do. `lemonldap-ng-store install <plugin>` drops
-  the rule into `/etc/lemonldap-ng/autoload.d/` and the plugin is loaded on
-  next portal reload. `--activate` is a no-op and is ignored.
+  `linagora-lemonldap-ng-store` backport deb adds it automatically for
+  LLNG < 2.24.0): nothing else to do. `lemonldap-ng-store install <plugin>`
+  drops the rule into `/etc/lemonldap-ng/autoload.d/`, and the portal
+  loads the plugin on next reload as soon as the condition (typically an
+  RP/OP option or a global config key) becomes truthy. `--activate` is a
+  no-op and is ignored when the plugin ships an autoload rule.
 - **Without Autoloader**: run
   `sudo lemonldap-ng-store install <plugin-name> --activate` (or edit
-  `customPlugins` yourself) — the installer appends the plugin module name
-  to the LLNG `customPlugins` configuration key.
+  `customPlugins` yourself) — the installer appends the plugin module
+  name to the LLNG `customPlugins` configuration key.
 
-The `autoload` field in each plugin's `plugin.json` declares the Perl
-module(s) to load (with optional `priority` / `condition`); `customPlugins`
-is kept as a fallback for the manual path.
+A few plugins in this store (e.g. `reports`, `mail-autodiscover`) do not
+have a natural "on/off" configuration key, so they do not ship an
+`autoload` rule — for these, `--activate` (or a manual `customPlugins`
+edit) remains the only activation path. See each plugin's README for the
+exact condition used.
 
 ### Quick try with Docker
 

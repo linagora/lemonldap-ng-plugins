@@ -18,6 +18,7 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsAllowCIBA",
       "module": "::Plugins::OIDCCIBA"
     }
   ]

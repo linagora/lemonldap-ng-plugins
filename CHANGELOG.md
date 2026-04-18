@@ -12,9 +12,14 @@
   package (back-port for LLNG < 2.24.0) and register it in
   `customPlugins` at `configure` time, so plugins installed from the
   store load automatically without any manual config edit.
-- Every plugin in this repository now declares an `autoload` entry in
-  its `plugin.json` (alongside `customPlugins` which stays as a
-  manual-install fallback).
+- Autoload rules are now strictly conditional: each entry has a mandatory
+  `condition` (same grammar as `@pList` keys) and `module` pair; the
+  plugin loads only when the condition is truthy against the running
+  configuration. Plugins without a natural trigger key (`reports`,
+  `mail-autodiscover`) keep the `customPlugins` path with `--activate`.
+- `llng-build-manager-files` now warns (instead of failing silently) when
+  an `insert_after`/`insert_before` reference is missing, and both fall
+  back to append-at-end.
 
 ### New plugins
 
