@@ -35,6 +35,25 @@ lemonldap-ng-store list
 sudo lemonldap-ng-store install <plugin-name> --activate
 ```
 
+### Quick try with Docker
+
+While waiting for the LLNG 2.23.0 release, you can try the plugins out of the box
+with the [`yadd/lemonldap-ng-*`](https://github.com/guimard/llng-docker) Docker images
+(tags `>= 2.22` or `latest`). The [base image](https://github.com/guimard/llng-docker/blob/master/base/Dockerfile)
+installs `linagora-lemonldap-ng-store` and pre-registers this store, so
+`lemonldap-ng-store install <plugin>` works immediately inside the container.
+
+```bash
+docker run --rm -it -p 80:80 yadd/lemonldap-ng-full:latest
+# then, inside the container:
+lemonldap-ng-store list
+lemonldap-ng-store install oidc-par --activate
+```
+
+Available images include `lemonldap-ng-full`, `lemonldap-ng-portal`,
+`lemonldap-ng-manager`, etc. (see the
+[docker-compose examples](https://github.com/guimard/llng-docker#docker-compose-examples)).
+
 ### Manual installation
 
 See doc of wanted plugin.

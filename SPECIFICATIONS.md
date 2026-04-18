@@ -1,7 +1,11 @@
-# Specifications implemented by Lemonldap::NG
+<p align="center">
+  <a href="https://linagora.com"><img src="linagora.png" alt="LINAGORA" width="300"></a>
+</p>
+
+# Specifications implemented in Lemonldap::NG
 
 This page lists the standards, RFCs and specifications implemented by
-[Lemonldap::NG](https://lemonldap-ng.org/).
+[Lemonldap::NG](https://lemonldap-ng.org/) or here via our plugins.
 
 Each row has two columns:
 
