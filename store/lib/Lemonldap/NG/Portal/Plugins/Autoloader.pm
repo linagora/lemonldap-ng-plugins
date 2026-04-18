@@ -19,13 +19,12 @@ use constant DEFAULT_DIR => (
     ( $DEFAULT_CONFDIR =~ /^__.*__$/ )
     ? '/etc/lemonldap-ng'
     : $DEFAULT_CONFDIR
-  )
-  . '/autoload.d';
+) . '/autoload.d';
 
 # Valid module-name pattern: proper ::-separated identifiers, with the
 # optional leading "::" shortcut (resolved under Lemonldap::NG::Portal).
 # Matches the grammar accepted by customPlugins: no single ':' chars.
-my $MODULE_RE = qr/^(?:::)?[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*$/;
+my $MODULE_RE = qr/^(?:::)?[A-Za-z_]\w*(?:::[A-Za-z_]\w*)*$/;
 
 sub init {
     my ($self) = @_;
@@ -49,7 +48,8 @@ sub init {
             next;
         }
         unless ( defined $rule ) {
-            $self->logger->debug("Autoload file $path decoded to null, skipping");
+            $self->logger->debug(
+                "Autoload file $path decoded to null, skipping");
             next;
         }
         for my $mod ( $self->_resolve( $rule, $path ) ) {
@@ -83,12 +83,12 @@ sub _resolve {
 
     my @out;
     for my $entry (@entries) {
-        unless ( ref $entry eq 'HASH'
+        unless (ref $entry eq 'HASH'
             and defined $entry->{module}
             and defined $entry->{condition} )
         {
             $self->logger->error(
-                "Autoload entry in $path lacks 'module' or 'condition'"
+                    "Autoload entry in $path lacks 'module' or 'condition'"
                   . " (both are mandatory, same grammar as Main::Plugins"
                   . " \@pList pairs)" );
             next;
