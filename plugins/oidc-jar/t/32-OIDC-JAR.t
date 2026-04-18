@@ -484,6 +484,7 @@ sub op {
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
                 issuerDBOpenIDConnectActivation => 1,
+                customPlugins                   => '::Plugins::OIDCJar',
                 oidcRPMetaDataExportedVars      => {
                     rp => {
                         email       => "mail",
