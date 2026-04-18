@@ -1,6 +1,6 @@
 {
   "name": "oidc-jar",
-  "version": "0.1.0",
+  "version": "0.1.14",
   "summary": "JWT-Secured Authorization Request (JAR, RFC 9101)",
   "description": "Completes LLNG's OIDC Core support of the 'request' and 'request_uri' parameters with the full RFC 9101 JAR profile: JWE-wrapped request objects, hardened request_uri fetching (timeout/Content-Type/size), validation of iss/aud/exp/nbf/iat/jti claims with anti-replay cache, RFC 9101 error codes, per-RP 'Require Signed Request Object' enforcement, and discovery advertising of request_object_* metadata.",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",

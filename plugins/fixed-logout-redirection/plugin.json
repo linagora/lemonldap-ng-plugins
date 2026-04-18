@@ -1,6 +1,6 @@
 {
   "name": "fixed-logout-redirection",
-  "version": "0.1.0",
+  "version": "0.1.14",
   "summary": "Force redirect to a fixed URL after logout",
   "description": "Redirects the user to a configured URL after logout, bypassing the default portal logout page. The target domain is automatically added to trustedDomains.",
   "author": "Linagora <https://linagora.com>",

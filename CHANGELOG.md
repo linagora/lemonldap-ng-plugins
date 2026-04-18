@@ -1,11 +1,17 @@
 # Changelog
 
-## v0.1.14 - (Unreleased)
+## v0.1.14 - 2026-04-18
+
+All plugins modified by this release are bumped to **0.1.14** in lockstep:
+`external-menu`, `fixed-logout-redirection`, `matrix-token-exchange`,
+`oidc-ciba`, `oidc-device-authorization`, `oidc-device-organization`,
+`oidc-federation`, `oidc-global-scopes`, `oidc-jar` (new),
+`oidc-jarm`, `oidc-par`, `oidc-scope-applications`, `pacc`, `pam-access`,
+`ssh-ca`, `twake`, `vault-conf-backend` (new).
 
 ### Store / packaging
 
-- Sync `linagora-lemonldap-ng-store` with the upstream LLNG #3580 branch:
-  store now understands an `autoload` field in `plugin.json` and drops a
+- Store now understands an `autoload` field in `plugin.json` and drops a
   JSON rule into `/etc/lemonldap-ng/autoload.d/` instead of editing
   `customPlugins` when `--activate` is used.
 - Ship the upstream `::Plugins::Autoloader` as part of the store

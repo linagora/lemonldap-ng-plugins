@@ -1,6 +1,6 @@
 {
   "name": "oidc-scope-applications",
-  "version": "0.1.0",
+  "version": "0.1.14",
   "summary": "OIDC 'applications' scope exposing portal menu in userinfo",
   "description": "Adds an 'applications' scope that returns the user's portal application list in the OIDC userinfo response. Allows OIDC clients to display the same application menu as the LemonLDAP::NG portal.",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",

@@ -1,6 +1,6 @@
 {
   "name": "pacc",
-  "version": "0.1.3",
+  "version": "0.1.14",
   "summary": "PACC - Provider Automatic Configuration for Clients (draft-ietf-mailmaint-pacc)",
   "description": "Implements draft-ietf-mailmaint-pacc for automatic mail client configuration. Provides a /.well-known/pacc.json endpoint returning IMAP/SMTP/JMAP/CalDAV/CardDAV configuration with OAuth2 issuer information. Also enhances OIDC dynamic registration to support native clients with loopback redirect URIs and public clients (no client_secret).",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
