@@ -189,7 +189,7 @@ Package: linagora-llng-build-manager-files
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-manager-perl
+Depends: liblemonldap-ng-manager-perl (>= 2.22~)
 Conflicts: liblemonldap-ng-manager-perl (>= 2.23.0~)
 Section: web
 Priority: optional
