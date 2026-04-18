@@ -112,13 +112,34 @@ EOF
 cat > "${STORE_BUILD}/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
+register_autoloader() {
+    # On LLNG < 2.24.0 the Autoloader plugin is not part of the default
+    # @pList — register it once in customPlugins so store plugins that
+    # ship an autoload rule actually load without manual intervention.
+    cli=$(command -v lemonldap-ng-cli 2>/dev/null || true)
+    [ -n "$cli" ] || return 0
+    current=$("$cli" --json 1 get customPlugins 2>/dev/null || true)
+    case "$current" in
+        *Plugins::Autoloader*) return 0 ;;
+    esac
+    value=$(echo "$current" | sed -e 's/^"//' -e 's/"$//' -e 's/^null$//')
+    if [ -n "$value" ]; then
+        new="$value, ::Plugins::Autoloader"
+    else
+        new="::Plugins::Autoloader"
+    fi
+    "$cli" --yes 1 set customPlugins "$new" >/dev/null 2>&1 || true
+}
 case "$1" in
+  configure)
+    register_autoloader
+    ;;
   triggered)
     if [ -x /usr/share/lemonldap-ng/bin/lemonldap-ng-store ]; then
       /usr/share/lemonldap-ng/bin/lemonldap-ng-store rebuild || true
     fi
     ;;
-  configure|abort-upgrade|abort-remove|abort-deconfigure)
+  abort-upgrade|abort-remove|abort-deconfigure)
     ;;
 esac
 #DEBHELPER#
@@ -140,6 +161,16 @@ done
 # Install OIDCPlugin.pm backport (needed by OIDC plugins on LLNG < 2.23.0)
 install_file "${REPO_ROOT}/store/lib/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm" \
   "${STORE_BUILD}/usr/share/perl5/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm"
+
+# Install Autoloader plugin backport (needed on LLNG < 2.24.0 to auto-load
+# store plugins from /etc/lemonldap-ng/autoload.d/; on LLNG >= 2.24.0 the
+# upstream Autoloader takes precedence)
+install_file "${REPO_ROOT}/store/lib/Lemonldap/NG/Portal/Plugins/Autoloader.pm" \
+  "${STORE_BUILD}/usr/share/perl5/Lemonldap/NG/Portal/Plugins/Autoloader.pm"
+
+# Ship an empty autoload directory so plugins installed afterwards can drop
+# JSON rule files into it without having to create the dir themselves
+install -d -m 0755 "${STORE_BUILD}/etc/lemonldap-ng/autoload.d"
 
 dpkg-deb --root-owner-group --build "${STORE_BUILD}" \
   "${OUTPUT_DIR}/linagora-lemonldap-ng-store_${COMMON_VERSION}_all.deb"

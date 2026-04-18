@@ -24,7 +24,7 @@ generate temporary access tokens for SSH and other PAM-enabled services.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install pam-access --activate
+sudo lemonldap-ng-store install pam-access
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `portal-templates/`

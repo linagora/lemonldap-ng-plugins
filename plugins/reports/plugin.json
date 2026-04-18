@@ -12,5 +12,10 @@
     "Date::Format": "0"
   },
   "customPlugins": "::Plugins::Reports",
-  "post_install": "Protect /reports/* endpoints in your Manager virtual host rules to restrict access to administrators."
+  "post_install": "Protect /reports/* endpoints in your Manager virtual host rules to restrict access to administrators.",
+  "autoload": [
+    {
+      "module": "::Plugins::Reports"
+    }
+  ]
 }

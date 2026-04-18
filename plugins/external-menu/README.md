@@ -18,7 +18,7 @@ LemonLDAP::NG portal menu.
 With `lemonldap-ng-store`:
 
 ```bash
-sudo lemonldap-ng-store install external-menu --activate
+sudo lemonldap-ng-store install external-menu
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

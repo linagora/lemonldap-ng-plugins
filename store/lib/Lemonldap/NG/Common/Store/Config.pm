@@ -12,6 +12,7 @@ our $VERSION = '2.23.0';
 # time by the Makefile with actual installation paths.
 my %DEFAULTS = (
     managerOverridesDir => '/etc/lemonldap-ng/manager-overrides.d',
+    autoloadDir         => '/etc/lemonldap-ng/autoload.d',
     stateFile           => '/var/lib/lemonldap-ng/plugins-state.json',
     gpgVerify           => 'optional',
     httpTimeout         => 30,
@@ -64,6 +65,8 @@ sub _load {
     $conf{storeUrls}           = $ENV{LLNG_STORE_URLS} if $ENV{LLNG_STORE_URLS};
     $conf{managerOverridesDir} = $ENV{LLNG_STORE_OVERRIDESDIR}
       if $ENV{LLNG_STORE_OVERRIDESDIR};
+    $conf{autoloadDir} = $ENV{LLNG_STORE_AUTOLOADDIR}
+      if $ENV{LLNG_STORE_AUTOLOADDIR};
     $conf{stateFile} = $ENV{LLNG_STORE_STATEFILE} if $ENV{LLNG_STORE_STATEFILE};
     $conf{cacheDir}  = $ENV{LLNG_STORE_CACHEDIR}  if $ENV{LLNG_STORE_CACHEDIR};
     $conf{gpgVerify} = $ENV{LLNG_STORE_GPGVERIFY} if $ENV{LLNG_STORE_GPGVERIFY};
@@ -85,6 +88,7 @@ sub _load {
 # Accessors
 sub storeUrls           { return @{ $_[0]->{conf}{_storeUrls} } }
 sub managerOverridesDir { return $_[0]->{conf}{managerOverridesDir} }
+sub autoloadDir         { return $_[0]->{conf}{autoloadDir} }
 sub stateFile           { return $_[0]->{conf}{stateFile} }
 sub gpgVerify           { return $_[0]->{conf}{gpgVerify} }
 sub gpgKeyring          { return $_[0]->{conf}{gpgKeyring} }

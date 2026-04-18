@@ -21,7 +21,7 @@ the user's portal application menu in the userinfo response.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-scope-applications --activate
+sudo lemonldap-ng-store install oidc-scope-applications
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

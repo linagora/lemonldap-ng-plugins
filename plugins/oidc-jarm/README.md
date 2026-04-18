@@ -18,7 +18,7 @@ for LemonLDAP::NG, both as OIDC Provider and OIDC Client.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```
-sudo lemonldap-ng-store install oidc-jarm --activate
+sudo lemonldap-ng-store install oidc-jarm
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCJarm, ::Plugins::OIDCJarmClient` to `customPlugins`, and run `llng-build-manager-files`.

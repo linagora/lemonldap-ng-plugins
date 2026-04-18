@@ -20,7 +20,7 @@ This is a way to explain to Outlook that our server isn't an Exchange server.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```
-sudo lemonldap-ng-store install mail-autodiscover --activate
+sudo lemonldap-ng-store install mail-autodiscover
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::MailAutodiscover` to `customPlugins` in the LLNG configuration.

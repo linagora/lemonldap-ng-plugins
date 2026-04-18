@@ -21,7 +21,7 @@ for LemonLDAP::NG as an OIDC Provider.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-federation --activate
+sudo lemonldap-ng-store install oidc-federation
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

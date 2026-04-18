@@ -10,6 +10,15 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::OIDCScopeApplications",
-  "tags": ["oidc", "scope", "applications"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "scope",
+    "applications"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::OIDCScopeApplications"
+    }
+  ]
 }

@@ -12,6 +12,18 @@
     "MIME::Base64": "0"
   },
   "customPlugins": "::Plugins::TwakeWellknown, ::Plugins::TwakeAppAccounts",
-  "tags": ["twake", "ldap", "accounts"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "twake",
+    "ldap",
+    "accounts"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::TwakeWellknown"
+    },
+    {
+      "module": "::Plugins::TwakeAppAccounts"
+    }
+  ]
 }

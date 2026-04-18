@@ -11,6 +11,17 @@
     "MIME::Base64": "0"
   },
   "customPlugins": "::Plugins::OIDCPushedAuthRequest, ::Plugins::OIDCPushedAuthRequestClient",
-  "tags": ["oidc", "security"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "security"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::OIDCPushedAuthRequest"
+    },
+    {
+      "module": "::Plugins::OIDCPushedAuthRequestClient"
+    }
+  ]
 }

@@ -16,6 +16,7 @@ our $VERSION = '2.23.0';
 my $DEFAULT_PORTALTEMPLATESDIR = '/usr/share/lemonldap-ng/portal/templates';
 my $DEFAULT_PORTALSTATICDIR    = '/usr/share/lemonldap-ng/portal/htdocs/static';
 my $DEFAULT_MANAGERSTATICDIR   = '/usr/share/lemonldap-ng/manager/htdocs/static';
+my $DEFAULT_CONFDIR            = '/etc/lemonldap-ng';
 
 # Derive INSTALLSITELIB from where this module was loaded
 my $DEFAULT_INSTALLSITELIB;
@@ -28,6 +29,7 @@ if ( my $path = $INC{'Lemonldap/NG/Common/Store/Install.pm'} ) {
 my %DIR_MAP = (
     'lib'               => \$DEFAULT_INSTALLSITELIB,
     'manager-overrides' => undef,    # handled via managerOverridesDir config
+    'autoload'          => undef,    # handled via autoloadDir config
     'portal-templates'  => \$DEFAULT_PORTALTEMPLATESDIR,
     'portal-static'     => \$DEFAULT_PORTALSTATICDIR,
     'manager-static'    => \$DEFAULT_MANAGERSTATICDIR,
@@ -35,9 +37,18 @@ my %DIR_MAP = (
 
 sub new {
     my ( $class, %args ) = @_;
+
+    # If placeholder was not substituted at install time, fall back to the
+    # upstream packaging default so in-tree runs / tests keep working.
+    my $confdir =
+      ( $DEFAULT_CONFDIR =~ /^__.*__$/ )
+      ? '/etc/lemonldap-ng'
+      : $DEFAULT_CONFDIR;
+
     my $self = bless {
         managerOverridesDir => $args{managerOverridesDir}
-          || '/etc/lemonldap-ng/manager-overrides.d',
+          || "$confdir/manager-overrides.d",
+        autoloadDir    => $args{autoloadDir} || "$confdir/autoload.d",
         allowOverwrite => $args{allowOverwrite} || 0,
     }, $class;
     return $self;
@@ -63,8 +74,7 @@ sub extractAndValidate {
             return ( 0, "Archive contains path traversal: $file", undef );
         }
         if ( $entry->is_symlink || $entry->is_hardlink ) {
-            return ( 0,
-                "Archive contains symlink or hardlink: $file", undef );
+            return ( 0, "Archive contains symlink or hardlink: $file", undef );
         }
     }
 
@@ -157,6 +167,9 @@ sub installFiles {
         if ( $src_dir eq 'manager-overrides' ) {
             $dest = $self->{managerOverridesDir};
         }
+        elsif ( $src_dir eq 'autoload' ) {
+            $dest = $self->{autoloadDir};
+        }
         else {
             my $ref = $DIR_MAP{$src_dir};
             $dest = $$ref;
@@ -169,8 +182,10 @@ sub installFiles {
             next;
         }
 
-        # Create destination if it's manager-overrides (small dedicated dir)
-        if ( $src_dir eq 'manager-overrides' && !-d $dest ) {
+        # Create destination if needed (small dedicated dirs)
+        if ( ( $src_dir eq 'manager-overrides' or $src_dir eq 'autoload' )
+            && !-d $dest )
+        {
             eval { make_path( $dest, { mode => 0755 } ) };
             if ($@) {
                 push @warnings, "Skipping $src_dir: cannot create $dest: $@";
@@ -233,6 +248,7 @@ sub _copyTree {
 
     File::Find::find( {
             wanted => sub {
+
                 # Stop processing if a previous error occurred
                 return if $self->{_error};
 
@@ -245,8 +261,7 @@ sub _copyTree {
 
                 # Refuse to follow symlinks
                 if ( -l $src_full ) {
-                    $self->{_error} =
-                      "Refusing to follow symlink: $rel";
+                    $self->{_error} = "Refusing to follow symlink: $rel";
                     return;
                 }
 
@@ -380,10 +395,10 @@ sub rebuildManager {
     my $cmd = _findBuildScript();
     unless ($cmd) {
 
-        # Check if the manager is installed but llng-build-manager-files is missing
+     # Check if the manager is installed but llng-build-manager-files is missing
         if ( eval { require Lemonldap::NG::Manager; 1 } ) {
             return ( 0,
-                    "llng-build-manager-files not found but the Manager is installed.\n"
+"llng-build-manager-files not found but the Manager is installed.\n"
                   . "If you are using LemonLDAP::NG < 2.23.0, install the\n"
                   . "linagora-llng-build-manager-files package to enable\n"
                   . "manager rebuild with plugin overrides." );

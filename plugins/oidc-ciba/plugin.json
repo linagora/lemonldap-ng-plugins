@@ -10,6 +10,15 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::OIDCCIBA",
-  "tags": ["oidc", "ciba", "backchannel"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "ciba",
+    "backchannel"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::OIDCCIBA"
+    }
+  ]
 }

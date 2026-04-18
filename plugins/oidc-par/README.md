@@ -20,7 +20,7 @@ for LemonLDAP::NG, both as OIDC Provider and OIDC Client.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-par --activate
+sudo lemonldap-ng-store install oidc-par
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

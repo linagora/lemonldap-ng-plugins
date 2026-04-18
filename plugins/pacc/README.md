@@ -24,7 +24,7 @@ standardized JSON endpoint.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install pacc --activate
+sudo lemonldap-ng-store install pacc
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

@@ -10,6 +10,15 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::PamAccess",
-  "tags": ["pam", "ssh", "authorization"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "pam",
+    "ssh",
+    "authorization"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::PamAccess"
+    }
+  ]
 }

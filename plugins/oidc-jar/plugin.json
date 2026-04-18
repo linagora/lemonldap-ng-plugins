@@ -11,6 +11,14 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::OIDCJar",
-  "tags": ["oidc", "security"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "oidc",
+    "security"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::OIDCJar"
+    }
+  ]
 }

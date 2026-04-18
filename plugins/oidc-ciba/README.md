@@ -28,7 +28,7 @@ for LemonLDAP::NG.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-ciba --activate
+sudo lemonldap-ng-store install oidc-ciba
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

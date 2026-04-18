@@ -7,9 +7,21 @@
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",
   "perl_requires": {},
-  "depends": ["oidc-device-authorization"],
+  "depends": [
+    "oidc-device-authorization"
+  ],
   "customPlugins": "::Plugins::OIDCDeviceOrganization",
-  "tags": ["oidc", "device", "organization", "bastion"],
+  "tags": [
+    "oidc",
+    "device",
+    "organization",
+    "bastion"
+  ],
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
-  "post_install": "This plugin requires the oidc-device-authorization plugin to be installed and active."
+  "post_install": "This plugin requires the oidc-device-authorization plugin to be installed and active.",
+  "autoload": [
+    {
+      "module": "::Plugins::OIDCDeviceOrganization"
+    }
+  ]
 }

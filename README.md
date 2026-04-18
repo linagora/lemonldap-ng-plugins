@@ -32,8 +32,30 @@ sudo lemonldap-ng-store add-store https://linagora.github.io/lemonldap-ng-plugin
 lemonldap-ng-store list
 
 # Install a plugin
-sudo lemonldap-ng-store install <plugin-name> --activate
+sudo lemonldap-ng-store install <plugin-name>
 ```
+
+### Plugin activation: autoload vs. `customPlugins`
+
+Each plugin in this store ships an `autoload` rule. What happens at install
+time depends on whether the
+[`Autoloader`](https://lemonldap-ng.org/documentation/latest/plugincustom.html#autoload-directory)
+plugin is loaded by your portal:
+
+- **With Autoloader loaded** (default in LLNG >= 2.24.0, or when
+  `::Plugins::Autoloader` is present in `customPlugins` — the
+  `linagora-lemonldap-ng-store` backport deb adds it automatically for LLNG
+  < 2.24.0): nothing else to do. `lemonldap-ng-store install <plugin>` drops
+  the rule into `/etc/lemonldap-ng/autoload.d/` and the plugin is loaded on
+  next portal reload. `--activate` is a no-op and is ignored.
+- **Without Autoloader**: run
+  `sudo lemonldap-ng-store install <plugin-name> --activate` (or edit
+  `customPlugins` yourself) — the installer appends the plugin module name
+  to the LLNG `customPlugins` configuration key.
+
+The `autoload` field in each plugin's `plugin.json` declares the Perl
+module(s) to load (with optional `priority` / `condition`); `customPlugins`
+is kept as a fallback for the manual path.
 
 ### Quick try with Docker
 
@@ -47,7 +69,7 @@ installs `linagora-lemonldap-ng-store` and pre-registers this store, so
 docker run --rm -it -p 80:80 yadd/lemonldap-ng-full:latest
 # then, inside the container:
 lemonldap-ng-store list
-lemonldap-ng-store install oidc-par --activate
+lemonldap-ng-store install oidc-par
 ```
 
 Available images include `lemonldap-ng-full`, `lemonldap-ng-portal`,

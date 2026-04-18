@@ -34,7 +34,7 @@ This plugin completes LemonLDAP::NG's built-in support of the OIDC Core
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-jar --activate
+sudo lemonldap-ng-store install oidc-jar
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

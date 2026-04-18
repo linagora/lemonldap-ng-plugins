@@ -10,6 +10,14 @@
     "URI::Escape": "0"
   },
   "customPlugins": "::Plugins::ExternalMenu",
-  "tags": ["redirect", "menu"],
-  "homepage": "https://github.com/linagora/lemonldap-ng-plugins"
+  "tags": [
+    "redirect",
+    "menu"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "module": "::Plugins::ExternalMenu"
+    }
+  ]
 }

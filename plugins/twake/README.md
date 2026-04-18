@@ -20,7 +20,7 @@ This plugin provides Twake integration for LemonLDAP::NG.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install twake --activate
+sudo lemonldap-ng-store install twake
 ```
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`

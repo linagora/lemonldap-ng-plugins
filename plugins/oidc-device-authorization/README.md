@@ -23,7 +23,7 @@ for LemonLDAP::NG.
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-device-authorization --activate
+sudo lemonldap-ng-store install oidc-device-authorization
 ```
 
 Manually: copy `lib/` and `portal-templates/` into the appropriate directories,

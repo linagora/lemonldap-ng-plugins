@@ -27,7 +27,7 @@ This is useful for:
 With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
 
 ```bash
-sudo lemonldap-ng-store install oidc-device-organization --activate
+sudo lemonldap-ng-store install oidc-device-organization
 ```
 
 > **Important:** `::Plugins::OIDCDeviceAuthorization` must appear **before**
