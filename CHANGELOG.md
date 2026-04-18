@@ -7,6 +7,14 @@
 - **vault-conf-backend**: LemonLDAP::NG configuration backend storing the
   LLNG configuration in OpenBAO / HashiCorp Vault via the KV v2 secret
   engine. Installs `Lemonldap::NG::Common::Conf::Backends::OpenBAO`
+- **oidc-jar**: RFC 9101 (JWT-Secured Authorization Request) full profile on
+  top of LLNG's OIDC Core request object support. Adds JWE decryption of
+  request objects, hardened `request_uri` fetching (timeout / Content-Type
+  / size), validation of `iss` / `aud` / `exp` / `nbf` / `iat` / `jti`
+  claims (with anti-replay cache), RFC 9101 error codes, per-RP
+  "require signed request object" enforcement, and advertises
+  `request_object_*_values_supported` / `require_signed_request_object`
+  in discovery.
 
 ## v0.1.13 2026-04-17
 
