@@ -15,6 +15,9 @@ This repository contains:
 - [Plugins for `lemonldap-ng-store`](#lemonldapng-plugins)
 - [LTS files](#lemonldapng-long-term-support-lts)
 
+See also the [list of specifications (RFCs, OIDC, SAML, CAS…) implemented](SPECIFICATIONS.md)
+by LLNG core and by the plugins published here.
+
 ## Lemonldap::NG plugins
 
 These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
