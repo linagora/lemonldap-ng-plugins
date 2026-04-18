@@ -3,11 +3,12 @@ package Lemonldap::NG::Portal::Plugins::OIDCJar;
 use strict;
 use Digest::SHA qw(sha256_hex);
 use JSON;
+use LWP::UserAgent;
 use Mouse;
 use Lemonldap::NG::Common::OpenIDConnect::Constants
   qw(ENC_ALG_SUPPORTED ENC_SUPPORTED);
 use Lemonldap::NG::Common::Session;
-use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_ERROR PE_REDIRECT);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_ERROR);
 
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
@@ -98,6 +99,14 @@ sub _extractAndValidateClaims {
     my ( $claims, $alg ) = $self->oidc->decodeJWT( $jwt, undef, $rp );
     return ( undef, 'JAR signature verification failed' ) unless $claims;
 
+    my $expectedAlg =
+      $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarSigAlg};
+    if ( defined $expectedAlg and $expectedAlg ne '' ) {
+        return ( undef,
+            "Request object alg '$alg' does not match expected '$expectedAlg'" )
+          unless defined $alg and $alg eq $expectedAlg;
+    }
+
     my $now  = time;
     my $skew = $self->conf->{oidcJarClockSkew} // 30;
 
@@ -173,7 +182,7 @@ sub _checkAndStoreJti {
       : ( $self->conf->{oidcJarJtiTtl} || 600 );
 
     my $timeout = $self->conf->{timeout} || 72000;
-    Lemonldap::NG::Common::Session->new( {
+    my $stored  = Lemonldap::NG::Common::Session->new( {
             %storeOpts,
             hashStore => $self->conf->{hashedSessionStore},
             id        => $id,
@@ -187,25 +196,28 @@ sub _checkAndStoreJti {
             },
         }
     );
+    if ( $stored->error ) {
+        $self->logger->error(
+            "JAR jti anti-replay write failed: " . $stored->error );
+        return "Unable to store jti in replay cache";
+    }
 
     return undef;
 }
 
-# Download a request_uri, enforcing timeout / Content-Type / size
+# Download a request_uri, enforcing timeout / Content-Type / size.
+# Uses a dedicated UA so the shared OIDC UA is never mutated.
 sub _fetchRequestUri {
     my ( $self, $uri ) = @_;
-    my $ua = $self->oidc->ua;
 
-    my $timeout     = $self->conf->{oidcJarRequestUriTimeout} || 10;
-    my $prevTimeout = $ua->timeout;
-    $ua->timeout($timeout);
+    my $timeout = $self->conf->{oidcJarRequestUriTimeout} || 10;
+    my $ua      = LWP::UserAgent->new( timeout => $timeout );
 
     my $resp = eval {
         $ua->get( $uri,
             Accept => 'application/oauth-authz-req+jwt, application/jwt' );
     };
     my $err = $@;
-    $ua->timeout($prevTimeout) if defined $prevTimeout;
 
     if ( $err or !$resp ) {
         $self->logger->error("JAR request_uri fetch error: $err");
@@ -218,9 +230,7 @@ sub _fetchRequestUri {
     }
 
     my $ct = $resp->content_type // '';
-    unless ( $ct =~ m{^application/(?:oauth-authz-req\+)?jwt\b}i
-        or $ct =~ m{^application/json\b}i )
-    {
+    unless ( $ct =~ m{^application/(?:oauth-authz-req\+)?jwt\b}i ) {
         $self->logger->error("JAR request_uri unexpected Content-Type: $ct");
         return undef;
     }
@@ -336,9 +346,8 @@ C<oidcRPMetaDataOptionsRequireSignedRequestObject> by rejecting plain
 authorization requests with the RFC 9101 C<request_not_supported> error.
 
 =item * Emits the RFC 9101 error codes C<invalid_request_object>,
-C<invalid_request_uri>, C<request_not_supported>,
-C<request_uri_not_supported> back to the RP when a usable C<redirect_uri>
-is available.
+C<invalid_request_uri> and C<request_not_supported> back to the RP
+when a usable C<redirect_uri> is available.
 
 =item * Validates the JAR claims C<iss>, C<aud>, C<exp>, C<nbf>,
 C<iat> (with per-RP C<oidcRPMetaDataOptionsJarMaxAge>) and C<jti>
@@ -352,8 +361,5 @@ C<request_object_encryption_enc_values_supported> and
 C<require_signed_request_object> in the discovery document.
 
 =back
-
-JWT claim validation (C<iss>, C<aud>, C<exp>, C<nbf>, C<iat>, C<jti>) is
-intentionally deferred to a future iteration.
 
 =cut

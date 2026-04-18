@@ -14,9 +14,8 @@ This plugin completes LemonLDAP::NG's built-in support of the OIDC Core
 - **`Require Signed Request Object`**: per-RP option that rejects plain
   authorization requests with the RFC 9101 `request_not_supported` error.
 - **RFC 9101 error codes**: emits `invalid_request_object`,
-  `invalid_request_uri`, `request_not_supported`,
-  `request_uri_not_supported` back to the RP when a usable `redirect_uri`
-  is available.
+  `invalid_request_uri` and `request_not_supported` back to the RP when
+  a usable `redirect_uri` is available.
 - **Claim validation**: `iss`, `aud`, `exp`, `nbf`, `iat` (with per-RP
   `oidcRPMetaDataOptionsJarMaxAge`) and `jti` anti-replay cache backed by the
   OIDC session store. Configurable clock skew via `oidcJarClockSkew`.
