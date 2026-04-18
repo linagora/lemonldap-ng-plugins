@@ -1,0 +1,529 @@
+#!/usr/bin/perl
+#
+# open-bastion-plugins-autoconfig
+#
+# Bootstrap a LemonLDAP::NG configuration for an open-bastion deployment.
+# Idempotent: only adds what is missing. Use --force to overwrite existing
+# values, --dry-run to preview, --verbose for details.
+#
+use strict;
+use warnings;
+use Getopt::Long qw(:config bundling);
+use JSON;
+use File::Temp qw(tempdir);
+
+use Lemonldap::NG::Common::Conf;
+
+our $VERSION = '0.1.0';
+
+my %opt = (
+    'dry-run'           => 0,
+    'force'             => 0,
+    'verbose'           => 0,
+    'custom-plugins'    => undef,     # undef = auto, 1 = force, 0 = never
+    'help'              => 0,
+    'rp-name'           => 'pam-access',
+    'ssh-key-ref'       => 'ssh-ca',
+    'ssh-dir'           => '/var/lib/lemonldap-ng/ssh',
+);
+GetOptions(
+    \%opt,
+    'dry-run|n',
+    'force|f',
+    'verbose|v',
+    'custom-plugins!',
+    'help|h',
+    'rp-name=s',
+    'ssh-key-ref=s',
+    'ssh-dir=s',
+) or usage(2);
+usage(0) if $opt{help};
+
+sub usage {
+    my $code = shift // 0;
+    print <<"EOF";
+Usage: $0 [options]
+
+Bootstrap LemonLDAP::NG for an open-bastion deployment. Idempotent.
+
+Options:
+  -n, --dry-run             Show what would change, do not save.
+  -f, --force               Overwrite existing values (default: keep them).
+  -v, --verbose             Print each decision.
+      --custom-plugins      Force injection in customPlugins.
+      --no-custom-plugins   Never touch customPlugins.
+      --rp-name NAME        OIDC RP client_id for pam-access (default: pam-access).
+      --ssh-key-ref NAME    Ref of the SSH CA key in 'keys' (default: ssh-ca).
+      --ssh-dir DIR         Serial/KRL dir (default: /var/lib/lemonldap-ng/ssh).
+  -h, --help                This message.
+EOF
+    exit $code;
+}
+
+my @changes;   # list of human-readable change descriptions
+my @kept;      # list of unchanged keys (verbose only)
+
+sub log_change { push @changes, $_[0]; print "  + $_[0]\n" if $opt{verbose} }
+sub log_keep   { push @kept,    $_[0]; print "  = $_[0]\n" if $opt{verbose} }
+sub log_info   { print "  i $_[0]\n" if $opt{verbose} }
+sub fatal      { print STDERR "ERROR: $_[0]\n"; exit 1 }
+
+# --- Helpers ---------------------------------------------------------------
+
+# Set a top-level key only if missing (or if --force). Returns 1 if changed.
+sub set_if_missing {
+    my ($conf, $key, $value, $label) = @_;
+    $label //= $key;
+    if (!exists $conf->{$key} || $opt{force}) {
+        if (exists $conf->{$key} && _eq($conf->{$key}, $value)) {
+            log_keep($label);
+            return 0;
+        }
+        $conf->{$key} = $value;
+        log_change($label);
+        return 1;
+    }
+    log_keep($label);
+    return 0;
+}
+
+sub _eq {
+    my ($a, $b) = @_;
+    return 0 if ref($a) ne ref($b);
+    if (!ref($a)) {
+        return (defined $a && defined $b && "$a" eq "$b")
+            || (!defined $a && !defined $b);
+    }
+    my $canon = JSON->new->canonical(1)->utf8(0);
+    return $canon->encode($a) eq $canon->encode($b);
+}
+
+# Run a command (list form, no shell), capture stdout+stderr, die on error.
+sub run_cmd {
+    my (@cmd) = @_;
+    log_info("run: @cmd");
+    my $pid = open(my $fh, '-|');
+    defined $pid or fatal("cannot fork for @cmd: $!");
+    if ($pid == 0) {
+        # child: merge stderr into stdout, then exec the target
+        open(STDERR, '>&', \*STDOUT)
+            or print STDERR "cannot dup stderr: $!\n" and exit 127;
+        exec({ $cmd[0] } @cmd) or print STDERR "exec failed: $!\n" and exit 127;
+    }
+    local $/;
+    my $out = <$fh>;
+    close($fh);
+    if ($? != 0) {
+        my $exit = $? >> 8;
+        my $sig  = $? & 0x7f;
+        my $msg  = "command failed (exit $exit"
+                 . ($sig ? ", signal $sig" : "") . "): @cmd";
+        $msg .= "\n-- output --\n$out" if defined $out && length $out;
+        fatal($msg);
+    }
+    return $out;
+}
+
+# --- Step: detect Autoloader and LLNG version -----------------------------
+
+sub detect_autoloader {
+    my $has_autoloader = eval {
+        require Lemonldap::NG::Portal::Plugins::Autoloader;
+        1;
+    };
+    my $llng_version = eval {
+        require Lemonldap::NG::Common;
+        $Lemonldap::NG::Common::VERSION;
+    } || '0.0.0';
+    log_info("LLNG version: $llng_version");
+    log_info("Autoloader module available: " . ($has_autoloader ? 'yes' : 'no'));
+    return ($has_autoloader, $llng_version);
+}
+
+# Compare version strings like "2.24.0" lexically-by-parts.
+sub version_lt {
+    my ($a, $b) = @_;
+    my @a = split /\./, ($a =~ /^(\d+(?:\.\d+)*)/)[0] // '0';
+    my @b = split /\./, ($b =~ /^(\d+(?:\.\d+)*)/)[0] // '0';
+    while (@a || @b) {
+        my $x = shift @a // 0;
+        my $y = shift @b // 0;
+        return 1 if $x < $y;
+        return 0 if $x > $y;
+    }
+    return 0;
+}
+
+# --- Step: decide which modules to add to customPlugins -------------------
+
+sub plan_custom_plugins {
+    my ($has_autoloader, $llng_version) = @_;
+
+    my @all_plugins = (
+        '::Plugins::PamAccess',
+        '::Plugins::SSHCA',
+        '::Plugins::OIDCDeviceAuthorization',
+        '::Plugins::OIDCDeviceOrganization',
+    );
+
+    # Explicit user overrides
+    if (defined $opt{'custom-plugins'}) {
+        if ($opt{'custom-plugins'}) {
+            log_info('customPlugins: --custom-plugins → force-adding 4 plugins');
+            return [@all_plugins];
+        }
+        log_info('customPlugins: --no-custom-plugins → skipped');
+        return [];
+    }
+
+    if ($has_autoloader) {
+        if (version_lt($llng_version, '2.24.0')) {
+            # Module available but not in default @pList
+            log_info("customPlugins: LLNG < 2.24.0 with Autoloader module → add Autoloader");
+            return ['::Plugins::Autoloader'];
+        }
+        # Autoloader is in default @pList
+        log_info("customPlugins: LLNG >= 2.24.0 → Autoloader is default, nothing to add");
+        return [];
+    }
+
+    # No Autoloader at all: fallback to explicit plugin list
+    log_info("customPlugins: no Autoloader → add 4 plugins manually");
+    return [@all_plugins];
+}
+
+sub apply_custom_plugins {
+    my ($conf, $modules) = @_;
+    return 0 unless @$modules;
+
+    # LLNG parses customPlugins with /[,\s]+/ (see
+    # Lemonldap::NG::Portal::Main::Plugins), so both comma- and space-
+    # separated lists are accepted. Use the same rule when detecting
+    # already-present modules and preserve the admin's existing
+    # separator style when re-serialising.
+    my $current  = $conf->{customPlugins} // '';
+    my @existing = grep { length } map { s/^\s+|\s+$//gr } split /[,\s]+/, $current;
+    my %present  = map { $_ => 1 } @existing;
+    my @to_add   = grep { !$present{$_} } @$modules;
+
+    if (!@to_add) {
+        log_keep('customPlugins (all modules already present)');
+        return 0;
+    }
+
+    my $sep = ($current =~ /,/) ? ', ' : ' ';
+    my $new = join($sep, @existing, @to_add);
+    $conf->{customPlugins} = $new;
+    log_change("customPlugins += " . join(', ', @to_add));
+    return 1;
+}
+
+# --- Step: OIDC service activation & keys ---------------------------------
+
+sub ensure_oidc_service {
+    my ($conf) = @_;
+
+    set_if_missing($conf, 'issuerDBOpenIDConnectActivation', 1,
+        'issuerDBOpenIDConnectActivation');
+
+    my %defaults = (
+        oidcServiceMetaDataAuthorizeURI     => 'authorize',
+        oidcServiceMetaDataTokenURI         => 'token',
+        oidcServiceMetaDataUserInfoURI      => 'userinfo',
+        oidcServiceMetaDataJWKSURI          => 'jwks',
+        oidcServiceMetaDataEndSessionURI    => 'logout',
+        oidcServiceMetaDataIntrospectionURI => 'introspect',
+        oidcServiceMetaDataRegistrationURI  => 'register',
+        oidcServiceMetaDataCheckSessionURI  => 'check_session',
+        oidcServiceMetaDataRevokeURI        => 'revoke',
+        oidcServiceAllowAuthorizationCodeFlow => 1,
+        oidcServiceAllowImplicitFlow        => 1,
+        oidcServiceAllowHybridFlow          => 1,
+
+        oidcServiceDeviceAuthorizationExpiration     => 600,
+        oidcServiceDeviceAuthorizationPollingInterval => 5,
+        oidcServiceDeviceAuthorizationUserCodeLength => 8,
+    );
+    for my $k (sort keys %defaults) {
+        set_if_missing($conf, $k, $defaults{$k}, $k);
+    }
+
+    # Service signing keys
+    my $has_priv = $conf->{oidcServicePrivateKeySig};
+    my $has_pub  = $conf->{oidcServicePublicKeySig};
+    my $had_kid  = $conf->{oidcServiceKeyIdSig};
+    if (!$has_priv || !$has_pub || $opt{force}) {
+        log_info('Generating OIDC service RSA 2048 signing keys');
+        my ($priv, $pub) = generate_oidc_keys();
+        $conf->{oidcServicePrivateKeySig} = $priv;
+        $conf->{oidcServicePublicKeySig}  = $pub;
+        $conf->{oidcServiceKeyIdSig}      = _random_hex(8);
+        log_change('oidcServicePrivateKeySig (generated)');
+        log_change('oidcServicePublicKeySig (generated)');
+        log_change('oidcServiceKeyIdSig' . ($had_kid ? ' (rotated)' : ' (generated)'));
+    } else {
+        log_keep('oidcServicePrivateKeySig');
+        log_keep('oidcServicePublicKeySig');
+        set_if_missing($conf, 'oidcServiceKeyIdSig', _random_hex(8),
+            'oidcServiceKeyIdSig')
+            unless $had_kid;
+    }
+}
+
+sub generate_oidc_keys {
+    my $dir = tempdir(CLEANUP => 1);
+    run_cmd('openssl', 'genrsa', '-out', "$dir/priv.pem", '2048');
+    run_cmd('openssl', 'req', '-new', '-x509',
+            '-key', "$dir/priv.pem",
+            '-out', "$dir/cert.pem",
+            '-days', '3650',
+            '-subj', '/CN=LemonLDAP-NG');
+    my $priv = _slurp("$dir/priv.pem");
+    my $pub  = _slurp("$dir/cert.pem");
+    chomp $priv; chomp $pub;
+    return ($priv, $pub);
+}
+
+# --- Step: RP pam-access --------------------------------------------------
+
+sub ensure_pam_rp {
+    my ($conf) = @_;
+    my $rp = $opt{'rp-name'};
+
+    my $opts = {
+        oidcRPMetaDataOptionsDisplayName            => 'PAM Access',
+        oidcRPMetaDataOptionsClientID               => $rp,
+        oidcRPMetaDataOptionsClientSecret           => '',
+        oidcRPMetaDataOptionsPublic                 => 1,
+        oidcRPMetaDataOptionsRequirePKCE            => 2,
+        oidcRPMetaDataOptionsAllowDeviceAuthorization => 1,
+        oidcRPMetaDataOptionsAccessTokenExpiration  => 86400,
+        oidcRPMetaDataOptionsRefreshToken           => 1,
+        oidcRPMetaDataOptionsIDTokenExpiration      => 3600,
+    };
+    my $vars = {
+        uid    => 'uid',
+        email  => 'mail',
+        name   => 'cn',
+        groups => 'groups',
+    };
+    my $scopes = {
+        pam          => '1',
+        'pam:server' => '1',
+    };
+
+    $conf->{oidcRPMetaDataOptions}     //= {};
+    $conf->{oidcRPMetaDataExportedVars} //= {};
+    $conf->{oidcRPMetaDataScopeRules}  //= {};
+
+    if (!exists $conf->{oidcRPMetaDataOptions}{$rp} || $opt{force}) {
+        $conf->{oidcRPMetaDataOptions}{$rp}     = $opts;
+        $conf->{oidcRPMetaDataExportedVars}{$rp} = $vars;
+        $conf->{oidcRPMetaDataScopeRules}{$rp}   = $scopes;
+        log_change("oidcRPMetaDataOptions.$rp");
+        log_change("oidcRPMetaDataExportedVars.$rp");
+        log_change("oidcRPMetaDataScopeRules.$rp");
+    } else {
+        # RP treated as atomic: if the admin has it defined we leave it alone.
+        log_keep("oidcRPMetaDataOptions.$rp");
+        log_keep("oidcRPMetaDataExportedVars.$rp");
+        log_keep("oidcRPMetaDataScopeRules.$rp");
+    }
+}
+
+# --- Step: SSH CA ---------------------------------------------------------
+
+sub ensure_ssh_ca {
+    my ($conf) = @_;
+    my $ref = $opt{'ssh-key-ref'};
+
+    $conf->{keys} //= {};
+    if (!exists $conf->{keys}{$ref} || $opt{force}) {
+        log_info("Generating SSH CA ed25519 key for ref '$ref'");
+        my ($priv, $pub) = generate_ed25519_key();
+        $conf->{keys}{$ref} = {
+            keyPrivate => $priv,
+            keyPublic  => $pub,
+            keyComment => 'LLNG SSH CA (open-bastion-plugins)',
+        };
+        log_change("keys.$ref (generated)");
+    } else {
+        log_keep("keys.$ref");
+    }
+
+    # sshCaCertMaxValidity is in DAYS (see SSHCA.pm). 1 day = short-lived
+    # certificates, aligned with an open-bastion workflow where users
+    # re-issue certs frequently via the portal.
+    my %defaults = (
+        sshCaActivation       => 1,
+        sshCaKeyType          => 'ed25519',
+        sshCaKeyRef           => $ref,
+        sshCaCertMaxValidity  => 1,
+        sshCaPrincipalSources => '$uid',
+        sshCaSerialPath       => "$opt{'ssh-dir'}/serial",
+        sshCaKrlPath          => "$opt{'ssh-dir'}/revoked_keys",
+    );
+    for my $k (sort keys %defaults) {
+        set_if_missing($conf, $k, $defaults{$k}, $k);
+    }
+}
+
+sub generate_ed25519_key {
+    my $dir = tempdir(CLEANUP => 1);
+    run_cmd('openssl', 'genpkey', '-algorithm', 'ed25519',
+            '-out', "$dir/priv.pem");
+    run_cmd('openssl', 'pkey', '-in', "$dir/priv.pem",
+            '-pubout', '-out', "$dir/pub.pem");
+    my $priv = _slurp("$dir/priv.pem");
+    my $pub  = _slurp("$dir/pub.pem");
+    chomp $priv; chomp $pub;
+    return ($priv, $pub);
+}
+
+# --- Step: PAM access -----------------------------------------------------
+
+sub ensure_pam_access {
+    my ($conf) = @_;
+    my %defaults = (
+        pamAccessActivation        => 1,
+        pamAccessRp                => $opt{'rp-name'},
+        pamAccessTokenDuration     => 600,
+        pamAccessMaxDuration       => 3600,
+        pamAccessHeartbeatInterval => 300,
+        pamAccessOfflineEnabled    => 1,
+        pamAccessOfflineTtl        => 86400,
+    );
+    for my $k (sort keys %defaults) {
+        set_if_missing($conf, $k, $defaults{$k}, $k);
+    }
+
+    # SSH: default-deny, admin fills per-group rules later.
+    # Sudo: intentionally not initialised. In an open-bastion deployment
+    # sudo authorization is not driven by pamAccessSudoRules but by a
+    # regular /etc/sudoers entry granting privileges to a Unix group
+    # populated on the fly through NSS from pamAccessExportedVars.groups.
+    # Absent config key => plugin returns sudo_allowed:0, which is the
+    # safe default.
+    if (!exists $conf->{pamAccessSshRules} || $opt{force}) {
+        $conf->{pamAccessSshRules} = { default => 'deny' };
+        log_change('pamAccessSshRules = { default: "deny" }');
+    } else {
+        log_keep('pamAccessSshRules');
+    }
+
+    # Exported vars: minimal useful set for PAM NSS
+    if (!exists $conf->{pamAccessExportedVars} || $opt{force}) {
+        $conf->{pamAccessExportedVars} = {
+            uid   => 'uid',
+            cn    => 'cn',
+            mail  => 'mail',
+            gecos => 'cn',
+        };
+        log_change('pamAccessExportedVars');
+    } else {
+        log_keep('pamAccessExportedVars');
+    }
+}
+
+# --- Utils ----------------------------------------------------------------
+
+sub _slurp {
+    my $path = shift;
+    open(my $fh, '<', $path) or fatal("cannot read $path: $!");
+    local $/;
+    my $c = <$fh>;
+    close($fh);
+    return $c;
+}
+
+sub _random_hex {
+    my $n = shift;
+    open(my $fh, '<', '/dev/urandom') or fatal("cannot open /dev/urandom: $!");
+    my $raw = '';
+    my $got = 0;
+    while ($got < $n) {
+        my $r = read($fh, $raw, $n - $got, $got);
+        defined $r or fatal("cannot read /dev/urandom: $!");
+        $r > 0    or fatal("short read from /dev/urandom");
+        $got += $r;
+    }
+    close($fh);
+    return unpack('H*', $raw);
+}
+
+# --- Main -----------------------------------------------------------------
+
+print "open-bastion-plugins-autoconfig $VERSION\n";
+print "Mode: " . ($opt{'dry-run'} ? 'DRY-RUN' : 'APPLY')
+    . ($opt{force} ? ' (FORCE)' : '') . "\n";
+
+my $confAccess = Lemonldap::NG::Common::Conf->new()
+    or fatal("cannot access LLNG configuration: "
+        . $Lemonldap::NG::Common::Conf::msg);
+
+my $conf = $confAccess->getConf({ noCache => 1, raw => 1 })
+    or fatal("cannot load current configuration: "
+        . $Lemonldap::NG::Common::Conf::msg);
+
+my $old_cfg_num = $conf->{cfgNum} // '0';
+log_info("current cfgNum: $old_cfg_num");
+
+# Detect Autoloader / LLNG version
+my ($has_autoloader, $llng_version) = detect_autoloader();
+my $modules = plan_custom_plugins($has_autoloader, $llng_version);
+
+# Apply changes in order
+ensure_oidc_service($conf);
+ensure_pam_rp($conf);
+ensure_ssh_ca($conf);
+ensure_pam_access($conf);
+apply_custom_plugins($conf, $modules);
+
+# Author & metadata
+$conf->{cfgAuthor}    = 'open-bastion-plugins-autoconfig';
+$conf->{cfgAuthorIP}  = '127.0.0.1';
+$conf->{cfgDate}      = time;
+$conf->{cfgLog}       = 'Bootstrap for open-bastion (autoconfig)';
+
+print "\n== Summary ==\n";
+printf "  changes: %d\n", scalar @changes;
+printf "  kept:    %d\n", scalar @kept;
+if ($opt{'dry-run'}) {
+    print "\nDry-run: no save performed. Re-run without --dry-run to apply.\n";
+    exit 0;
+}
+
+if (!@changes) {
+    print "\nNothing to do. Configuration already up to date.\n";
+    exit 0;
+}
+
+my $n = $confAccess->saveConf($conf);
+if ($n <= 0) {
+    fatal("saveConf failed: " . $Lemonldap::NG::Common::Conf::msg);
+}
+
+print "\nConfiguration saved as cfgNum $n.\n";
+print "Next: restart/reload the portal if your backend requires it.\n";
+exit 0;
+
+__END__
+
+=head1 NAME
+
+open-bastion-plugins-autoconfig - Bootstrap LLNG for open-bastion
+
+=head1 SYNOPSIS
+
+  open-bastion-plugins-autoconfig [--dry-run] [--force] [--verbose]
+
+=head1 DESCRIPTION
+
+Idempotently configures a LemonLDAP::NG instance for an open-bastion
+deployment: OIDC service keys, the pam-access OIDC RP (public + PKCE),
+the SSH CA key and activation flags for the PAM Access and SSH CA
+plugins.
+
+Safe to re-run: existing values are preserved unless B<--force> is given.
+
+=cut
