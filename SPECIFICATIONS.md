@@ -9,7 +9,7 @@ This page lists the standards, RFCs and specifications implemented by
 
 Each row has two columns:
 
-- **Core** — implementation shipped with LLNG upstream (✅).
+- **Core** — implementation shipped with LLNG upstream (✅ complete, `partial` when only part of the spec is covered).
 - **LNG plugin** — implementation provided by this repository's [store](https://linagora.github.io/lemonldap-ng-plugins/) 🧩.
 - 🧪 marks a specification that is still in draft state.
 
@@ -41,22 +41,23 @@ Specifications are grouped by protocol family:
 
 ### 1.2 OAuth 2.0 framework and extensions
 
-| Specification                                                                                                | Core | LNG plugin                                                                                                                           |
-| ------------------------------------------------------------------------------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| [OAuth 2.0 Authorization Framework (RFC 6749)](https://www.rfc-editor.org/rfc/rfc6749)                       | ✅   |                                                                                                                                      |
-| [OAuth 2.0 Bearer Token Usage (RFC 6750)](https://www.rfc-editor.org/rfc/rfc6750)                            | ✅   |                                                                                                                                      |
-| [OAuth 2.0 Token Revocation (RFC 7009)](https://www.rfc-editor.org/rfc/rfc7009)                              | ✅   |                                                                                                                                      |
-| [OAuth 2.0 Assertion Framework for Client Authentication (RFC 7521)](https://www.rfc-editor.org/rfc/rfc7521) | ✅   |                                                                                                                                      |
-| [JWT Profile for OAuth 2.0 Client Authentication (RFC 7523)](https://www.rfc-editor.org/rfc/rfc7523)         | ✅   |                                                                                                                                      |
-| [OAuth 2.0 PKCE (RFC 7636)](https://www.rfc-editor.org/rfc/rfc7636)                                          | ✅   |                                                                                                                                      |
-| [OAuth 2.0 Token Introspection (RFC 7662)](https://www.rfc-editor.org/rfc/rfc7662)                           | ✅   |                                                                                                                                      |
-| [OAuth 2.0 Device Authorization Grant (RFC 8628)](https://www.rfc-editor.org/rfc/rfc8628)                    |      | 🧩 [`oidc-device-authorization`](plugins/oidc-device-authorization) + [`oidc-device-organization`](plugins/oidc-device-organization) |
-| [OAuth 2.0 Token Exchange (RFC 8693)](https://www.rfc-editor.org/rfc/rfc8693)                                | ✅   |                                                                                                                                      |
-| [Pushed Authorization Requests — PAR (RFC 9126)](https://www.rfc-editor.org/rfc/rfc9126)                     |      | 🧩 [`oidc-par`](plugins/oidc-par)                                                                                                    |
-| [OAuth 2.0 Authorization Server Issuer Identification (RFC 9207)](https://www.rfc-editor.org/rfc/rfc9207)    | ✅   |                                                                                                                                      |
-| [JWT Secured Authorization Response Mode — JARM](https://openid.net/specs/oauth-v2-jarm.html)                |      | 🧩 [`oidc-jarm`](plugins/oidc-jarm)                                                                                                  |
-| [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700)                | ✅   |                                                                                                                                      |
-| [JWT Response for OAuth 2.0 Token Introspection (RFC 9701)](https://www.rfc-editor.org/rfc/rfc9701)          | ✅   |                                                                                                                                      |
+| Specification                                                                                                | Core    | LNG plugin                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| [OAuth 2.0 Authorization Framework (RFC 6749)](https://www.rfc-editor.org/rfc/rfc6749)                       | ✅      |                                                                                                                                      |
+| [OAuth 2.0 Bearer Token Usage (RFC 6750)](https://www.rfc-editor.org/rfc/rfc6750)                            | ✅      |                                                                                                                                      |
+| [OAuth 2.0 Token Revocation (RFC 7009)](https://www.rfc-editor.org/rfc/rfc7009)                              | ✅      |                                                                                                                                      |
+| [OAuth 2.0 Assertion Framework for Client Authentication (RFC 7521)](https://www.rfc-editor.org/rfc/rfc7521) | ✅      |                                                                                                                                      |
+| [JWT Profile for OAuth 2.0 Client Authentication (RFC 7523)](https://www.rfc-editor.org/rfc/rfc7523)         | ✅      |                                                                                                                                      |
+| [OAuth 2.0 PKCE (RFC 7636)](https://www.rfc-editor.org/rfc/rfc7636)                                          | ✅      |                                                                                                                                      |
+| [OAuth 2.0 Token Introspection (RFC 7662)](https://www.rfc-editor.org/rfc/rfc7662)                           | ✅      |                                                                                                                                      |
+| [OAuth 2.0 Device Authorization Grant (RFC 8628)](https://www.rfc-editor.org/rfc/rfc8628)                    |         | 🧩 [`oidc-device-authorization`](plugins/oidc-device-authorization) + [`oidc-device-organization`](plugins/oidc-device-organization) |
+| [OAuth 2.0 Token Exchange (RFC 8693)](https://www.rfc-editor.org/rfc/rfc8693)                                | ✅      |                                                                                                                                      |
+| [JWT Secured Authorization Request — JAR (RFC 9101)](https://www.rfc-editor.org/rfc/rfc9101)                 | partial | 🧩 [`oidc-jar`](plugins/oidc-jar)                                                                                                    |
+| [Pushed Authorization Requests — PAR (RFC 9126)](https://www.rfc-editor.org/rfc/rfc9126)                     |         | 🧩 [`oidc-par`](plugins/oidc-par)                                                                                                    |
+| [OAuth 2.0 Authorization Server Issuer Identification (RFC 9207)](https://www.rfc-editor.org/rfc/rfc9207)    | ✅      |                                                                                                                                      |
+| [JWT Secured Authorization Response Mode — JARM](https://openid.net/specs/oauth-v2-jarm.html)                |         | 🧩 [`oidc-jarm`](plugins/oidc-jarm)                                                                                                  |
+| [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700)                | ✅      |                                                                                                                                      |
+| [JWT Response for OAuth 2.0 Token Introspection (RFC 9701)](https://www.rfc-editor.org/rfc/rfc9701)          | ✅      |                                                                                                                                      |
 
 ### 1.3 JOSE (JSON Object Signing and Encryption)
 

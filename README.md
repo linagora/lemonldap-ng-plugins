@@ -107,6 +107,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [pacc](plugins/pacc)                                           | PACC — Provider Automatic Configuration for Clients       | beta   |
 | [oidc-jarm](plugins/oidc-jarm)                                 | JARM — JWT Secured Authorization Response Mode (RFC 9207) | beta   |
 | [oidc-par](plugins/oidc-par)                                   | Pushed Authorization Requests (RFC 9126)                  | beta   |
+| [oidc-jar](plugins/oidc-jar)                                   | JWT-Secured Authorization Request (RFC 9101)              | beta   |
 | [oidc-ciba](plugins/oidc-ciba)                                 | Client-Initiated Backchannel Authentication (CIBA)        | beta   |
 | [oidc-device-authorization](plugins/oidc-device-authorization) | Device Authorization Grant (RFC 8628)                     | beta   |
 | [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
