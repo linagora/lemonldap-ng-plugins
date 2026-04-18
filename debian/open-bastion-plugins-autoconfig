@@ -11,7 +11,6 @@ use warnings;
 use Getopt::Long qw(:config bundling);
 use JSON;
 use File::Temp qw(tempdir);
-use MIME::Base64 qw(encode_base64);
 
 use Lemonldap::NG::Common::Conf;
 
@@ -99,15 +98,29 @@ sub _eq {
     return $canon->encode($a) eq $canon->encode($b);
 }
 
-# Run a shell command, capture stdout, die on error.
+# Run a command (list form, no shell), capture stdout+stderr, die on error.
 sub run_cmd {
     my (@cmd) = @_;
     log_info("run: @cmd");
-    open(my $fh, '-|', @cmd) or fatal("cannot run @cmd: $!");
+    my $pid = open(my $fh, '-|');
+    defined $pid or fatal("cannot fork for @cmd: $!");
+    if ($pid == 0) {
+        # child: merge stderr into stdout, then exec the target
+        open(STDERR, '>&', \*STDOUT)
+            or print STDERR "cannot dup stderr: $!\n" and exit 127;
+        exec({ $cmd[0] } @cmd) or print STDERR "exec failed: $!\n" and exit 127;
+    }
     local $/;
     my $out = <$fh>;
     close($fh);
-    fatal("command failed (exit " . ($? >> 8) . "): @cmd") if $? != 0;
+    if ($? != 0) {
+        my $exit = $? >> 8;
+        my $sig  = $? & 0x7f;
+        my $msg  = "command failed (exit $exit"
+                 . ($sig ? ", signal $sig" : "") . "): @cmd";
+        $msg .= "\n-- output --\n$out" if defined $out && length $out;
+        fatal($msg);
+    }
     return $out;
 }
 
@@ -183,18 +196,25 @@ sub apply_custom_plugins {
     my ($conf, $modules) = @_;
     return 0 unless @$modules;
 
-    my $current = $conf->{customPlugins} // '';
-    my %present = map { $_ => 1 } grep { length } split /\s+/, $current;
-    my @to_add = grep { !$present{$_} } @$modules;
+    # LLNG parses customPlugins with /[,\s]+/ (see
+    # Lemonldap::NG::Portal::Main::Plugins), so both comma- and space-
+    # separated lists are accepted. Use the same rule when detecting
+    # already-present modules and preserve the admin's existing
+    # separator style when re-serialising.
+    my $current  = $conf->{customPlugins} // '';
+    my @existing = grep { length } map { s/^\s+|\s+$//gr } split /[,\s]+/, $current;
+    my %present  = map { $_ => 1 } @existing;
+    my @to_add   = grep { !$present{$_} } @$modules;
 
     if (!@to_add) {
         log_keep('customPlugins (all modules already present)');
         return 0;
     }
 
-    my $new = join(' ', grep { length } (split(/\s+/, $current), @to_add));
+    my $sep = ($current =~ /,/) ? ', ' : ' ';
+    my $new = join($sep, @existing, @to_add);
     $conf->{customPlugins} = $new;
-    log_change("customPlugins += " . join(' ', @to_add));
+    log_change("customPlugins += " . join(', ', @to_add));
     return 1;
 }
 
