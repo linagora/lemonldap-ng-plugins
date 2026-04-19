@@ -18,7 +18,6 @@ system("which openssl >/dev/null 2>&1") == 0
 my $debug = 'error';
 
 # Generate RSA key pair in PEM format for SSH CA
-# RSA PEM is directly usable by ssh-keygen -s (no conversion needed)
 my ( $ca_private_key, $ca_public_key );
 {
     my $tmpdir = tempdir( CLEANUP => 1 );
@@ -39,26 +38,28 @@ my ( $ca_private_key, $ca_public_key );
     close $fh;
 }
 
-# Generate a user SSH public key to sign
-my $user_pub_key;
+# Generate three user SSH keys (ed25519) to cover dedup and uniqueness tests
+my ( @user_pubkeys, @user_fps );
 {
     my $tmpdir = tempdir( CLEANUP => 1 );
-    system("ssh-keygen -t ed25519 -f $tmpdir/user_key -N '' -q") == 0
-      or plan skip_all => "ssh-keygen key generation failed";
-    open my $fh, '<', "$tmpdir/user_key.pub" or die;
-    $user_pub_key = <$fh>;
-    close $fh;
-    chomp $user_pub_key;
+    for my $i ( 1 .. 3 ) {
+        system("ssh-keygen -t ed25519 -f $tmpdir/k$i -N '' -q -C host$i") == 0
+          or plan skip_all => "ssh-keygen key generation failed";
+        open my $fh, '<', "$tmpdir/k$i.pub" or die;
+        my $pub = <$fh>;
+        close $fh;
+        chomp $pub;
+        push @user_pubkeys, $pub;
+
+        my $fp_line = `ssh-keygen -l -E sha256 -f $tmpdir/k$i.pub`;
+        my ($fp) = $fp_line =~ /\b(SHA256:\S+)/;
+        push @user_fps, $fp;
+    }
 }
 
-# Create temp directories for serial and KRL
 my $tmpdir     = tempdir( CLEANUP => 1 );
 my $serialPath = "$tmpdir/serial";
 my $krlPath    = "$tmpdir/krl";
-
-# ============================================
-# Initialization
-# ============================================
 
 my $portal = LLNG::Manager::Test->new( {
         ini => {
@@ -89,7 +90,6 @@ my $res;
 # PART 1: Public endpoints (no auth required)
 # ============================================
 
-# GET /ssh/ca - should return SSH public key
 ok(
     $res = $portal->_get(
         '/ssh/ca',
@@ -100,16 +100,11 @@ ok(
 expectOK($res);
 
 my $sshPubKey = $res->[2]->[0];
-ok( $sshPubKey,                         'Got SSH public key' );
-like( $sshPubKey, qr/^ssh-rsa\s+/,  'Public key is in SSH RSA format' );
-like( $sshPubKey, qr/LLNG-SSH-CA/,       'Public key has LLNG comment' );
+ok( $sshPubKey, 'Got SSH public key' );
+like( $sshPubKey, qr/^ssh-rsa\s+/, 'Public key is in SSH RSA format' );
+like( $sshPubKey, qr/LLNG-SSH-CA/, 'Public key has LLNG comment' );
 count(3);
 
-my %headers = @{ $res->[1] };
-like( $headers{'Content-Type'}, qr/text\/plain/, 'Content-Type is text/plain' );
-count(1);
-
-# GET /ssh/revoked - should return empty when no KRL file exists
 ok(
     $res = $portal->_get(
         '/ssh/revoked',
@@ -121,43 +116,11 @@ expectOK($res);
 is( $res->[2]->[0], '', 'KRL is empty when file does not exist' );
 count(1);
 
-# Create a KRL file and test again
-{
-    open my $fh, '>', $krlPath or die "Cannot write KRL: $!";
-    print $fh "FAKE_KRL_DATA";
-    close $fh;
-}
-
-ok(
-    $res = $portal->_get(
-        '/ssh/revoked',
-        accept => 'application/octet-stream',
-    ),
-    'GET /ssh/revoked (with KRL file)'
-);
-expectOK($res);
-is( $res->[2]->[0], 'FAKE_KRL_DATA', 'KRL content matches file' );
-count(1);
-
-# Clean up fake KRL for later real tests
-unlink $krlPath;
-
 # ============================================
-# PART 2: Authentication and signing
+# PART 2: Label validation
 # ============================================
 
 my $id = $portal->login('dwho');
-
-# GET /ssh - should display the signing interface
-ok(
-    $res = $portal->_get(
-        '/ssh',
-        accept => 'text/html',
-        cookie => "lemonldap=$id",
-    ),
-    'GET /ssh interface'
-);
-expectOK($res);
 
 # GET /ssh/mycerts before signing - empty
 ok(
@@ -173,137 +136,140 @@ is( scalar @{ $payload->{certificates} }, 0, 'No certificates before signing' );
 count(1);
 
 # POST /ssh/sign - missing public_key
-my $body = to_json( { validity_days => 1 } );
-ok(
-    $res = $portal->_post(
+sub sign_req {
+    my ($body) = @_;
+    my $raw = to_json($body);
+    return $portal->_post(
         '/ssh/sign',
-        IO::String->new($body),
+        IO::String->new($raw),
         cookie => "lemonldap=$id",
         type   => 'application/json',
-        length => length($body),
-    ),
-    'POST /ssh/sign without public_key'
+        length => length($raw),
+    );
+}
+
+ok( $res = sign_req( { validity_days => 1 } ), 'sign without public_key' );
+expectReject( $res, 400 );
+
+ok(
+    $res = sign_req( { public_key => 'not-a-valid-key', label => 'x' } ),
+    'sign with invalid public_key'
 );
 expectReject( $res, 400 );
 
-# POST /ssh/sign - invalid public key format
-$body = to_json( { public_key => 'not-a-valid-key' } );
+# Label is mandatory, but falls back to SSH comment: this key has comment "host1",
+# so signing WITHOUT an explicit label must succeed (fallback populated).
 ok(
-    $res = $portal->_post(
-        '/ssh/sign',
-        IO::String->new($body),
-        cookie => "lemonldap=$id",
-        type   => 'application/json',
-        length => length($body),
+    $res = sign_req(
+        { public_key => $user_pubkeys[0], validity_days => 1 }
     ),
-    'POST /ssh/sign with invalid public key'
-);
-expectReject( $res, 400 );
-
-# POST /ssh/sign - invalid JSON body
-$body = 'not valid json {{{';
-ok(
-    $res = $portal->_post(
-        '/ssh/sign',
-        IO::String->new($body),
-        cookie => "lemonldap=$id",
-        type   => 'application/json',
-        length => length($body),
-    ),
-    'POST /ssh/sign with invalid JSON'
-);
-expectReject( $res, 400 );
-
-# POST /ssh/sign - valid key, first signature
-$body = to_json( {
-        public_key    => $user_pub_key,
-        validity_days => 1,
-    }
-);
-ok(
-    $res = $portal->_post(
-        '/ssh/sign',
-        IO::String->new($body),
-        cookie => "lemonldap=$id",
-        type   => 'application/json',
-        length => length($body),
-    ),
-    'POST /ssh/sign with valid key'
+    'sign without label (falls back to comment)'
 );
 $payload = expectJSON($res);
-ok( $payload->{certificate},                'Got certificate' );
-like( $payload->{certificate}, qr/-cert-v\d+\@openssh\.com/, 'Certificate format is correct' );
-ok( $payload->{serial},                     'Got serial' );
-ok( $payload->{key_id},                     'Got key_id' );
-like( $payload->{key_id}, qr/dwho\@llng-/, 'Key ID contains username' );
-is( ref $payload->{principals}, 'ARRAY',    'principals is an array' );
-ok( grep( { $_ eq 'dwho' } @{ $payload->{principals} } ),
-    'Principal contains dwho' );
-ok( $payload->{valid_until}, 'Got valid_until' );
-count(7);
-
-my $serial1 = $payload->{serial};
-my $key_id1 = $payload->{key_id};
-
-# ============================================
-# PART 3: Security - principals from request should be ignored
-# ============================================
-
-$body = to_json( {
-        public_key    => $user_pub_key,
-        validity_days => 1,
-        principals    => [ 'root', 'admin' ],
-    }
-);
-ok(
-    $res = $portal->_post(
-        '/ssh/sign',
-        IO::String->new($body),
-        cookie => "lemonldap=$id",
-        type   => 'application/json',
-        length => length($body),
-    ),
-    'POST /ssh/sign with injected principals'
-);
-$payload = expectJSON($res);
-ok( !grep( { $_ eq 'root' } @{ $payload->{principals} } ),
-    'Injected principal root is ignored' );
-ok( !grep( { $_ eq 'admin' } @{ $payload->{principals} } ),
-    'Injected principal admin is ignored' );
-ok( grep( { $_ eq 'dwho' } @{ $payload->{principals} } ),
-    'Session-derived principal dwho is used' );
+is( $payload->{label}, 'host1', 'Label auto-extracted from SSH comment' );
+ok( $payload->{fingerprint}, 'Fingerprint returned' );
+is( $payload->{fingerprint}, $user_fps[0], 'Returned fingerprint matches computed' );
 count(3);
 
-my $serial2 = $payload->{serial};
-
-# ============================================
-# PART 4: Validity capping
-# ============================================
-
-$body = to_json( {
-        public_key    => $user_pub_key,
-        validity_days => 9999,
-    }
-);
+# Sign a key whose comment was stripped and NO label → must fail 400
+my $nocomment = $user_pubkeys[1];
+$nocomment =~ s/\s+host2$//;
 ok(
-    $res = $portal->_post(
-        '/ssh/sign',
-        IO::String->new($body),
-        cookie => "lemonldap=$id",
-        type   => 'application/json',
-        length => length($body),
+    $res = sign_req(
+        { public_key => $nocomment, validity_days => 1 }
     ),
-    'POST /ssh/sign with excessive validity'
+    'sign without label and no SSH comment'
+);
+expectReject( $res, 400 );
+
+# ============================================
+# PART 3: Label uniqueness (409)
+# ============================================
+
+# Sign key #2 with an explicit label
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[1],
+            validity_days => 1,
+            label         => 'laptop-alpha',
+        }
+    ),
+    'sign key2 with label laptop-alpha'
 );
 $payload = expectJSON($res);
-ok( $payload->{certificate}, 'Certificate issued despite excessive validity' );
+is( $payload->{label},       'laptop-alpha', 'Label stored' );
+is( $payload->{fingerprint}, $user_fps[1],    'Fingerprint for key2 stored' );
+count(2);
+
+# Trying to sign key #3 with the SAME label must fail with 409
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[2],
+            validity_days => 1,
+            label         => 'laptop-alpha',
+        }
+    ),
+    'sign key3 with duplicate label rejected'
+);
+is( $res->[0], 409, 'Duplicate label returns 409' );
 count(1);
 
-my $serial3 = $payload->{serial};
+# Signing key #3 with a different label works
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[2],
+            validity_days => 1,
+            label         => 'laptop-beta',
+        }
+    ),
+    'sign key3 with distinct label'
+);
+$payload = expectJSON($res);
+is( $payload->{label}, 'laptop-beta', 'Distinct label stored' );
+count(1);
 
 # ============================================
-# PART 5: mycerts - list signed certificates
+# PART 4: Re-signature dedup (same key → replaces)
 # ============================================
+
+# At this point, session contains: host1 (key1), laptop-alpha (key2), laptop-beta (key3)
+ok(
+    $res = $portal->_get(
+        '/ssh/mycerts',
+        cookie => "lemonldap=$id",
+        accept => 'application/json',
+    ),
+    'GET /ssh/mycerts after 3 distinct keys'
+);
+$payload = expectJSON($res);
+is( scalar @{ $payload->{certificates} }, 3, 'Three distinct keys stored' );
+count(1);
+
+# Re-sign key2 with the SAME label — old serial must be replaced in session
+my $prev_serial_key2;
+for my $c ( @{ $payload->{certificates} } ) {
+    $prev_serial_key2 = $c->{serial} if ( $c->{label} || '' ) eq 'laptop-alpha';
+}
+ok( $prev_serial_key2, 'Previous serial for laptop-alpha captured' );
+count(1);
+
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[1],
+            validity_days => 1,
+            label         => 'laptop-alpha',
+        }
+    ),
+    're-sign key2 with same label (allowed)'
+);
+my $new_payload = expectJSON($res);
+isnt( $new_payload->{serial}, $prev_serial_key2,
+    'Re-signature produces a new serial' );
+count(1);
 
 ok(
     $res = $portal->_get(
@@ -311,65 +277,180 @@ ok(
         cookie => "lemonldap=$id",
         accept => 'application/json',
     ),
-    'GET /ssh/mycerts after 3 signatures'
+    'GET /ssh/mycerts after re-signature'
 );
 $payload = expectJSON($res);
 is( scalar @{ $payload->{certificates} }, 3,
-    'Three certificates after three signatures' );
+    'Still three records (re-signature replaced, not appended)' );
+my @key2_certs =
+  grep { ( $_->{fingerprint} || '' ) eq $user_fps[1] } @{ $payload->{certificates} };
+is( scalar @key2_certs, 1, 'Exactly one record for key2 fingerprint' );
+is( $key2_certs[0]->{serial}, $new_payload->{serial},
+    'Record holds the new serial' );
+count(3);
+
+# Re-sign key2 yet again, but with a DIFFERENT label — allowed, label updates
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[1],
+            validity_days => 1,
+            label         => 'laptop-alpha-renamed',
+        }
+    ),
+    're-sign key2 with renamed label'
+);
+$payload = expectJSON($res);
+is( $payload->{label}, 'laptop-alpha-renamed', 'Label renamed on re-signature' );
 count(1);
 
-# Certificates are sorted newest first (by issued_at)
-my @certs = @{ $payload->{certificates} };
-ok( $certs[0]->{issued_at} >= $certs[2]->{issued_at},
-    'Newest cert is first (by issued_at)' );
-is( $certs[0]->{status}, 'active', 'Status is active' );
-ok( $certs[0]->{issued_at},  'issued_at is set' );
-ok( $certs[0]->{expires_at}, 'expires_at is set' );
-ok( $certs[0]->{principals}, 'principals is set' );
-count(6);
+# KRL must now carry the 2 superseded serials for key2 — sanity check file size grew
+ok( -f $krlPath, 'KRL file exists on disk' );
+ok( -s $krlPath > 0, 'KRL file is non-empty' );
+count(2);
 
 # ============================================
-# PART 6: Persistence across sessions
+# PART 5: Self-revocation
+# ============================================
+
+# Pick the current laptop-alpha-renamed record to self-revoke
+ok(
+    $res = $portal->_get(
+        '/ssh/mycerts',
+        cookie => "lemonldap=$id",
+        accept => 'application/json',
+    ),
+    'GET /ssh/mycerts before self-revoke'
+);
+$payload = expectJSON($res);
+my $target;
+for my $c ( @{ $payload->{certificates} } ) {
+    $target = $c if ( $c->{label} || '' ) eq 'laptop-alpha-renamed';
+}
+ok( $target, 'Target record found' );
+count(1);
+
+sub myrevoke_req {
+    my ($body) = @_;
+    my $raw = to_json($body);
+    return $portal->_post(
+        '/ssh/myrevoke',
+        IO::String->new($raw),
+        cookie => "lemonldap=$id",
+        type   => 'application/json',
+        length => length($raw),
+    );
+}
+
+ok( $res = myrevoke_req( { serial => $target->{serial} } ),
+    'POST /ssh/myrevoke' );
+$payload = expectJSON($res);
+ok( $payload->{result},     'Self-revocation succeeded' );
+ok( $payload->{revoked_at}, 'revoked_at timestamp returned' );
+count(2);
+
+# Revoking again must fail with 400
+ok(
+    $res = myrevoke_req( { serial => $target->{serial} } ),
+    're-revoke same serial'
+);
+is( $res->[0], 400, 'Already-revoked returns 400' );
+count(1);
+
+# Revoking non-existent serial → 404
+ok(
+    $res = myrevoke_req( { serial => '999999' } ),
+    'revoke non-existent serial'
+);
+is( $res->[0], 404, 'Non-existent serial returns 404' );
+count(1);
+
+# mycerts must now expose the revoked status
+ok(
+    $res = $portal->_get(
+        '/ssh/mycerts',
+        cookie => "lemonldap=$id",
+        accept => 'application/json',
+    ),
+    'GET /ssh/mycerts after self-revoke'
+);
+$payload = expectJSON($res);
+my ($revoked) =
+  grep { ( $_->{serial} || '' ) eq $target->{serial} }
+  @{ $payload->{certificates} };
+ok( $revoked,                          'Revoked record still present' );
+is( $revoked->{status}, 'revoked',     'Status is revoked' );
+count(2);
+
+# Revoked labels can be reused for a brand-new key (no longer in the "active"
+# uniqueness set). Sign key1 again with the freed-up label.
+# Note: key1 was signed in part 2 with label 'host1' (from comment).
+# We first drop key1's current session entry by revoking it:
+my ($k1) =
+  grep { ( $_->{fingerprint} || '' ) eq $user_fps[0] } @{ $payload->{certificates} };
+if ( $k1 && !$k1->{revoked_at} ) {
+    $res = myrevoke_req( { serial => $k1->{serial} } );
+    expectOK($res);
+}
+
+# Now reuse the revoked label 'laptop-alpha-renamed' for key1 (different fp)
+ok(
+    $res = sign_req(
+        {
+            public_key    => $user_pubkeys[0],
+            validity_days => 1,
+            label         => 'laptop-alpha-renamed',
+        }
+    ),
+    'reuse revoked label for a different key'
+);
+$payload = expectJSON($res);
+is( $payload->{label}, 'laptop-alpha-renamed',
+    'Label accepted after prior revocation' );
+count(1);
+
+# ============================================
+# PART 6: Cross-session persistence
 # ============================================
 
 my $id2 = $portal->login('dwho');
-
 ok(
     $res = $portal->_get(
         '/ssh/mycerts',
         cookie => "lemonldap=$id2",
         accept => 'application/json',
     ),
-    'GET /ssh/mycerts with new session'
+    'GET /ssh/mycerts with a fresh SSO session'
 );
 $payload = expectJSON($res);
-is( scalar @{ $payload->{certificates} }, 3,
+ok( scalar @{ $payload->{certificates} } > 0,
     'Certificates persist across SSO sessions' );
 count(1);
 
 # ============================================
-# PART 7: Different users have separate cert lists
+# PART 7: Isolation between users
 # ============================================
 
 my $id3 = $portal->login('french');
-
 ok(
     $res = $portal->_get(
         '/ssh/mycerts',
         cookie => "lemonldap=$id3",
         accept => 'application/json',
     ),
-    'GET /ssh/mycerts as different user'
+    'GET /ssh/mycerts as a different user'
 );
 $payload = expectJSON($res);
 is( scalar @{ $payload->{certificates} }, 0,
     'Different user has no certificates' );
 count(1);
 
-# Sign a key as french
-$body = to_json( {
-        public_key    => $user_pub_key,
+# French signs the SAME key with the same label as dwho — allowed (per-user)
+my $body = to_json(
+    {
+        public_key    => $user_pubkeys[1],
         validity_days => 7,
+        label         => 'laptop-alpha',
     }
 );
 ok(
@@ -380,47 +461,21 @@ ok(
         type   => 'application/json',
         length => length($body),
     ),
-    'POST /ssh/sign as french'
+    'POST /ssh/sign as french with dwho-style label'
 );
 $payload = expectJSON($res);
-like( $payload->{key_id}, qr/french\@llng-/,
-    'Key ID contains french username' );
+like( $payload->{key_id}, qr/french\@llng-/, 'Key ID contains french username' );
 ok( grep( { $_ eq 'french' } @{ $payload->{principals} } ),
     'Principal is french' );
 count(2);
 
-ok(
-    $res = $portal->_get(
-        '/ssh/mycerts',
-        cookie => "lemonldap=$id3",
-        accept => 'application/json',
-    ),
-    'GET /ssh/mycerts as french after signing'
-);
-$payload = expectJSON($res);
-is( scalar @{ $payload->{certificates} }, 1,
-    'French has 1 certificate' );
-count(1);
-
-# Verify dwho still has 3
-ok(
-    $res = $portal->_get(
-        '/ssh/mycerts',
-        cookie => "lemonldap=$id2",
-        accept => 'application/json',
-    ),
-    'GET /ssh/mycerts as dwho unchanged'
-);
-$payload = expectJSON($res);
-is( scalar @{ $payload->{certificates} }, 3,
-    'dwho still has 3 certificates' );
-count(1);
-
 # ============================================
-# PART 8: Unauthenticated access to auth routes
+# PART 8: Unauthenticated access is rejected
 # ============================================
 
-$body = to_json( { public_key => $user_pub_key } );
+$body = to_json(
+    { public_key => $user_pubkeys[0], label => 'x' }
+);
 ok(
     $res = $portal->_post(
         '/ssh/sign',

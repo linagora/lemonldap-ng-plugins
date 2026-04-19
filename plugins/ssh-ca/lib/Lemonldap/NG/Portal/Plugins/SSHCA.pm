@@ -99,6 +99,12 @@ sub init {
         ['GET']
       )
 
+      # POST /ssh/myrevoke - User revokes one of their own certificates
+      ->addAuthRoute(
+        ssh => { myrevoke => 'sshMyCertRevoke' },
+        ['POST']
+      )
+
       # GET /ssh/admin - Display the revocation interface (auth required, admin)
       ->addAuthRoute(
         ssh => { admin => 'sshAdminInterface' },
@@ -255,6 +261,52 @@ sub sshCaSign {
             400 );
     }
 
+    # Label is mandatory (client-side also required). Fallback: extract from the
+    # SSH public key's comment (third token) for backward-compat with records
+    # signed before label support.
+    my $label = $body->{label};
+    $label = '' unless defined $label;
+    $label =~ s/^\s+|\s+$//g;
+    if ( $label eq '' && $userPubKey =~ /^\S+\s+\S+\s+(.+\S)\s*$/ ) {
+        $label = $1;
+    }
+    if ( $label eq '' ) {
+        return $self->p->sendError( $req, 'label parameter required', 400 );
+    }
+    if ( length($label) > 128 || $label =~ /[\r\n\t]/ ) {
+        return $self->p->sendError( $req, 'Invalid label', 400 );
+    }
+
+    # Compute SSH key fingerprint (SHA256:...) — used for dedup and PAM lookup
+    my $fingerprint = $self->_sshKeyFingerprint($userPubKey);
+    unless ($fingerprint) {
+        $self->logger->error('SSH CA sign: Cannot compute fingerprint');
+        return $self->p->sendError( $req, 'Cannot compute key fingerprint',
+            400 );
+    }
+
+    # Enforce label uniqueness within the user's (non-revoked, non-expired)
+    # certificates — except when the same label is reused for the SAME key
+    # (re-signing): in that case the old record is going to be replaced.
+    my $existingCerts = [];
+    if ( $req->userData->{_sshCerts} ) {
+        $existingCerts = eval { from_json( $req->userData->{_sshCerts} ) };
+        $existingCerts = []
+          if $@ || ref($existingCerts) ne 'ARRAY';
+    }
+    my $now = time();
+    for my $c (@$existingCerts) {
+        next if $c->{revoked_at};
+        next if $c->{expires_at} && $c->{expires_at} < $now;
+        next unless ( $c->{label} || '' ) eq $label;
+        next if ( $c->{fingerprint} || '' ) eq $fingerprint;
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Label already used for another key' },
+            code => 409
+        );
+    }
+
     # Get validity from request (in days) or default to 30 days
     my $validityDays = $body->{validity_days} || 30;
 
@@ -361,27 +413,33 @@ sub sshCaSign {
           . join( ',', @principals ) . ", "
           . "validity: ${validityMinutes}min, serial: $serial" );
 
-    # Store certificate in persistent session for revocation tracking
+    # Store certificate in persistent session for revocation tracking.
+    # _storeCertificate replaces any existing record with the same fingerprint
+    # and revokes the superseded serial in the KRL.
     $self->_storeCertificate(
         $req,
-        serial     => $serial,
-        key_id     => $keyId,
-        user       => $user,
-        principals => \@principals,
-        issued_at  => $timestamp,
-        expires_at => $validUntil,
+        serial      => $serial,
+        key_id      => $keyId,
+        user        => $user,
+        label       => $label,
+        fingerprint => $fingerprint,
+        principals  => \@principals,
+        issued_at   => $timestamp,
+        expires_at  => $validUntil,
     );
 
     # Audit log
     $self->p->auditLog(
         $req,
-        code       => 'SSH_CERT_ISSUED',
-        user       => $user,
-        message    => "SSH certificate issued for user '$user'",
-        principals => \@principals,
-        serial     => $serial,
-        key_id     => $keyId,
-        validity   => $validityMinutes,
+        code        => 'SSH_CERT_ISSUED',
+        user        => $user,
+        message     => "SSH certificate issued for user '$user'",
+        principals  => \@principals,
+        serial      => $serial,
+        key_id      => $keyId,
+        label       => $label,
+        fingerprint => $fingerprint,
+        validity    => $validityMinutes,
     );
 
     return $self->p->sendJSONresponse(
@@ -392,6 +450,8 @@ sub sshCaSign {
             valid_until => $validUntilISO,
             principals  => \@principals,
             key_id      => $keyId,
+            label       => $label,
+            fingerprint => $fingerprint,
         }
     );
 }
@@ -780,12 +840,14 @@ sub sshMyCerts {
         }
         push @certs,
           {
-            serial     => $cert->{serial},
-            key_id     => $cert->{key_id},
-            principals => $cert->{principals},
-            issued_at  => $cert->{issued_at},
-            expires_at => $cert->{expires_at},
-            status     => $status,
+            serial      => $cert->{serial},
+            key_id      => $cert->{key_id},
+            label       => $cert->{label},
+            fingerprint => $cert->{fingerprint},
+            principals  => $cert->{principals},
+            issued_at   => $cert->{issued_at},
+            expires_at  => $cert->{expires_at},
+            status      => $status,
           };
     }
 
@@ -794,6 +856,96 @@ sub sshMyCerts {
       sort { ( $b->{issued_at} || 0 ) <=> ( $a->{issued_at} || 0 ) } @certs;
 
     return $self->p->sendJSONresponse( $req, { certificates => \@certs } );
+}
+
+# POST /ssh/myrevoke - User revokes one of their own certificates.
+# The certificate record stays in the session (marked revoked) so the list
+# remains auditable; the serial is immediately published in the KRL.
+sub sshMyCertRevoke {
+    my ( $self, $req ) = @_;
+
+    my $body = eval { from_json( $req->content ) };
+    if ($@) {
+        $self->logger->error("SSH myrevoke: Invalid JSON body: $@");
+        return $self->p->sendError( $req, 'Invalid JSON', 400 );
+    }
+    my $serial = $body->{serial};
+    unless ( defined $serial && $serial ne '' ) {
+        return $self->p->sendError( $req, 'serial required', 400 );
+    }
+
+    my $sshCerts = [];
+    if ( $req->userData->{_sshCerts} ) {
+        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
+        if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
+            $self->logger->error("SSH myrevoke: Corrupted _sshCerts: $@");
+            return $self->p->sendJSONresponse(
+                $req,
+                { error => 'Corrupted certificate data' },
+                code => 500
+            );
+        }
+    }
+
+    my $user =
+         $req->userData->{ $self->conf->{whatToTrace} || 'uid' }
+      || $req->userData->{uid}
+      || $req->user
+      || 'unknown';
+
+    my $target;
+    for my $cert (@$sshCerts) {
+        if ( ( $cert->{serial} || '' ) eq $serial ) {
+            if ( $cert->{revoked_at} ) {
+                return $self->p->sendJSONresponse(
+                    $req,
+                    { error => 'Certificate already revoked' },
+                    code => 400
+                );
+            }
+            $cert->{revoked_at}    = time();
+            $cert->{revoked_by}    = $user;
+            $cert->{revoke_reason} = 'self-revocation';
+            $target                = $cert;
+            last;
+        }
+    }
+    unless ($target) {
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Certificate not found' },
+            code => 404
+        );
+    }
+
+    $self->p->updatePersistentSession( $req,
+        { _sshCerts => to_json($sshCerts) } );
+    my $krlOk = $self->_updateKrl($serial);
+
+    $self->logger->info( "SSH CA: Self-revocation by '$user': "
+          . "serial=$serial, key_id=$target->{key_id}" );
+
+    $self->p->auditLog(
+        $req,
+        code       => 'SSH_CERT_SELF_REVOKED',
+        user       => $user,
+        message    => "SSH certificate self-revoked by '$user'",
+        serial     => $serial,
+        key_id     => $target->{key_id},
+        label      => $target->{label},
+        krl_update => $krlOk ? 'success' : 'failed',
+    );
+
+    return $self->p->sendJSONresponse(
+        $req,
+        {
+            result      => 1,
+            serial      => $serial,
+            key_id      => $target->{key_id},
+            revoked_at  => $target->{revoked_at},
+            krl_updated => $krlOk ? JSON::true : JSON::false,
+        }
+    );
 }
 
 # =============================================================================
@@ -1058,20 +1210,23 @@ sub sshCertRevoke {
     );
 }
 
-# HELPER: Store certificate in user's persistent session
+# HELPER: Store certificate in user's persistent session.
+# If a record with the same fingerprint already exists, it is dropped and its
+# serial revoked in the KRL: a given SSH key is represented by a single
+# certificate record at a time (the most recent signature).
 sub _storeCertificate {
     my ( $self, $req, %args ) = @_;
 
-    # Build certificate record
     my $certRecord = {
-        serial     => $args{serial},
-        key_id     => $args{key_id},
-        principals => join( ',', @{ $args{principals} || [] } ),
-        issued_at  => $args{issued_at},
-        expires_at => $args{expires_at},
+        serial      => $args{serial},
+        key_id      => $args{key_id},
+        label       => $args{label},
+        fingerprint => $args{fingerprint},
+        principals  => join( ',', @{ $args{principals} || [] } ),
+        issued_at   => $args{issued_at},
+        expires_at  => $args{expires_at},
     };
 
-    # Get existing certificates from session
     my $sshCerts = [];
     if ( $req->userData->{_sshCerts} ) {
         $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
@@ -1081,17 +1236,86 @@ sub _storeCertificate {
         }
     }
 
-    # Add new certificate
-    push @$sshCerts, $certRecord;
+    # Drop any prior record for the same key (fingerprint). Revoke the
+    # superseded serial in the KRL so the old certificate cannot be used even
+    # if it is still within its validity window.
+    my $now = time();
+    my @kept;
+    for my $c (@$sshCerts) {
+        if (   $args{fingerprint}
+            && ( $c->{fingerprint} || '' ) eq $args{fingerprint} )
+        {
+            unless ( $c->{revoked_at}
+                || ( $c->{expires_at} && $c->{expires_at} < $now ) )
+            {
+                if ( $c->{serial} ) {
+                    my $ok = $self->_updateKrl( $c->{serial} );
+                    $self->logger->info(
+                        "SSH CA: Replaced certificate serial=$c->{serial} "
+                          . "(superseded by $args{serial}); KRL update "
+                          . ( $ok ? 'ok' : 'FAILED' ) );
+                }
+            }
+            next;    # drop superseded record
+        }
+        push @kept, $c;
+    }
+    push @kept, $certRecord;
 
-    # Update persistent session (also updates live session)
     $self->p->updatePersistentSession( $req,
-        { _sshCerts => to_json($sshCerts) } );
+        { _sshCerts => to_json( \@kept ) } );
 
     $self->logger->debug(
-        "SSH CA: Stored certificate serial=$args{serial} in persistent session"
+        "SSH CA: Stored certificate serial=$args{serial} fp=$args{fingerprint} in persistent session"
     );
     return 1;
+}
+
+# HELPER: Compute the SHA256 fingerprint of an SSH public key using ssh-keygen
+sub _sshKeyFingerprint {
+    my ( $self, $sshPubKey ) = @_;
+    return undef unless defined $sshPubKey;
+
+    require File::Temp;
+    my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
+    my $keyFile = "$tmpdir/key.pub";
+    open my $fh, '>', $keyFile or do {
+        $self->logger->error("SSH CA: Cannot write pubkey for fp: $!");
+        return undef;
+    };
+    print $fh $sshPubKey;
+    print $fh "\n" unless $sshPubKey =~ /\n$/;
+    close $fh;
+
+    my $output = '';
+    my $pid    = open my $pipe, '-|';
+    if ( !defined $pid ) {
+        $self->logger->error("SSH CA: Cannot fork for fingerprint: $!");
+        return undef;
+    }
+    elsif ( $pid == 0 ) {
+        open STDERR, '>&', \*STDOUT;
+        exec 'ssh-keygen', '-l', '-E', 'sha256', '-f', $keyFile;
+        exit 1;
+    }
+    else {
+        local $/;
+        $output = <$pipe>;
+        close $pipe;
+    }
+    my $exit = $? >> 8;
+    if ( $exit != 0 ) {
+        $self->logger->error(
+            "SSH CA: ssh-keygen -l failed (exit $exit): $output");
+        return undef;
+    }
+
+    # Typical output: "256 SHA256:abcd...  user@host (ED25519)"
+    if ( $output =~ /\b(SHA256:[A-Za-z0-9+\/=]+)/ ) {
+        return $1;
+    }
+    $self->logger->error("SSH CA: Unparseable fingerprint output: $output");
+    return undef;
 }
 
 # HELPER: Update KRL file with revoked serial

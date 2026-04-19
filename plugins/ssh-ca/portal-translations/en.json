@@ -23,5 +23,12 @@
   "sshCertStatus_revoked": "Revoked",
   "sshIssuedAt": "Issued",
   "sshMyCertsTitle": "My Certificates",
-  "sshValidUntil": "Valid until"
+  "sshValidUntil": "Valid until",
+  "sshKeyLabel": "Name",
+  "sshKeyLabelHelp": "A unique label to identify this machine (must be unique among your active keys).",
+  "sshKeyLabelMissing": "Please give your key a name",
+  "sshPublicKeyMissing": "Please paste your SSH public key",
+  "sshRevoke": "Revoke",
+  "sshRevokeError": "Failed to revoke certificate",
+  "sshConfirmRevoke": "Revoke this certificate? The key will be published in the KRL and cannot be used anymore."
 }

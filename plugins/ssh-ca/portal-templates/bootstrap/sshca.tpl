@@ -17,6 +17,13 @@
                     placeholder="ssh-ed25519 AAAA... user@host" required></textarea>
           <small class="form-text text-muted" trspan="sshPublicKeyHelp">Paste the contents of your ~/.ssh/id_ed25519.pub or ~/.ssh/id_rsa.pub file</small>
         </div>
+        <div class="form-group mb-3">
+          <label for="sshKeyLabel" trspan="sshKeyLabel">Key name</label>
+          <input type="text" class="form-control" id="sshKeyLabel" name="label"
+                 maxlength="128" required
+                 placeholder="laptop-pro" />
+          <small class="form-text text-muted" trspan="sshKeyLabelHelp">A unique label to identify this machine (must be unique among your active keys).</small>
+        </div>
         <div class="form-group row mb-3">
           <label class="col-sm-4 col-form-label" for="sshValidity" trspan="sshCertValidity">Certificate validity</label>
           <div class="col-sm-8">
@@ -49,11 +56,12 @@
           <table class="table table-sm table-striped">
             <thead>
               <tr>
-                <th trspan="sshKeyId">Key ID</th>
+                <th trspan="sshKeyLabel">Name</th>
                 <th trspan="sshPrincipals">Principals</th>
                 <th trspan="sshIssuedAt">Issued</th>
                 <th trspan="sshValidUntil">Valid until</th>
                 <th trspan="sshCertStatus">Status</th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="sshMyCertsBody"></tbody>

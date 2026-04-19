@@ -13,7 +13,7 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 
 use strict;
 use Mouse;
-use JSON                                   qw(from_json to_json);
+use JSON qw(from_json to_json);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -694,6 +694,44 @@ sub verifyToken {
         }
     }
 
+    # 6b. Optional SSH fingerprint binding
+    # When the caller (e.g. Open-Bastion) passes a 'fingerprint' field, verify
+    # that the user's persistent session holds a matching, non-revoked,
+    # non-expired SSH CA certificate record. This binds the PAM token to a
+    # known SSH key even if the SSH server's KRL is stale.
+    my $fingerprint = $body->{fingerprint};
+    if ( defined $fingerprint && $fingerprint ne '' ) {
+        my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
+        unless ( $sshCheck->{ok} ) {
+            $self->logger->info(
+                    "PAM verify: SSH fingerprint check failed for user '$user' "
+                  . "($sshCheck->{reason})" );
+            $self->p->auditLog(
+                $req,
+                code      => 'PAM_AUTH_SSH_FP_REJECTED',
+                user      => $user,
+                server_id => $server_id,
+                message   =>
+"PAM authentication rejected: SSH fingerprint check failed for user '$user'",
+                fingerprint => $fingerprint,
+                reason      => $sshCheck->{reason},
+            );
+            $tokenSession->remove;
+            return $self->p->sendJSONresponse(
+                $req,
+                {
+                    valid => JSON::false,
+                    error => 'SSH fingerprint not recognized',
+                },
+                code => 200
+            );
+        }
+        $attrs{ssh_cert_label} = $sshCheck->{label}
+          if defined $sshCheck->{label};
+        $attrs{ssh_cert_serial} = $sshCheck->{serial}
+          if defined $sshCheck->{serial};
+    }
+
     # 7. CRITICAL: Remove the session (one-time use!)
     $tokenSession->remove;
 
@@ -1186,6 +1224,54 @@ sub _signBastionJwt {
     my $sig_b64 = MIME::Base64::encode_base64url( $signature, '' );
 
     return "$signing_input.$sig_b64";
+}
+
+# HELPER: Look up the user's persistent session and verify that an SSH CA
+# certificate with the given fingerprint is registered, active, and not
+# revoked/expired. Returns { ok => 1, serial, label, key_id } on match,
+# { ok => 0, reason => '...' } otherwise.
+sub _checkSshFingerprint {
+    my ( $self, $user, $fingerprint ) = @_;
+
+    return { ok => 0, reason => 'no-user' }
+      unless defined $user && $user ne '';
+    return { ok => 0, reason => 'no-fingerprint' }
+      unless defined $fingerprint && $fingerprint ne '';
+
+    my $ps = $self->p->getPersistentSession($user);
+    return { ok => 0, reason => 'no-session' } unless $ps;
+    if ( $ps->error ) {
+        $self->logger->error(
+            "PAM verify: persistent session error for $user: " . $ps->error );
+        return { ok => 0, reason => 'session-error' };
+    }
+
+    my $raw = $ps->data->{_sshCerts};
+    return { ok => 0, reason => 'no-certs' } unless $raw;
+
+    my $certs = eval { from_json($raw) };
+    if ( $@ || ref($certs) ne 'ARRAY' ) {
+        $self->logger->error("PAM verify: corrupted _sshCerts for $user: $@");
+        return { ok => 0, reason => 'corrupted' };
+    }
+
+    my $now = time();
+    for my $cert (@$certs) {
+        next unless ( $cert->{fingerprint} || '' ) eq $fingerprint;
+        if ( $cert->{revoked_at} ) {
+            return { ok => 0, reason => 'revoked' };
+        }
+        if ( $cert->{expires_at} && $cert->{expires_at} < $now ) {
+            return { ok => 0, reason => 'expired' };
+        }
+        return {
+            ok     => 1,
+            serial => $cert->{serial},
+            label  => $cert->{label},
+            key_id => $cert->{key_id},
+        };
+    }
+    return { ok => 0, reason => 'not-found' };
 }
 
 1;
