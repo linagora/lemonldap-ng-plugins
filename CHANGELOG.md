@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.1.16 - 2026-04-19
+
+Touched plugins bumped to **0.1.16** in lockstep: `ssh-ca`, `pam-access`.
+
+### ssh-ca
+
+- **Key labels (mandatory, unique)**: the signing form now requires a
+  human-readable name per key (e.g. `laptop-pro`). Labels must be unique
+  within the user's active certificates; the same label can only reuse
+  the same key fingerprint (re-signing). If omitted, the value falls
+  back to the SSH public key's comment to remain compatible with
+  pre-0.1.16 session records. The label is displayed in "My Certificates"
+  next to the SHA256 fingerprint.
+- **Dedup on re-signature**: signing the same SSH public key twice now
+  replaces the previous record in the persistent session and revokes the
+  superseded serial in the KRL. The list keeps a single entry per
+  fingerprint.
+- **User self-revocation**: new `POST /ssh/myrevoke` endpoint and per-row
+  "Revoke" button in "My Certificates". Revoked serials are immediately
+  published in the KRL.
+- **Fix**: `sshca.js` referenced the unexported `translationFields`
+  variable from `portal.js` and crashed with a `ReferenceError`,
+  preventing "My Certificates" from rendering. Uses `window.translate()`
+  now.
+- **Sign response / mycerts**: expose `label` and `fingerprint` fields.
+
+### pam-access
+
+- **SSH fingerprint binding** (both `/pam/verify` and `/pam/authorize`):
+  when the caller passes an optional `fingerprint` field, the plugin
+  resolves the user's persistent session via `getPersistentSession`,
+  confirms that an SSH CA certificate with that fingerprint exists, and
+  rejects the request if it is missing, revoked, or expired. This binds
+  a PAM token (and the associated authorization decision) to a specific
+  SSH key even when the SSH server's KRL is stale, providing
+  defence-in-depth for Open-Bastion. Matched `ssh_cert_label` and
+  `ssh_cert_serial` are surfaced in the response (in `attrs` for
+  `/pam/verify`, at the top level for `/pam/authorize`).
+- The fingerprint input is trimmed and strictly validated against
+  `SHA256:<base64>` before lookup; malformed values return HTTP 400 and
+  emit a `PAM_AUTH_SSH_FP_MALFORMED` / `PAM_AUTHZ_SSH_FP_MALFORMED`
+  audit entry so unbounded attacker-controlled input never reaches logs.
+
+### Tests
+
+- **ssh-ca** (270 tests total): label validation (mandatory + SSH-comment
+  fallback), uniqueness 409, fingerprint round-trip, re-signature dedup
+  with KRL publication, self-revocation flow (including 400 on
+  already-revoked and 404 on unknown serial), cross-session persistence
+  and per-user isolation.
+- **pam-access** new `05-PamAccess-SshFingerprint.t`: `/pam/verify` and
+  `/pam/authorize` paths without fingerprint (backward compat), with a
+  matching fingerprint (accepted + cert details surfaced), with
+  unknown / revoked / malformed fingerprints, and whitespace tolerance.
+
 ## v0.1.15 - 2026-04-19
 
 No plugin source code changed in this release — plugin package versions
