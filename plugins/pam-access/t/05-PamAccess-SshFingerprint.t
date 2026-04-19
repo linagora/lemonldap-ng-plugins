@@ -250,7 +250,7 @@ count(3);
 $user_token = _new_pam_token();
 $res        = _verify( $user_token, 'not-a-fingerprint' );
 is( $res->[0], 400, 'verify with malformed fingerprint returns 400' );
-$json = expectJSON($res);
+$json = JSON::from_json( $res->[2]->[0] );
 ok( !$json->{valid}, 'Malformed fingerprint response is not valid' );
 like( $json->{error}, qr/fingerprint/i, 'Error mentions fingerprint' );
 count(3);
