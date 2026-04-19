@@ -43,6 +43,14 @@ has rpName => (
     default => sub { $_[0]->conf->{pamAccessRp} || 'pam-access' },
 );
 
+# One-shot flag for the legacy-mode warning emitted by _resolveServerGroup
+# when pamAccessServerGroups is empty. Without this, every call to
+# /pam/authorize or /pam/bastion-token would log a warning.
+has _serverGroupLegacyWarned => (
+    is      => 'rw',
+    default => 0,
+);
+
 # INITIALIZATION
 
 sub init {
@@ -1123,10 +1131,14 @@ sub bastionToken {
         return $self->_forbiddenResponse( $req, 'Invalid token scope' );
     }
 
-    # 4. Resolve this server's authoritative group
-    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    # 4. Resolve this server's authoritative group.
+    # In legacy mode (no pamAccessServerGroups mapping), preserve the
+    # prior behaviour of reading `server_group` from the access-token
+    # session, so deployments that populate it out-of-band keep working.
+    my $bastion_id    = $tokenSession->data->{client_id} || 'unknown';
+    my $session_group = $tokenSession->data->{server_group};
     my $server_group =
-      $self->_resolveServerGroup( $req, $bastion_id, undef,
+      $self->_resolveServerGroup( $req, $bastion_id, $session_group,
         'PAM bastion-token' );
     if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
         return $self->_forbiddenResponse( $req, $server_group->{message} );
@@ -1465,10 +1477,16 @@ sub _resolveServerGroup {
         return $mapped;
     }
 
-    # Legacy / back-compat path.
-    $self->logger->warn(
-        "$log_prefix: pamAccessServerGroups is empty; trusting body-provided "
-          . "server_group — configure the mapping to harden authorization" );
+    # Legacy / back-compat path. Emit the warning only once per process so
+    # the logs don't fill up for deployments that haven't configured the
+    # mapping yet.
+    unless ( $self->_serverGroupLegacyWarned ) {
+        $self->logger->warn(
+            "$log_prefix: pamAccessServerGroups is empty; trusting caller-provided "
+              . "server_group — configure the mapping to harden authorization "
+              . "(this warning is emitted only once)" );
+        $self->_serverGroupLegacyWarned(1);
+    }
     return defined $body_group && $body_group ne '' ? $body_group : 'default';
 }
 

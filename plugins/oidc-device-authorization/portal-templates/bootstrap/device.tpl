@@ -64,7 +64,7 @@
             <TMPL_IF NAME="ERROR">
               <div class="alert alert-danger">
                 <span class="fa fa-exclamation-triangle"></span>
-                <span trspan="<TMPL_VAR NAME="MSG" ESCAPE="HTML">"><TMPL_VAR NAME="MSG" ESCAPE="HTML"></span>
+                <span trspan="<TMPL_VAR NAME='MSG' ESCAPE='HTML'>"><TMPL_VAR NAME="MSG" ESCAPE="HTML"></span>
               </div>
             </TMPL_IF>
 
