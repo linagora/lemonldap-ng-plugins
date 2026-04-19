@@ -16,8 +16,50 @@
       var validitySelect = document.getElementById('sshValidity');
       var myCertsDiv = document.getElementById('sshMyCerts');
       var myCertsBody = document.getElementById('sshMyCertsBody');
+      var labelInput = document.getElementById('sshKeyLabel');
+      var publicKeyArea = document.getElementById('sshPublicKey');
 
-      // Load user's existing certificates
+      // Auto-fill the label field from the SSH key comment (3rd token)
+      // unless the user has already typed something.
+      var labelTouched = false;
+      if (labelInput) {
+        labelInput.addEventListener('input', function () { labelTouched = true; });
+      }
+      if (publicKeyArea && labelInput) {
+        publicKeyArea.addEventListener('input', function () {
+          if (labelTouched && labelInput.value) return;
+          var parts = publicKeyArea.value.trim().split(/\s+/);
+          if (parts.length >= 3) {
+            labelInput.value = parts.slice(2).join(' ').slice(0, 128);
+          }
+        });
+      }
+
+      function revokeCert(serial, btn) {
+        if (!serial) return;
+        var confirmMsg = window.translate('sshConfirmRevoke');
+        if (!window.confirm(confirmMsg)) return;
+        if (btn) btn.disabled = true;
+        $.ajax({
+          type: "POST",
+          url: scriptname + 'ssh/myrevoke',
+          contentType: "application/json",
+          data: JSON.stringify({ serial: String(serial) }),
+          dataType: "json",
+          success: function () { loadMyCerts(); },
+          error: function (xhr) {
+            var msg = window.translate('sshRevokeError');
+            try {
+              var resp = JSON.parse(xhr.responseText);
+              if (resp.error) msg = resp.error;
+            } catch (e) {}
+            errorMsg.textContent = msg;
+            errorDiv.classList.remove('d-none');
+            if (btn) btn.disabled = false;
+          }
+        });
+      }
+
       function loadMyCerts() {
         $.getJSON(scriptname + 'ssh/mycerts', function (data) {
           if (data.certificates && data.certificates.length > 0) {
@@ -27,14 +69,36 @@
               var issuedDate = cert.issued_at ? new Date(cert.issued_at * 1000).toLocaleDateString() : '-';
               var expiresDate = cert.expires_at ? new Date(cert.expires_at * 1000).toLocaleDateString() : '-';
               var statusClass = cert.status === 'active' ? 'text-success' : (cert.status === 'expired' ? 'text-muted' : 'text-danger');
-              var statusText = translationFields['sshCertStatus_' + cert.status] || cert.status;
-              tr.innerHTML = '<td><code class="small">' + $('<span>').text(cert.key_id || '-').html() + '</code></td>'
+              var statusText = window.translate('sshCertStatus_' + cert.status);
+              var labelText = cert.label || cert.key_id || '-';
+              var labelCell = $('<span>').text(labelText).html();
+              if (cert.fingerprint) {
+                labelCell = '<div>' + labelCell + '</div><small class="text-muted font-monospace">'
+                  + $('<span>').text(cert.fingerprint).html() + '</small>';
+              }
+              var actionCell = '';
+              if (cert.status === 'active' && cert.serial) {
+                actionCell = '<button type="button" class="btn btn-sm btn-outline-danger sshRevokeBtn" data-serial="'
+                  + $('<span>').text(cert.serial).html() + '">'
+                  + '<span class="fa fa-ban"></span> '
+                  + '<span trspan="sshRevoke">Revoke</span></button>';
+              }
+              tr.innerHTML = '<td>' + labelCell + '</td>'
                 + '<td>' + $('<span>').text(cert.principals || '-').html() + '</td>'
                 + '<td>' + issuedDate + '</td>'
                 + '<td>' + expiresDate + '</td>'
-                + '<td class="' + statusClass + '">' + statusText + '</td>';
+                + '<td class="' + statusClass + '">' + statusText + '</td>'
+                + '<td class="text-end">' + actionCell + '</td>';
               myCertsBody.appendChild(tr);
             });
+            myCertsBody.querySelectorAll('.sshRevokeBtn').forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                revokeCert(btn.dataset.serial, btn);
+              });
+            });
+            if (window.translatePage && window.currentLanguage) {
+              window.translatePage(window.currentLanguage);
+            }
             myCertsDiv.classList.remove('d-none');
           } else {
             myCertsDiv.classList.add('d-none');
@@ -67,10 +131,16 @@
         e.preventDefault();
         resultDiv.classList.add('d-none');
         errorDiv.classList.add('d-none');
-        var publicKey = document.getElementById('sshPublicKey').value.trim();
+        var publicKey = publicKeyArea.value.trim();
         var validityDays = parseInt(validitySelect.value);
+        var label = labelInput ? labelInput.value.trim() : '';
         if (!publicKey) {
-          errorMsg.textContent = 'Please paste your SSH public key';
+          errorMsg.textContent = window.translate('sshPublicKeyMissing');
+          errorDiv.classList.remove('d-none');
+          return;
+        }
+        if (!label) {
+          errorMsg.textContent = window.translate('sshKeyLabelMissing');
           errorDiv.classList.remove('d-none');
           return;
         }
@@ -80,7 +150,8 @@
           contentType: "application/json",
           data: JSON.stringify({
             public_key: publicKey,
-            validity_days: validityDays
+            validity_days: validityDays,
+            label: label
           }),
           dataType: "json",
           success: function success(data) {

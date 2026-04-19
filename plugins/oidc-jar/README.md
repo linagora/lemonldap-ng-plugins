@@ -45,12 +45,12 @@ into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCJar` to
 
 ### OIDC service (global, under **OpenID Connect Service > Security**)
 
-| Key                         | Default | Purpose                                                                                |
-| --------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `oidcJarRequestUriTimeout`  | `10`    | HTTP timeout (seconds) when fetching a `request_uri`.                                  |
-| `oidcJarRequestUriMaxSize`  | `65536` | Max size in bytes of the body returned from a `request_uri`.                           |
-| `oidcJarClockSkew`          | `30`    | Clock skew tolerance (seconds) for `exp`, `nbf`, `iat` checks.                         |
-| `oidcJarJtiTtl`             | `600`   | Fallback TTL (seconds) of the jti replay cache when no `exp` claim is provided.        |
+| Key                        | Default | Purpose                                                                         |
+| -------------------------- | ------- | ------------------------------------------------------------------------------- |
+| `oidcJarRequestUriTimeout` | `10`    | HTTP timeout (seconds) when fetching a `request_uri`.                           |
+| `oidcJarRequestUriMaxSize` | `65536` | Max size in bytes of the body returned from a `request_uri`.                    |
+| `oidcJarClockSkew`         | `30`    | Clock skew tolerance (seconds) for `exp`, `nbf`, `iat` checks.                  |
+| `oidcJarJtiTtl`            | `600`   | Fallback TTL (seconds) of the jti replay cache when no `exp` claim is provided. |
 
 ### Relying Party
 

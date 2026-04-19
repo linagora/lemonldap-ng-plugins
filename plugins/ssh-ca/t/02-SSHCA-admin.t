@@ -37,16 +37,24 @@ my ( $ca_private_key, $ca_public_key );
     close $fh;
 }
 
-# Generate user SSH public key
-my $user_pub_key;
+# Generate two distinct user SSH public keys — dedup by fingerprint means the
+# same key signed twice yields a single session record, so we need two keys
+# to produce two dwho certs.
+my ( $user_pub_key, $user_pub_key2 );
 {
     my $tmpdir = tempdir( CLEANUP => 1 );
-    system("ssh-keygen -t ed25519 -f $tmpdir/user_key -N '' -q") == 0
-      or plan skip_all => "ssh-keygen key generation failed";
-    open my $fh, '<', "$tmpdir/user_key.pub" or die;
+    for my $i ( 1 .. 2 ) {
+        system("ssh-keygen -t ed25519 -f $tmpdir/user_key$i -N '' -q") == 0
+          or plan skip_all => "ssh-keygen key generation failed";
+    }
+    open my $fh, '<', "$tmpdir/user_key1.pub" or die;
     $user_pub_key = <$fh>;
     close $fh;
     chomp $user_pub_key;
+    open $fh, '<', "$tmpdir/user_key2.pub" or die;
+    $user_pub_key2 = <$fh>;
+    close $fh;
+    chomp $user_pub_key2;
 }
 
 my $tmpdir     = tempdir( CLEANUP => 1 );
@@ -89,10 +97,12 @@ my $res;
 # User dwho signs 2 certs
 my $id_dwho = $portal->login('dwho');
 
+my @dwho_keys = ( $user_pub_key, $user_pub_key2 );
 for my $i ( 1 .. 2 ) {
     my $body = to_json( {
-            public_key    => $user_pub_key,
+            public_key    => $dwho_keys[ $i - 1 ],
             validity_days => 30,
+            label         => "dwho-host$i",
         }
     );
     ok(
@@ -114,6 +124,7 @@ my $id_french = $portal->login('french');
 my $body = to_json( {
         public_key    => $user_pub_key,
         validity_days => 7,
+        label         => 'french-host',
     }
 );
 ok(

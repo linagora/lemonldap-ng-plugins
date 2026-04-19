@@ -13,7 +13,7 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 
 use strict;
 use Mouse;
-use JSON                                   qw(from_json to_json);
+use JSON qw(from_json to_json);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -316,6 +316,70 @@ sub authorize {
         );
     }
 
+    # 4b. Optional SSH fingerprint binding
+    # Same contract as /pam/verify: if the caller provides a 'fingerprint',
+    # it must match an active (non-revoked, non-expired) SSH CA certificate
+    # in the user's persistent session. This hardens authorize against stale
+    # KRLs on the SSH server side.
+    my $fingerprint = $body->{fingerprint};
+    if ( defined $fingerprint ) {
+        $fingerprint =~ s/^\s+|\s+$//g;
+    }
+    if ( defined $fingerprint && $fingerprint ne '' ) {
+        unless ( $fingerprint =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z} ) {
+            $self->logger->info(
+                "PAM authorize: malformed SSH fingerprint for user '$user'");
+            $self->p->auditLog(
+                $req,
+                code    => 'PAM_AUTHZ_SSH_FP_MALFORMED',
+                user    => $user,
+                message =>
+"PAM authorization rejected: malformed SSH fingerprint for user '$user'",
+                host         => $host,
+                service      => $service,
+                server_group => $server_group,
+                server_id    => $server_id,
+                reason       => 'malformed_fingerprint',
+            );
+            return $self->p->sendJSONresponse(
+                $req,
+                { error => 'Malformed SSH fingerprint' },
+                code => 400
+            );
+        }
+
+        my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
+        unless ( $sshCheck->{ok} ) {
+            $self->logger->info(
+                "PAM authorize: SSH fingerprint check failed for user '$user' "
+                  . "($sshCheck->{reason})" );
+            $self->p->auditLog(
+                $req,
+                code    => 'PAM_AUTHZ_SSH_FP_REJECTED',
+                user    => $user,
+                message =>
+"PAM authorization denied: SSH fingerprint check failed for user '$user'",
+                host         => $host,
+                service      => $service,
+                server_group => $server_group,
+                server_id    => $server_id,
+                fingerprint  => $fingerprint,
+                reason       => $sshCheck->{reason},
+            );
+            return $self->p->sendJSONresponse(
+                $req,
+                {
+                    authorized => JSON::false,
+                    user       => $user,
+                    reason     => 'SSH fingerprint not recognized',
+                },
+                code => 200
+            );
+        }
+        $req->sessionInfo->{_pamSshCertLabel}  = $sshCheck->{label};
+        $req->sessionInfo->{_pamSshCertSerial} = $sshCheck->{serial};
+    }
+
     # 5. Evaluate authorization rule based on server_group
     my $result = $self->_checkPamRule( $req, $host, $service, $server_group );
     my $authorized   = $result->{authorized};
@@ -373,6 +437,17 @@ sub authorize {
     if ($authorized) {
         $response->{permissions} =
           { sudo_allowed => $sudo_allowed ? JSON::true : JSON::false, };
+
+        # Surface the matched SSH cert details when fingerprint binding was
+        # used, so the caller can log/cache which key was actually checked.
+        if ( defined $req->sessionInfo->{_pamSshCertLabel} ) {
+            $response->{ssh_cert_label} =
+              $req->sessionInfo->{_pamSshCertLabel};
+        }
+        if ( defined $req->sessionInfo->{_pamSshCertSerial} ) {
+            $response->{ssh_cert_serial} =
+              $req->sessionInfo->{_pamSshCertSerial};
+        }
 
         # Add user attributes for NSS/cache (from exported vars)
         my $exportedVars = $self->conf->{pamAccessExportedVars} || {};
@@ -692,6 +767,73 @@ sub verifyToken {
         if ( $key =~ /^_pamAttr_(.+)$/ ) {
             $attrs{$1} = $tokenSession->data->{$key};
         }
+    }
+
+    # 6b. Optional SSH fingerprint binding
+    # When the caller (e.g. Open-Bastion) passes a 'fingerprint' field, verify
+    # that the user's persistent session holds a matching, non-revoked,
+    # non-expired SSH CA certificate record. This binds the PAM token to a
+    # known SSH key even if the SSH server's KRL is stale.
+    my $fingerprint = $body->{fingerprint};
+    if ( defined $fingerprint ) {
+        $fingerprint =~ s/^\s+|\s+$//g;
+    }
+    if ( defined $fingerprint && $fingerprint ne '' ) {
+
+        # Strict format check: only SHA256:base64[=..] is accepted.
+        # Anything else is either a bug in the caller or an attacker probe.
+        unless ( $fingerprint =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z} ) {
+            $self->logger->info(
+                "PAM verify: malformed SSH fingerprint for user '$user'");
+            $self->p->auditLog(
+                $req,
+                code      => 'PAM_AUTH_SSH_FP_MALFORMED',
+                user      => $user,
+                server_id => $server_id,
+                message   =>
+"PAM authentication rejected: malformed SSH fingerprint for user '$user'",
+                reason => 'malformed_fingerprint',
+            );
+            $tokenSession->remove;
+            return $self->p->sendJSONresponse(
+                $req,
+                {
+                    valid => JSON::false,
+                    error => 'Malformed SSH fingerprint',
+                },
+                code => 400
+            );
+        }
+
+        my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
+        unless ( $sshCheck->{ok} ) {
+            $self->logger->info(
+                    "PAM verify: SSH fingerprint check failed for user '$user' "
+                  . "($sshCheck->{reason})" );
+            $self->p->auditLog(
+                $req,
+                code      => 'PAM_AUTH_SSH_FP_REJECTED',
+                user      => $user,
+                server_id => $server_id,
+                message   =>
+"PAM authentication rejected: SSH fingerprint check failed for user '$user'",
+                fingerprint => $fingerprint,
+                reason      => $sshCheck->{reason},
+            );
+            $tokenSession->remove;
+            return $self->p->sendJSONresponse(
+                $req,
+                {
+                    valid => JSON::false,
+                    error => 'SSH fingerprint not recognized',
+                },
+                code => 200
+            );
+        }
+        $attrs{ssh_cert_label} = $sshCheck->{label}
+          if defined $sshCheck->{label};
+        $attrs{ssh_cert_serial} = $sshCheck->{serial}
+          if defined $sshCheck->{serial};
     }
 
     # 7. CRITICAL: Remove the session (one-time use!)
@@ -1186,6 +1328,54 @@ sub _signBastionJwt {
     my $sig_b64 = MIME::Base64::encode_base64url( $signature, '' );
 
     return "$signing_input.$sig_b64";
+}
+
+# HELPER: Look up the user's persistent session and verify that an SSH CA
+# certificate with the given fingerprint is registered, active, and not
+# revoked/expired. Returns { ok => 1, serial, label, key_id } on match,
+# { ok => 0, reason => '...' } otherwise.
+sub _checkSshFingerprint {
+    my ( $self, $user, $fingerprint ) = @_;
+
+    return { ok => 0, reason => 'no-user' }
+      unless defined $user && $user ne '';
+    return { ok => 0, reason => 'no-fingerprint' }
+      unless defined $fingerprint && $fingerprint ne '';
+
+    my $ps = $self->p->getPersistentSession($user);
+    return { ok => 0, reason => 'no-session' } unless $ps;
+    if ( $ps->error ) {
+        $self->logger->error(
+            "PAM verify: persistent session error for $user: " . $ps->error );
+        return { ok => 0, reason => 'session-error' };
+    }
+
+    my $raw = $ps->data->{_sshCerts};
+    return { ok => 0, reason => 'no-certs' } unless $raw;
+
+    my $certs = eval { from_json($raw) };
+    if ( $@ || ref($certs) ne 'ARRAY' ) {
+        $self->logger->error("PAM verify: corrupted _sshCerts for $user: $@");
+        return { ok => 0, reason => 'corrupted' };
+    }
+
+    my $now = time();
+    for my $cert (@$certs) {
+        next unless ( $cert->{fingerprint} || '' ) eq $fingerprint;
+        if ( $cert->{revoked_at} ) {
+            return { ok => 0, reason => 'revoked' };
+        }
+        if ( $cert->{expires_at} && $cert->{expires_at} < $now ) {
+            return { ok => 0, reason => 'expired' };
+        }
+        return {
+            ok     => 1,
+            serial => $cert->{serial},
+            label  => $cert->{label},
+            key_id => $cert->{key_id},
+        };
+    }
+    return { ok => 0, reason => 'not-found' };
 }
 
 1;
