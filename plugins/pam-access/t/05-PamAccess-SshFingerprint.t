@@ -312,5 +312,96 @@ $json = expectJSON($res);
 ok( !$json->{valid}, 'verify with revoked fingerprint rejected' );
 count(1);
 
+# ------------------------------------------------------------------
+# Case 5: /pam/authorize + fingerprint binding (same contract)
+# ------------------------------------------------------------------
+
+# Sign a fresh key so we have an active cert for the positive case.
+my ( $pub2, $fp2 );
+{
+    my $t = tempdir( CLEANUP => 1 );
+    system("ssh-keygen -t ed25519 -f $t/uk2 -N '' -q -C authz-host") == 0
+      or die "ssh-keygen failed";
+    open my $fh, '<', "$t/uk2.pub" or die;
+    $pub2 = <$fh>;
+    close $fh;
+    chomp $pub2;
+    my $line = `ssh-keygen -l -E sha256 -f $t/uk2.pub`;
+    ($fp2) = $line =~ /\b(SHA256:\S+)/;
+}
+
+my $signBody2 = to_json(
+    {
+        public_key    => $pub2,
+        validity_days => 1,
+        label         => 'my-authz-host',
+    }
+);
+$res = $op->_post(
+    '/ssh/sign',
+    IO::String->new($signBody2),
+    cookie => "lemonldap=$sid",
+    type   => 'application/json',
+    length => length($signBody2),
+);
+expectOK($res);
+
+sub _authorize {
+    my ($fp) = @_;
+    my $body = to_json(
+        {
+            user         => 'french',
+            host         => 'host.example.com',
+            service      => 'ssh',
+            server_group => 'default',
+            ( defined $fp ? ( fingerprint => $fp ) : () ),
+        }
+    );
+    return $op->_post(
+        '/pam/authorize',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
+    );
+}
+
+# No fingerprint → standard behavior preserved
+$res  = _authorize(undef);
+$json = expectJSON($res);
+ok( defined $json->{authorized},
+    'authorize without fingerprint returns an answer' );
+count(1);
+
+# Matching fingerprint → authorized, cert details surfaced
+$res  = _authorize($fp2);
+$json = expectJSON($res);
+ok( $json->{authorized}, 'authorize with matching fingerprint succeeds' );
+is( $json->{ssh_cert_label}, 'my-authz-host',
+    'Matched label surfaced in authorize response' );
+ok( defined $json->{ssh_cert_serial},
+    'Matched serial surfaced in authorize response' );
+count(3);
+
+# Unknown fingerprint → denied
+$res =
+  _authorize('SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+$json = expectJSON($res);
+ok( !$json->{authorized}, 'authorize with unknown fingerprint denied' );
+like( $json->{reason}, qr/fingerprint/i, 'Reason mentions fingerprint' );
+count(2);
+
+# Revoked fingerprint (the $user_fp from case 4) → denied
+$res  = _authorize($user_fp);
+$json = expectJSON($res);
+ok( !$json->{authorized}, 'authorize with revoked fingerprint denied' );
+count(1);
+
+# Malformed fingerprint → 400
+$res = _authorize('not-a-fingerprint');
+is( $res->[0], 400, 'authorize with malformed fingerprint returns 400' );
+count(1);
+
 clean_sessions();
 done_testing();
