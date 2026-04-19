@@ -196,6 +196,11 @@ sub generateToken {
     $self->logger->info(
         "PAM one-time token generated for user $login (TTL: ${duration}s)");
 
+    # Mark this user as known to pam-access on this portal. Used by
+    # /pam/bastion-token to refuse vouching for identities that have never
+    # interacted with the pam-access plugin.
+    $self->p->updatePersistentSession( $req, { _pamSeen => time() } );
+
     # Audit log for token generation
     $self->p->auditLog(
         $req,
@@ -264,13 +269,39 @@ sub authorize {
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
-    my $user         = $body->{user};
-    my $host         = $body->{host}         || '';
-    my $service      = $body->{service}      || 'ssh';
-    my $server_group = $body->{server_group} || 'default';
+    my $user    = $body->{user};
+    my $host    = $body->{host}    || '';
+    my $service = $body->{service} || 'ssh';
+    my $body_server_group = $body->{server_group};
 
     unless ($user) {
         return $self->_badRequest( $req, 'Missing user parameter' );
+    }
+
+    # Resolve the authoritative server_group for this enrolled client.
+    # If pamAccessServerGroups is configured, we enforce the mapping:
+    #   - enrolled client_id found  → use the mapped group, reject if the
+    #     request body claims a different group;
+    #   - enrolled client_id absent → reject (unknown server).
+    # If pamAccessServerGroups is empty, fall back to the legacy behaviour
+    # (group from body) so existing deployments keep working; a warning is
+    # emitted to encourage admins to lock down.
+    my $server_group =
+      $self->_resolveServerGroup( $req, $server_id, $body_server_group,
+        'PAM authorize' );
+    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
+        $self->p->auditLog(
+            $req,
+            code         => 'PAM_AUTHZ_SERVER_GROUP_MISMATCH',
+            user         => $user,
+            message      => $server_group->{message},
+            host         => $host,
+            service      => $service,
+            server_id    => $server_id,
+            claimed_group => $body_server_group,
+            reason       => $server_group->{reason},
+        );
+        return $self->_forbiddenResponse( $req, $server_group->{message} );
     }
 
     $self->logger->debug(
@@ -839,6 +870,11 @@ sub verifyToken {
     # 7. CRITICAL: Remove the session (one-time use!)
     $tokenSession->remove;
 
+    # Refresh the user's pam-access persistence marker so /pam/bastion-token
+    # can later vouch for them. Done after the token is consumed so that a
+    # failed verify never stamps.
+    $self->p->updatePersistentSession( $req, { _pamSeen => time() }, $user );
+
     $self->logger->info("PAM verify: Token consumed for user '$user'");
 
     # Audit log for successful authentication
@@ -1087,19 +1123,24 @@ sub bastionToken {
         return $self->_forbiddenResponse( $req, 'Invalid token scope' );
     }
 
-    # 4. Verify server is in a bastion group
-    my $server_group   = $tokenSession->data->{server_group}   || 'default';
+    # 4. Resolve this server's authoritative group
+    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    my $server_group =
+      $self->_resolveServerGroup( $req, $bastion_id, undef,
+        'PAM bastion-token' );
+    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
+        return $self->_forbiddenResponse( $req, $server_group->{message} );
+    }
+
     my $bastion_groups = $self->conf->{pamAccessBastionGroups} || 'bastion';
     my @allowed_groups = split /[,;\s]+/, $bastion_groups;
-
-    my $is_bastion = 0;
+    my $is_bastion     = 0;
     for my $allowed (@allowed_groups) {
         if ( $server_group eq $allowed ) {
             $is_bastion = 1;
             last;
         }
     }
-
     unless ($is_bastion) {
         $self->logger->warn(
 "PAM bastion-token: Server group '$server_group' is not a bastion group"
@@ -1123,8 +1164,31 @@ sub bastionToken {
         return $self->_badRequest( $req, 'Missing user parameter' );
     }
 
-    # 6. Get bastion identity
-    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    # 6. Require that the user has a real persistent session on this portal.
+    # We cannot reasonably check "user is currently connected on the
+    # bastion" server-side (sessions outlive /pam/verify, users sudo hours
+    # later), but we can at least refuse to vouch for identities that have
+    # never logged in here. Bastions remain responsible for only calling
+    # this endpoint for users whose SSH session they are actively proxying.
+    unless ( $self->_userHasPersistentSession($user) ) {
+        $self->logger->info(
+"PAM bastion-token: Rejected — user '$user' has no persistent session on this portal (bastion='$bastion_id')"
+        );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_BASTION_TOKEN_UNKNOWN_USER',
+            user    => $user,
+            message =>
+"PAM bastion-token denied: no persistent session for user '$user' (bastion='$bastion_id')",
+            bastion_id    => $bastion_id,
+            bastion_group => $server_group,
+            target_host   => $target_host,
+            target_group  => $target_group,
+            reason        => 'no_persistent_session',
+        );
+        return $self->_forbiddenResponse( $req,
+            'User has never authenticated on this portal' );
+    }
 
     $self->logger->info(
             "PAM bastion-token: Generating JWT for bastion '$bastion_id' "
@@ -1328,6 +1392,68 @@ sub _signBastionJwt {
     my $sig_b64 = MIME::Base64::encode_base64url( $signature, '' );
 
     return "$signing_input.$sig_b64";
+}
+
+# HELPER: Resolve the authoritative server_group for an enrolled client.
+# Returns either a plain string (the group) or a hashref { rejected=>1,
+# message, reason } that the caller turns into a 403 response.
+#
+#  - pamAccessServerGroups configured + client_id mapped:
+#      use mapped group; if caller_body_group is given and differs, reject.
+#  - pamAccessServerGroups configured + client_id missing:
+#      reject (unknown server, strict lockdown).
+#  - pamAccessServerGroups empty (legacy):
+#      use body-provided group or 'default'; warn once.
+sub _resolveServerGroup {
+    my ( $self, $req, $client_id, $body_group, $log_prefix ) = @_;
+    $log_prefix ||= 'PAM';
+
+    my $map = $self->conf->{pamAccessServerGroups} || {};
+    my $has_map = ref $map eq 'HASH' && scalar( keys %$map ) > 0;
+
+    if ($has_map) {
+        my $mapped = $map->{ $client_id // '' };
+        unless ( defined $mapped && $mapped ne '' ) {
+            return {
+                rejected => 1,
+                message  => "Unknown enrolled server '$client_id'",
+                reason   => 'unmapped_client_id',
+            };
+        }
+        if (   defined $body_group
+            && $body_group ne ''
+            && $body_group ne $mapped )
+        {
+            return {
+                rejected => 1,
+                message  =>
+"Server '$client_id' is not authorized for server_group '$body_group'",
+                reason => 'server_group_mismatch',
+            };
+        }
+        return $mapped;
+    }
+
+    # Legacy / back-compat path.
+    $self->logger->warn(
+        "$log_prefix: pamAccessServerGroups is empty; trusting body-provided "
+          . "server_group — configure the mapping to harden authorization" );
+    return defined $body_group && $body_group ne '' ? $body_group : 'default';
+}
+
+# HELPER: Return true iff the user has previously interacted with pam-access
+# on this portal. We key off our own `_pamSeen` marker (stamped in
+# generateToken and verifyToken), rather than relying on the persistent
+# session being non-empty, because LLNG does not always populate persistent
+# sessions on plain login (e.g., loginHistoryEnabled disabled).
+sub _userHasPersistentSession {
+    my ( $self, $user ) = @_;
+    return 0 unless defined $user && $user ne '';
+
+    my $ps = $self->p->getPersistentSession($user);
+    return 0 unless $ps && !$ps->error;
+    return 0 unless defined $ps->data->{_pamSeen};
+    return 1;
 }
 
 # HELPER: Look up the user's persistent session and verify that an SSH CA

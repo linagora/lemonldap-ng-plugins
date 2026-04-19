@@ -59,6 +59,21 @@
       "type": "int",
       "default": 86400,
       "documentation": "Default offline authorization cache TTL (seconds)"
+    },
+    "pamAccessServerGroups": {
+      "type": "keyTextContainer",
+      "default": {},
+      "documentation": "Authoritative mapping of enrolled OIDC client_id to server group. When non-empty, /pam/authorize and /pam/bastion-token enforce the group from this map instead of trusting the request body."
+    },
+    "pamAccessBastionGroups": {
+      "type": "text",
+      "default": "bastion",
+      "documentation": "Comma-separated list of server groups allowed to call /pam/bastion-token"
+    },
+    "pamAccessBastionJwtTtl": {
+      "type": "int",
+      "default": 300,
+      "documentation": "Bastion JWT validity (seconds)"
     }
   },
   "tree": [
@@ -88,7 +103,10 @@
             "pamAccessHeartbeatRequired",
             "pamAccessExportedVars",
             "pamAccessOfflineEnabled",
-            "pamAccessOfflineTtl"
+            "pamAccessOfflineTtl",
+            "pamAccessServerGroups",
+            "pamAccessBastionGroups",
+            "pamAccessBastionJwtTtl"
           ]
         }
       ]

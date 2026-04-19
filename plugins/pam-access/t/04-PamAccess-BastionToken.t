@@ -75,6 +75,22 @@ my $server_token = pam_lib::enroll_server( $op, $id );
 ok( $server_token, 'Got server token' );
 count(1);
 
+# Stamp the pam-access persistence marker for 'french' so that
+# /pam/bastion-token later recognizes them as a known user. Realistically
+# this happens when the user first generates a PAM token before SSHing via
+# the bastion; we reproduce that flow here.
+{
+    my $q = 'duration=60';
+    my $r = $op->_post(
+        '/pam',
+        IO::String->new($q),
+        accept => 'application/json',
+        cookie => "lemonldap=$id",
+        length => length($q),
+    );
+    expectOK($r);
+}
+
 # Missing user parameter
 $bastion_body = to_json( { target_host => 'backend.example.com' } );
 ok(
@@ -172,7 +188,7 @@ is( ref $payload->{user_groups}, 'ARRAY', 'user_groups is array' );
 count(1);
 
 # ============================================
-# Non-existing user: JWT still generated
+# Non-existing user: forbidden (no persistent session on portal)
 # ============================================
 
 $bastion_body = to_json( {
@@ -189,17 +205,9 @@ ok(
         length => length($bastion_body),
         custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
     ),
-    'POST /pam/bastion-token with non-existing user'
+    'POST /pam/bastion-token with user lacking a persistent session'
 );
-expectOK($res);
-$json = expectJSON($res);
-ok( $json->{bastion_jwt}, 'Got JWT for non-existing user' );
-count(1);
-
-@jwt_parts = split /\./, $json->{bastion_jwt};
-$payload   = from_json( decode_base64url( $jwt_parts[1] ) );
-is( $payload->{sub}, 'nonexistent', 'JWT sub is non-existing user' );
-count(1);
+expectReject( $res, 403 );
 
 # ============================================
 # Minimal parameters (defaults)
