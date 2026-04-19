@@ -74,6 +74,11 @@
       "type": "int",
       "default": 300,
       "documentation": "Bastion JWT validity (seconds)"
+    },
+    "pamAccessBastionMaxSeenAge": {
+      "type": "int",
+      "default": 604800,
+      "documentation": "Maximum age (seconds) of the _pamSeen marker on the user's persistent session accepted by /pam/bastion-token. Default 604800 = 7 days. Set to 0 to disable the age check."
     }
   },
   "tree": [
@@ -106,7 +111,8 @@
             "pamAccessOfflineTtl",
             "pamAccessServerGroups",
             "pamAccessBastionGroups",
-            "pamAccessBastionJwtTtl"
+            "pamAccessBastionJwtTtl",
+            "pamAccessBastionMaxSeenAge"
           ]
         }
       ]
@@ -168,6 +174,22 @@
     "pamAccessOfflineTtl": {
       "en": "Offline cache TTL",
       "fr": "TTL du cache hors ligne"
+    },
+    "pamAccessServerGroups": {
+      "en": "Server groups (client_id → group)",
+      "fr": "Groupes de serveurs (client_id → groupe)"
+    },
+    "pamAccessBastionGroups": {
+      "en": "Bastion server groups",
+      "fr": "Groupes serveurs bastion"
+    },
+    "pamAccessBastionJwtTtl": {
+      "en": "Bastion JWT TTL",
+      "fr": "TTL du JWT bastion"
+    },
+    "pamAccessBastionMaxSeenAge": {
+      "en": "Max age of _pamSeen marker",
+      "fr": "Âge maximal du marqueur _pamSeen"
     }
   }
 }

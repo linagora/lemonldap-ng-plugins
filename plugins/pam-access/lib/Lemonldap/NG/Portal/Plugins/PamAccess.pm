@@ -1164,30 +1164,61 @@ sub bastionToken {
         return $self->_badRequest( $req, 'Missing user parameter' );
     }
 
-    # 6. Require that the user has a real persistent session on this portal.
-    # We cannot reasonably check "user is currently connected on the
-    # bastion" server-side (sessions outlive /pam/verify, users sudo hours
-    # later), but we can at least refuse to vouch for identities that have
-    # never logged in here. Bastions remain responsible for only calling
-    # this endpoint for users whose SSH session they are actively proxying.
-    unless ( $self->_userHasPersistentSession($user) ) {
+    # 6. Require that the user has recently interacted with pam-access on
+    # this portal. The `_pamSeen` marker is stamped in /pam (generateToken)
+    # and /pam/verify; we reject if it is missing (user never used
+    # pam-access here) or older than pamAccessBastionMaxSeenAge (default:
+    # 7 days). This limits the window during which a bastion can mint JWTs
+    # for a user who has stopped using this portal.
+    my $lastSeen = $self->_lastSeenOnPamAccess($user);
+    unless ( defined $lastSeen ) {
         $self->logger->info(
-"PAM bastion-token: Rejected — user '$user' has no persistent session on this portal (bastion='$bastion_id')"
+"PAM bastion-token: Rejected — user '$user' has no _pamSeen marker (bastion='$bastion_id')"
         );
         $self->p->auditLog(
             $req,
             code    => 'PAM_BASTION_TOKEN_UNKNOWN_USER',
             user    => $user,
             message =>
-"PAM bastion-token denied: no persistent session for user '$user' (bastion='$bastion_id')",
+"PAM bastion-token denied: no _pamSeen marker for user '$user' (bastion='$bastion_id')",
             bastion_id    => $bastion_id,
             bastion_group => $server_group,
             target_host   => $target_host,
             target_group  => $target_group,
-            reason        => 'no_persistent_session',
+            reason        => 'no_pam_seen_marker',
         );
         return $self->_forbiddenResponse( $req,
-            'User has never authenticated on this portal' );
+            'User has never authenticated on this portal via pam-access' );
+    }
+
+    my $maxAge =
+      defined $self->conf->{pamAccessBastionMaxSeenAge}
+      ? $self->conf->{pamAccessBastionMaxSeenAge}
+      : 604800;    # 7 days
+    if ( $maxAge > 0 ) {
+        my $age = time() - $lastSeen;
+        if ( $age > $maxAge ) {
+            $self->logger->info(
+"PAM bastion-token: Rejected — _pamSeen for user '$user' is ${age}s old, max ${maxAge}s (bastion='$bastion_id')"
+            );
+            $self->p->auditLog(
+                $req,
+                code    => 'PAM_BASTION_TOKEN_STALE_MARKER',
+                user    => $user,
+                message =>
+"PAM bastion-token denied: _pamSeen too old for user '$user' (age=${age}s, max=${maxAge}s)",
+                bastion_id    => $bastion_id,
+                bastion_group => $server_group,
+                target_host   => $target_host,
+                target_group  => $target_group,
+                age           => $age,
+                max_age       => $maxAge,
+                reason        => 'stale_pam_seen_marker',
+            );
+            return $self->_forbiddenResponse( $req,
+"User has not recently interacted with pam-access on this portal"
+            );
+        }
     }
 
     $self->logger->info(
@@ -1441,19 +1472,19 @@ sub _resolveServerGroup {
     return defined $body_group && $body_group ne '' ? $body_group : 'default';
 }
 
-# HELPER: Return true iff the user has previously interacted with pam-access
-# on this portal. We key off our own `_pamSeen` marker (stamped in
-# generateToken and verifyToken), rather than relying on the persistent
-# session being non-empty, because LLNG does not always populate persistent
-# sessions on plain login (e.g., loginHistoryEnabled disabled).
-sub _userHasPersistentSession {
+# HELPER: Return the `_pamSeen` timestamp (unix time) from the user's
+# persistent session if they have previously interacted with pam-access on
+# this portal, or undef if no marker is present. The marker is stamped in
+# generateToken and verifyToken; callers decide how to interpret the age.
+sub _lastSeenOnPamAccess {
     my ( $self, $user ) = @_;
-    return 0 unless defined $user && $user ne '';
+    return undef unless defined $user && $user ne '';
 
     my $ps = $self->p->getPersistentSession($user);
-    return 0 unless $ps && !$ps->error;
-    return 0 unless defined $ps->data->{_pamSeen};
-    return 1;
+    return undef unless $ps && !$ps->error;
+    my $ts = $ps->data->{_pamSeen};
+    return undef unless defined $ts && $ts =~ /^\d+$/;
+    return $ts;
 }
 
 # HELPER: Look up the user's persistent session and verify that an SSH CA

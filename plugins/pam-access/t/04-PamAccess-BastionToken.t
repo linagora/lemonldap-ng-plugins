@@ -188,6 +188,35 @@ is( ref $payload->{user_groups}, 'ARRAY', 'user_groups is array' );
 count(1);
 
 # ============================================
+# _pamSeen TTL enforcement
+# ============================================
+# Manually rewind french's _pamSeen to simulate a stale marker and expect
+# a 403 stale-marker rejection. Then restore for subsequent tests.
+{
+    my $ps = main::getPSession('french');
+    my $orig_seen = $ps->data->{_pamSeen};
+    $ps->update( { _pamSeen => time() - ( 8 * 86400 ) } );    # 8 days old
+
+    my $stale_body = to_json( { user => 'french' } );
+    ok(
+        $res = $op->_post(
+            '/pam/bastion-token',
+            IO::String->new($stale_body),
+            accept => 'application/json',
+            type   => 'application/json',
+            length => length($stale_body),
+            custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
+        ),
+        'POST /pam/bastion-token with stale _pamSeen'
+    );
+    expectReject( $res, 403 );
+
+    # Restore so later test blocks keep working.
+    $ps = main::getPSession('french');
+    $ps->update( { _pamSeen => $orig_seen || time() } );
+}
+
+# ============================================
 # Non-existing user: forbidden (no persistent session on portal)
 # ============================================
 
