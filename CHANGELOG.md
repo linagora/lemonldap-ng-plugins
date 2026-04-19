@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.1.15 - 2026-04-19
+
+No plugin source code changed in this release — plugin package versions
+stay at **0.1.14**. Debian packaging only.
+
+### Debian packaging
+
+- **open-bastion-plugins** (new meta-package): pulls the LLNG plugins
+  required by an open-bastion deployment (`pam-access`, `ssh-ca`,
+  `oidc-device-authorization`, `oidc-device-organization`) plus
+  `openssl` / `openssh-client`, and ships the
+  `open-bastion-plugins-autoconfig` bootstrap helper.
+- **open-bastion-plugins-autoconfig**: idempotent Perl helper that
+  configures an LLNG instance for open-bastion (ACLs, virtual hosts,
+  OIDC RP for the device flow, PAM-access / SSH-CA service options,
+  `customPlugins` registration).
+
 ## v0.1.14 - 2026-04-18
 
 All plugins modified by this release are bumped to **0.1.14** in lockstep:
