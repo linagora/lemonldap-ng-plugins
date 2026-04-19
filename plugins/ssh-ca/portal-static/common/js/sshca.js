@@ -30,7 +30,7 @@
           if (labelTouched && labelInput.value) return;
           var parts = publicKeyArea.value.trim().split(/\s+/);
           if (parts.length >= 3) {
-            labelInput.value = parts.slice(2).join(' ');
+            labelInput.value = parts.slice(2).join(' ').slice(0, 128);
           }
         });
       }

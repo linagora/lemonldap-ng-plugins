@@ -700,7 +700,36 @@ sub verifyToken {
     # non-expired SSH CA certificate record. This binds the PAM token to a
     # known SSH key even if the SSH server's KRL is stale.
     my $fingerprint = $body->{fingerprint};
+    if ( defined $fingerprint ) {
+        $fingerprint =~ s/^\s+|\s+$//g;
+    }
     if ( defined $fingerprint && $fingerprint ne '' ) {
+
+        # Strict format check: only SHA256:base64[=..] is accepted.
+        # Anything else is either a bug in the caller or an attacker probe.
+        unless ( $fingerprint =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z} ) {
+            $self->logger->info(
+                "PAM verify: malformed SSH fingerprint for user '$user'");
+            $self->p->auditLog(
+                $req,
+                code      => 'PAM_AUTH_SSH_FP_MALFORMED',
+                user      => $user,
+                server_id => $server_id,
+                message   =>
+"PAM authentication rejected: malformed SSH fingerprint for user '$user'",
+                reason => 'malformed_fingerprint',
+            );
+            $tokenSession->remove;
+            return $self->p->sendJSONresponse(
+                $req,
+                {
+                    valid => JSON::false,
+                    error => 'Malformed SSH fingerprint',
+                },
+                code => 400
+            );
+        }
+
         my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
         unless ( $sshCheck->{ok} ) {
             $self->logger->info(

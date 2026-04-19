@@ -859,8 +859,10 @@ sub sshMyCerts {
 }
 
 # POST /ssh/myrevoke - User revokes one of their own certificates.
-# The certificate record stays in the session (marked revoked) so the list
-# remains auditable; the serial is immediately published in the KRL.
+# The certificate record is kept in the session with `revoked_at` set so the
+# user's list keeps showing it; the serial is immediately published in the
+# KRL. Note: re-signing the same key later supersedes and removes the record
+# (see _storeCertificate); the KRL retains all revoked serials regardless.
 sub sshMyCertRevoke {
     my ( $self, $req ) = @_;
 

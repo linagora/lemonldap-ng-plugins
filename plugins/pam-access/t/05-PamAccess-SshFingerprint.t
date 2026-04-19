@@ -244,6 +244,25 @@ ok( defined $json->{attrs}->{ssh_cert_serial}, 'Serial exposed' );
 count(3);
 
 # ------------------------------------------------------------------
+# Case 2b: malformed fingerprint → 400
+# ------------------------------------------------------------------
+
+$user_token = _new_pam_token();
+$res        = _verify( $user_token, 'not-a-fingerprint' );
+is( $res->[0], 400, 'verify with malformed fingerprint returns 400' );
+$json = expectJSON($res);
+ok( !$json->{valid}, 'Malformed fingerprint response is not valid' );
+like( $json->{error}, qr/fingerprint/i, 'Error mentions fingerprint' );
+count(3);
+
+# Leading/trailing whitespace is tolerated (trimmed)
+$user_token = _new_pam_token();
+$res        = _verify( $user_token, "  $user_fp\n" );
+$json       = expectJSON($res);
+ok( $json->{valid}, 'fingerprint with whitespace is accepted (trimmed)' );
+count(1);
+
+# ------------------------------------------------------------------
 # Case 3: unknown fingerprint → rejected (and token consumed)
 # ------------------------------------------------------------------
 
