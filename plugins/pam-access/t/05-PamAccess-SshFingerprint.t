@@ -133,6 +133,8 @@ ok(
                 pamAccessTokenDuration   => 600,
                 pamAccessMaxDuration     => 3600,
                 pamAccessRp              => 'pam-access',
+                pamAccessSshRules        => { default => '1' },
+                pamAccessSudoRules       => { default => '1' },
                 sshCaKeyRef              => 'sshca',
                 keys                     => {
                     sshca => { keyPrivate => $ca_priv, keyPublic => $ca_pub },
