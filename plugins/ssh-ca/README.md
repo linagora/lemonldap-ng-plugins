@@ -6,12 +6,22 @@ passwordless authentication on servers that trust the CA.
 
 ## Features
 
-- **Certificate signing** with configurable validity and principals
-- **Certificate listing** for users (my certificates) and admins (all certificates)
-- **Certificate revocation** with KRL (Key Revocation List) management
-- **User portal interface** for self-service key signing
-- **Admin interface** for searching and revoking certificates
-- **Audit logging** of all signing and revocation operations
+- **Certificate signing** with configurable validity and principals.
+- **Mandatory key labels** for human-friendly identification (e.g.
+  `laptop-pro`), enforced unique per user among active certificates.
+- **Automatic dedup on re-signature**: signing the same SSH public key
+  twice replaces the previous record in the user's session and publishes
+  the superseded serial in the KRL — a user has a single active record
+  per fingerprint at all times.
+- **User self-revocation** via `POST /ssh/myrevoke` and a per-row
+  "Revoke" button in the "My Certificates" table.
+- **Certificate listing** for users (their own) and admins (all users).
+- **Certificate revocation** with KRL (Key Revocation List) management.
+- **SSH SHA256 fingerprint** computed and stored with each cert, surfaced
+  in the responses — the `pam-access` plugin uses it to bind PAM tokens
+  to a specific SSH key.
+- **Admin interface** for searching and revoking certificates.
+- **Audit logging** of all signing and revocation operations.
 
 ## Requirements
 
@@ -72,11 +82,12 @@ Examples:
 
 ### User endpoints (authentication required)
 
-| Method | Path           | Description                                 |
-| ------ | -------------- | ------------------------------------------- |
-| GET    | `/ssh`         | User interface for signing SSH keys         |
-| POST   | `/ssh/sign`    | Sign a user's SSH public key                |
-| GET    | `/ssh/mycerts` | List the current user's certificates (JSON) |
+| Method | Path             | Description                                                                     |
+| ------ | ---------------- | ------------------------------------------------------------------------------- |
+| GET    | `/ssh`           | User interface for signing SSH keys                                             |
+| POST   | `/ssh/sign`      | Sign a user's SSH public key (requires a unique `label` among active certs)     |
+| GET    | `/ssh/mycerts`   | List the current user's certificates (JSON)                                     |
+| POST   | `/ssh/myrevoke`  | Self-revoke one of the caller's own certificates; immediately added to the KRL  |
 
 ### Admin endpoints (authentication + access control required)
 
@@ -106,7 +117,8 @@ Request (JSON):
 ```json
 {
   "public_key": "ssh-ed25519 AAAA... user@host",
-  "validity_days": 30
+  "validity_days": 30,
+  "label": "laptop-pro"
 }
 ```
 
@@ -115,16 +127,44 @@ Response (JSON):
 ```json
 {
   "certificate": "ssh-ed25519-cert-v01@openssh.com AAAA...",
-  "serial": 1,
-  "key_id": "john@llng-1713300000-000001",
+  "serial": 3,
+  "key_id": "john@llng-1713300000-000003",
   "principals": ["john"],
-  "valid_until": "2026-05-16T12:00:00Z"
+  "valid_until": "2026-05-16T12:00:00Z",
+  "label": "laptop-pro",
+  "fingerprint": "SHA256:CfGkzWrzpeKEsYPdBMDjEjoN1n/o4YzuM8StGuMQMcs"
 }
 ```
 
-The `validity_days` is clamped to `sshCaCertMaxValidity`. Principals are
-derived from the session, any `principals` field in the request is ignored
-(and logged as a warning).
+- `label` is **mandatory**. It must be unique across the user's active
+  (non-revoked, non-expired) certificates. Re-using a label on a different
+  key yields HTTP 409. If omitted, the plugin falls back to the SSH public
+  key's comment (third token) for back-compat; if that is also empty the
+  request is rejected with 400.
+- `validity_days` is clamped to `sshCaCertMaxValidity`.
+- Principals are derived from the session; any `principals` field in the
+  request is ignored (and logged as a warning).
+- `fingerprint` is the SHA256 of the signed key, stored with the cert and
+  used by the `pam-access` plugin to bind PAM tokens to a specific key.
+
+**Re-signing the same SSH public key** (same fingerprint) replaces the
+previous record in the user's persistent session and revokes the
+superseded serial in the KRL. The `label` may change on re-signature. The
+KRL retains all revoked serials regardless.
+
+### POST /ssh/myrevoke
+
+Request (JSON):
+
+```json
+{ "serial": "3" }
+```
+
+Marks the cert as `revoked` in the caller's persistent session (keeping
+it visible in `/ssh/mycerts`) and publishes the serial in the KRL.
+
+Returns HTTP 400 if already revoked, HTTP 404 if the serial is not in the
+caller's own certs.
 
 ### GET /ssh/mycerts
 
@@ -134,8 +174,10 @@ Response (JSON):
 {
   "certificates": [
     {
-      "serial": 1,
-      "key_id": "john@llng-1713300000-000001",
+      "serial": 3,
+      "key_id": "john@llng-1713300000-000003",
+      "label": "laptop-pro",
+      "fingerprint": "SHA256:CfGkzWrzpeKEsYPdBMDjEjoN1n/o4YzuM8StGuMQMcs",
       "principals": "john",
       "issued_at": 1713300000,
       "expires_at": 1715892000,
@@ -146,15 +188,16 @@ Response (JSON):
 ```
 
 Status is computed dynamically: `active`, `expired` (past `expires_at`), or
-`revoked` (has `revoked_at`).
+`revoked` (has `revoked_at`). Entries are sorted newest-first.
 
 ### GET /ssh/certs
 
 Query parameters: `user`, `serial`, `key_id`, `status`, `limit` (max 1000),
 `offset`.
 
-Response includes all fields from `/ssh/mycerts` plus: `session_id`, `user`,
-`revoked_at`, `revoked_by`, `revoke_reason`.
+Response includes all fields from `/ssh/mycerts` (including `label` and
+`fingerprint`) plus: `session_id`, `user`, `revoked_at`, `revoked_by`,
+`revoke_reason`.
 
 ### POST /ssh/revoke
 
@@ -223,3 +266,5 @@ AuthorizedPrincipalsFile /etc/ssh/auth_principals/%u
 
 - [SSH CA documentation](https://lemonldap-ng.org/documentation/latest/sshca)
 - [OpenSSH certificates](https://man.openbsd.org/ssh-keygen#CERTIFICATES)
+- [PAM Access plugin](../pam-access/README.md) — consumes the SHA256
+  fingerprint exposed here to bind PAM tokens to a specific SSH key.
