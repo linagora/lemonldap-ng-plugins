@@ -79,21 +79,21 @@ lwpSslOpts = { SSL_ca_file => /etc/ssl/bao-ca.pem }
 
 ### Parameter reference
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `type` | string | — | Must be `OpenBAO` |
-| `baseUrl` | string | — | Full Vault/OpenBAO API URL **including** `/v1` or `/v2` API prefix. Example: `https://vault.example.com:8200/v1` |
-| `mount` | string | `secret` | KV v2 mount point name |
-| `path` | string | `lmConf` | Secret path under the mount (configurations stored as `<mount>/data/<path>/lmConf-<cfgNum>`) |
-| `lockTtl` | integer | `60` | Lock secret time-to-live in seconds. Must be > 0 |
-| `useServerEnv` | integer | — | Set to `1` to enable `%SERVERENV:VAR%` placeholder substitution (required for injecting secrets) |
-| `token` | string | — | Static authentication token. Use `%SERVERENV:OPENBAO_TOKEN%` with `useServerEnv = 1` |
-| `roleId` | string | — | AppRole role ID (requires `secretId`; mutually exclusive with `token`) |
-| `secretId` | string | — | AppRole secret ID (requires `roleId`; mutually exclusive with `token`) |
-| `approleMount` | string | `approle` | AppRole auth mount path (only used if `roleId` is set) |
-| `namespace` | string | — | OpenBAO Enterprise namespace name. Passed as `X-Vault-Namespace` header if set |
-| `lwpOpts` | hash | — | Options passed to `LWP::UserAgent::new()`. Example: `{ timeout => 4, ssl_opts => {...} }` |
-| `lwpSslOpts` | hash | — | TLS options passed to `LWP::UserAgent`. Example: `{ SSL_ca_file => /path/to/ca.pem, verify_hostname => 0 }` |
+| Parameter      | Type    | Default   | Description                                                                                                      |
+| -------------- | ------- | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `type`         | string  | —         | Must be `OpenBAO`                                                                                                |
+| `baseUrl`      | string  | —         | Full Vault/OpenBAO API URL **including** `/v1` or `/v2` API prefix. Example: `https://vault.example.com:8200/v1` |
+| `mount`        | string  | `secret`  | KV v2 mount point name                                                                                           |
+| `path`         | string  | `lmConf`  | Secret path under the mount (configurations stored as `<mount>/data/<path>/lmConf-<cfgNum>`)                     |
+| `lockTtl`      | integer | `60`      | Lock secret time-to-live in seconds. Must be > 0                                                                 |
+| `useServerEnv` | integer | —         | Set to `1` to enable `%SERVERENV:VAR%` placeholder substitution (required for injecting secrets)                 |
+| `token`        | string  | —         | Static authentication token. Use `%SERVERENV:OPENBAO_TOKEN%` with `useServerEnv = 1`                             |
+| `roleId`       | string  | —         | AppRole role ID (requires `secretId`; mutually exclusive with `token`)                                           |
+| `secretId`     | string  | —         | AppRole secret ID (requires `roleId`; mutually exclusive with `token`)                                           |
+| `approleMount` | string  | `approle` | AppRole auth mount path (only used if `roleId` is set)                                                           |
+| `namespace`    | string  | —         | OpenBAO Enterprise namespace name. Passed as `X-Vault-Namespace` header if set                                   |
+| `lwpOpts`      | hash    | —         | Options passed to `LWP::UserAgent::new()`. Example: `{ timeout => 4, ssl_opts => {...} }`                        |
+| `lwpSslOpts`   | hash    | —         | TLS options passed to `LWP::UserAgent`. Example: `{ SSL_ca_file => /path/to/ca.pem, verify_hostname => 0 }`      |
 
 ### Environment variable injection
 
@@ -235,6 +235,7 @@ prove -v -I lib -I t/lib t/*.t
 ```
 
 Individual test files:
+
 - `00-load.t` — module loads correctly
 - `10-prereq.t` — configuration validation
 - `20-auth-token.t` — static token authentication
@@ -256,6 +257,7 @@ Individual test files:
 **Cause:** The mount name or path does not exist, or baseUrl is incorrect.
 
 **Solution:**
+
 - Verify `mount` matches the KV v2 engine mount name: `vault secrets list`
 - Check that `baseUrl` points to the correct Vault/OpenBAO server and includes the `/v1` prefix
 - Ensure the path under the mount exists (it will be created on first config save)
@@ -265,6 +267,7 @@ Individual test files:
 **Cause:** A lock secret remains after the Manager process dies.
 
 **Solution:** Locks have a TTL of 60 seconds (configurable via `lockTtl`). Either:
+
 - Wait for the lock to expire
 - Manually purge it:
   ```bash
@@ -276,6 +279,7 @@ Individual test files:
 **Cause:** `baseUrl` is missing the `/v1` prefix.
 
 **Solution:** Ensure `baseUrl` ends with `/v1` (or `/v2` if using Vault API v2):
+
 ```ini
 baseUrl = https://vault.example.com:8200/v1
 ```
@@ -285,6 +289,7 @@ baseUrl = https://vault.example.com:8200/v1
 **Cause:** `confTimeout` is too low for the round-trip latency.
 
 **Solution:** Increase `confTimeout` in the `[all]` section:
+
 ```ini
 [all]
 confTimeout = 30
@@ -297,6 +302,7 @@ The default is 10 seconds; AppRole logins + TLS negotiation can exceed this.
 **Cause:** Self-signed certificates or missing CA bundle.
 
 **Solution:**
+
 - Point to your CA bundle:
   ```ini
   lwpSslOpts = { SSL_ca_file => /etc/ssl/certs/ca-bundle.crt }
@@ -311,6 +317,7 @@ The default is 10 seconds; AppRole logins + TLS negotiation can exceed this.
 **Cause:** The portal server's clock is significantly ahead/behind the Vault server.
 
 **Solution:** Sync system time using NTP:
+
 ```bash
 ntpdate -u time.nist.gov
 ```
