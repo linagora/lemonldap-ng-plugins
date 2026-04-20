@@ -15,10 +15,11 @@ package Lemonldap::NG::Portal::UserDB::JsonFile;
 use strict;
 use Mouse;
 use JSON;
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
 
 extends 'Lemonldap::NG::Portal::UserDB::Demo';
 
-our $VERSION = '0.1.0';
+our $VERSION = '0.1.18';
 
 has passwords => ( is => 'rw', default => sub { {} } );
 
@@ -76,6 +77,23 @@ sub init {
     $self->logger->info("JsonFile UserDB: loaded $count user(s) from $file");
 
     return 1;
+}
+
+# Populate session with every attribute defined in the JSON for this user,
+# then run the parent's setSessionInfo so that exportedVars / demoExportedVars
+# mappings can still rename or shadow individual keys.
+sub setSessionInfo {
+    my ( $self, $req ) = @_;
+    my $user  = $req->user;
+    my $attrs = $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{$user};
+    if ($attrs) {
+        for my $k ( keys %$attrs ) {
+            my $v = $attrs->{$k};
+            next unless defined $v;
+            $req->sessionInfo->{$k} = $v;
+        }
+    }
+    return $self->SUPER::setSessionInfo($req);
 }
 
 1;
