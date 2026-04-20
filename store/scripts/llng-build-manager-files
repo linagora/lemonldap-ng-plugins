@@ -170,10 +170,16 @@ for my $ext_file (@ext_files) {
     push @auth_plugins, collect_auth_plugins( $ext->{authPlugin}, $ext_file );
 }
 
+# Warn on conflicting authPlugin declarations (same k with a different v
+# or a different role set across extension files). Dedup below keeps only
+# the first-seen label, so flag the conflict to the maintainer.
+warn_auth_plugin_conflicts( \@auth_plugins );
+
 # Apply auth plugin declarations to the initial merged attributes so the
-# diff-based extraction below also picks up the flat-select additions
-# (authentication, userDB, passwordDB, combModules). authChoiceModules is
-# nested and is always re-applied at call time via @auth_plugins.
+# diff-based extraction below also picks up auth-plugin-driven additions.
+# This initial pass also populates nested authChoiceModules; auth plugins
+# are re-applied again at call time via @auth_plugins on fresh Build.pm
+# data so nested-select changes survive dclone().
 apply_auth_plugins( $attributes, \@auth_plugins );
 
 # 3. Store extension data for merging at call time
@@ -588,6 +594,30 @@ sub apply_auth_plugins {
         # combModules only covers authentication and userDB roles
         if ( $roles{authentication} || $roles{userDB} ) {
             _append_flat_select( $attrs, 'combModules', $opt );
+        }
+    }
+}
+
+sub warn_auth_plugin_conflicts {
+    my ($plugins) = @_;
+    my %seen;
+    for my $p (@$plugins) {
+        my $prev = $seen{ $p->{k} };
+        unless ($prev) {
+            $seen{ $p->{k} } = $p;
+            next;
+        }
+        if ( $prev->{v} ne $p->{v} ) {
+            warn "Warning [$p->{file}]: authPlugin '$p->{k}' label differs "
+              . "from earlier declaration in $prev->{file} "
+              . "('$p->{v}' vs '$prev->{v}'); keeping '$prev->{v}'\n";
+        }
+        my $prev_roles = join ',', sort @{ $prev->{roles} };
+        my $curr_roles = join ',', sort @{ $p->{roles} };
+        if ( $prev_roles ne $curr_roles ) {
+            warn "Warning [$p->{file}]: authPlugin '$p->{k}' roles differ "
+              . "from earlier declaration in $prev->{file} "
+              . "($curr_roles vs $prev_roles); union will be applied\n";
         }
     }
 }
