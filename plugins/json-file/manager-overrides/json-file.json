@@ -18,17 +18,19 @@
             "documentation": "Path to JSON users file (can also be set via LLNG_JSONUSERS env var)"
         }
     },
-    "tree": {
-        "insert_into": "generalParameters/authParams",
-        "insert_after": "demoParams",
-        "nodes": [
-            {
-                "title": "jsonFileParams",
-                "help": "authdemo.html",
-                "nodes": ["jsonFileUserPath"]
-            }
-        ]
-    },
+    "tree": [
+        {
+            "insert_into": "generalParameters/plugins",
+            "nodes": [
+                {
+                    "title": "jsonFileParams",
+                    "help": "authjsonfile.html",
+                    "form": "simpleInputContainer",
+                    "nodes": ["jsonFileUserPath"]
+                }
+            ]
+        }
+    ],
     "lang": {
         "jsonFileParams": {
             "en": "JSON File parameters",

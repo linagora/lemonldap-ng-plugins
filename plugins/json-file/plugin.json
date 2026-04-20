@@ -1,6 +1,6 @@
 {
     "name": "json-file",
-    "version": "0.1.0",
+    "version": "0.1.17",
     "summary": "JSON file-based authentication and user backend for development and testing",
     "author": "Linagora <https://linagora.com>",
     "license": "GPL-2.0",

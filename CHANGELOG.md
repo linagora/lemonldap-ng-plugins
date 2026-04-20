@@ -8,14 +8,14 @@ plugins bumped to **0.1.17** in lockstep: `pam-access`,
 
 ### pam-access
 
-- **Fix — `/pam/authorize` confused deputy (HIGH)**: the endpoint no
+- **Fix - `/pam/authorize` confused deputy (HIGH)**: the endpoint no
   longer trusts a `server_group` supplied in the request body when the
   new `pamAccessServerGroups` mapping (`client_id → group`) is
   configured. Enrolled servers can no longer claim another group's
   permissions. Unmapped clients are rejected with
   `PAM_AUTHZ_SERVER_GROUP_MISMATCH`. If the map is empty, the legacy
   body-controlled behaviour is preserved (with a one-shot warning log).
-- **Fix — `/pam/bastion-token` impersonation (MEDIUM)**: the endpoint
+- **Fix - `/pam/bastion-token` impersonation (MEDIUM)**: the endpoint
   now refuses to mint a JWT for a user that has not recently
   interacted with pam-access on this portal. A `_pamSeen` marker is
   stamped in the user's persistent session when they generate a token
@@ -39,12 +39,16 @@ plugins bumped to **0.1.17** in lockstep: `pam-access`,
 
 ### oidc-device-authorization
 
-- **Fix — stored XSS in `/device` approval page (MEDIUM)**: `SCOPE`,
+- **Fix - stored XSS in `/device` approval page (MEDIUM)**: `SCOPE`,
   `CLIENT_ID`, `USER_CODE`, and `MSG` now go through
   `ESCAPE="HTML"` in `device.tpl`. Before the fix, a malicious RP (or
   an attacker controlling the `scope` parameter of
   `POST /oauth2/device`) could plant HTML that would execute in the
   authenticated portal origin when a victim user approved the device.
+
+### json-file
+
+- **Fix** - do not put its parameters into authParams (special management)
 
 ### Docs
 
@@ -110,7 +114,7 @@ Touched plugins bumped to **0.1.16** in lockstep: `ssh-ca`, `pam-access`.
 
 ## v0.1.15 - 2026-04-19
 
-No plugin source code changed in this release — plugin package versions
+No plugin source code changed in this release - plugin package versions
 stay at **0.1.14**. Debian packaging only.
 
 ### Debian packaging
@@ -323,7 +327,7 @@ All plugins modified by this release are bumped to **0.1.14** in lockstep:
 
 ### New plugins (beta)
 
-- **captchetat**: CaptchEtat captcha module — integrates the French government
+- **captchetat**: CaptchEtat captcha module - integrates the French government
   CAPTCHA service (PISTE platform) with OAuth2 authentication, image display
   and audio playback for accessibility.
 
@@ -331,7 +335,7 @@ All plugins modified by this release are bumped to **0.1.14** in lockstep:
 
 ### New plugins (beta)
 
-- **twake**: Twake integration — `.well-known/twake-configuration` endpoint
+- **twake**: Twake integration - `.well-known/twake-configuration` endpoint
   and LDAP-based applicative account management.
 - **oidc-scope-applications**: OIDC `applications` scope exposing the portal
   application menu in the userinfo response.
@@ -357,7 +361,7 @@ All plugins modified by this release are bumped to **0.1.14** in lockstep:
 
 ### New plugins (beta)
 
-- **pacc**: PACC — Provider Automatic Configuration for Clients
+- **pacc**: PACC - Provider Automatic Configuration for Clients
   (draft-ietf-mailmaint-pacc). Provides `/.well-known/pacc.json` endpoint
   for mail client autoconfiguration (IMAP, SMTP, JMAP, CalDAV, CardDAV)
   with OAuth2 issuer info. Enhances OIDC dynamic registration for native
