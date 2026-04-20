@@ -1,17 +1,10 @@
 {
+    "authPlugin": {
+        "k": "JsonFile",
+        "v": "JSON File (dev/test)",
+        "roles": ["authentication", "userDB"]
+    },
     "attributes": {
-        "authentication": {
-            "type": "select",
-            "select": [
-                { "k": "JsonFile", "v": "JSON File (dev/test)" }
-            ]
-        },
-        "userDB": {
-            "type": "select",
-            "select": [
-                { "k": "JsonFile", "v": "JSON File (dev/test)" }
-            ]
-        },
         "jsonFileUserPath": {
             "type": "text",
             "default": "",
