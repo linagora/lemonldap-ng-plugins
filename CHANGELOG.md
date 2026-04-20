@@ -1,5 +1,58 @@
 # Changelog
 
+## v0.1.17 - 2026-04-20
+
+Security hardening release (findings from `/security-review`). Touched
+plugins bumped to **0.1.17** in lockstep: `pam-access`,
+`oidc-device-authorization`.
+
+### pam-access
+
+- **Fix — `/pam/authorize` confused deputy (HIGH)**: the endpoint no
+  longer trusts a `server_group` supplied in the request body when the
+  new `pamAccessServerGroups` mapping (`client_id → group`) is
+  configured. Enrolled servers can no longer claim another group's
+  permissions. Unmapped clients are rejected with
+  `PAM_AUTHZ_SERVER_GROUP_MISMATCH`. If the map is empty, the legacy
+  body-controlled behaviour is preserved (with a one-shot warning log).
+- **Fix — `/pam/bastion-token` impersonation (MEDIUM)**: the endpoint
+  now refuses to mint a JWT for a user that has not recently
+  interacted with pam-access on this portal. A `_pamSeen` marker is
+  stamped in the user's persistent session when they generate a token
+  via `/pam` or consume one via `/pam/verify`, and the marker is
+  required (and fresh, per `pamAccessBastionMaxSeenAge`, default
+  **1 week**) for `/pam/bastion-token` to succeed. Bastions remain
+  responsible for only calling the endpoint for users they are
+  actively proxying. New audit codes:
+  `PAM_BASTION_TOKEN_UNKNOWN_USER`, `PAM_BASTION_TOKEN_STALE_MARKER`.
+- **New config**: `pamAccessServerGroups`, `pamAccessBastionGroups`,
+  `pamAccessBastionJwtTtl`, `pamAccessBastionMaxSeenAge` are now
+  surfaced in the manager UI with EN/FR translations (previously the
+  two bastion-group/TTL options were read at runtime but not
+  documented / exposed).
+- **Upgrade note**: after upgrade, any user who hasn't passed through
+  `/pam` or `/pam/verify` in the last 7 days will be rejected by
+  `/pam/bastion-token`. In the normal open-bastion flow this is fine
+  (SSH login triggers `/pam/verify`), but admins with idle users can
+  raise `pamAccessBastionMaxSeenAge` or set it to `0` to disable the
+  age check.
+
+### oidc-device-authorization
+
+- **Fix — stored XSS in `/device` approval page (MEDIUM)**: `SCOPE`,
+  `CLIENT_ID`, `USER_CODE`, and `MSG` now go through
+  `ESCAPE="HTML"` in `device.tpl`. Before the fix, a malicious RP (or
+  an attacker controlling the `scope` parameter of
+  `POST /oauth2/device`) could plant HTML that would execute in the
+  authenticated portal origin when a victim user approved the device.
+
+### Docs
+
+- Refreshed `plugins/pam-access/README.md` and
+  `plugins/ssh-ca/README.md` to match the current endpoints, config
+  parameters, request/response shapes, and fingerprint-binding
+  workflow; cross-linked the two plugins.
+
 ## v0.1.16 - 2026-04-19
 
 Touched plugins bumped to **0.1.16** in lockstep: `ssh-ca`, `pam-access`.
