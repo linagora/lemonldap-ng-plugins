@@ -15,12 +15,12 @@
         <p trspan="deviceApprovedMsg">The device has been authorized. You can close this window.</p>
         <TMPL_IF NAME="CLIENT_ID">
           <p>
-            <strong trspan="clientId">Client ID</strong>: <TMPL_VAR NAME="CLIENT_ID">
+            <strong trspan="clientId">Client ID</strong>: <TMPL_VAR NAME="CLIENT_ID" ESCAPE="HTML">
           </p>
         </TMPL_IF>
         <TMPL_IF NAME="SCOPE">
           <p>
-            <strong trspan="requestedScope">Requested scope</strong>: <TMPL_VAR NAME="SCOPE">
+            <strong trspan="requestedScope">Requested scope</strong>: <TMPL_VAR NAME="SCOPE" ESCAPE="HTML">
           </p>
         </TMPL_IF>
       </div>
@@ -64,7 +64,7 @@
             <TMPL_IF NAME="ERROR">
               <div class="alert alert-danger">
                 <span class="fa fa-exclamation-triangle"></span>
-                <span trspan="<TMPL_VAR NAME="MSG">"><TMPL_VAR NAME="MSG"></span>
+                <span trspan="<TMPL_VAR NAME='MSG' ESCAPE='HTML'>"><TMPL_VAR NAME="MSG" ESCAPE="HTML"></span>
               </div>
             </TMPL_IF>
 
@@ -74,7 +74,7 @@
                      name="user_code"
                      id="user_code"
                      class="form-control form-control-lg text-center text-uppercase"
-                     value="<TMPL_VAR NAME="USER_CODE">"
+                     value="<TMPL_VAR NAME="USER_CODE" ESCAPE="HTML">"
                      placeholder="XXXX-XXXX"
                      pattern="[A-Za-z0-9\-]{6,12}"
                      maxlength="12"

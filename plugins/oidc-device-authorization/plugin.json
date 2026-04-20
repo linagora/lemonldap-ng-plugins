@@ -1,6 +1,6 @@
 {
   "name": "oidc-device-authorization",
-  "version": "0.1.14",
+  "version": "0.1.17",
   "summary": "OAuth 2.0 Device Authorization Grant (RFC 8628)",
   "description": "Implements RFC 8628 Device Authorization Grant for LemonLDAP::NG. Provides device code endpoint, user verification page, and device code grant type on the token endpoint. Supports PKCE for additional security.",
   "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",

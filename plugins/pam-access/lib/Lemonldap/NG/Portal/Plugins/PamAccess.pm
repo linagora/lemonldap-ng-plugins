@@ -43,6 +43,14 @@ has rpName => (
     default => sub { $_[0]->conf->{pamAccessRp} || 'pam-access' },
 );
 
+# One-shot flag for the legacy-mode warning emitted by _resolveServerGroup
+# when pamAccessServerGroups is empty. Without this, every call to
+# /pam/authorize or /pam/bastion-token would log a warning.
+has _serverGroupLegacyWarned => (
+    is      => 'rw',
+    default => 0,
+);
+
 # INITIALIZATION
 
 sub init {
@@ -196,6 +204,11 @@ sub generateToken {
     $self->logger->info(
         "PAM one-time token generated for user $login (TTL: ${duration}s)");
 
+    # Mark this user as known to pam-access on this portal. Used by
+    # /pam/bastion-token to refuse vouching for identities that have never
+    # interacted with the pam-access plugin.
+    $self->p->updatePersistentSession( $req, { _pamSeen => time() } );
+
     # Audit log for token generation
     $self->p->auditLog(
         $req,
@@ -264,13 +277,39 @@ sub authorize {
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
-    my $user         = $body->{user};
-    my $host         = $body->{host}         || '';
-    my $service      = $body->{service}      || 'ssh';
-    my $server_group = $body->{server_group} || 'default';
+    my $user    = $body->{user};
+    my $host    = $body->{host}    || '';
+    my $service = $body->{service} || 'ssh';
+    my $body_server_group = $body->{server_group};
 
     unless ($user) {
         return $self->_badRequest( $req, 'Missing user parameter' );
+    }
+
+    # Resolve the authoritative server_group for this enrolled client.
+    # If pamAccessServerGroups is configured, we enforce the mapping:
+    #   - enrolled client_id found  → use the mapped group, reject if the
+    #     request body claims a different group;
+    #   - enrolled client_id absent → reject (unknown server).
+    # If pamAccessServerGroups is empty, fall back to the legacy behaviour
+    # (group from body) so existing deployments keep working; a warning is
+    # emitted to encourage admins to lock down.
+    my $server_group =
+      $self->_resolveServerGroup( $req, $server_id, $body_server_group,
+        'PAM authorize' );
+    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
+        $self->p->auditLog(
+            $req,
+            code         => 'PAM_AUTHZ_SERVER_GROUP_MISMATCH',
+            user         => $user,
+            message      => $server_group->{message},
+            host         => $host,
+            service      => $service,
+            server_id    => $server_id,
+            claimed_group => $body_server_group,
+            reason       => $server_group->{reason},
+        );
+        return $self->_forbiddenResponse( $req, $server_group->{message} );
     }
 
     $self->logger->debug(
@@ -839,6 +878,11 @@ sub verifyToken {
     # 7. CRITICAL: Remove the session (one-time use!)
     $tokenSession->remove;
 
+    # Refresh the user's pam-access persistence marker so /pam/bastion-token
+    # can later vouch for them. Done after the token is consumed so that a
+    # failed verify never stamps.
+    $self->p->updatePersistentSession( $req, { _pamSeen => time() }, $user );
+
     $self->logger->info("PAM verify: Token consumed for user '$user'");
 
     # Audit log for successful authentication
@@ -1087,19 +1131,28 @@ sub bastionToken {
         return $self->_forbiddenResponse( $req, 'Invalid token scope' );
     }
 
-    # 4. Verify server is in a bastion group
-    my $server_group   = $tokenSession->data->{server_group}   || 'default';
+    # 4. Resolve this server's authoritative group.
+    # In legacy mode (no pamAccessServerGroups mapping), preserve the
+    # prior behaviour of reading `server_group` from the access-token
+    # session, so deployments that populate it out-of-band keep working.
+    my $bastion_id    = $tokenSession->data->{client_id} || 'unknown';
+    my $session_group = $tokenSession->data->{server_group};
+    my $server_group =
+      $self->_resolveServerGroup( $req, $bastion_id, $session_group,
+        'PAM bastion-token' );
+    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
+        return $self->_forbiddenResponse( $req, $server_group->{message} );
+    }
+
     my $bastion_groups = $self->conf->{pamAccessBastionGroups} || 'bastion';
     my @allowed_groups = split /[,;\s]+/, $bastion_groups;
-
-    my $is_bastion = 0;
+    my $is_bastion     = 0;
     for my $allowed (@allowed_groups) {
         if ( $server_group eq $allowed ) {
             $is_bastion = 1;
             last;
         }
     }
-
     unless ($is_bastion) {
         $self->logger->warn(
 "PAM bastion-token: Server group '$server_group' is not a bastion group"
@@ -1123,8 +1176,62 @@ sub bastionToken {
         return $self->_badRequest( $req, 'Missing user parameter' );
     }
 
-    # 6. Get bastion identity
-    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    # 6. Require that the user has recently interacted with pam-access on
+    # this portal. The `_pamSeen` marker is stamped in /pam (generateToken)
+    # and /pam/verify; we reject if it is missing (user never used
+    # pam-access here) or older than pamAccessBastionMaxSeenAge (default:
+    # 7 days). This limits the window during which a bastion can mint JWTs
+    # for a user who has stopped using this portal.
+    my $lastSeen = $self->_lastSeenOnPamAccess($user);
+    unless ( defined $lastSeen ) {
+        $self->logger->info(
+"PAM bastion-token: Rejected — user '$user' has no _pamSeen marker (bastion='$bastion_id')"
+        );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_BASTION_TOKEN_UNKNOWN_USER',
+            user    => $user,
+            message =>
+"PAM bastion-token denied: no _pamSeen marker for user '$user' (bastion='$bastion_id')",
+            bastion_id    => $bastion_id,
+            bastion_group => $server_group,
+            target_host   => $target_host,
+            target_group  => $target_group,
+            reason        => 'no_pam_seen_marker',
+        );
+        return $self->_forbiddenResponse( $req,
+            'User has never authenticated on this portal via pam-access' );
+    }
+
+    my $maxAge =
+      defined $self->conf->{pamAccessBastionMaxSeenAge}
+      ? $self->conf->{pamAccessBastionMaxSeenAge}
+      : 604800;    # 7 days
+    if ( $maxAge > 0 ) {
+        my $age = time() - $lastSeen;
+        if ( $age > $maxAge ) {
+            $self->logger->info(
+"PAM bastion-token: Rejected — _pamSeen for user '$user' is ${age}s old, max ${maxAge}s (bastion='$bastion_id')"
+            );
+            $self->p->auditLog(
+                $req,
+                code    => 'PAM_BASTION_TOKEN_STALE_MARKER',
+                user    => $user,
+                message =>
+"PAM bastion-token denied: _pamSeen too old for user '$user' (age=${age}s, max=${maxAge}s)",
+                bastion_id    => $bastion_id,
+                bastion_group => $server_group,
+                target_host   => $target_host,
+                target_group  => $target_group,
+                age           => $age,
+                max_age       => $maxAge,
+                reason        => 'stale_pam_seen_marker',
+            );
+            return $self->_forbiddenResponse( $req,
+"User has not recently interacted with pam-access on this portal"
+            );
+        }
+    }
 
     $self->logger->info(
             "PAM bastion-token: Generating JWT for bastion '$bastion_id' "
@@ -1328,6 +1435,74 @@ sub _signBastionJwt {
     my $sig_b64 = MIME::Base64::encode_base64url( $signature, '' );
 
     return "$signing_input.$sig_b64";
+}
+
+# HELPER: Resolve the authoritative server_group for an enrolled client.
+# Returns either a plain string (the group) or a hashref { rejected=>1,
+# message, reason } that the caller turns into a 403 response.
+#
+#  - pamAccessServerGroups configured + client_id mapped:
+#      use mapped group; if caller_body_group is given and differs, reject.
+#  - pamAccessServerGroups configured + client_id missing:
+#      reject (unknown server, strict lockdown).
+#  - pamAccessServerGroups empty (legacy):
+#      use body-provided group or 'default'; warn once.
+sub _resolveServerGroup {
+    my ( $self, $req, $client_id, $body_group, $log_prefix ) = @_;
+    $log_prefix ||= 'PAM';
+
+    my $map = $self->conf->{pamAccessServerGroups} || {};
+    my $has_map = ref $map eq 'HASH' && scalar( keys %$map ) > 0;
+
+    if ($has_map) {
+        my $mapped = $map->{ $client_id // '' };
+        unless ( defined $mapped && $mapped ne '' ) {
+            return {
+                rejected => 1,
+                message  => "Unknown enrolled server '$client_id'",
+                reason   => 'unmapped_client_id',
+            };
+        }
+        if (   defined $body_group
+            && $body_group ne ''
+            && $body_group ne $mapped )
+        {
+            return {
+                rejected => 1,
+                message  =>
+"Server '$client_id' is not authorized for server_group '$body_group'",
+                reason => 'server_group_mismatch',
+            };
+        }
+        return $mapped;
+    }
+
+    # Legacy / back-compat path. Emit the warning only once per process so
+    # the logs don't fill up for deployments that haven't configured the
+    # mapping yet.
+    unless ( $self->_serverGroupLegacyWarned ) {
+        $self->logger->warn(
+            "$log_prefix: pamAccessServerGroups is empty; trusting caller-provided "
+              . "server_group — configure the mapping to harden authorization "
+              . "(this warning is emitted only once)" );
+        $self->_serverGroupLegacyWarned(1);
+    }
+    return defined $body_group && $body_group ne '' ? $body_group : 'default';
+}
+
+# HELPER: Return the `_pamSeen` timestamp (unix time) from the user's
+# persistent session if they have previously interacted with pam-access on
+# this portal, or undef if no marker is present. The marker is stamped in
+# generateToken and verifyToken; callers decide how to interpret the age.
+sub _lastSeenOnPamAccess {
+    my ( $self, $user ) = @_;
+    return undef unless defined $user && $user ne '';
+
+    my $ps = $self->p->getPersistentSession($user);
+    return undef unless $ps && !$ps->error;
+    my $ts = $ps->data->{_pamSeen};
+    return undef unless defined $ts && $ts =~ /^\d+$/;
+    return $ts;
 }
 
 # HELPER: Look up the user's persistent session and verify that an SSH CA
