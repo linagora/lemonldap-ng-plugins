@@ -158,8 +158,8 @@ sub init {
     # default ::NoBroker only dispatches in-process). Every node registers a
     # handler that updates its own KRL file on receiving a 'sshCaRevoke' event.
     # Drift recovery (broker outage, node added later) is handled out of band
-    # by the sshca-rebuild-krl cron — _rebuildKrlFromSessions() scans the
-    # persistent sessions (source of truth) and replaces the local KRL.
+    # by the external sshca-rebuild-krl cron script, which scans the
+    # persistent sessions (source of truth) and rewrites the local KRL.
     Lemonldap::NG::Handler::Main::MsgActions::addMsgAction(
         'sshCaRevoke',
         sub {
@@ -483,19 +483,34 @@ sub sshCaSign {
 # HELPER METHODS
 # =============================================================================
 
-# HELPER: Generate a unique certificate serial, stateless.
+# HELPER: Generate a unique certificate serial.
 #
 # Multi-portal deployments (issue #9) rule out a shared counter file: each
 # node would increment its own and produce duplicates. Instead we derive the
 # serial from the wall clock in microseconds plus a small random tail:
 #   serial = seconds * 1_000_000_000 + microseconds * 1_000 + rand(0..999)
-# That fits in an unsigned 63-bit integer (ssh-keygen accepts up to 2^64-1),
-# grows monotonically per-node, and the random tail makes a collision between
-# two nodes issuing in the same microsecond practically impossible.
-sub _getNextSerial {
-    my ($self) = @_;
-    my ( $s, $us ) = gettimeofday();
-    return $s * 1_000_000_000 + $us * 1_000 + int( rand(1000) );
+# That fits in an unsigned 63-bit integer (ssh-keygen accepts up to 2^64-1).
+#
+# Two safeguards on top of rand():
+#   - per-process monotonic: we remember the last (s, us) and bump µs forward
+#     if the clock tick hasn't advanced (or stepped backwards), which rules
+#     out intra-process collisions even on coarse/NTP-adjusted clocks.
+#   - cross-node collision probability within the same µs stays at 1/1000,
+#     which is acceptable for SSH CA issuance rates. The KRL keys on serial,
+#     so any clash would be caught there and can be retried.
+{
+    my ( $last_s, $last_us ) = ( 0, 0 );
+
+    sub _getNextSerial {
+        my ($self) = @_;
+        my ( $s, $us ) = gettimeofday();
+        if ( $s < $last_s || ( $s == $last_s && $us <= $last_us ) ) {
+            ( $s, $us ) = ( $last_s, $last_us + 1 );
+            if ( $us >= 1_000_000 ) { $s++; $us = 0; }
+        }
+        ( $last_s, $last_us ) = ( $s, $us );
+        return $s * 1_000_000_000 + $us * 1_000 + int( rand(1000) );
+    }
 }
 
 # HELPER: Sign SSH key using ssh-keygen
@@ -1306,7 +1321,12 @@ sub _sshKeyFingerprint {
     return undef;
 }
 
-# HELPER: Update KRL file with revoked serial
+# HELPER: Update KRL file with revoked serial.
+# Serialized across workers on the same node via flock on a dedicated
+# lockfile: concurrent events (broker-driven + locally-triggered) can reach
+# this helper in parallel, and ssh-keygen -u does a read-modify-write on the
+# KRL file, so without this lock the last writer wins and earlier revocations
+# get lost.
 sub _updateKrl {
     my ( $self, $serial ) = @_;
 
@@ -1327,6 +1347,21 @@ sub _updateKrl {
         $self->logger->error('SSH CA: No key reference configured for KRL');
         return 0;
     }
+
+    # Acquire exclusive lock for the whole read-modify-write sequence.
+    # Lockfile lives next to the KRL so a single process is responsible per
+    # node. The lock is released when $lockFh goes out of scope.
+    require Fcntl;
+    my $lockPath = "$krlPath.lock";
+    open my $lockFh, '>>', $lockPath or do {
+        $self->logger->error("SSH CA: Cannot open KRL lockfile: $!");
+        return 0;
+    };
+    flock( $lockFh, Fcntl::LOCK_EX() ) or do {
+        $self->logger->error("SSH CA: Cannot lock KRL: $!");
+        close $lockFh;
+        return 0;
+    };
 
     require File::Temp;
     my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
