@@ -315,8 +315,10 @@ sub sshCaSign {
     my $existingCerts = [];
     if ( $req->userData->{_sshCerts} ) {
         $existingCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-        $existingCerts = []
-          if $@ || ref($existingCerts) ne 'ARRAY';
+        if ( $@ || ref($existingCerts) ne 'ARRAY' ) {
+            $self->logger->warn("SSH CA: Corrupted _sshCerts, resetting: $@");
+            $existingCerts = [];
+        }
     }
     my $now = time();
     for my $c (@$existingCerts) {
@@ -1322,8 +1324,8 @@ sub _storeCertificate {
 # trailing `=` padding stripped (see sshkey_fingerprint_b64 in sshkey.c).
 # The blob is the raw wire-format key, which is exactly what's base64-
 # encoded as the second whitespace-separated token of the pubkey line —
-# and sshCaSign validates that format upstream (see the regex at line
-# 279-284), so no fork to ssh-keygen is needed here.
+# sshCaSign's public-key regex has already validated that shape upstream,
+# so no fork to ssh-keygen is needed here.
 sub _sshKeyFingerprint {
     my ( $self, $sshPubKey ) = @_;
     return undef unless defined $sshPubKey;

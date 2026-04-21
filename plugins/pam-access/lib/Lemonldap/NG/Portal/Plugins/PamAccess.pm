@@ -1553,7 +1553,11 @@ sub _checkSshFingerprint {
     return { ok => 0, reason => 'no-fingerprint' }
       unless defined $fingerprint && $fingerprint ne '';
 
-    my $ps = $opts{ps} // $self->p->getPersistentSession($user);
+    # `exists` rather than `//` so a caller who explicitly passes
+    # `ps => undef` (because their own getPersistentSession returned undef)
+    # doesn't trigger a second redundant load here.
+    my $ps =
+      exists $opts{ps} ? $opts{ps} : $self->p->getPersistentSession($user);
     return { ok => 0, reason => 'no-session' } unless $ps;
     if ( $ps->error ) {
         $self->logger->error(
