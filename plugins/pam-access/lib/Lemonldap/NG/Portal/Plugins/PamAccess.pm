@@ -355,32 +355,20 @@ sub authorize {
     # it must match an active (non-revoked, non-expired) SSH CA certificate
     # in the user's persistent session. This hardens authorize against stale
     # KRLs on the SSH server side.
-    my $fingerprint = $body->{fingerprint};
+    my ( $fingerprint, $fp_bail ) = $self->_parseFingerprintOrReject(
+        $req, $body, $user,
+        label        => 'PAM authorize',
+        action       => 'authorization rejected',
+        audit_code   => 'PAM_AUTHZ_SSH_FP_MALFORMED',
+        audit_fields => {
+            host         => $host,
+            service      => $service,
+            server_group => $server_group,
+            server_id    => $server_id,
+        },
+    );
+    return $fp_bail if $fp_bail;
     if ( defined $fingerprint ) {
-        $fingerprint =~ s/^\s+|\s+$//g;
-    }
-    if ( defined $fingerprint && $fingerprint ne '' ) {
-        unless ( $fingerprint =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z} ) {
-            $self->logger->info(
-                "PAM authorize: malformed SSH fingerprint for user '$user'");
-            $self->p->auditLog(
-                $req,
-                code    => 'PAM_AUTHZ_SSH_FP_MALFORMED',
-                user    => $user,
-                message =>
-"PAM authorization rejected: malformed SSH fingerprint for user '$user'",
-                host         => $host,
-                service      => $service,
-                server_group => $server_group,
-                server_id    => $server_id,
-                reason       => 'malformed_fingerprint',
-            );
-            return $self->p->sendJSONresponse(
-                $req,
-                { error => 'Malformed SSH fingerprint' },
-                code => 400
-            );
-        }
 
         my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
         unless ( $sshCheck->{ok} ) {
@@ -807,37 +795,20 @@ sub verifyToken {
     # that the user's persistent session holds a matching, non-revoked,
     # non-expired SSH CA certificate record. This binds the PAM token to a
     # known SSH key even if the SSH server's KRL is stale.
-    my $fingerprint = $body->{fingerprint};
+    my ( $fingerprint, $fp_bail ) = $self->_parseFingerprintOrReject(
+        $req, $body, $user,
+        label         => 'PAM verify',
+        action        => 'authentication rejected',
+        audit_code    => 'PAM_AUTH_SSH_FP_MALFORMED',
+        audit_fields  => { server_id => $server_id },
+        response_body =>
+          { valid => JSON::false, error => 'Malformed SSH fingerprint' },
+        on_reject => sub { $tokenSession->remove },
+    );
+    return $fp_bail if $fp_bail;
+
     my $ps;
     if ( defined $fingerprint ) {
-        $fingerprint =~ s/^\s+|\s+$//g;
-    }
-    if ( defined $fingerprint && $fingerprint ne '' ) {
-
-        # Strict format check: only SHA256:base64[=..] is accepted.
-        # Anything else is either a bug in the caller or an attacker probe.
-        unless ( $fingerprint =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z} ) {
-            $self->logger->info(
-                "PAM verify: malformed SSH fingerprint for user '$user'");
-            $self->p->auditLog(
-                $req,
-                code      => 'PAM_AUTH_SSH_FP_MALFORMED',
-                user      => $user,
-                server_id => $server_id,
-                message   =>
-"PAM authentication rejected: malformed SSH fingerprint for user '$user'",
-                reason => 'malformed_fingerprint',
-            );
-            $tokenSession->remove;
-            return $self->p->sendJSONresponse(
-                $req,
-                {
-                    valid => JSON::false,
-                    error => 'Malformed SSH fingerprint',
-                },
-                code => 400
-            );
-        }
 
         # Load the persistent session once; the _pamSeen stamp below
         # reuses the same $ps instead of going through
@@ -1498,6 +1469,61 @@ sub _resolveServerGroup {
         $self->_serverGroupLegacyWarned(1);
     }
     return defined $body_group && $body_group ne '' ? $body_group : 'default';
+}
+
+# HELPER: parse and format-validate the `fingerprint` field of a PAM
+# request body. Centralises the SHA256 regex shared by /pam/authorize
+# and /pam/verify plus their common "malformed" handling.
+#
+# Returns ( $fingerprint, undef ) on success — $fingerprint is either
+#   the validated string, or undef when the caller did not provide one
+#   (which every caller treats as "skip the fingerprint check").
+# Returns ( undef, $psgi_response ) when the caller must bail out with
+#   the provided PSGI response (malformed format).
+#
+# %opts:
+#   label            - log prefix ("PAM authorize" / "PAM verify")
+#   action           - audit message action phrase
+#   audit_code       - audit code for the malformed event
+#   audit_fields     - hashref of extra audit fields (host, server_id, ...)
+#   response_body    - hashref returned as JSON on malformed (authorize
+#                      uses { error => ... }, verify uses
+#                      { valid => JSON::false, error => ... })
+#   on_reject        - optional coderef invoked just before sending the
+#                      reject response (verify uses this to remove the
+#                      one-time token session)
+sub _parseFingerprintOrReject {
+    my ( $self, $req, $body, $user, %opts ) = @_;
+
+    my $fp = $body->{fingerprint};
+    if ( defined $fp ) {
+        $fp =~ s/^\s+|\s+$//g;
+        $fp = undef if $fp eq '';
+    }
+    return ( undef, undef ) unless defined $fp;
+    return ( $fp,   undef ) if $fp =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z};
+
+    my $label        = $opts{label}         || 'PAM';
+    my $action       = $opts{action}        || 'rejected';
+    my $audit_code   = $opts{audit_code};
+    my $audit_fields = $opts{audit_fields}  || {};
+    my $body_out     = $opts{response_body}
+      || { error => 'Malformed SSH fingerprint' };
+
+    $self->logger->info("$label: malformed SSH fingerprint for user '$user'");
+    $self->p->auditLog(
+        $req,
+        code    => $audit_code,
+        user    => $user,
+        message => "PAM $action: malformed SSH fingerprint for user '$user'",
+        reason  => 'malformed_fingerprint',
+        %$audit_fields,
+    );
+
+    $opts{on_reject}->() if $opts{on_reject};
+
+    return ( undef,
+        $self->p->sendJSONresponse( $req, $body_out, code => 400 ) );
 }
 
 # HELPER: Return the `_pamSeen` timestamp (unix time) from the user's
