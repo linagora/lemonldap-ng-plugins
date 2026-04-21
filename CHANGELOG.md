@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.1.18 - 2026-04-21
+
+Touched plugin bumped to **0.1.18**: `json-file`. Store and CI improvements.
+
+### json-file
+
+- **Export all JSON attributes into the session**: `UserDB::JsonFile`
+  now overrides `setSessionInfo` to push every attribute present in the
+  JSON file into the session, instead of relying on the `exportedVars`
+  mapping (which defaulted to `uid` / `cn` / `mail` only). The parent
+  `Demo::setSessionInfo` is still called afterwards, so existing
+  `exportedVars` / `demoExportedVars` mappings can still rename or
+  shadow specific keys. Useful for DR setups where the JSON mirrors a
+  rich LDAP profile and every field (admin flag, mailbox, service ids,
+  ...) must be available without duplicating each name in
+  `exportedVars`.
+
+### Store / packaging
+
+- **`authPlugin` declaration for auth modules**: a plugin's
+  `manager-overrides/*.json` can now declare itself at the top level
+  via an `authPlugin` object (with `k`, `v`, and a `roles` list among
+  `authentication`, `userDB`, `passwordDB`) instead of manually
+  appending to each core select. `llng-build-manager-files` fans the
+  entry out to the relevant `authentication` / `userDB` / `passwordDB`
+  selects, to `authChoiceModules` (nested `authenticationLevel`, etc.)
+  and to `combModules`, with per-key dedup. `json-file` migrated to
+  this mechanism, which also fills `authChoiceModules` so it now shows
+  up under authChoice.
+- **Conflict detection**: when two extension files declare the same
+  `authPlugin` key with a mismatching label or role set, the
+  rebuilder now warns the maintainer instead of silently dropping the
+  second declaration (dedup still keeps the first-seen entry).
+
 ## v0.1.17 - 2026-04-20
 
 Security hardening release (findings from `/security-review`). Touched
