@@ -13,7 +13,7 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 
 use strict;
 use Mouse;
-use JSON qw(from_json to_json);
+use JSON                                   qw(from_json to_json);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -103,13 +103,7 @@ sub init {
       # Routes for authenticated users (token generation interface)
       ->addAuthRoute(
         pam => { '*' => 'pamInterface' },
-        ['GET']
-      )
-
-      # POST /pam - Generate a new PAM access token (auth required)
-      ->addAuthRoute(
-        pam => { '*' => 'generateToken' },
-        ['POST']
+        [ 'GET', 'POST' ]
       );
 
     return 1;
@@ -127,6 +121,7 @@ sub pamRedirectToPortal {
 # GET /pam - Display the token generation interface (standalone page)
 sub pamInterface {
     my ( $self, $req ) = @_;
+    return $self->generateToken($req) if $req->method =~ /^post$/i;
 
     return $self->p->sendHtml(
         $req,
@@ -277,9 +272,9 @@ sub authorize {
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
-    my $user    = $body->{user};
-    my $host    = $body->{host}    || '';
-    my $service = $body->{service} || 'ssh';
+    my $user              = $body->{user};
+    my $host              = $body->{host}    || '';
+    my $service           = $body->{service} || 'ssh';
     my $body_server_group = $body->{server_group};
 
     unless ($user) {
@@ -300,14 +295,14 @@ sub authorize {
     if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
         $self->p->auditLog(
             $req,
-            code         => 'PAM_AUTHZ_SERVER_GROUP_MISMATCH',
-            user         => $user,
-            message      => $server_group->{message},
-            host         => $host,
-            service      => $service,
-            server_id    => $server_id,
+            code          => 'PAM_AUTHZ_SERVER_GROUP_MISMATCH',
+            user          => $user,
+            message       => $server_group->{message},
+            host          => $host,
+            service       => $service,
+            server_id     => $server_id,
             claimed_group => $body_server_group,
-            reason       => $server_group->{reason},
+            reason        => $server_group->{reason},
         );
         return $self->_forbiddenResponse( $req, $server_group->{message} );
     }
@@ -480,8 +475,7 @@ sub authorize {
         # Surface the matched SSH cert details when fingerprint binding was
         # used, so the caller can log/cache which key was actually checked.
         if ( defined $req->sessionInfo->{_pamSshCertLabel} ) {
-            $response->{ssh_cert_label} =
-              $req->sessionInfo->{_pamSshCertLabel};
+            $response->{ssh_cert_label} = $req->sessionInfo->{_pamSshCertLabel};
         }
         if ( defined $req->sessionInfo->{_pamSshCertSerial} ) {
             $response->{ssh_cert_serial} =
@@ -1451,7 +1445,7 @@ sub _resolveServerGroup {
     my ( $self, $req, $client_id, $body_group, $log_prefix ) = @_;
     $log_prefix ||= 'PAM';
 
-    my $map = $self->conf->{pamAccessServerGroups} || {};
+    my $map     = $self->conf->{pamAccessServerGroups} || {};
     my $has_map = ref $map eq 'HASH' && scalar( keys %$map ) > 0;
 
     if ($has_map) {
@@ -1482,7 +1476,7 @@ sub _resolveServerGroup {
     # mapping yet.
     unless ( $self->_serverGroupLegacyWarned ) {
         $self->logger->warn(
-            "$log_prefix: pamAccessServerGroups is empty; trusting caller-provided "
+"$log_prefix: pamAccessServerGroups is empty; trusting caller-provided "
               . "server_group — configure the mapping to harden authorization "
               . "(this warning is emitted only once)" );
         $self->_serverGroupLegacyWarned(1);
