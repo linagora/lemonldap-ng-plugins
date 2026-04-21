@@ -57,9 +57,8 @@ my ( @user_pubkeys, @user_fps );
     }
 }
 
-my $tmpdir     = tempdir( CLEANUP => 1 );
-my $serialPath = "$tmpdir/serial";
-my $krlPath    = "$tmpdir/krl";
+my $tmpdir = tempdir( CLEANUP => 1 );
+my $krlPath = "$tmpdir/krl";
 
 my $portal = LLNG::Manager::Test->new( {
         ini => {
@@ -77,7 +76,6 @@ my $portal = LLNG::Manager::Test->new( {
                 },
             },
             sshCaKrlPath          => $krlPath,
-            sshCaSerialPath       => $serialPath,
             sshCaCertMaxValidity  => 30,
             sshCaPrincipalSources => '$uid',
         }

@@ -33,11 +33,6 @@
       "type": "text",
       "default": "/var/lib/lemonldap-ng/ssh/revoked_keys",
       "documentation": "Path to SSH Key Revocation List file"
-    },
-    "sshCaSerialPath": {
-      "type": "text",
-      "default": "/var/lib/lemonldap-ng/ssh/serial",
-      "documentation": "Path to SSH certificate serial number file"
     }
   },
   "tree": [
@@ -55,8 +50,7 @@
             "sshCaKeyRef",
             "sshCaCertMaxValidity",
             "sshCaPrincipalSources",
-            "sshCaKrlPath",
-            "sshCaSerialPath"
+            "sshCaKrlPath"
           ]
         }
       ]
@@ -90,10 +84,6 @@
     "sshCaKrlPath": {
       "en": "KRL file path",
       "fr": "Chemin du fichier KRL"
-    },
-    "sshCaSerialPath": {
-      "en": "Serial file path",
-      "fr": "Chemin du fichier de série"
     }
   }
 }

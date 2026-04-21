@@ -14,14 +14,17 @@ package Lemonldap::NG::Portal::Plugins::SSHCA;
 use strict;
 use Mouse;
 use JSON qw(from_json to_json);
+use Time::HiRes qw(gettimeofday);
 use Lemonldap::NG::Common::Apache::Session;
+use Lemonldap::NG::Handler::Main::MsgActions;
 use Lemonldap::NG::Portal::Main::Constants qw(
+  HANDLER
   PE_OK
   PE_ERROR
   PE_SENDRESPONSE
 );
 
-our $VERSION = '2.22.0';
+our $VERSION = '2.23.0';
 
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
@@ -148,6 +151,26 @@ sub init {
             ['GET']
         );
     }
+
+    # Multi-node replication of the KRL (issue #9). The KRL file is local to
+    # each portal host, so a revocation on node A must be propagated to node B.
+    # We rely on LLNG's message broker (requires ::Redis / ::MQTT / ::Pg — the
+    # default ::NoBroker only dispatches in-process). Every node registers a
+    # handler that updates its own KRL file on receiving a 'sshCaRevoke' event.
+    # Drift recovery (broker outage, node added later) is handled out of band
+    # by the sshca-rebuild-krl cron — _rebuildKrlFromSessions() scans the
+    # persistent sessions (source of truth) and replaces the local KRL.
+    Lemonldap::NG::Handler::Main::MsgActions::addMsgAction(
+        'sshCaRevoke',
+        sub {
+            my ( $class, $msg, $req ) = @_;
+            my $serial = $msg->{serial};
+            return unless defined $serial && $serial ne '';
+            $self->logger->debug(
+                "SSH CA: broker event sshCaRevoke serial=$serial");
+            $self->_updateKrl($serial);
+        }
+    );
 
     $self->logger->debug('SSH CA plugin initialized');
 
@@ -460,59 +483,19 @@ sub sshCaSign {
 # HELPER METHODS
 # =============================================================================
 
-# HELPER: Get next serial number (atomic increment)
+# HELPER: Generate a unique certificate serial, stateless.
+#
+# Multi-portal deployments (issue #9) rule out a shared counter file: each
+# node would increment its own and produce duplicates. Instead we derive the
+# serial from the wall clock in microseconds plus a small random tail:
+#   serial = seconds * 1_000_000_000 + microseconds * 1_000 + rand(0..999)
+# That fits in an unsigned 63-bit integer (ssh-keygen accepts up to 2^64-1),
+# grows monotonically per-node, and the random tail makes a collision between
+# two nodes issuing in the same microsecond practically impossible.
 sub _getNextSerial {
     my ($self) = @_;
-
-    my $serialPath = $self->conf->{sshCaSerialPath}
-      || '/var/lib/lemonldap-ng/ssh/serial';
-
-    # Ensure directory exists
-    my $dir = $serialPath;
-    $dir =~ s|/[^/]+$||;
-    unless ( -d $dir ) {
-        require File::Path;
-        File::Path::make_path($dir);
-    }
-
-    # Read current serial, increment, and write back atomically using flock
-    use Fcntl qw(:flock);
-
-    my $serial = 1;
-
-  # Open file in append+read mode to ensure file is created if it doesn't exist.
-  # We then seek to beginning to read/write. This avoids a TOCTOU race when
-  # checking existence separately from opening.
-    if ( open my $fh, '+>>', $serialPath ) {
-
-        # Acquire exclusive lock to prevent race conditions
-        flock( $fh, LOCK_EX ) or do {
-            $self->logger->warn("SSH CA: Cannot lock serial file: $!");
-            close $fh;
-            return $serial;
-        };
-
-        # Seek to beginning to read current value
-        seek( $fh, 0, 0 );
-        my $current = <$fh>;
-        if ( defined $current ) {
-            chomp $current;
-            $serial = int($current) + 1 if $current =~ /^\d+$/;
-        }
-
-        # Truncate and write new serial
-        seek( $fh, 0, 0 );
-        truncate( $fh, 0 );
-        print $fh "$serial\n";
-
-        # Lock is released when file handle is closed
-        close $fh;
-    }
-    else {
-        $self->logger->warn("SSH CA: Cannot open serial file: $!");
-    }
-
-    return $serial;
+    my ( $s, $us ) = gettimeofday();
+    return $s * 1_000_000_000 + $us * 1_000 + int( rand(1000) );
 }
 
 # HELPER: Sign SSH key using ssh-keygen
@@ -923,6 +906,7 @@ sub sshMyCertRevoke {
     $self->p->updatePersistentSession( $req,
         { _sshCerts => to_json($sshCerts) } );
     my $krlOk = $self->_updateKrl($serial);
+    $self->_publishRevoke( $req, $serial );
 
     $self->logger->info( "SSH CA: Self-revocation by '$user': "
           . "serial=$serial, key_id=$target->{key_id}" );
@@ -1181,6 +1165,7 @@ sub sshCertRevoke {
 
     # Update the KRL file
     my $krlUpdated = $self->_updateKrl($serial);
+    $self->_publishRevoke( $req, $serial );
 
     $self->logger->info( "SSH CA: Certificate revoked by '$adminUser': "
           . "serial=$serial, key_id=$keyId, user=$user, reason=$reason" );
@@ -1252,6 +1237,7 @@ sub _storeCertificate {
             {
                 if ( $c->{serial} ) {
                     my $ok = $self->_updateKrl( $c->{serial} );
+                    $self->_publishRevoke( $req, $c->{serial} );
                     $self->logger->info(
                         "SSH CA: Replaced certificate serial=$c->{serial} "
                           . "(superseded by $args{serial}); KRL update "
@@ -1403,6 +1389,25 @@ sub _updateKrl {
     }
 
     $self->logger->info("SSH CA: KRL updated with revoked serial $serial");
+    return 1;
+}
+
+# HELPER: Broadcast a revocation to sibling portals through the LLNG message
+# broker (issue #9). Peers subscribe to the 'sshCaRevoke' action in init() and
+# call _updateKrl on their own local KRL file. Requires a real broker
+# (::Redis / ::MQTT / ::Pg); with the default ::NoBroker the publish stays on
+# the local node.
+sub _publishRevoke {
+    my ( $self, $req, $serial ) = @_;
+    return unless defined $serial && $serial ne '';
+    eval {
+        HANDLER->publishEvent( $req,
+            { action => 'sshCaRevoke', serial => $serial } );
+    };
+    if ($@) {
+        $self->logger->warn(
+            "SSH CA: publishEvent(sshCaRevoke, $serial) failed: $@");
+    }
     return 1;
 }
 
