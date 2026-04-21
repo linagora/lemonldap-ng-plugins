@@ -95,6 +95,16 @@ function fmt(obj) {
   return JSON.stringify(obj, null, 2);
 }
 
+// Forward the child process exit code, clamped to the 0-255 range
+// required by POSIX exit status.
+function clampExit(code) {
+  if (code === 0) return 0;
+  if (typeof code !== "number" || Number.isNaN(code)) return 1;
+  const c = Math.trunc(code);
+  if (c < 0) return 1;
+  return c > 255 ? 255 : c;
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0 || argv[0] === "-h" || argv[0] === "--help") {
@@ -111,6 +121,11 @@ async function main() {
     return 2;
   }
   const { positional, opts, extraTests } = parsed;
+
+  if (opts.help) {
+    process.stdout.write(USAGE);
+    return 0;
+  }
 
   switch (cmd) {
     case "list": {
@@ -158,7 +173,7 @@ async function main() {
       process.stdout.write(
         `\n--- prove exit=${res.exitCode} (cwd=${res.cwd})\n`,
       );
-      return res.exitCode === 0 ? 0 : 1;
+      return clampExit(res.exitCode);
     }
 
     case "test": {
@@ -182,7 +197,7 @@ async function main() {
         streamStdio: true,
       });
       process.stdout.write(`\n--- prove exit=${res.exitCode}\n`);
-      return res.exitCode === 0 ? 0 : 1;
+      return clampExit(res.exitCode);
     }
 
     case "clean": {

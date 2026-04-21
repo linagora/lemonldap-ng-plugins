@@ -122,7 +122,31 @@ async function detectPrimaryComponent(pluginDir) {
   return "Portal";
 }
 
+function validatePluginName(name) {
+  if (typeof name !== "string" || !name) {
+    throw new Error(`invalid plugin name: ${JSON.stringify(name)}`);
+  }
+  if (
+    name === "." ||
+    name === ".." ||
+    name.includes("/") ||
+    name.includes("\\") ||
+    name.includes("\0") ||
+    path.isAbsolute(name)
+  ) {
+    throw new Error(`invalid plugin name (path separators not allowed): ${name}`);
+  }
+  const resolved = path.resolve(PLUGINS_DIR, name);
+  if (
+    resolved !== path.join(PLUGINS_DIR, name) ||
+    !resolved.startsWith(PLUGINS_DIR + path.sep)
+  ) {
+    throw new Error(`invalid plugin name (escapes plugins/): ${name}`);
+  }
+}
+
 async function readPluginJson(pluginName) {
+  validatePluginName(pluginName);
   const p = path.join(PLUGINS_DIR, pluginName, "plugin.json");
   if (!(await exists(p))) return null;
   try {
@@ -137,6 +161,7 @@ async function resolveDependencies(root, opts = {}) {
   const visited = new Set();
   const order = [];
   async function visit(name) {
+    validatePluginName(name);
     if (visited.has(name)) return;
     visited.add(name);
     if (!(await exists(path.join(PLUGINS_DIR, name)))) {
@@ -354,19 +379,41 @@ async function mergeTranslations(pluginName, log) {
     if (await exists(dstPath)) {
       dstJson = JSON.parse(await fs.readFile(dstPath, "utf8"));
     }
-    const known = new Set(state.files[f] || []);
+    // Known keys are tracked as { key -> value-we-last-wrote }. This lets
+    // un-merge distinguish "still our key" (current value matches what we
+    // wrote) from "upstream took over" (value changed meanwhile). Legacy
+    // array form is migrated silently.
+    const prev = state.files[f];
+    const known = {};
+    if (Array.isArray(prev)) {
+      for (const k of prev) if (k in dstJson) known[k] = dstJson[k];
+    } else if (prev && typeof prev === "object") {
+      Object.assign(known, prev);
+    }
+
     for (const [k, v] of Object.entries(srcJson)) {
       if (!(k in dstJson)) {
         dstJson[k] = v;
-        known.add(k);
+        known[k] = v;
         total++;
-      } else if (known.has(k)) {
+      } else if (
+        Object.prototype.hasOwnProperty.call(known, k) &&
+        dstJson[k] === known[k]
+      ) {
+        // Still our key (nobody touched it since we wrote it) — refresh.
         dstJson[k] = v;
+        known[k] = v;
+      } else if (Object.prototype.hasOwnProperty.call(known, k)) {
+        // We added it before, but dstJson no longer matches — upstream or
+        // another plugin owns this key now. Relinquish ownership so future
+        // un-merge won't clobber their value.
+        delete known[k];
       }
+      // else: pre-existing core key we never touched — leave it alone.
     }
-    state.files[f] = [...known];
+    state.files[f] = known;
     await fs.writeFile(dstPath, serializeTranslations(dstJson));
-    log.push(`  tr:  merged ${known.size} key(s) into ${f}`);
+    log.push(`  tr:  merged ${Object.keys(known).length} key(s) into ${f}`);
   }
   await fs.writeFile(stateFile, JSON.stringify(state, null, 2));
   return total;
@@ -378,14 +425,27 @@ async function unmergeTranslations(pluginName) {
   const state = JSON.parse(await fs.readFile(stateFile, "utf8"));
   const dstDir = path.join(LLNG_DIR, ...TRANSLATIONS_DIR);
   let removed = 0;
-  for (const [f, keys] of Object.entries(state.files || {})) {
+  for (const [f, entry] of Object.entries(state.files || {})) {
     const dstPath = path.join(dstDir, f);
     if (!(await exists(dstPath))) continue;
     const json = JSON.parse(await fs.readFile(dstPath, "utf8"));
-    for (const k of keys) {
-      if (k in json) {
-        delete json[k];
-        removed++;
+    // Legacy state (array of keys) → blind removal, pre-existing behaviour.
+    // New state (object key→value) → only remove when the current value
+    // still matches what we wrote, otherwise upstream / another plugin now
+    // owns the key and we must not touch it.
+    if (Array.isArray(entry)) {
+      for (const k of entry) {
+        if (k in json) {
+          delete json[k];
+          removed++;
+        }
+      }
+    } else if (entry && typeof entry === "object") {
+      for (const [k, storedValue] of Object.entries(entry)) {
+        if (k in json && json[k] === storedValue) {
+          delete json[k];
+          removed++;
+        }
       }
     }
     await fs.writeFile(dstPath, serializeTranslations(json));
@@ -398,6 +458,8 @@ export async function prepareTest(
   primary,
   { skipMake = false, with: extra = [], noDeps = false, ref = "" } = {},
 ) {
+  validatePluginName(primary);
+  for (const e of extra) validatePluginName(e);
   const log = [];
   const chain = await resolveDependencies(primary, { noDeps, extra });
   const cloneInfo = await ensureLlng(log, { ref });
@@ -436,6 +498,7 @@ export async function executeTest(
   primary,
   { tests, verbose = true, streamStdio = false } = {},
 ) {
+  validatePluginName(primary);
   const component = await detectPrimaryComponent(
     path.join(PLUGINS_DIR, primary),
   );
@@ -460,7 +523,13 @@ export async function executeTest(
   const pluginTestDir = path.join(PLUGINS_DIR, primary, "t");
   let targets;
   if (tests && tests.length) {
-    targets = tests.map((t) => (path.isAbsolute(t) ? t : path.join("t", t)));
+    targets = tests.map((t) => {
+      if (path.isAbsolute(t)) return t;
+      if (t === "t" || t.startsWith("t/") || t.startsWith(`t${path.sep}`)) {
+        return t;
+      }
+      return path.join("t", t);
+    });
   } else if (await exists(pluginTestDir)) {
     const files = await walkFiles(pluginTestDir, (p) => p.endsWith(".t"));
     targets = files
@@ -530,6 +599,9 @@ async function listPluginsWithState() {
 
 export async function cleanTest({ plugins } = {}) {
   if (!(await exists(LLNG_DIR))) return { removed: [], unmerged: 0 };
+  if (plugins && plugins.length) {
+    for (const p of plugins) validatePluginName(p);
+  }
   const scope = plugins && plugins.length ? plugins : null;
   const removed = [];
   if (scope) {
