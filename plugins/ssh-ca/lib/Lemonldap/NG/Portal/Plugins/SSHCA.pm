@@ -364,6 +364,19 @@ sub sshCaSign {
         $val = $req->sessionInfo->{$key} if !defined $val || $val eq '';
         $val = ''                        if !defined $val;
 
+        # Strip characters that could turn a single attribute value into
+        # multiple principals downstream: `,` is ssh-keygen -n's separator
+        # (`-n alice,root` = two principals), whitespace is this template's
+        # own separator, and CR/LF would poison the audit log or any file
+        # passed to ssh-keygen. Each `$var` substitution must yield at most
+        # one principal token.
+        if ( $val =~ tr/,\r\n\t //d ) {
+            $self->logger->warn(
+                "SSH CA sign: stripped separator chars from principal "
+                  . "source \$$key for user "
+                  . ( $req->user || 'unknown' ) );
+        }
+
         $principal .= $val;
         $pos = $match_end;
     }
