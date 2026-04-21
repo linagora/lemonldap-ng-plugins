@@ -364,6 +364,21 @@ sub sshCaSign {
         $val = $req->sessionInfo->{$key} if !defined $val || $val eq '';
         $val = ''                        if !defined $val;
 
+        # Strip characters that could turn a single attribute value into
+        # multiple principals downstream: `,` is ssh-keygen -n's separator
+        # (`-n alice,root` = two principals), and any whitespace is the
+        # template's own separator (we split on /\s+/ below). CR/LF would
+        # additionally poison audit logs and any file handed to ssh-keygen.
+        # Each `$var` substitution must yield at most one principal token,
+        # so match the same `\s` class the split uses — `tr///` cannot do
+        # that, hence the regex.
+        if ( $val =~ s/[\s,]//g ) {
+            $self->logger->warn(
+                "SSH CA sign: stripped separator chars from principal "
+                  . "source \$$key for user "
+                  . ( $req->user || 'unknown' ) );
+        }
+
         $principal .= $val;
         $pos = $match_end;
     }
@@ -1113,15 +1128,30 @@ sub sshCertRevoke {
           || {},
     };
 
+    # Load the existing persistent session. `force => 1` would both skip
+    # existence checks AND create a fresh session row if the id is unknown —
+    # neither is wanted: admin revocation must only mutate a real persistent
+    # session that already carries _sshCerts.
     my $psession = Lemonldap::NG::Common::Session->new(
         {
             %$moduleOptions,
-            id    => $sessionId,
-            force => 1,
+            id => $sessionId,
         }
     );
 
     unless ( $psession && !$psession->error ) {
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Session not found' },
+            code => 404
+        );
+    }
+
+    # Refuse sessions that are not persistent (SSO/PAMTOKEN/DEVA/... all
+    # carry a different `_session_kind`). `sshCertsList` only ever exposes
+    # persistent session ids to the admin UI, so anything else here is a
+    # caller mistake or a forged request.
+    unless ( ( $psession->data->{_session_kind} // '' ) eq 'Persistent' ) {
         return $self->p->sendJSONresponse(
             $req,
             { error => 'Session not found' },
