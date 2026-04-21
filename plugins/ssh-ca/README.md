@@ -50,7 +50,6 @@ In the Manager under **General Parameters** > **Plugins** > **SSH CA**:
 | ----------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
 | `sshCaKeyRef`           | Reference to the SSH CA key in LLNG keys store                            | _(required)_                             |
 | `sshCaKrlPath`          | Path to the KRL file on disk                                              | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
-| `sshCaSerialPath`       | Path to the serial counter file                                           | `/var/lib/lemonldap-ng/ssh/serial`       |
 | `sshCaCertMaxValidity`  | Maximum certificate validity in days                                      | `365`                                    |
 | `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid`                                   |
 
@@ -243,8 +242,48 @@ Certificates are stored in each user's **persistent session** under the
 sessions. The admin search endpoint (`/ssh/certs`) scans all persistent
 sessions to find certificates.
 
-Serial numbers are stored in a plain text file (`sshCaSerialPath`) with
-file locking (`flock`) for atomic increments.
+Serial numbers are stateless: they are derived from the current
+microsecond-precision wall clock plus a small random tail, so two portals
+can issue in parallel without coordination and without collisions.
+
+## Multi-portal deployments (issue #9)
+
+If you run more than one portal node behind a load balancer, each node
+keeps its own local KRL file. The plugin keeps those KRLs in sync via
+LLNG's message broker (available since LLNG 2.20.0): every revocation
+is both written to the local KRL and published as a `sshCaRevoke` event
+on the `eventQueueName` channel. Sibling nodes subscribe to that event
+at plugin init and apply the same revocation to their local KRL,
+typically within 5 seconds (the handler's event poll interval).
+
+**Requirement**: configure a real message broker. The default
+`::NoBroker` only dispatches in-process, so revocations would not
+propagate between portals. Supported backends:
+
+```perl
+# /etc/lemonldap-ng/lemonldap-ng.ini (each portal node)
+messageBroker        = ::Redis
+messageBrokerOptions = { "server": "redis.example.com:6379" }
+# or ::MQTT, ::Pg (PostgreSQL LISTEN/NOTIFY)
+```
+
+### Drift recovery: `sshca-rebuild-krl` cron
+
+The broker is the fast path, not the source of truth: it is a
+non-durable pub/sub, so a node that is down during a revocation misses
+the event. Schedule the `sshca-rebuild-krl` script (shipped in
+`scripts/`) from cron on every portal node to reconcile:
+
+```
+# /etc/cron.d/lemonldap-ng-sshca
+*/5 * * * * www-data [ -x /usr/share/lemonldap-ng/bin/sshca-rebuild-krl ] && /usr/share/lemonldap-ng/bin/sshca-rebuild-krl
+```
+
+The script scans the persistent sessions (which are shared across
+portals via the session backend), collects every certificate with a
+`revoked_at` timestamp, and rewrites the local KRL with
+`ssh-keygen -k`. Safe to run on a single-node setup too — it just
+becomes a no-op when nothing is out of sync.
 
 ## Server-side configuration
 

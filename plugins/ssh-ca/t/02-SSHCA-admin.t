@@ -57,9 +57,8 @@ my ( $user_pub_key, $user_pub_key2 );
     chomp $user_pub_key2;
 }
 
-my $tmpdir     = tempdir( CLEANUP => 1 );
-my $serialPath = "$tmpdir/serial";
-my $krlPath    = "$tmpdir/krl";
+my $tmpdir = tempdir( CLEANUP => 1 );
+my $krlPath = "$tmpdir/krl";
 
 # ============================================
 # Initialization
@@ -81,7 +80,6 @@ my $portal = LLNG::Manager::Test->new( {
                 },
             },
             sshCaKrlPath          => $krlPath,
-            sshCaSerialPath       => $serialPath,
             sshCaCertMaxValidity  => 365,
             sshCaPrincipalSources => '$uid',
         }
