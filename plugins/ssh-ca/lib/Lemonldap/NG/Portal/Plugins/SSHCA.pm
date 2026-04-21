@@ -15,6 +15,8 @@ use strict;
 use Mouse;
 use JSON qw(from_json to_json);
 use Time::HiRes qw(gettimeofday);
+use Digest::SHA qw(sha256);
+use MIME::Base64 qw(decode_base64 encode_base64);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Handler::Main::MsgActions;
 use Lemonldap::NG::Portal::Main::Constants qw(
@@ -1303,51 +1305,33 @@ sub _storeCertificate {
     return 1;
 }
 
-# HELPER: Compute the SHA256 fingerprint of an SSH public key using ssh-keygen
+# HELPER: Compute the OpenSSH SHA256 fingerprint of an SSH public key.
+# The canonical OpenSSH form is `SHA256:<base64(sha256(blob))>` with
+# trailing `=` padding stripped (see sshkey_fingerprint_b64 in sshkey.c).
+# The blob is the raw wire-format key, which is exactly what's base64-
+# encoded as the second whitespace-separated token of the pubkey line —
+# and sshCaSign validates that format upstream (see the regex at line
+# 279-284), so no fork to ssh-keygen is needed here.
 sub _sshKeyFingerprint {
     my ( $self, $sshPubKey ) = @_;
     return undef unless defined $sshPubKey;
 
-    require File::Temp;
-    my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
-    my $keyFile = "$tmpdir/key.pub";
-    open my $fh, '>', $keyFile or do {
-        $self->logger->error("SSH CA: Cannot write pubkey for fp: $!");
-        return undef;
-    };
-    print $fh $sshPubKey;
-    print $fh "\n" unless $sshPubKey =~ /\n$/;
-    close $fh;
-
-    my $output = '';
-    my $pid    = open my $pipe, '-|';
-    if ( !defined $pid ) {
-        $self->logger->error("SSH CA: Cannot fork for fingerprint: $!");
-        return undef;
-    }
-    elsif ( $pid == 0 ) {
-        open STDERR, '>&', \*STDOUT;
-        exec 'ssh-keygen', '-l', '-E', 'sha256', '-f', $keyFile;
-        exit 1;
-    }
-    else {
-        local $/;
-        $output = <$pipe>;
-        close $pipe;
-    }
-    my $exit = $? >> 8;
-    if ( $exit != 0 ) {
-        $self->logger->error(
-            "SSH CA: ssh-keygen -l failed (exit $exit): $output");
+    my ($blob_b64) = $sshPubKey =~ /^\s*\S+\s+(\S+)/;
+    unless ( defined $blob_b64 && length $blob_b64 ) {
+        $self->logger->error("SSH CA: Cannot parse SSH pubkey for fingerprint");
         return undef;
     }
 
-    # Typical output: "256 SHA256:abcd...  user@host (ED25519)"
-    if ( $output =~ /\b(SHA256:[A-Za-z0-9+\/=]+)/ ) {
-        return $1;
+    my $blob = decode_base64($blob_b64);
+    unless ( length $blob ) {
+        $self->logger->error("SSH CA: Empty blob decoding pubkey base64");
+        return undef;
     }
-    $self->logger->error("SSH CA: Unparseable fingerprint output: $output");
-    return undef;
+
+    my $b64 = encode_base64( sha256($blob), '' );
+    $b64 =~ s/=+\z//;    # OpenSSH strips trailing '=' padding
+
+    return "SHA256:$b64";
 }
 
 # HELPER: Update KRL file with revoked serial.
