@@ -808,6 +808,7 @@ sub verifyToken {
     # non-expired SSH CA certificate record. This binds the PAM token to a
     # known SSH key even if the SSH server's KRL is stale.
     my $fingerprint = $body->{fingerprint};
+    my $ps;
     if ( defined $fingerprint ) {
         $fingerprint =~ s/^\s+|\s+$//g;
     }
@@ -838,7 +839,12 @@ sub verifyToken {
             );
         }
 
-        my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
+        # Load the persistent session once; the _pamSeen stamp below
+        # reuses the same $ps instead of going through
+        # updatePersistentSession (which would re-read it).
+        $ps = $self->p->getPersistentSession($user);
+        my $sshCheck =
+          $self->_checkSshFingerprint( $user, $fingerprint, ps => $ps );
         unless ( $sshCheck->{ok} ) {
             $self->logger->info(
                     "PAM verify: SSH fingerprint check failed for user '$user' "
@@ -874,8 +880,18 @@ sub verifyToken {
 
     # Refresh the user's pam-access persistence marker so /pam/bastion-token
     # can later vouch for them. Done after the token is consumed so that a
-    # failed verify never stamps.
-    $self->p->updatePersistentSession( $req, { _pamSeen => time() }, $user );
+    # failed verify never stamps. When the fingerprint branch ran above it
+    # already loaded the persistent session, so reuse it and skip a second
+    # read+write via updatePersistentSession's inner getPersistentSession.
+    # In the no-fingerprint branch $ps is undef and we fall back to the core
+    # helper which also handles the disablePersistentStorage case.
+    if ( $ps && !$ps->error ) {
+        $ps->update( { _pamSeen => time() } );
+    }
+    else {
+        $self->p->updatePersistentSession( $req, { _pamSeen => time() },
+            $user );
+    }
 
     $self->logger->info("PAM verify: Token consumed for user '$user'");
 
@@ -1504,14 +1520,14 @@ sub _lastSeenOnPamAccess {
 # revoked/expired. Returns { ok => 1, serial, label, key_id } on match,
 # { ok => 0, reason => '...' } otherwise.
 sub _checkSshFingerprint {
-    my ( $self, $user, $fingerprint ) = @_;
+    my ( $self, $user, $fingerprint, %opts ) = @_;
 
     return { ok => 0, reason => 'no-user' }
       unless defined $user && $user ne '';
     return { ok => 0, reason => 'no-fingerprint' }
       unless defined $fingerprint && $fingerprint ne '';
 
-    my $ps = $self->p->getPersistentSession($user);
+    my $ps = $opts{ps} // $self->p->getPersistentSession($user);
     return { ok => 0, reason => 'no-session' } unless $ps;
     if ( $ps->error ) {
         $self->logger->error(
