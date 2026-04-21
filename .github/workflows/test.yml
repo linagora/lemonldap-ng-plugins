@@ -6,6 +6,9 @@ on:
     tags-ignore: ['v*']
   pull_request:
 
+env:
+  LLNG_REPO: https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git
+
 jobs:
   discover:
     runs-on: ubuntu-latest
@@ -14,72 +17,116 @@ jobs:
       has_tests: ${{ steps.find.outputs.has_tests }}
     steps:
       - uses: actions/checkout@v5
+
       - id: find
+        name: Build matrix from plugin.json:llng_compat
         run: |
-          plugins='[]'
+          set -euo pipefail
+          REPO="$LLNG_REPO"
+          # Cache of already-checked tags across plugins
+          declare -A TAG_KNOWN
+          tag_exists() {
+            local tag="$1"
+            if [ -z "${TAG_KNOWN[$tag]+x}" ]; then
+              if git ls-remote --tags "$REPO" "$tag" 2>/dev/null \
+                   | grep -Eq "refs/tags/${tag}(\^\{\})?$"; then
+                TAG_KNOWN[$tag]=1
+              else
+                TAG_KNOWN[$tag]=0
+              fi
+            fi
+            [ "${TAG_KNOWN[$tag]}" = "1" ]
+          }
+
+          entries=()
           for d in plugins/*/; do
             [ -d "$d/t" ] || continue
             name=$(basename "$d")
-            plugins=$(echo "$plugins" | jq --arg n "$name" '. + [$n]')
+            compat=$(jq -r '.llng_compat // ""' "$d/plugin.json")
+
+            min=$(echo "$compat" | grep -oE '>=\s*[0-9.]+' \
+                    | grep -oE '[0-9.]+' | head -1 || true)
+            max=$(echo "$compat" | grep -oE '<\s*[0-9.]+' \
+                    | grep -oE '[0-9.]+' | head -1 || true)
+
+            refs=()
+            skip_main=false
+
+            if [ -n "${min:-}" ]; then
+              tag="v$min"
+              if tag_exists "$tag"; then
+                refs+=("$tag")
+                echo "  $name: min tag $tag found"
+              else
+                echo "  $name: min tag $tag not in remote"
+              fi
+            fi
+
+            if [ -n "${max:-}" ]; then
+              tag="v$max"
+              if tag_exists "$tag"; then
+                refs+=("$tag")
+                skip_main=true
+                echo "  $name: max tag $tag found -> skipping main"
+              else
+                echo "  $name: max tag $tag not in remote"
+              fi
+            fi
+
+            if [ "$skip_main" = "false" ]; then
+              refs+=("")  # empty string means "default branch"
+            fi
+
+            for r in "${refs[@]}"; do
+              label="${r:-main}"
+              entries+=("{\"plugin\":\"$name\",\"ref\":\"$r\",\"label\":\"$label\"}")
+            done
           done
-          echo "matrix={\"plugin\":$(echo $plugins)}" >> "$GITHUB_OUTPUT"
-          if [ "$(echo "$plugins" | jq length)" -gt 0 ]; then
-            echo "has_tests=true" >> "$GITHUB_OUTPUT"
-          else
+
+          if [ ${#entries[@]} -eq 0 ]; then
             echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          include="[$(IFS=,; echo "${entries[*]}")]"
+          echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+          echo "Matrix:"
+          echo "$include" | jq .
 
   test:
     needs: discover
     if: needs.discover.outputs.has_tests == 'true'
     runs-on: ubuntu-latest
+    name: ${{ matrix.plugin }} @ ${{ matrix.label }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
     steps:
-      - name: Checkout plugins
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Determine LLNG version
-        id: version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install MCP/CLI dependencies
+        run: cd mcp && npm install --no-audit --no-fund
+
+      - name: Prepare plugin (clone LLNG + make common + symlinks)
         run: |
-          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
-          COMPAT=$(jq -r '.llng_compat // ""' "$PLUGIN_DIR/plugin.json")
-
-          # Parse minimum version from llng_compat
-          # ">=2.23.0" -> "v2.23.0", "<2.23.0" or "" -> HEAD
-          TAG=""
-          if echo "$COMPAT" | grep -qE '^\s*>='; then
-            VER=$(echo "$COMPAT" | sed -E 's/^\s*>=\s*//')
-            TAG="v${VER}"
-          fi
-
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Resolved LLNG version: '${TAG:-HEAD}'"
-
-      - name: Clone LemonLDAP::NG
-        run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          REPO="https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git"
-          if [ -n "$TAG" ]; then
-            # Check if tag exists, fall back to HEAD if not
-            if git ls-remote --tags "$REPO" "$TAG" | grep -q "$TAG"; then
-              echo "Cloning LLNG at tag $TAG"
-              git clone --depth=1 --branch "$TAG" "$REPO" llng
-            else
-              echo "Tag $TAG not found, using HEAD"
-              git clone --depth=1 "$REPO" llng
-            fi
+          REF="${{ matrix.ref }}"
+          if [ -n "$REF" ]; then
+            ./mcp/cli.js prepare "${{ matrix.plugin }}" --ref "$REF"
           else
-            echo "No minimum version, using HEAD"
-            git clone --depth=1 "$REPO" llng
+            ./mcp/cli.js prepare "${{ matrix.plugin }}"
           fi
 
       - name: Install LLNG build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends devscripts equivs
-          cd llng
+          cd .llng-test/lemonldap-ng
           sudo mk-build-deps -i -t 'apt-get -y --no-install-recommends' debian/control
 
       - name: Install plugin extra build dependencies
@@ -91,90 +138,5 @@ jobs:
             sudo apt-get install -y --no-install-recommends $BUILD_DEPS
           fi
 
-      - name: Build LemonLDAP::NG
-        run: |
-          cd llng
-          make SKIP_DOCUMENTATION=1
-
-      - name: Place plugin files
-        run: |
-          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
-
-          # Install lib/ and assets from ALL plugins (tests may depend on sibling plugins)
-          for d in plugins/*/; do
-            plugin_name=$(basename "$d")
-
-            # Copy lib/ into lemonldap-ng-portal/blib/lib (overwrite to replace built-in modules)
-            if [ -d "$d/lib" ]; then
-              find "$d/lib" -name '*.pm' | while read src; do
-                rel="${src#$d/lib/}"
-                dst="llng/lemonldap-ng-portal/blib/lib/$rel"
-                mkdir -p "$(dirname "$dst")"
-                if [ -f "$dst" ]; then
-                  echo "$plugin_name: OVERRIDE $rel"
-                else
-                  echo "$plugin_name: COPY $rel"
-                fi
-                cp -f "$src" "$dst"
-              done
-            fi
-
-            # Copy portal-templates/ into site/templates/ (overwrite)
-            if [ -d "$d/portal-templates" ]; then
-              cp -rv "$d/portal-templates/"* llng/lemonldap-ng-portal/site/templates/
-            fi
-
-            # Copy portal-static/ into site/htdocs/static/ (no overwrite)
-            if [ -d "$d/portal-static" ]; then
-              cp -rvn "$d/portal-static/"* llng/lemonldap-ng-portal/site/htdocs/static/
-            fi
-
-            # Merge portal-translations/ into site/htdocs/static/languages/
-            if [ -d "$d/portal-translations" ]; then
-              for tr_file in "$d"/portal-translations/*.json; do
-                [ -f "$tr_file" ] || continue
-                lang="$(basename "$tr_file")"
-                target="llng/lemonldap-ng-portal/site/htdocs/static/languages/$lang"
-                if [ -f "$target" ]; then
-                  jq -s '.[0] * .[1]' "$target" "$tr_file" > "$target.tmp" && mv "$target.tmp" "$target"
-                  echo "$plugin_name: MERGED $lang"
-                else
-                  cp "$tr_file" "$target"
-                fi
-              done
-            fi
-          done
-
-          # Copy test files from the plugin under test into lemonldap-ng-portal/t/
-          cp -v "$PLUGIN_DIR"/t/*.t llng/lemonldap-ng-portal/t/ 2>/dev/null || true
-          cp -v "$PLUGIN_DIR"/t/*.pm llng/lemonldap-ng-portal/t/ 2>/dev/null || true
-          for subdir in "$PLUGIN_DIR"/t/*/; do
-            [ -d "$subdir" ] || continue
-            cp -rv "$subdir" llng/lemonldap-ng-portal/t/
-          done
-
       - name: Run tests
-        run: |
-          PLUGIN_DIR="../../plugins/${{ matrix.plugin }}"
-          cd llng/lemonldap-ng-portal
-
-          # Collect test file names
-          TEST_FILES=""
-          for t in $PLUGIN_DIR/t/*.t; do
-            [ -f "$t" ] || continue
-            TEST_FILES="$TEST_FILES t/$(basename "$t")"
-          done
-
-          if [ -z "$TEST_FILES" ]; then
-            echo "No .t files found"
-            exit 0
-          fi
-
-          echo "Running: prove $TEST_FILES"
-          prove -v \
-            -I../lemonldap-ng-common/blib/lib \
-            -I../lemonldap-ng-handler/blib/lib \
-            -I../lemonldap-ng-manager/blib/lib \
-            -Iblib/lib \
-            -I. \
-            $TEST_FILES
+        run: ./mcp/cli.js execute "${{ matrix.plugin }}"

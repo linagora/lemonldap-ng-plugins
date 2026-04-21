@@ -154,22 +154,82 @@ async function resolveDependencies(root, opts = {}) {
   return order;
 }
 
-async function ensureLlng(log) {
-  if (await exists(path.join(LLNG_DIR, ".git"))) {
-    log.push(`LLNG clone already present at ${LLNG_DIR}`);
-    return;
+const META_FILE = path.join(STATE_DIR, "_meta.json");
+
+async function readMeta() {
+  if (!(await exists(META_FILE))) return {};
+  try {
+    return JSON.parse(await fs.readFile(META_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+async function writeMeta(meta) {
+  await fs.mkdir(STATE_DIR, { recursive: true });
+  await fs.writeFile(META_FILE, JSON.stringify(meta, null, 2) + "\n");
+}
+
+async function ensureLlng(log, { ref } = {}) {
+  const wantedRef = ref || "";
+  const gitDir = path.join(LLNG_DIR, ".git");
+  const meta = await readMeta();
+  const currentRef = meta.ref ?? null;
+
+  if ((await exists(gitDir)) && currentRef === wantedRef) {
+    log.push(
+      `LLNG clone already present at ${LLNG_DIR} (ref: ${currentRef || "default"})`,
+    );
+    return { ref: currentRef, fallback: false };
+  }
+
+  if (await exists(LLNG_ROOT)) {
+    log.push(
+      `Ref change (${currentRef ?? "<none>"} -> ${wantedRef || "default"}); wiping previous clone`,
+    );
+    await fs.rm(LLNG_ROOT, { recursive: true, force: true });
   }
   await fs.mkdir(LLNG_ROOT, { recursive: true });
-  log.push(`Cloning ${LLNG_REPO} (shallow) into ${LLNG_DIR} ...`);
-  const r = await run("git", ["clone", "--depth", "1", LLNG_REPO, LLNG_DIR], {
-    cwd: LLNG_ROOT,
-  });
-  if (r.code !== 0) {
-    throw new Error(
-      `git clone failed (exit ${r.code}):\n${r.stderr || r.stdout}`,
+
+  let actualRef = wantedRef;
+  let fallback = false;
+
+  if (wantedRef) {
+    log.push(`Cloning ${LLNG_REPO} at ref '${wantedRef}' (shallow) ...`);
+    const r = await run(
+      "git",
+      ["clone", "--depth", "1", "--branch", wantedRef, LLNG_REPO, LLNG_DIR],
+      { cwd: LLNG_ROOT },
     );
+    if (r.code !== 0) {
+      log.push(
+        `  ref '${wantedRef}' not reachable — falling back to default branch`,
+      );
+      await fs.rm(LLNG_DIR, { recursive: true, force: true });
+      actualRef = "";
+      fallback = true;
+    }
   }
-  log.push("Clone OK");
+
+  if (!actualRef && !(await exists(gitDir))) {
+    log.push(`Cloning ${LLNG_REPO} (default branch, shallow) ...`);
+    const r = await run(
+      "git",
+      ["clone", "--depth", "1", LLNG_REPO, LLNG_DIR],
+      { cwd: LLNG_ROOT },
+    );
+    if (r.code !== 0) {
+      throw new Error(
+        `git clone failed (exit ${r.code}):\n${r.stderr || r.stdout}`,
+      );
+    }
+  }
+
+  await writeMeta({ ref: actualRef });
+  log.push(
+    `Clone OK (ref: ${actualRef || "default"}${fallback ? " — fallback from " + wantedRef : ""})`,
+  );
+  return { ref: actualRef, fallback };
 }
 
 async function makeCommon(log) {
@@ -336,11 +396,11 @@ async function unmergeTranslations(pluginName) {
 
 export async function prepareTest(
   primary,
-  { skipMake = false, with: extra = [], noDeps = false } = {},
+  { skipMake = false, with: extra = [], noDeps = false, ref = "" } = {},
 ) {
   const log = [];
   const chain = await resolveDependencies(primary, { noDeps, extra });
-  await ensureLlng(log);
+  const cloneInfo = await ensureLlng(log, { ref });
   if (!skipMake) await makeCommon(log);
 
   const primaryComponent = await detectPrimaryComponent(
@@ -361,7 +421,15 @@ export async function prepareTest(
     }
   }
 
-  return { primary, chain, component: primaryComponent, totals, log };
+  return {
+    primary,
+    chain,
+    component: primaryComponent,
+    ref: cloneInfo.ref || "default",
+    refFallback: cloneInfo.fallback,
+    totals,
+    log,
+  };
 }
 
 export async function executeTest(

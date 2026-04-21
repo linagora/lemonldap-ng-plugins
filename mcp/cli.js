@@ -21,6 +21,9 @@ Commands:
   clean-all                          Remove everything, including the LLNG clone
 
 Options (prepare / test):
+  --ref <ref>        Clone LLNG at this git ref (tag or branch).
+                     If the ref is missing remotely, falls back to the
+                     default branch. Changing ref wipes the previous clone.
   --skip-make        Skip \`make common\` (useful on repeated runs)
   --no-deps          Don't auto-resolve plugin.json "depends"
   --with a,b,c       Also link extra plugins (lib + assets only)
@@ -29,6 +32,7 @@ Options (prepare / test):
 Examples:
   llng-plugins-test list
   llng-plugins-test test ssh-ca
+  llng-plugins-test test ssh-ca --ref v2.23.0
   llng-plugins-test prepare oidc-device-organization --skip-make
   llng-plugins-test execute ssh-ca -- t/01-SSHCA-mycerts.t
   llng-plugins-test clean ssh-ca
@@ -36,7 +40,13 @@ Examples:
 `;
 
 function parseArgs(argv) {
-  const opts = { skipMake: false, noDeps: false, with: [], verbose: true };
+  const opts = {
+    skipMake: false,
+    noDeps: false,
+    with: [],
+    verbose: true,
+    ref: "",
+  };
   const positional = [];
   let afterDashDash = false;
   const extraTests = [];
@@ -54,6 +64,12 @@ function parseArgs(argv) {
       opts.noDeps = true;
     } else if (a === "--quiet") {
       opts.verbose = false;
+    } else if (a === "--ref") {
+      const v = argv[++i];
+      if (v === undefined) throw new Error("--ref requires a value");
+      opts.ref = v;
+    } else if (a.startsWith("--ref=")) {
+      opts.ref = a.slice("--ref=".length);
     } else if (a === "--with") {
       const v = argv[++i];
       if (!v) throw new Error("--with requires a value (comma-separated list)");
@@ -113,10 +129,14 @@ async function main() {
         skipMake: opts.skipMake,
         noDeps: opts.noDeps,
         with: opts.with,
+        ref: opts.ref,
       });
       for (const line of res.log) process.stdout.write(`${line}\n`);
+      const refBadge = res.refFallback
+        ? `${res.ref} (fallback from '${opts.ref}')`
+        : res.ref;
       process.stdout.write(
-        `\nOK — primary=${res.primary} component=${res.component} chain=[${res.chain.join(", ")}] ` +
+        `\nOK — primary=${res.primary} ref=${refBadge} component=${res.component} chain=[${res.chain.join(", ")}] ` +
           `links: lib=${res.totals.lib} tests=${res.totals.tests} assets=${res.totals.assets} translations=${res.totals.translations}\n`,
       );
       return 0;
@@ -151,6 +171,7 @@ async function main() {
         skipMake: opts.skipMake,
         noDeps: opts.noDeps,
         with: opts.with,
+        ref: opts.ref,
       });
       for (const line of prep.log) process.stdout.write(`${line}\n`);
       process.stdout.write("\n");

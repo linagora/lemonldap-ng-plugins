@@ -61,28 +61,28 @@ registration, add to `~/.claude.json`:
 
 ## Tools
 
-| Tool | What it does |
-|------|--------------|
-| `list-plugins` | Lists every directory under `plugins/`. |
-| `prepare-test` | Clones LLNG if absent, runs `make common`, symlinks lib + t + assets + merges translations. Follows `depends` transitively unless `noDeps:true`. Params: `plugin` (required), `with` (extra plugins), `noDeps`, `skipMake`. |
-| `execute-test` | Runs `prove` in the primary plugin's LLNG component dir. Params: `plugin` (required), `tests` (optional array), `verbose`. |
-| `clean-test` | Removes the plugin's symlinks + un-merges its translation keys. Params: `plugin` or `plugins` to scope; omit both to clean every plugin. The LLNG clone is kept. |
-| `clean-all` | `clean-test` **and** wipes `.llng-test/` entirely. Use to start fresh. |
-| `test` | Convenience: `prepare-test` then `execute-test`. Cleanup is not performed automatically. |
+| Tool           | What it does                                                                                                                                                                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list-plugins` | Lists every directory under `plugins/`.                                                                                                                                                                                                                                                                                         |
+| `prepare-test` | Clones LLNG if absent, runs `make common`, symlinks lib + t + assets + merges translations. Follows `depends` transitively unless `noDeps:true`. Params: `plugin` (required), `with` (extra plugins), `noDeps`, `skipMake`, `ref` (git tag/branch; falls back to default branch if unreachable, wipes the clone on ref change). |
+| `execute-test` | Runs `prove` in the primary plugin's LLNG component dir. Params: `plugin` (required), `tests` (optional array), `verbose`.                                                                                                                                                                                                      |
+| `clean-test`   | Removes the plugin's symlinks + un-merges its translation keys. Params: `plugin` or `plugins` to scope; omit both to clean every plugin. The LLNG clone is kept.                                                                                                                                                                |
+| `clean-all`    | `clean-test` **and** wipes `.llng-test/` entirely. Use to start fresh.                                                                                                                                                                                                                                                          |
+| `test`         | Convenience: `prepare-test` then `execute-test`. Cleanup is not performed automatically.                                                                                                                                                                                                                                        |
 
 ### Plugin → LLNG layout
 
-| Plugin dir | LLNG destination |
-|------------|------------------|
-| `lib/Lemonldap/NG/Common/...` | `lemonldap-ng-common/blib/lib/Lemonldap/NG/Common/...` |
-| `lib/Lemonldap/NG/Portal/...` | `lemonldap-ng-portal/lib/Lemonldap/NG/Portal/...` |
-| `lib/Lemonldap/NG/Handler/...` | `lemonldap-ng-handler/lib/Lemonldap/NG/Handler/...` |
-| `lib/Lemonldap/NG/Manager/...` | `lemonldap-ng-manager/lib/Lemonldap/NG/Manager/...` |
-| `t/` | `lemonldap-ng-<primary>/t/` (including sub-trees like `t/lib/`) |
-| `portal-templates/` | `lemonldap-ng-portal/site/templates/` |
-| `portal-static/` | `lemonldap-ng-portal/site/htdocs/static/` |
-| `manager-static/` | `lemonldap-ng-manager/site/htdocs/static/` |
-| `portal-translations/*.json` | **merged** into `.../static/languages/*.json` (added keys are tracked in `.llng-test/state/<plugin>/translations.json` for un-merge) |
+| Plugin dir                     | LLNG destination                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `lib/Lemonldap/NG/Common/...`  | `lemonldap-ng-common/blib/lib/Lemonldap/NG/Common/...`                                                                               |
+| `lib/Lemonldap/NG/Portal/...`  | `lemonldap-ng-portal/lib/Lemonldap/NG/Portal/...`                                                                                    |
+| `lib/Lemonldap/NG/Handler/...` | `lemonldap-ng-handler/lib/Lemonldap/NG/Handler/...`                                                                                  |
+| `lib/Lemonldap/NG/Manager/...` | `lemonldap-ng-manager/lib/Lemonldap/NG/Manager/...`                                                                                  |
+| `t/`                           | `lemonldap-ng-<primary>/t/` (including sub-trees like `t/lib/`)                                                                      |
+| `portal-templates/`            | `lemonldap-ng-portal/site/templates/`                                                                                                |
+| `portal-static/`               | `lemonldap-ng-portal/site/htdocs/static/`                                                                                            |
+| `manager-static/`              | `lemonldap-ng-manager/site/htdocs/static/`                                                                                           |
+| `portal-translations/*.json`   | **merged** into `.../static/languages/*.json` (added keys are tracked in `.llng-test/state/<plugin>/translations.json` for un-merge) |
 
 A plugin's primary component is picked by scanning its `.pm` files,
 with priority `Portal > Handler > Manager > Common`. That component's
@@ -119,10 +119,10 @@ runtime code (lib + templates + translations), not test suites.
 
 ## Environment overrides
 
-| Variable | Default |
-|----------|---------|
-| `LLNG_REPO_URL` | `https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git` |
-| `LLNG_PLUGINS_ROOT` | Parent directory of `mcp/` (this repo's root) |
+| Variable            | Default                                                |
+| ------------------- | ------------------------------------------------------ |
+| `LLNG_REPO_URL`     | `https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git` |
+| `LLNG_PLUGINS_ROOT` | Parent directory of `mcp/` (this repo's root)          |
 
 ## Typical workflow
 

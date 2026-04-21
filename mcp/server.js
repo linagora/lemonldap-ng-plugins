@@ -53,6 +53,11 @@ const TOOLS = [
           default: false,
           description: "Skip `make common` (useful on repeated runs).",
         },
+        ref: {
+          type: "string",
+          description:
+            "Clone LLNG at this git ref (tag or branch). Missing refs fall back to the default branch. Changing ref wipes the previous clone.",
+        },
       },
       required: ["plugin"],
       additionalProperties: false,
@@ -117,6 +122,7 @@ const TOOLS = [
         with: { type: "array", items: { type: "string" } },
         noDeps: { type: "boolean", default: false },
         skipMake: { type: "boolean", default: false },
+        ref: { type: "string" },
         tests: { type: "array", items: { type: "string" } },
         verbose: { type: "boolean", default: true },
       },
@@ -163,6 +169,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           skipMake: !!args.skipMake,
           with: args.with || [],
           noDeps: !!args.noDeps,
+          ref: args.ref || "",
         });
         return textResult(res);
       }
@@ -200,6 +207,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
           skipMake: !!args.skipMake,
           with: args.with || [],
           noDeps: !!args.noDeps,
+          ref: args.ref || "",
         });
         const exec = await executeTest(args.plugin, {
           tests: args.tests,
@@ -210,6 +218,8 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
             primary: prep.primary,
             chain: prep.chain,
             component: prep.component,
+            ref: prep.ref,
+            refFallback: prep.refFallback,
             totals: prep.totals,
             log: prep.log,
           },

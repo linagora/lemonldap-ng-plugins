@@ -51,12 +51,13 @@ exposes. Call it directly from anywhere in the repo:
 
 Prepare / test options:
 
-| Flag | Meaning |
-|------|---------|
-| `--skip-make` | Skip `make common` on repeat runs |
-| `--no-deps` | Don't auto-resolve `plugin.json:depends` |
-| `--with a,b,c` | Also link extra plugins (lib + assets only; their tests are not linked) |
-| `--quiet` | Non-verbose `prove` |
+| Flag           | Meaning                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--ref <tag>`  | Clone LLNG at a specific git ref (tag or branch). If the ref can't be reached, falls back to the default branch. Changing ref between runs wipes the previous clone. |
+| `--skip-make`  | Skip `make common` on repeat runs                                                                                                                                    |
+| `--no-deps`    | Don't auto-resolve `plugin.json:depends`                                                                                                                             |
+| `--with a,b,c` | Also link extra plugins (lib + assets only; their tests are not linked)                                                                                              |
+| `--quiet`      | Non-verbose `prove`                                                                                                                                                  |
 
 If you prefer a shorter name, `npm install` also registers the CLI as
 `llng-plugins-test` — symlink it or add `mcp/node_modules/.bin` to
@@ -116,11 +117,11 @@ MCP server cannot start.
 
 ### Picking between the two
 
-| You're… | Use |
-|---------|-----|
-| writing code in your editor, running tests yourself | the CLI (`./mcp/cli.js …`) |
-| asking an AI agent to fix / extend a plugin | the MCP server |
-| writing a CI pipeline | the CLI (exit codes propagate from `prove`) |
+| You're…                                             | Use                                         |
+| --------------------------------------------------- | ------------------------------------------- |
+| writing code in your editor, running tests yourself | the CLI (`./mcp/cli.js …`)                  |
+| asking an AI agent to fix / extend a plugin         | the MCP server                              |
+| writing a CI pipeline                               | the CLI (exit codes propagate from `prove`) |
 
 Both talk to the same `lib.js`, so results are identical.
 
@@ -184,12 +185,40 @@ Both the clone and any state files live under `.llng-test/`, which is
 in `.gitignore` — nothing from the test environment ever leaks into a
 commit.
 
+## Continuous integration
+
+The GitHub Actions workflow in `.github/workflows/test.yml` runs on
+top of the very same CLI. For each plugin it reads `plugin.json:llng_compat`
+and builds a test matrix:
+
+| `llng_compat`                              | Refs tested                                                                                           |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `>=X.Y.Z` and tag `vX.Y.Z` exists          | **both** `vX.Y.Z` and the LLNG default branch (catches regressions between release and HEAD)          |
+| `>=X.Y.Z` and the tag is not yet published | default branch only                                                                                   |
+| `<X.Y.Z` and tag `vX.Y.Z` exists           | `vX.Y.Z` only — the default branch is **skipped** (plugin declares it doesn't support newer versions) |
+| no `llng_compat`                           | default branch only                                                                                   |
+
+Ranges (`>=A, <B`) are supported — each bound contributes its own tag
+to the matrix, and a satisfied `<` still removes the default branch.
+
+Each matrix job does the same thing a contributor does locally:
+
+```sh
+cd mcp && npm install --no-audit --no-fund
+./mcp/cli.js prepare <plugin> [--ref <tag>]
+# (CI installs LLNG's build deps from debian/control + plugin.build_depends)
+./mcp/cli.js execute <plugin>
+```
+
+Exit code from `prove` propagates all the way up, so a failing test
+fails the job.
+
 ## Environment overrides
 
-| Variable | Default |
-|----------|---------|
-| `LLNG_REPO_URL` | `https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git` |
-| `LLNG_PLUGINS_ROOT` | the repo root (parent of `mcp/`) |
+| Variable            | Default                                                |
+| ------------------- | ------------------------------------------------------ |
+| `LLNG_REPO_URL`     | `https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng.git` |
+| `LLNG_PLUGINS_ROOT` | the repo root (parent of `mcp/`)                       |
 
 Set these if you need to test against a private fork or a
 non-standard layout.
