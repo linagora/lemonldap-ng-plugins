@@ -81,12 +81,12 @@ Examples:
 
 ### User endpoints (authentication required)
 
-| Method | Path             | Description                                                                     |
-| ------ | ---------------- | ------------------------------------------------------------------------------- |
-| GET    | `/ssh`           | User interface for signing SSH keys                                             |
-| POST   | `/ssh/sign`      | Sign a user's SSH public key (requires a unique `label` among active certs)     |
-| GET    | `/ssh/mycerts`   | List the current user's certificates (JSON)                                     |
-| POST   | `/ssh/myrevoke`  | Self-revoke one of the caller's own certificates; immediately added to the KRL  |
+| Method | Path            | Description                                                                    |
+| ------ | --------------- | ------------------------------------------------------------------------------ |
+| GET    | `/ssh`          | User interface for signing SSH keys                                            |
+| POST   | `/ssh/sign`     | Sign a user's SSH public key (requires a unique `label` among active certs)    |
+| GET    | `/ssh/mycerts`  | List the current user's certificates (JSON)                                    |
+| POST   | `/ssh/myrevoke` | Self-revoke one of the caller's own certificates; immediately added to the KRL |
 
 ### Admin endpoints (authentication + access control required)
 
