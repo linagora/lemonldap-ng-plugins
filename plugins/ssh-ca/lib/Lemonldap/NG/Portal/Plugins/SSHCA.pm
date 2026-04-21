@@ -454,9 +454,11 @@ sub sshCaSign {
 
     # Store certificate in persistent session for revocation tracking.
     # _storeCertificate replaces any existing record with the same fingerprint
-    # and revokes the superseded serial in the KRL.
+    # and revokes the superseded serial in the KRL. Pass the already-decoded
+    # $existingCerts so the helper doesn't re-run from_json on the same blob.
     $self->_storeCertificate(
         $req,
+        existing    => $existingCerts,
         serial      => $serial,
         key_id      => $keyId,
         user        => $user,
@@ -1260,12 +1262,22 @@ sub _storeCertificate {
         expires_at  => $args{expires_at},
     };
 
-    my $sshCerts = [];
-    if ( $req->userData->{_sshCerts} ) {
-        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-        if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
-            $self->logger->warn("SSH CA: Corrupted _sshCerts, resetting: $@");
-            $sshCerts = [];
+    # Reuse the decoded list from sshCaSign when it was passed in. Fall back
+    # to re-reading (and decoding) $req->userData->{_sshCerts} so other
+    # internal callers don't have to pre-parse.
+    my $sshCerts;
+    if ( ref $args{existing} eq 'ARRAY' ) {
+        $sshCerts = $args{existing};
+    }
+    else {
+        $sshCerts = [];
+        if ( $req->userData->{_sshCerts} ) {
+            $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
+            if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
+                $self->logger->warn(
+                    "SSH CA: Corrupted _sshCerts, resetting: $@");
+                $sshCerts = [];
+            }
         }
     }
 
