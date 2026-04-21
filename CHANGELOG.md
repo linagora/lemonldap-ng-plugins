@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.1.19 - 2026-04-21
+
+Touched plugin bumped to **0.1.19**: `ssh-ca`. Multi-portal support
+for the SSH CA (issue #9).
+
+### ssh-ca
+
+- **Feature - multi-portal KRL replication via message broker**: every
+  revocation (self-revoke, admin revoke, resign-supersede path) is now
+  also published as a `sshCaRevoke` event on the LLNG message broker.
+- **Feature - stateless serial generation**: the per-node flock-based
+  counter file is gone. Serials are now derived from `Time::HiRes`
+  (µs-precision wall clock) plus a 3-digit random tail, with a
+  per-process monotonic guard so intra-process collisions are
+  impossible even on coarse/NTP-adjusted clocks.
+- **Feature - `sshca-rebuild-krl` cron script**: ships in
+  `scripts/sshca-rebuild-krl`. To be used in cron jobs.
+
 ## v0.1.18 - 2026-04-21
 
 Touched plugin bumped to **0.1.18**: `json-file`. Store and CI improvements.
