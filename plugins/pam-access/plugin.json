@@ -10,7 +10,7 @@
     "JSON": "2.0"
   },
   "customPlugins": "::Plugins::PamAccess",
-  "depends": [
+  "test_depends": [
     "oidc-device-authorization",
     "ssh-ca"
   ],

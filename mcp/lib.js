@@ -156,11 +156,15 @@ async function readPluginJson(pluginName) {
   }
 }
 
+// Resolve runtime (`depends`) plus — only for the primary plugin being
+// tested — test-only deps (`test_depends`). Test-only deps are *never*
+// part of the shipped package metadata; they exist purely so our tooling
+// can stand up fixtures a plugin's tests interact with.
 async function resolveDependencies(root, opts = {}) {
   const { noDeps = false, extra = [] } = opts;
   const visited = new Set();
   const order = [];
-  async function visit(name) {
+  async function visit(name, { includeTestDeps = false } = {}) {
     validatePluginName(name);
     if (visited.has(name)) return;
     visited.add(name);
@@ -171,11 +175,17 @@ async function resolveDependencies(root, opts = {}) {
       const meta = await readPluginJson(name);
       const deps = Array.isArray(meta?.depends) ? meta.depends : [];
       for (const d of deps) await visit(d);
+      if (includeTestDeps) {
+        const testDeps = Array.isArray(meta?.test_depends)
+          ? meta.test_depends
+          : [];
+        for (const d of testDeps) await visit(d);
+      }
     }
     order.push(name);
   }
   for (const e of extra) await visit(e);
-  await visit(root);
+  await visit(root, { includeTestDeps: true });
   return order;
 }
 

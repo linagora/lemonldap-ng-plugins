@@ -154,8 +154,29 @@ directory.
 
 ## Dependencies between plugins
 
-If your plugin needs another plugin at runtime, list it in
-`plugin.json`:
+Three distinct fields in `plugin.json` describe dependencies; don't
+confuse them:
+
+| Field | Semantics | Consumed by |
+|-------|-----------|-------------|
+| `depends` | **Runtime** plugin deps shipped with the package — the plugin's own code `use`s them. | Our tooling (to graft them into the test tree), and future package installers. |
+| `test_depends` | **Test-time only** plugin deps — the test suite activates them, but the plugin's runtime code doesn't need them. Never exposed to package installers. | Our tooling (CLI + MCP) only. |
+| `build_depends` | **Debian/apt packages** (e.g. `libnet-dns-perl`) required to build or run the tests. Not plugins. | CI workflow's `apt-get install` step. |
+
+Example — `pam-access` activates `::Plugins::OIDCDeviceAuthorization`
+and `::Plugins::SSHCA` from its test fixtures, but its shipped module
+doesn't depend on them:
+
+```json
+{
+  "name": "pam-access",
+  "test_depends": ["oidc-device-authorization", "ssh-ca"],
+  …
+}
+```
+
+Example — `oidc-device-organization` wraps `oidc-device-authorization`
+at runtime, so users who install it must also get the other plugin:
 
 ```json
 {
@@ -165,9 +186,13 @@ If your plugin needs another plugin at runtime, list it in
 }
 ```
 
-Both CLI and MCP walk this transitively: the dependency is grafted
-before the primary plugin. Only the primary's `t/` is linked —
-dependencies contribute runtime code, not test suites.
+`depends` is walked transitively (deep chain), and applies to every
+plugin linked during `prepare`. `test_depends` is only honoured for
+the **primary** plugin being tested — fixture plugins don't drag in
+their own test fixtures.
+
+Only the primary's `t/` is linked — dependencies contribute runtime
+code (lib + templates + translations), not test suites.
 
 Use `--with foo,bar` (CLI) or `with: ["foo", "bar"]` (MCP) to add
 plugins that aren't formally declared as dependencies.
