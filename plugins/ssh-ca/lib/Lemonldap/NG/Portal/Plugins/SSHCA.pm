@@ -366,11 +366,13 @@ sub sshCaSign {
 
         # Strip characters that could turn a single attribute value into
         # multiple principals downstream: `,` is ssh-keygen -n's separator
-        # (`-n alice,root` = two principals), whitespace is this template's
-        # own separator, and CR/LF would poison the audit log or any file
-        # passed to ssh-keygen. Each `$var` substitution must yield at most
-        # one principal token.
-        if ( $val =~ tr/,\r\n\t //d ) {
+        # (`-n alice,root` = two principals), and any whitespace is the
+        # template's own separator (we split on /\s+/ below). CR/LF would
+        # additionally poison audit logs and any file handed to ssh-keygen.
+        # Each `$var` substitution must yield at most one principal token,
+        # so match the same `\s` class the split uses — `tr///` cannot do
+        # that, hence the regex.
+        if ( $val =~ s/[\s,]//g ) {
             $self->logger->warn(
                 "SSH CA sign: stripped separator chars from principal "
                   . "source \$$key for user "
