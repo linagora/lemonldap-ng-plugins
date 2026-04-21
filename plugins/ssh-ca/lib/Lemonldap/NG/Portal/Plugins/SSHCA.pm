@@ -18,7 +18,6 @@ use Time::HiRes qw(gettimeofday);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Handler::Main::MsgActions;
 use Lemonldap::NG::Portal::Main::Constants qw(
-  HANDLER
   PE_OK
   PE_ERROR
   PE_SENDRESPONSE
@@ -1436,7 +1435,7 @@ sub _publishRevoke {
     my ( $self, $req, $serial ) = @_;
     return unless defined $serial && $serial ne '';
     eval {
-        HANDLER->publishEvent( $req,
+        $self->p->HANDLER->publishEvent( $req,
             { action => 'sshCaRevoke', serial => $serial } );
     };
     if ($@) {
