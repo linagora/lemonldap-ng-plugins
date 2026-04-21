@@ -1,3 +1,5 @@
 .omc
 CLAUDE.md
 .claude/
+.llng-test/
+mcp/node_modules/

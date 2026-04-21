@@ -1,0 +1,36 @@
+{
+  "name": "@linagora/lemonldap-ng-plugins-mcp",
+  "version": "0.1.20",
+  "description": "MCP server + CLI to prepare, run and clean local tests for LemonLDAP::NG plugins",
+  "type": "module",
+  "main": "server.js",
+  "bin": {
+    "llng-plugins-mcp": "server.js",
+    "llng-plugins-test": "cli.js"
+  },
+  "files": [
+    "server.js",
+    "cli.js",
+    "lib.js",
+    "README.md"
+  ],
+  "scripts": {
+    "start": "node server.js",
+    "test": "node cli.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "keywords": [
+    "mcp",
+    "lemonldap-ng",
+    "perl",
+    "test",
+    "plugins"
+  ],
+  "author": "Linagora",
+  "license": "GPL-2.0"
+}

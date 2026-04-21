@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "llng-plugins": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["mcp/server.js"]
+    }
+  }
+}
