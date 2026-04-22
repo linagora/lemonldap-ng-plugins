@@ -1,5 +1,50 @@
 # Changelog
 
+## v0.1.20 - 2026-04-22
+
+Touched plugins bumped to **0.1.20** in lockstep: `ssh-ca`, `pam-access`.
+Hardening + perf release, plus a new local-test MCP toolchain that now
+drives CI.
+
+### ssh-ca
+
+- **Enforcment - principal-source**: each `$var` in
+  `sshCaPrincipalSources` must yield at most one principal token, but
+  attribute values containing `,`, whitespace or CR/LF would split into
+  multiple tokens downstream (whitespace is the template's own
+  separator, `,` is `ssh-keygen -n`'s separator, CR/LF would poison
+  audit logs).
+- **Perf - pure-Perl SSH fingerprint**: each `/ssh/sign` was forking
+  `ssh-keygen -l -E sha256` (with a tempdir + pubkey-on-disk) just to
+  compute the SHA256 fingerprint — ~10–30 ms of fork/exec/cleanup per
+  signature. Reimplemented with `Digest::SHA` + `MIME::Base64` (both
+  LLNG core deps); verified bit-for-bit against `ssh-keygen` on
+  `ssh-ed25519`, `ssh-rsa` and `ecdsa-sha2-nistp256` keys.
+- **Perf - reuse decoded `_sshCerts`**: `sshCaSign` already decoded
+  `userData->{_sshCerts}` once for the label-uniqueness check, then
+  `_storeCertificate` re-ran `from_json` on the same blob. The decoded
+  arrayref is now threaded through via a new `existing` named arg
+  (one JSON parse saved per `/ssh/sign`, and the two decode paths can
+  no longer disagree after an in-memory mutation).
+
+### pam-access
+
+- **Refactor - single SHA256 fingerprint validator**
+- **Perf - one persistent-session load per `/pam/verify`**
+  CLI-driven CI links them only when running pam-access's tests.
+
+### Tooling — new local-test MCP server + CLI
+
+- **`mcp/`** (new): Node.js toolchain that automates the plumbing to
+  run a plugin's Perl test suite against a LemonLDAP::NG checkout.
+  Two entry points share `lib.js`:
+  - **`server.js`**: MCP server _(auto-loaded by Claude Code and other
+    MCP-aware clients via `.mcp.json`)_.
+  - **`cli.js`** _(`llng-plugins-test` npm bin)_: standalone CLI for
+    humans and CI; `prove`'s exit code is propagated.
+- **CI (`.github/workflows/test.yml`)** rewritten on top of
+  `mcp/cli.js`
+
 ## v0.1.19 - 2026-04-21
 
 Touched plugin bumped to **0.1.19**: `ssh-ca`. Multi-portal support
