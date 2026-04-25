@@ -194,7 +194,7 @@ my $ext_constants  = {};
 my $ext_lang       = {};
 
 # Extract extensions by comparing with original
-my $orig_attrs = Lemonldap::NG::Manager::Build::Attributes::attributes();
+my $orig_attrs     = Lemonldap::NG::Manager::Build::Attributes::attributes();
 my $orig_attr_keys = { map { $_ => 1 } keys %$orig_attrs };
 
 # Store select append operations separately (for existing attributes with
@@ -544,8 +544,8 @@ sub collect_auth_plugins {
 "Warning [$ext_file]: authPlugin '$entry->{k}' declares no roles\n";
             next;
         }
-        my %valid = map { $_ => 1 } qw(authentication userDB passwordDB);
-        my @bad = grep { !$valid{$_} } @$roles;
+        my %valid = map  { $_ => 1 } qw(authentication userDB passwordDB);
+        my @bad   = grep { !$valid{$_} } @$roles;
         if (@bad) {
             warn "Warning [$ext_file]: authPlugin '$entry->{k}' has "
               . "unknown role(s): @bad (allowed: authentication, userDB, passwordDB)\n";
@@ -582,7 +582,7 @@ sub apply_auth_plugins {
     );
 
     for my $plugin (@$plugins) {
-        my $opt = { k => $plugin->{k}, v => $plugin->{v} };
+        my $opt   = { k => $plugin->{k}, v => $plugin->{v} };
         my %roles = map { $_ => 1 } @{ $plugin->{roles} };
 
         for my $role ( keys %roles ) {
@@ -628,11 +628,11 @@ sub _append_flat_select {
     return unless ref $attrs->{$key}{select} eq 'ARRAY';
     for my $existing ( @{ $attrs->{$key}{select} } ) {
         return
-          if ref $existing eq 'HASH'
+             if ref $existing eq 'HASH'
           && defined $existing->{k}
           && $existing->{k} eq $opt->{k};
     }
-    push @{ $attrs->{$key}{select} }, { %$opt };
+    push @{ $attrs->{$key}{select} }, {%$opt};
 }
 
 sub _append_nested_select {
@@ -642,11 +642,11 @@ sub _append_nested_select {
     return unless ref $attrs->{$key}{select}[$idx] eq 'ARRAY';
     for my $existing ( @{ $attrs->{$key}{select}[$idx] } ) {
         return
-          if ref $existing eq 'HASH'
+             if ref $existing eq 'HASH'
           && defined $existing->{k}
           && $existing->{k} eq $opt->{k};
     }
-    push @{ $attrs->{$key}{select}[$idx] }, { %$opt };
+    push @{ $attrs->{$key}{select}[$idx] }, {%$opt};
 }
 
 sub merge_extension {
@@ -821,7 +821,7 @@ sub merge_ctrees {
     my ( $core_ctrees, $ext_ctrees, $ext_file ) = @_;
 
     for my $ctree_name ( keys %$ext_ctrees ) {
-        my $spec = $ext_ctrees->{$ctree_name};
+        my $spec  = $ext_ctrees->{$ctree_name};
         my @specs = ref $spec eq 'ARRAY' ? @$spec : ($spec);
         for my $s (@specs) {
             apply_ctree_extension( $core_ctrees, $ctree_name, $s, $ext_file );
@@ -880,8 +880,7 @@ sub apply_ctree_extension {
         insert_nodes_after( $target_array, $insert_after, $nodes, $ext_file );
     }
     elsif ($insert_before) {
-        insert_nodes_before( $target_array, $insert_before, $nodes,
-            $ext_file );
+        insert_nodes_before( $target_array, $insert_before, $nodes, $ext_file );
     }
     else {
         push @$target_array, @$nodes;
@@ -1008,34 +1007,45 @@ sub minify_conftree {
 
     my $success = 0;
 
-    # Check for uglifyjs
-    my $uglifyjs_version = `uglifyjs --version 2>/dev/null`;
-    if ( $? == 0 && $uglifyjs_version ) {
-        my ($major) = $uglifyjs_version =~ /^[^\d]*(\d)/;
-        $major //= 3;
-
-        my $cmd;
-        if ( $major == 2 ) {
-            $cmd =
-"uglifyjs '$basename' --compress --mangle --comments '/Copyr/i' --source-map '$min_basename.map' -o '$min_basename'";
-        }
-        else {
-            $cmd =
-"uglifyjs '$basename' --compress --mangle --comments '/Copyr/i' --source-map -o '$min_basename'";
-        }
-
-        verbose "  Using uglifyjs (version $major)\n";
-        $success = ( system($cmd) == 0 );
+    # Prefer terser
+    my $terser_version = `terser --version 2>/dev/null`;
+    if ( $? == 0 && $terser_version ) {
+        verbose "  Using terser\n";
+        my @cmd = (
+            'terser',     $basename,  '--compress',   '--mangle',
+            '--comments', '/Copyr/i', '--source-map', '-o',
+            $min_basename,
+        );
+        $success = ( system(@cmd) == 0 );
     }
 
-    # Check for terser if uglifyjs failed or not available
+    # Fall back to uglifyjs
     if ( !$success ) {
-        my $terser_version = `terser --version 2>/dev/null`;
-        if ( $? == 0 && $terser_version ) {
-            verbose "  Using terser\n";
-            my $cmd =
-"terser '$basename' --compress --mangle --comments '/Copyr/i' --source-map -o '$min_basename'";
-            $success = ( system($cmd) == 0 );
+        my $uglifyjs_version = `uglifyjs --version 2>/dev/null`;
+        if ( $? == 0 && $uglifyjs_version ) {
+            my ($major) = $uglifyjs_version =~ /^[^\d]*(\d)/;
+            $major //= 3;
+
+            my @cmd;
+            if ( $major == 2 ) {
+                @cmd = (
+                    'uglifyjs',     $basename,
+                    '--compress',   '--mangle',
+                    '--comments',   '/Copyr/i',
+                    '--source-map', "$min_basename.map",
+                    '-o',           $min_basename,
+                );
+            }
+            else {
+                @cmd = (
+                    'uglifyjs',   $basename,  '--compress',   '--mangle',
+                    '--comments', '/Copyr/i', '--source-map', '-o',
+                    $min_basename,
+                );
+            }
+
+            verbose "  Using uglifyjs (version $major)\n";
+            $success = ( system(@cmd) == 0 );
         }
     }
 
