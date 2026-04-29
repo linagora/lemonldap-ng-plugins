@@ -1,5 +1,10 @@
 {
   "attributes": {
+    "twakeWellKnownActivation": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable Twake .well-known/twake-configuration endpoint"
+    },
     "twakeWellKnown": {
       "type": "keyTextContainer",
       "documentation": ".well-known/twake-configuration content"
@@ -28,7 +33,13 @@
       {
         "title": "twake",
         "nodes": [
-          "twakeWellKnown",
+          {
+            "title": "wellKnown",
+            "nodes": [
+              "twakeWellKnownActivation",
+              "twakeWellKnown"
+            ]
+          },
           {
             "title": "appAcounts",
             "nodes": [
@@ -47,9 +58,17 @@
       "en": "Twake",
       "fr": "Twake"
     },
+    "twakeWellKnownActivation": {
+      "en": "Activation",
+      "fr": "Activation"
+    },
     "twakeWellKnown": {
-      "en": ".well-known/twake-configuration content",
-      "fr": "Contenu de .well-known/twake-configuration"
+      "en": "Content",
+      "fr": "Contenu"
+    },
+    "wellKnown": {
+      "en": ".well-known/twake-configuration",
+      "fr": ".well-known/twake-configuration"
     },
     "twakeAppAccounts": {
       "en": "Activation",

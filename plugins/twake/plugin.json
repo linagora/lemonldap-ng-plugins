@@ -20,7 +20,7 @@
   "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
   "autoload": [
     {
-      "condition": "twakeWellKnown",
+      "condition": "twakeWellKnownActivation",
       "module": "::Plugins::TwakeWellknown"
     },
     {
