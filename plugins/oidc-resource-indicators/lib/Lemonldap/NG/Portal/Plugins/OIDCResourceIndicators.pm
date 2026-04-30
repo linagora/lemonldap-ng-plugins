@@ -82,13 +82,9 @@ sub init {
 sub captureResourceParam {
     my ( $self, $req, $oidc_request ) = @_;
 
-    # RFC 8707: resource parameter can appear multiple times
-    my @resources;
-    if ( my $resource = $req->param('resource') ) {
-
-        # Handle both single value and multi-value parameter
-        @resources = ref($resource) eq 'ARRAY' ? @$resource : ($resource);
-    }
+    # RFC 8707: resource parameter can appear multiple times.
+    # Plack::Request::param returns all values in list context.
+    my @resources = $req->param('resource');
 
     # Also check if it was set in the oidc_request hash
     if ( $oidc_request->{resource} ) {
@@ -135,11 +131,10 @@ sub handleTokenRequest {
         }
     }
 
-    # For client_credentials: capture resource param
+    # For client_credentials: capture resource param (possibly multi-valued)
     elsif ( $grant_type eq 'client_credentials' ) {
-        if ( my $resource = $req->param('resource') ) {
-            my @resources =
-              ref($resource) eq 'ARRAY' ? @$resource : ($resource);
+        my @resources = $req->param('resource');
+        if (@resources) {
             my %seen;
             @resources = grep { !$seen{$_}++ } @resources;
             $req->data->{rs_audiences} = \@resources;
@@ -157,10 +152,12 @@ sub handleTokenRequest {
 sub handleRefreshRSScopes {
     my ( $self, $req, $rp, $session_data, $userData ) = @_;
 
-    # RFC 8707: resource parameter can appear on token endpoint
-    if ( my $resource = $req->param('resource') ) {
-        my @resources =
-          ref($resource) eq 'ARRAY' ? @$resource : ($resource);
+    # RFC 8707: resource parameter can appear on token endpoint, possibly
+    # multi-valued. Plack::Request::param returns all values in list context.
+    my @resources = $req->param('resource');
+    if (@resources) {
+        my %seen;
+        @resources = grep { !$seen{$_}++ } @resources;
         $req->data->{rs_audiences} = \@resources;
         $self->logger->debug(
             "OIDCResourceIndicators: Captured resource param for refresh: "
@@ -182,19 +179,26 @@ sub handleRefreshRSScopes {
     # For online refresh, $userData is passed; for offline, use $session_data
     my $user_info = $userData || $session_data;
 
-    # Temporarily set sessionInfo for rule evaluation if not already set
+    # Temporarily set sessionInfo for rule evaluation. Track whether we
+    # actually overrode it so we can restore unconditionally (including
+    # restoring the original undef).
+    my $had_session_info      = defined $req->sessionInfo;
     my $original_session_info = $req->sessionInfo;
-    $req->sessionInfo($user_info) unless $original_session_info;
+    $req->sessionInfo($user_info) unless $had_session_info;
 
     # Get scope from session and evaluate RS scopes
     my $scope = $session_data->{scope} || '';
     my @scope_values = split( /\s+/, $scope );
 
-    # Call the same evaluation logic as oidcResolveScope
+    # Call the same evaluation logic as oidcResolveScope. This may strip
+    # denied RS scopes from @scope_values; persist the filtered list back
+    # into the refresh session data so downstream token generation uses
+    # only granted scopes.
     $self->evaluateRSScopes( $req, \@scope_values, $rp );
+    $session_data->{scope} = join( ' ', @scope_values );
 
-    # Restore original sessionInfo if we changed it
-    $req->sessionInfo($original_session_info) if $original_session_info;
+    # Restore original sessionInfo, even if it was undef
+    $req->sessionInfo($original_session_info) unless $had_session_info;
 
     return PE_OK;
 }

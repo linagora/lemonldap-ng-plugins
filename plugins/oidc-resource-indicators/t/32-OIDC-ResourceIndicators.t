@@ -21,6 +21,7 @@ my $op = LLNG::Manager::Test->new( {
             customPlugins                      =>
               '::Plugins::OIDCResourceIndicators',
             oidcServiceAllowOnlyDeclaredScopes => 0,
+            oidcServiceAllowOffline            => 1,
             oidcRPMetaDataExportedVars => {
                 rp => {
                     email       => "mail",
@@ -44,6 +45,7 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsBypassConsent  => 1,
                     oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
                     oidcRPMetaDataOptionsIDTokenSignAlg => "HS512",
+                    oidcRPMetaDataOptionsAllowOffline   => 1,
                 },
 
                 # Resource Server
@@ -85,23 +87,6 @@ my $op = LLNG::Manager::Test->new( {
         }
     }
 );
-
-my $res;
-
-subtest "Authentication" => sub {
-    my $query = "user=french&password=french";
-    ok(
-        $res = $op->_post(
-            "/",
-            IO::String->new($query),
-            accept => 'text/html',
-            length => length($query),
-        ),
-        "Post authentication"
-    );
-    my $idpId = expectCookie($res);
-    ok( $idpId, "Got session cookie" );
-};
 
 my $idpId = login( $op, "french" );
 
@@ -425,6 +410,85 @@ subtest "Userinfo with RS token" => sub {
 
     # Userinfo should NOT contain aud (only in tokens)
     ok( !exists $userinfo->{aud}, "Userinfo does NOT contain aud" );
+};
+
+subtest "Multiple resource parameters (RFC 8707 multi-value)" => sub {
+
+    # The test sends two `resource` values (one known, one unknown) and
+    # verifies the plugin reads BOTH of them via Plack::Request list-context
+    # `param`. The unknown audience must be silently ignored (already
+    # covered by another subtest); the known one must surface in aud.
+    # Sending the resource param twice also exercises the dedup path —
+    # had the plugin used scalar-context `$req->param('resource')`, only
+    # the first occurrence would have been seen.
+    my $query = "response_type=code"
+      . "&scope=openid+read%3Ausers"
+      . "&client_id=rpid"
+      . "&state=multires"
+      . "&redirect_uri=http%3A%2F%2Fclient.com%2F"
+      . "&resource=https%3A%2F%2Fapi.example.com"
+      . "&resource=https%3A%2F%2Funknown.example.org";
+
+    my $res = $op->_get(
+        "/oauth2/authorize",
+        query  => $query,
+        accept => 'text/html',
+        cookie => "lemonldap=$idpId",
+    );
+    my ($code) = expectRedirection( $res, qr#http://.*code=([^\&]*)# );
+    ok( $code, "Got code with two `resource` params" );
+
+    my $json =
+      expectJSON( codeGrant( $op, "rpid", $code, "http://client.com/" ) );
+    my $payload = id_token_payload( $json->{access_token} );
+    ok( audience_contains( $payload->{aud}, "https://api.example.com" ),
+        "Known resource surfaces in aud (proves multi-value reading)" );
+    ok( !audience_contains( $payload->{aud}, "https://unknown.example.org" ),
+        "Unknown resource is ignored, not echoed in aud" );
+};
+
+subtest "Refresh token preserves RS audience" => sub {
+    my $query = buildForm( {
+            response_type => "code",
+            scope         => "openid profile read:users offline_access",
+            client_id     => "rpid",
+            state         => "refresh-test",
+            redirect_uri  => "http://client.com/",
+            resource      => "https://api.example.com",
+        }
+    );
+    my $res = $op->_get(
+        "/oauth2/authorize",
+        query  => $query,
+        accept => 'text/html',
+        cookie => "lemonldap=$idpId",
+    );
+    my ($code) = expectRedirection( $res, qr#http://.*code=([^\&]*)# );
+    my $token_res =
+      expectJSON( codeGrant( $op, "rpid", $code, "http://client.com/" ) );
+    ok( $token_res->{refresh_token}, "Refresh token issued" );
+
+    my $rt_query = buildForm( {
+            grant_type    => "refresh_token",
+            refresh_token => $token_res->{refresh_token},
+    } );
+    my $refresh_res = $op->_post(
+        "/oauth2/token",
+        IO::String->new($rt_query),
+        accept => 'application/json',
+        length => length($rt_query),
+        custom => {
+            HTTP_AUTHORIZATION => "Basic "
+              . encode_base64( "rpid:rpid", '' ),
+        },
+    );
+    my $refresh_json = expectJSON($refresh_res);
+    ok( $refresh_json->{access_token},
+        "New access token issued from refresh" );
+
+    my $payload = id_token_payload( $refresh_json->{access_token} );
+    ok( audience_contains( $payload->{aud}, "https://api.example.com" ),
+        "Refresh-issued AT still has the RS audience" );
 };
 
 clean_sessions();
