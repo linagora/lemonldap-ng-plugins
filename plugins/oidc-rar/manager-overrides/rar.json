@@ -63,7 +63,7 @@
     },
     "oidcRPMetaDataAuthorizationDetailsRules": {
       "en": "RAR — Authorization details rules",
-      "fr": "RAR — Règles d'authorization details"
+      "fr": "RAR — Règles des détails d'autorisation"
     }
   }
 }
