@@ -88,7 +88,8 @@ sub pushAuthRequest {
     for my $param (
         qw/response_type scope client_id state redirect_uri nonce
         response_mode display prompt max_age ui_locales id_token_hint
-        login_hint acr_values request code_challenge code_challenge_method/
+        login_hint acr_values request code_challenge code_challenge_method
+        authorization_details/
       )
     {
         if ( defined( my $val = $req->param($param) ) ) {
@@ -227,7 +228,8 @@ sub resolvePushedRequest {
     # RFC 9126 Section 3: Parameters in the PAR response take precedence
     my @par_params = qw/response_type scope client_id state redirect_uri nonce
       response_mode display prompt max_age ui_locales id_token_hint
-      login_hint acr_values request code_challenge code_challenge_method/;
+      login_hint acr_values request code_challenge code_challenge_method
+      authorization_details/;
 
     for my $param (@par_params) {
         if ( defined $parSession->data->{$param} ) {
