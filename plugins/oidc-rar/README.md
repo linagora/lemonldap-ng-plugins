@@ -85,18 +85,38 @@ Every requested `authorization_details` entry must clear all three:
    entry). Truthy result grants the entry; falsy rejects it (whole authorize
    call fails). Types with no entry in this hash skip layer 2 (granted
    subject to layer 1).
-3. **User consent** — for the `authorization_code` flow only, the operator's
-   consent template (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display
-   `RAR_DETAILS` (a pretty-printed JSON summary of the pending entries) so
-   the end-user can decide. The variable is **HTML-escaped before injection**
-   (`HTML::Entities::encode_entities`), so it is safe to render verbatim
-   inside `<pre>` / `<code>` without `ESCAPE=HTML`. Example template snippet:
+3. **User consent** *(optional, depending on the use case)* — when
+   `BypassConsent=0` for the RP, the operator's consent template
+   (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display `RAR_DETAILS`
+   (a pretty-printed JSON summary of the pending entries). The variable is
+   **HTML-escaped before injection** (`HTML::Entities::encode_entities`), so
+   it is safe to render verbatim inside `<pre>` / `<code>` without
+   `ESCAPE=HTML`. Example template snippet:
+
    ```html
    <TMPL_IF NAME="RAR_DETAILS">
      <h4>Requested authorization details</h4>
      <pre><TMPL_VAR NAME="RAR_DETAILS"></pre>
    </TMPL_IF>
    ```
+
+   With `BypassConsent=1`, layer 3 is skipped — authorization is entirely
+   carried by layers 1 and 2.
+
+## Two usage modes
+
+RAR fits two quite different deployment patterns; pick the one that
+matches your environment:
+
+| Mode                     | Source of truth                                | `BypassConsent` | Typical context                                              |
+| ------------------------ | ---------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| **B2C / regulated**      | The end-user's informed consent on each call   | `0`             | PSD2 open banking, healthcare, anywhere the law requires it  |
+| **B2B / enterprise**     | The operator's policy (allowlist + Perl rules) | `1`             | Internal SSO, automation, B2B integrations, service accounts |
+
+In B2C the user is the gatekeeper; the consent screen *is* the policy.
+In B2B the user is just identified; the policy is fully expressed in the
+allowlist and rules, and the consent screen is unnecessary friction. The
+plugin supports both — it never forces a consent screen.
 
 #### Example rules
 
