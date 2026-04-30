@@ -6,6 +6,12 @@ use MIME::Base64 qw/encode_base64/;
 use JSON;
 use Lemonldap::NG::Portal::Main::Request;
 
+# Skip the PAR + RAR end-to-end subtest when oidc-par's lib hasn't been
+# linked alongside oidc-rar (it's only linked when the test was prepared
+# with `with: ["oidc-par"]`). All other subtests run unconditionally.
+my $par_available =
+  eval { require Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest; 1 };
+
 BEGIN {
     require 't/test-lib.pm';
     require 't/oidc-lib.pm';
@@ -291,6 +297,73 @@ subtest "Consent injection skips non-consent OIDC templates" => sub {
     }
 };
 
+SKIP: {
+    skip "oidc-par not linked (run with: ['oidc-par'])", 1
+      unless $par_available;
+
+    subtest "PAR + RAR end-to-end (companion patch in oidc-par)" => sub {
+        my $op2 = register( 'op_par_rar', sub { op_par_rar() } );
+        ok( $op2, "OP with PAR+RAR loaded" );
+        my $id2 = login( $op2, "french" );
+
+        # Push authorization_details through PAR
+        my $details = encode_json( [ {
+                type             => "payment_initiation",
+                instructedAmount => { currency => "EUR", amount => "42.00" },
+        } ] );
+        my $par_query = buildForm( {
+                response_type         => "code",
+                scope                 => "openid profile",
+                state                 => "par-rar",
+                redirect_uri          => "http://rp.com/",
+                client_id             => "rp",
+                authorization_details => $details,
+        } );
+        my $par_res = $op2->_post(
+            "/oauth2/par",
+            IO::String->new($par_query),
+            accept => 'application/json',
+            length => length($par_query),
+            custom => {
+                HTTP_AUTHORIZATION => "Basic "
+                  . encode_base64( "rp:rp", '' ),
+            },
+        );
+        is( $par_res->[0], 201, "PAR push accepted" );
+        my $par_json = from_json( $par_res->[2]->[0] );
+        ok( $par_json->{request_uri}, "request_uri returned" );
+
+        # Authorize with the request_uri only
+        my $auth_res = authorize(
+            $op2, $id2,
+            {
+                client_id   => "rp",
+                request_uri => $par_json->{request_uri},
+            }
+        );
+        my ($code) =
+          expectRedirection( $auth_res, qr#http://.*code=([^\&]*)# );
+        ok( $code, "Authorization code received through PAR" );
+
+        # Token response must echo authorization_details — the proof the
+        # parameter actually flowed: PAR push → PAR session → authorize
+        # → code session → token response.
+        my $token_res = expectJSON(
+            codeGrant( $op2, "rp", $code, "http://rp.com/" )
+        );
+        ok( $token_res->{authorization_details},
+            "authorization_details surfaced in token response" );
+        is( $token_res->{authorization_details}->[0]->{type},
+            "payment_initiation", "type preserved end-to-end" );
+        is(
+            $token_res->{authorization_details}->[0]
+              ->{instructedAmount}->{amount},
+            "42.00",
+            "payload preserved end-to-end"
+        );
+    };
+}
+
 subtest "Request without authorization_details still works" => sub {
     my $auth_res = authorize(
         $op, $id,
@@ -400,6 +473,52 @@ sub op {
                     rp_badrule => {
                         # Syntactically broken Perl: must trigger fail-closed
                         payment_initiation => 'this is not valid perl ((',
+                    },
+                },
+                oidcServicePrivateKeySig => oidc_key_op_private_sig,
+                oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            }
+        }
+    );
+}
+
+# Config used by the "PAR + RAR end-to-end" subtest. Loads both plugins and
+# enables RAR + PAR on a single RP, so a `resource` push that carries
+# `authorization_details` can be observed all the way to the token response.
+sub op_par_rar {
+    return LLNG::Manager::Test->new( {
+            ini => {
+                domain                          => 'idp.com',
+                portal                          => 'http://auth.op.com/',
+                authentication                  => 'Demo',
+                userDB                          => 'Same',
+                customPlugins                   =>
+                  '::Plugins::OIDCPushedAuthRequest, '
+                  . '::Plugins::OIDCRichAuthRequest',
+                issuerDBOpenIDConnectActivation => "1",
+                restSessionServer               => 1,
+
+                oidcServiceMetaDataPushedAuthURI => 'par',
+                oidcServicePushedAuthExpiration  => 60,
+
+                oidcRPMetaDataExportedVars => {
+                    rp => { email => "mail", name => "cn", groups => "groups" },
+                },
+                oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcRPMetaDataOptions                 => {
+                    rp => {
+                        oidcRPMetaDataOptionsDisplayName           => "RP",
+                        oidcRPMetaDataOptionsIDTokenExpiration     => 3600,
+                        oidcRPMetaDataOptionsClientID              => "rp",
+                        oidcRPMetaDataOptionsClientSecret          => "rp",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsRedirectUris    => 'http://rp.com/',
+                        oidcRPMetaDataOptionsPAR             => 'allowed',
+                        oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
+                        oidcRPMetaDataOptionsAuthorizationDetailsTypes   =>
+                          'payment_initiation',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
