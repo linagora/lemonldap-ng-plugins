@@ -1,0 +1,61 @@
+{
+  "attributes": {
+    "oidcServiceAuthorizationDetailsTypes": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 9396 — global allowlist of authorization_details `type` values (comma-separated). Empty = no global restriction (per-RP allowlist still applies)."
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "RFC 9396 — accept authorization_details parameter from this RP"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsTypes": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 9396 — per-RP allowlist of authorization_details `type` values (comma-separated). Empty = inherit global only."
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsRule": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 9396 — Perl expression evaluated for each requested authorization_details entry. Receives the user session attributes plus magic variables `$type` (entry type) and `$detail` (full hashref). Truthy result grants the entry, falsy rejects it. Empty = always grant."
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataSecurity",
+      "nodes": [
+        "oidcServiceAuthorizationDetailsTypes"
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/security",
+      "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
+      "nodes": [
+        "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
+        "oidcRPMetaDataOptionsAuthorizationDetailsTypes",
+        "oidcRPMetaDataOptionsAuthorizationDetailsRule"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceAuthorizationDetailsTypes": {
+      "en": "RAR — global allowed types",
+      "fr": "RAR — types autorisés (global)"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsEnabled": {
+      "en": "RAR — Rich Authorization Requests enabled",
+      "fr": "RAR — Activer les requêtes d'autorisation enrichies"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsTypes": {
+      "en": "RAR — allowed types for this RP",
+      "fr": "RAR — types autorisés pour ce RP"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsRule": {
+      "en": "RAR — Perl rule for this RP",
+      "fr": "RAR — règle Perl pour ce RP"
+    }
+  }
+}
