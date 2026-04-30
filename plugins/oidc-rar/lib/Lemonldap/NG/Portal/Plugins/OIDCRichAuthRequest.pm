@@ -88,23 +88,30 @@ sub _buildRpAllowedTypes {
 sub _buildRpRarRule {
     my ($self) = @_;
     my %compiled;
-    my $opts = $self->conf->{oidcRPMetaDataOptions} || {};
+    my $opts  = $self->conf->{oidcRPMetaDataOptions}              || {};
+    my $rules = $self->conf->{oidcRPMetaDataAuthorizationDetailsRules} || {};
     for my $rp ( keys %$opts ) {
         next
           unless $opts->{$rp}->{oidcRPMetaDataOptionsAuthorizationDetailsEnabled};
-        my $rule = $opts->{$rp}->{oidcRPMetaDataOptionsAuthorizationDetailsRule};
-        next unless defined $rule and length $rule;
+        my $perType = $rules->{$rp} or next;
+        next unless ref($perType) eq 'HASH' and %$perType;
 
-        my $expr = $self->p->HANDLER->substitute($rule);
-        my $sub  = $self->p->HANDLER->buildSub($expr);
-        unless ($sub) {
-            my $err = $self->p->HANDLER->tsv->{jail}->error || '???';
-            $self->userLogger->error( "RAR: cannot compile rule for RP $rp: "
-                  . "$err — falling back to deny-all to fail closed" );
-            $compiled{$rp} = sub { 0 };
-            next;
+        for my $type ( keys %$perType ) {
+            my $rule = $perType->{$type};
+            next unless defined $rule and length $rule;
+
+            my $expr = $self->p->HANDLER->substitute($rule);
+            my $sub  = $self->p->HANDLER->buildSub($expr);
+            unless ($sub) {
+                my $err = $self->p->HANDLER->tsv->{jail}->error || '???';
+                $self->userLogger->error( "RAR: cannot compile rule for RP "
+                      . "$rp / type $type: $err — falling back to deny-all "
+                      . "to fail closed" );
+                $compiled{$rp}{$type} = sub { 0 };
+                next;
+            }
+            $compiled{$rp}{$type} = $sub;
         }
-        $compiled{$rp} = $sub;
     }
     return \%compiled;
 }
@@ -206,17 +213,18 @@ sub enforceRulesAndStoreOnCode {
 
     my $details = $req->data->{ &SESSION_KEY } or return PE_OK;
 
-    my $rule = $self->rpRarRule->{$rp};
-    if ($rule) {
+    my $rpRules = $self->rpRarRule->{$rp};
+    if ( $rpRules and %$rpRules ) {
         for my $detail (@$details) {
+            my $type = $detail->{type};
+            my $rule = $rpRules->{$type} or next;
             my $attrs = {
                 %{ $req->userData || {} },
-                type   => $detail->{type},
                 detail => $detail,
             };
             unless ( $rule->( $req, $attrs ) ) {
                 $self->logger->error( "RAR: Perl rule rejected detail of "
-                      . "type `$detail->{type}` for RP $rp" );
+                      . "type `$type` for RP $rp" );
                 return PE_ERROR;
             }
         }

@@ -15,10 +15,11 @@
       "default": "",
       "documentation": "RFC 9396 — per-RP allowlist of authorization_details `type` values (comma-separated). Empty = inherit global only."
     },
-    "oidcRPMetaDataOptionsAuthorizationDetailsRule": {
-      "type": "text",
-      "default": "",
-      "documentation": "RFC 9396 — Perl expression evaluated for each requested authorization_details entry. Receives the user session attributes plus magic variables `$type` (entry type) and `$detail` (full hashref). Truthy result grants the entry, falsy rejects it. Empty = always grant."
+    "oidcRPMetaDataAuthorizationDetailsRules": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "RFC 9396 — per-`type` Perl rules. Key: authorization_details `type` identifier (RFC 6749 token charset). Value: Perl expression evaluated when an entry of that type is requested. Receives the user session attributes plus the magic variable `$detail` (full hashref of the entry). Truthy result grants the entry, falsy rejects it. A type that has no rule entry is permitted (subject to the type allowlist)."
     }
   },
   "tree": [
@@ -35,8 +36,15 @@
       "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
       "nodes": [
         "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
-        "oidcRPMetaDataOptionsAuthorizationDetailsTypes",
-        "oidcRPMetaDataOptionsAuthorizationDetailsRule"
+        "oidcRPMetaDataOptionsAuthorizationDetailsTypes"
+      ]
+    },
+    "_oidcRPMetaDataNodeRarRules": {
+      "target": "oidcRPMetaDataNode",
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsScopes",
+      "insert_after": "oidcRPMetaDataScopeRules",
+      "nodes": [
+        "oidcRPMetaDataAuthorizationDetailsRules"
       ]
     }
   },
@@ -53,9 +61,9 @@
       "en": "RAR — allowed types for this RP",
       "fr": "RAR — types autorisés pour ce RP"
     },
-    "oidcRPMetaDataOptionsAuthorizationDetailsRule": {
-      "en": "RAR — Perl rule for this RP",
-      "fr": "RAR — règle Perl pour ce RP"
+    "oidcRPMetaDataAuthorizationDetailsRules": {
+      "en": "RAR — Authorization details rules",
+      "fr": "RAR — Règles d'authorization details"
     }
   }
 }

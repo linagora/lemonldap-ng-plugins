@@ -21,8 +21,8 @@ constrain it). Example for an open-banking payment initiation:
   {
     "type": "payment_initiation",
     "instructedAmount": { "currency": "EUR", "amount": "100.00" },
-    "creditorAccount":  { "iban": "FR7612345...." },
-    "creditorName":     "Acme Corp"
+    "creditorAccount": { "iban": "FR7612345...." },
+    "creditorName": "Acme Corp"
   }
 ]
 ```
@@ -44,24 +44,31 @@ sudo lemonldap-ng-store install oidc-rar
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`
 into `/etc/lemonldap-ng/manager-plugins.d/`, add
-`::Plugins::OIDCRichAuthRequest` to *Custom plugins*, and run
+`::Plugins::OIDCRichAuthRequest` to _Custom plugins_, and run
 `llng-build-manager-files`.
 
 ## Configuration
 
-### Service-level (Manager → *OpenID Connect Service* → *Security*)
+### Service-level (Manager → _OpenID Connect Service_ → _Security_)
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
+| Parameter                              | Default | Description                                                                                                                  |
+| -------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `oidcServiceAuthorizationDetailsTypes` | _empty_ | Global allowlist of accepted `type` values, comma-separated. Empty = no global restriction (per-RP allowlist still applies). |
 
-### Per-RP (Manager → *OIDC Relying Parties* → `<rp>` → *Options* → *Security*)
+### Per-RP
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `oidcRPMetaDataOptionsAuthorizationDetailsEnabled` | `0` | Accept `authorization_details` from this RP. Required to trigger plugin autoload. |
-| `oidcRPMetaDataOptionsAuthorizationDetailsTypes` | _empty_ | Per-RP allowlist of `type` values, comma-separated. Empty = inherit global only. |
-| `oidcRPMetaDataOptionsAuthorizationDetailsRule` | _empty_ | Perl expression evaluated for each requested entry. |
+In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Security_** :
+
+| Parameter                                          | Default | Description                                                                       |
+| -------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsAuthorizationDetailsEnabled` | `0`     | Accept `authorization_details` from this RP. Required to trigger plugin autoload. |
+| `oidcRPMetaDataOptionsAuthorizationDetailsTypes`   | _empty_ | Per-RP allowlist of `type` values, comma-separated. Empty = inherit global only.  |
+
+In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Scopes_ → _Authorization details rules_** :
+
+| Parameter                                  | Default | Description                                                                                                                                              |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataAuthorizationDetailsRules`  | `{}`    | Hash `type → Perl expression`. Mirrors the `oidcRPMetaDataScopeRules` mechanism: each rule is evaluated when an entry of the matching `type` is requested. |
 
 ### Authorization model — three layers
 
@@ -71,13 +78,13 @@ Every requested `authorization_details` entry must clear all three:
    `oidcServiceAuthorizationDetailsTypes` ∩
    `oidcRPMetaDataOptionsAuthorizationDetailsTypes`. Either set being empty
    means "no restriction at that level". Both empty means any type goes.
-2. **Per-RP Perl rule** — if `oidcRPMetaDataOptionsAuthorizationDetailsRule`
-   is set, it is evaluated in LLNG's sandbox (`Safe::reval`) for each entry,
-   with the user session attributes plus two magic variables:
-   - `$type` — the entry's `type` value
-   - `$detail` — the full hashref of the entry
-   Truthy result grants the entry; falsy rejects it (whole authorize call
-   fails).
+2. **Per-RP, per-type Perl rule** — if a rule is configured for the
+   requested entry's `type` in `oidcRPMetaDataAuthorizationDetailsRules`,
+   it is evaluated in LLNG's sandbox (`Safe::reval`), with the user session
+   attributes plus the magic variable `$detail` (full hashref of the
+   entry). Truthy result grants the entry; falsy rejects it (whole authorize
+   call fails). Types with no entry in this hash skip layer 2 (granted
+   subject to layer 1).
 3. **User consent** — for the `authorization_code` flow only, the operator's
    consent template (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display
    `RAR_DETAILS` (a pretty-printed JSON summary of the pending entries) so
@@ -93,25 +100,23 @@ Every requested `authorization_details` entry must clear all three:
 
 #### Example rules
 
-```perl
-# Only allow payment_initiation if user is in the banking group
-$type ne 'payment_initiation' or $groups =~ /\bbanking\b/
+In `oidcRPMetaDataAuthorizationDetailsRules` for an RP, key = `type`, value
+= Perl expression:
 
-# Cap payment amounts based on authentication level
-$type ne 'payment_initiation'
-  or ( $detail->{instructedAmount}->{amount} <= 1000
-       or $authenticationLevel >= 4 )
+```
+payment_initiation  =>  $groups =~ /\bbanking\b/ and $detail->{instructedAmount}->{amount} <= 1000
+account_information =>  $authenticationLevel >= 2
 ```
 
 ## Where the granted details surface
 
-| Location | Mechanism |
-|----------|-----------|
-| `/oauth2/token` JSON response | Top-level `authorization_details` field |
-| JWT access token | `authorization_details` claim (only when LLNG issues structured/JWT access tokens for the RP) |
-| `/oauth2/introspect` response | Top-level `authorization_details` field |
+| Location                            | Mechanism                                                                                                                               |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `/oauth2/token` JSON response       | Top-level `authorization_details` field                                                                                                 |
+| JWT access token                    | `authorization_details` claim (only when LLNG issues structured/JWT access tokens for the RP)                                           |
+| `/oauth2/introspect` response       | Top-level `authorization_details` field                                                                                                 |
 | `/.well-known/openid-configuration` | `authorization_details_types_supported` array (union of all enabled RPs' allowed types, intersected with the global allowlist when set) |
-| Refresh token grant | Persisted on the refresh session, re-emitted in the new token response |
+| Refresh token grant                 | Persisted on the refresh session, re-emitted in the new token response                                                                  |
 
 ## Limitations & known gaps (v1)
 
