@@ -79,8 +79,17 @@ Every requested `authorization_details` entry must clear all three:
    Truthy result grants the entry; falsy rejects it (whole authorize call
    fails).
 3. **User consent** — for the `authorization_code` flow only, the operator's
-   consent template should display `RAR_DETAILS` (a pretty-printed JSON
-   summary of the pending entries) so the end-user can decide.
+   consent template (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display
+   `RAR_DETAILS` (a pretty-printed JSON summary of the pending entries) so
+   the end-user can decide. The variable is **HTML-escaped before injection**
+   (`HTML::Entities::encode_entities`), so it is safe to render verbatim
+   inside `<pre>` / `<code>` without `ESCAPE=HTML`. Example template snippet:
+   ```html
+   <TMPL_IF NAME="RAR_DETAILS">
+     <h4>Requested authorization details</h4>
+     <pre><TMPL_VAR NAME="RAR_DETAILS"></pre>
+   </TMPL_IF>
+   ```
 
 #### Example rules
 

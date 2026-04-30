@@ -4,6 +4,7 @@ use strict;
 use IO::String;
 use MIME::Base64 qw/encode_base64/;
 use JSON;
+use Lemonldap::NG::Portal::Main::Request;
 
 BEGIN {
     require 't/test-lib.pm';
@@ -232,6 +233,46 @@ subtest "RP without RAR enabled rejects authorization_details" => sub {
     );
     expectPortalError( $auth_res, 24,
         "RAR-disabled RP returns portal error when details are sent" );
+};
+
+subtest "Consent template variable is HTML-escaped (XSS prevention)" => sub {
+    my $plugin = $op->p->loadedModules->{
+        'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest' };
+    ok( $plugin, "RAR plugin is loaded" );
+
+    my $req = Lemonldap::NG::Portal::Main::Request->new( {} );
+    $req->data->{_rar_details} = [ {
+            type => "payment_initiation",
+            note => '<script>alert(1)</script>',
+            html => '<img src=x onerror="alert(2)">',
+    } ];
+    my $tpl  = "oidcGiveConsent";
+    my $args = { params => {} };
+
+    $plugin->injectConsentDetails( $req, \$tpl, $args );
+    my $out = $args->{params}->{RAR_DETAILS};
+    ok( $out, "RAR_DETAILS variable is set" );
+    unlike( $out, qr/<script>/,
+        "raw <script> tag is not present in the rendered variable" );
+    unlike( $out, qr/<img/,
+        "raw <img> tag is not present in the rendered variable" );
+    like( $out, qr/&lt;script&gt;/, "<script> is HTML-encoded" );
+    like( $out, qr/&quot;/,        '" is HTML-encoded' );
+};
+
+subtest "Consent injection skips non-consent OIDC templates" => sub {
+    my $plugin = $op->p->loadedModules->{
+        'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest' };
+    my $req = Lemonldap::NG::Portal::Main::Request->new( {} );
+    $req->data->{_rar_details} = [ { type => "payment_initiation" } ];
+
+    for my $tpl_name (qw/oidcLogout oidcOfflineTokens login/) {
+        my $tpl  = $tpl_name;
+        my $args = { params => {} };
+        $plugin->injectConsentDetails( $req, \$tpl, $args );
+        ok( !exists $args->{params}->{RAR_DETAILS},
+            "$tpl_name template is left alone" );
+    }
 };
 
 subtest "Request without authorization_details still works" => sub {

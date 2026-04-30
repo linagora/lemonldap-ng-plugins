@@ -10,6 +10,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest;
 use strict;
 use Mouse;
 use JSON qw(decode_json);
+use HTML::Entities qw(encode_entities);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -338,6 +339,11 @@ sub advertiseTypes {
 # Inject a pretty-printed JSON view of pending authorization_details for the
 # OIDC consent template, so deployments that render the variable can show it
 # to the user.
+#
+# The content of `authorization_details` is RP-controlled and lands in HTML,
+# so we HTML-escape on the way out: HTML::Template does not auto-escape, and
+# operators may forget to add `ESCAPE=HTML` on `<TMPL_VAR NAME="RAR_DETAILS">`.
+# Pre-escaping makes the variable safe to render verbatim inside <pre>/<code>.
 sub injectConsentDetails {
     my ( $self, $req, $tpl, $args ) = @_;
 
@@ -346,8 +352,8 @@ sub injectConsentDetails {
     my $d = $req->data->{ &SESSION_KEY };
     return PE_OK unless $d;
 
-    $args->{params}->{ &CONSENT_TPL_VAR } =
-      JSON->new->canonical->pretty->encode($d);
+    my $json = JSON->new->canonical->pretty->encode($d);
+    $args->{params}->{ &CONSENT_TPL_VAR } = encode_entities($json);
     return PE_OK;
 }
 
