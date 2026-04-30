@@ -16,7 +16,7 @@ use Lemonldap::NG::Portal::Main::Constants qw(
   PE_ERROR
 );
 
-our $VERSION = '0.1.0';
+our $VERSION = '2.23.0';
 
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
@@ -98,8 +98,10 @@ sub _buildRpRarRule {
         my $expr = $self->p->HANDLER->substitute($rule);
         my $sub  = $self->p->HANDLER->buildSub($expr);
         unless ($sub) {
-            $self->logger->error( "RAR: cannot compile rule for RP $rp: "
-                  . $self->p->HANDLER->tsv->{jail}->error );
+            my $err = $self->p->HANDLER->tsv->{jail}->error || '???';
+            $self->userLogger->error( "RAR: cannot compile rule for RP $rp: "
+                  . "$err — falling back to deny-all to fail closed" );
+            $compiled{$rp} = sub { 0 };
             next;
         }
         $compiled{$rp} = $sub;

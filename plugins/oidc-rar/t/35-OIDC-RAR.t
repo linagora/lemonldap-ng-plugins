@@ -222,6 +222,22 @@ subtest "Perl rule grants detail when condition holds" => sub {
         "small payment is granted by rule" );
 };
 
+subtest "Uncompilable Perl rule fails closed (deny-all)" => sub {
+    # rp_badrule has a syntactically broken rule; the plugin must install a
+    # deny-all fallback rather than silently dropping the rule (which would
+    # weaken authorization).
+    my $auth_res = authorize(
+        $op, $id,
+        {
+            %base_authorize,
+            client_id             => "rp_badrule",
+            authorization_details => $valid_details,
+        }
+    );
+    expectPortalError( $auth_res, 24,
+        "broken rule denies all RAR requests for the RP" );
+};
+
 subtest "RP without RAR enabled rejects authorization_details" => sub {
     my $auth_res = authorize(
         $op, $id,
@@ -313,9 +329,10 @@ sub op {
                   'payment_initiation,account_information',
 
                 oidcRPMetaDataExportedVars => {
-                    rp        => { email => "mail", name => "cn", groups => "groups" },
-                    rp_strict => { email => "mail", name => "cn", groups => "groups" },
-                    rp_norar  => { email => "mail", name => "cn", groups => "groups" },
+                    rp         => { email => "mail", name => "cn", groups => "groups" },
+                    rp_strict  => { email => "mail", name => "cn", groups => "groups" },
+                    rp_norar   => { email => "mail", name => "cn", groups => "groups" },
+                    rp_badrule => { email => "mail", name => "cn", groups => "groups" },
                 },
                 oidcServiceAllowAuthorizationCodeFlow => 1,
                 oidcServiceAllowOffline               => 1,
@@ -362,6 +379,20 @@ sub op {
                         oidcRPMetaDataOptionsAccessTokenExpiration  => 3600,
                         oidcRPMetaDataOptionsRedirectUris           => 'http://rp.com/',
                         # RAR disabled
+                    },
+                    rp_badrule => {
+                        oidcRPMetaDataOptionsDisplayName            => "RP BadRule",
+                        oidcRPMetaDataOptionsIDTokenExpiration      => 3600,
+                        oidcRPMetaDataOptionsClientID               => "rp_badrule",
+                        oidcRPMetaDataOptionsClientSecret           => "rp_badrule",
+                        oidcRPMetaDataOptionsIDTokenSignAlg         => "RS256",
+                        oidcRPMetaDataOptionsBypassConsent          => 1,
+                        oidcRPMetaDataOptionsAccessTokenExpiration  => 3600,
+                        oidcRPMetaDataOptionsRedirectUris           => 'http://rp.com/',
+                        oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
+                        # Syntactically broken Perl: must trigger fail-closed
+                        oidcRPMetaDataOptionsAuthorizationDetailsRule =>
+                          'this is not valid perl ((',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
