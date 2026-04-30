@@ -1,0 +1,63 @@
+{
+  "attributes": {
+    "oidcRPMetaDataOptionsEnableRI": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "RFC 8707 — declare this RP as a Resource Server target for `resource` parameter binding"
+    },
+    "oidcRPMetaDataOptionsRIIdentifier": {
+      "type": "text",
+      "documentation": "RFC 8707 — Resource Server identifier (audience). Defaults to clientId when empty."
+    },
+    "oidcRPMetaDataRIScopes": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "RFC 8707 — Resource Server scopes. Key: scope name (RFC 6749 charset). Value: human-readable description."
+    },
+    "oidcRPMetaDataRIScopeRules": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "RFC 8707 — RS scope authorization rules. Key: scope name. Value: Perl expression evaluated against the user session; truthy grants the scope when this RS is targeted. `1` / `accept` always grants; `0` / `deny` always denies."
+    }
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_after": "oidcRPMetaDataMacros",
+      "nodes": [
+        {
+          "title": "oidcRPMetaDataOptionsResourceIndicators",
+          "nodes": [
+            "oidcRPMetaDataOptionsEnableRI",
+            "oidcRPMetaDataOptionsRIIdentifier",
+            "oidcRPMetaDataRIScopes",
+            "oidcRPMetaDataRIScopeRules"
+          ]
+        }
+      ]
+    }
+  },
+  "lang": {
+    "oidcRPMetaDataOptionsEnableRI": {
+      "en": "Enable Resource Indicators (RFC 8707)",
+      "fr": "Activer les Resource Indicators (RFC 8707)"
+    },
+    "oidcRPMetaDataOptionsRIIdentifier": {
+      "en": "Resource Server identifier (audience)",
+      "fr": "Identifiant du Resource Server (audience)"
+    },
+    "oidcRPMetaDataRIScopes": {
+      "en": "RS scopes",
+      "fr": "Scopes du RS"
+    },
+    "oidcRPMetaDataRIScopeRules": {
+      "en": "RS scope authorization rules",
+      "fr": "Règles d'autorisation des scopes RS"
+    },
+    "oidcRPMetaDataOptionsResourceIndicators": {
+      "en": "Resource Indicators",
+      "fr": "Resource Indicators"
+    }
+  }
+}
