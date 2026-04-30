@@ -320,6 +320,27 @@ subtest "PAR missing required parameters fails" => sub {
     is( $json2->{error}, "invalid_request", "Error is invalid_request" );
 };
 
+subtest "PAR accepts the authorization_details parameter (RFC 9396)" => sub {
+
+    # Verifies that the push side does not reject `authorization_details` as
+    # an unknown parameter. End-to-end semantics (the parameter actually
+    # surfaces in the token response) require oidc-rar to be active, and
+    # are covered by the corresponding subtest in oidc-rar's test suite.
+    my $details = '[{"type":"payment_initiation","amount":"42"}]';
+    my $par_res = parRequest(
+        $op, "rp",
+        {
+            %test_authorize_params,
+            client_id             => "rp",
+            authorization_details => $details,
+        }
+    );
+    is( $par_res->[0], 201, "PAR with authorization_details returns 201" );
+    my $par_json = parJSON($par_res);
+    ok( $par_json->{request_uri},
+        "request_uri returned for RAR-carrying PAR" );
+};
+
 clean_sessions();
 done_testing();
 

@@ -1,0 +1,25 @@
+{
+  "name": "oidc-rar",
+  "version": "0.1.0",
+  "summary": "OAuth 2.0 Rich Authorization Requests (RFC 9396)",
+  "description": "Implements RFC 9396 Rich Authorization Requests on the OIDC Provider side: parses, validates and persists the authorization_details parameter, echoes it in token responses, exposes it as a JWT claim and via introspection, and advertises supported types in the discovery document. Per-RP allowlist and per-type Perl rules (sandboxed via Safe::reval, mirroring the existing scopeRules mechanism) decide which details are granted.",
+  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.23.0",
+  "perl_requires": {
+    "JSON": "2.0",
+    "HTML::Entities": "0"
+  },
+  "customPlugins": "::Plugins::OIDCRichAuthRequest",
+  "tags": [
+    "oidc",
+    "security"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
+      "module": "::Plugins::OIDCRichAuthRequest"
+    }
+  ]
+}

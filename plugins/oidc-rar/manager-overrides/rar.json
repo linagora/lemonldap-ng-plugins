@@ -1,0 +1,69 @@
+{
+  "attributes": {
+    "oidcServiceAuthorizationDetailsTypes": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 9396 — global allowlist of authorization_details `type` values (comma-separated). Empty = no global restriction (per-RP allowlist still applies)."
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsEnabled": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "RFC 9396 — accept authorization_details parameter from this RP"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsTypes": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 9396 — per-RP allowlist of authorization_details `type` values (comma-separated). Empty = inherit global only."
+    },
+    "oidcRPMetaDataAuthorizationDetailsRules": {
+      "type": "keyTextContainer",
+      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
+      "default": {},
+      "documentation": "RFC 9396 — per-`type` Perl rules. Key: authorization_details `type` identifier (RFC 6749 token charset). Value: Perl expression evaluated when an entry of that type is requested. Receives the user session attributes plus the magic variable `$detail` (full hashref of the entry). Truthy result grants the entry, falsy rejects it. A type that has no rule entry is permitted (subject to the type allowlist)."
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataSecurity",
+      "nodes": [
+        "oidcServiceAuthorizationDetailsTypes"
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/security",
+      "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
+      "nodes": [
+        "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
+        "oidcRPMetaDataOptionsAuthorizationDetailsTypes"
+      ]
+    },
+    "_oidcRPMetaDataNodeRarRules": {
+      "target": "oidcRPMetaDataNode",
+      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsScopes",
+      "insert_after": "oidcRPMetaDataScopeRules",
+      "nodes": [
+        "oidcRPMetaDataAuthorizationDetailsRules"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceAuthorizationDetailsTypes": {
+      "en": "RAR — global allowed types",
+      "fr": "RAR — types autorisés (global)"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsEnabled": {
+      "en": "RAR — Rich Authorization Requests enabled",
+      "fr": "RAR — Activer les requêtes d'autorisation enrichies"
+    },
+    "oidcRPMetaDataOptionsAuthorizationDetailsTypes": {
+      "en": "RAR — allowed types for this RP",
+      "fr": "RAR — types autorisés pour ce RP"
+    },
+    "oidcRPMetaDataAuthorizationDetailsRules": {
+      "en": "RAR — Authorization details rules",
+      "fr": "RAR — Règles des détails d'autorisation"
+    }
+  }
+}
