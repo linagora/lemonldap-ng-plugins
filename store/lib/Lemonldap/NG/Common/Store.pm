@@ -14,6 +14,16 @@ use Lemonldap::NG::Common::Store::State;
 
 our $VERSION = '2.23.0';
 
+# Perl modules whose Debian package name doesn't follow the lib<name>-perl
+# convention. Keep in sync with debian/build-debs.sh PERL_DEB_MAP.
+my %PERL_DEB_MAP = (
+    'Date::Parse'    => 'libtimedate-perl',
+    'Date::Format'   => 'libtimedate-perl',
+    'URI::Escape'    => 'liburi-perl',
+    'URI'            => 'liburi-perl',
+    'HTML::Entities' => 'libhtml-parser-perl',
+);
+
 my %COMMANDS = (
     'add-store'    => \&cmd_addStore,
     'remove-store' => \&cmd_removeStore,
@@ -370,9 +380,12 @@ sub _installOne {
         if (@missing) {
             print "WARNING: Missing Perl dependencies:\n";
             for my $m (@missing) {
-                ( my $deb = $m ) =~ s/ .*//;
-                $deb =~ s/::/-/g;
-                $deb = 'lib' . lc($deb) . '-perl';
+                ( my $mod = $m ) =~ s/ .*//;
+                my $deb = $PERL_DEB_MAP{$mod};
+                unless ($deb) {
+                    ( $deb = $mod ) =~ s/::/-/g;
+                    $deb = 'lib' . lc($deb) . '-perl';
+                }
                 print "  $m  (apt install $deb or cpan install)\n";
             }
             print

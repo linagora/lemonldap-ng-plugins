@@ -23,6 +23,7 @@ declare -A PERL_DEB_MAP=(
   ["Date::Format"]="libtimedate-perl"
   ["URI::Escape"]="liburi-perl"
   ["URI"]="liburi-perl"
+  ["HTML::Entities"]="libhtml-parser-perl"
 )
 
 # Convert a Perl module name to a Debian package name
