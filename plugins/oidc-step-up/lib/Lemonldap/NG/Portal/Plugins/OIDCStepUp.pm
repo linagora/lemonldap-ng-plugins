@@ -37,13 +37,31 @@ use constant hook => {
 # Persist the values needed to recompute acr/auth_time later, on the
 # refresh session itself. Only does work when the RP opts in via
 # oidcRPMetaDataOptionsStepUpClaims, so unrelated RPs are left alone.
+#
+# Three sources are tried in order:
+#   1. $req->data->{DATA_KEY} — populated by restoreOnTokenEndpoint when
+#      a refresh-token rotation happens (back-channel: live sessionInfo
+#      is empty here, but the per-request stash carries the original
+#      auth context).
+#   2. $req->sessionInfo / $req->userData — the live user session, set
+#      during the auth_code flow at /authorize.
+#   3. $refresh_info itself — core may have already populated `auth_time`
+#      and similar fields; pick them up if so.
 sub storeOnRefreshToken {
     my ( $self, $req, $refresh_info, $rp, $offline ) = @_;
     return PE_OK unless $self->_enabled($rp);
 
-    my $session = $req->sessionInfo || $req->userData || {};
-    my $level   = $session->{authenticationLevel};
-    my $atime   = $session->{_lastAuthnUTime};
+    my $stash   = $req->data->{ &DATA_KEY }                  || {};
+    my $session = $req->sessionInfo || $req->userData         || {};
+
+    my $level =
+         $stash->{authenticationLevel}
+      // $session->{authenticationLevel}
+      // $refresh_info->{authenticationLevel};
+    my $atime =
+         $stash->{_lastAuthnUTime}
+      // $session->{_lastAuthnUTime}
+      // $refresh_info->{auth_time};
 
     $refresh_info->{ &DATA_KEY } = {
         ( defined $level ? ( authenticationLevel => $level + 0 ) : () ),
@@ -141,7 +159,11 @@ sub addClaimsToAccessToken {
     if ( defined $level ) {
         my $acr = "loa-$level";
         my $ctx = $self->conf->{oidcServiceMetaDataAuthnContext} || {};
-        for my $name ( keys %$ctx ) {
+
+        # Sort keys for determinism: if two ACR names map to the same
+        # authenticationLevel (legitimate but ambiguous config), the chosen
+        # name must not depend on Perl's hash randomization across runs.
+        for my $name ( sort keys %$ctx ) {
             if ( $ctx->{$name} eq $level ) {
                 $acr = $name;
                 last;
