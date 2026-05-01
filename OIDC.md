@@ -38,7 +38,7 @@ LemonLDAP::NG (LLNG) ships a complete OAuth 2.0 / OpenID Connect stack on both s
 | RP-Initiated Logout                        | `/oauth2/end_session`                         |                                                                          |
 | `iss` in authorization response (RFC 9207) | _automatic_                                   |                                                                          |
 | Native SSO for Mobile Apps                 | _per-RP option_                               |                                                                          |
-| Token Exchange (RFC 8693)                  | `/oauth2/token` with `grant_type=...exchange` | Hook-driven (`oidcGotTokenExchange`); operators wire their own logic.    |
+| Token Exchange (RFC 8693)                  | `/oauth2/token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` | Hook-driven (`oidcGotTokenExchange`); request typically carries `subject_token`, `subject_token_type` and optional `audience` / `resource`. |
 | Per-RP scope rules                         | `oidcRPMetaDataScopeRules` (Perl, sandboxed)  | Same plumbing this store extends for RAR rules and RS rules.             |
 
 ### 1.2 Authentication & client metadata
@@ -48,7 +48,7 @@ LemonLDAP::NG (LLNG) ships a complete OAuth 2.0 / OpenID Connect stack on both s
 | `client_secret_basic` / `client_secret_post`         | ✅                       |
 | `client_secret_jwt`                                  | ✅                       |
 | `private_key_jwt` (RFC 7521 + RFC 7523)              | ✅                       |
-| `tls_client_auth` / `self_signed_tls_client_auth`    | ⏳ in PR for LLNG ≥ 2.24 |
+| `tls_client_auth` / `self_signed_tls_client_auth`    | ⏳ pending upstream LLNG release ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) |
 | PKCE (RFC 7636), enforced via `RequirePKCE` per RP   | ✅                       |
 | ID-token signing: HS\*, RS\*, ES\*, PS\*             | ✅                       |
 | ID-token / userinfo / introspection encryption (JWE) | ✅                       |
@@ -143,9 +143,9 @@ The plugins are grouped by use case below. Each is a self-contained `.deb`-insta
 | **Pushed `request_uri` only** (no other `request_uri` schemes)            | 🧩 with PAR `required` mode.                                                                                                   |
 | **Resource Indicators (RFC 8707)**                                        | 🧩 [`oidc-resource-indicators`](plugins/oidc-resource-indicators).                                                             |
 | **`iss` in authz response (RFC 9207)**                                    | ✅ Core.                                                                                                                       |
-| **Sender-constrained access tokens — mTLS path (RFC 8705)**               | ⏳ In PR for LLNG core (≥ 2.24).                                                                                               |
+| **Sender-constrained access tokens — mTLS path (RFC 8705)**               | ⏳ Pending upstream LLNG release ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)).                |
 | **Sender-constrained access tokens — DPoP path (RFC 9449)**               | ⏳ Pending: needs a small core hook (`oidcParseAuthorization` or equivalent) to override the Bearer-only Authorization parser. |
-| **Strong client authentication** (`private_key_jwt` or `tls_client_auth`) | ✅ `private_key_jwt` in core; `tls_client_auth` ships with the mTLS PR.                                                        |
+| **Strong client authentication** (`private_key_jwt` or `tls_client_auth`) | ✅ `private_key_jwt` in core; `tls_client_auth` lands with [issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442). |
 
 ### 3.2 The Message Signing Profile mandates
 
@@ -163,7 +163,7 @@ The Message Signing Profile is FAPI 2.0's stricter sibling that mandates JWT-sig
 
 For a complete FAPI 2.0 alignment in LLNG today, the gap is:
 
-- **DPoP (RFC 9449)** — the only feature with no implementation path yet. It needs a tiny core change first (a hook on the Authorization-header parser), after which the plugin itself is ~300-500 lines. mTLS is the alternative sender-constraint, so deployments that go all-mTLS are FAPI 2.0-aligned today (modulo the mTLS PR landing).
+- **DPoP (RFC 9449)** — the only feature with no implementation path yet. It needs a tiny core change first (a hook on the Authorization-header parser), after which the plugin itself is ~300-500 lines. mTLS is the alternative sender-constraint, so deployments that go all-mTLS are FAPI 2.0-aligned once [issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442) lands.
 
 - **`acr_values_supported` discovery field** — informative only; trivial follow-up via `oidcGenerateMetadata`.
 
@@ -179,7 +179,7 @@ These are not strictly required by FAPI 2.0 but are commonly demanded alongside:
 
 ### 3.5 How to deploy a FAPI 2.0-aligned LLNG today (mTLS path)
 
-Once LLNG ≥ 2.24 is out (mTLS landed) and assuming you want the _Security Profile_ (not the Message Signing one):
+Once mTLS lands upstream ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) and assuming you want the _Security Profile_ (not the Message Signing one):
 
 1. Install `oidc-par` and `oidc-resource-indicators` from this store.
 2. Configure your RPs:
@@ -226,7 +226,7 @@ Quick lookup if you know what you need.
 | User-facing dashboard "connected apps", PSD2 / PSD3 consent renewal, single-call grant revocation | `oidc-grant-management`.                                                     |
 | Resource Server needs to enforce step-up / max-age policies                                       | `oidc-acr-claims` (AS side; RS-side challenge logic is on the RS).           |
 | Federation between OPs and RPs through trust anchors                                              | `oidc-federation`.                                                           |
-| FAPI 2.0 Security Profile (PSD2-grade)                                                            | mTLS PR landing + `oidc-par` + `oidc-resource-indicators` + RP config above. |
+| FAPI 2.0 Security Profile (PSD2-grade)                                                            | upstream mTLS ([#3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) + `oidc-par` + `oidc-resource-indicators` + RP config above. |
 | FAPI 2.0 Message Signing Profile                                                                  | _the above_ + `oidc-jar` + `oidc-jarm`.                                      |
 
 ---
