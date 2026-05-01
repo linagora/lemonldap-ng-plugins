@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "oidcRPMetaDataOptionsAcrClaims": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Emit `acr` and `auth_time` claims in this RP's JWT access tokens. Required for RFC 9470 step-up challenges and any RS-side policy that depends on the user's authentication context."
+    }
+  },
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/security",
+      "insert_after": "oidcRPMetaDataOptionsAuthnRequireNonce",
+      "nodes": [
+        "oidcRPMetaDataOptionsAcrClaims"
+      ]
+    }
+  },
+  "lang": {
+    "oidcRPMetaDataOptionsAcrClaims": {
+      "en": "Emit acr + auth_time claims in access token",
+      "fr": "Émettre les claims acr + auth_time dans l'access token"
+    }
+  }
+}
