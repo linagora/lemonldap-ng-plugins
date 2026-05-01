@@ -7,6 +7,10 @@
 This page lists the standards, RFCs and specifications implemented by
 [Lemonldap::NG](https://lemonldap-ng.org/) or here via our plugins.
 
+> Looking for a narrative overview of OpenID Connect / OAuth 2.0 in LLNG —
+> what core ships, what these plugins add, FAPI 2.0 alignment, deployment
+> recipes? See [`OIDC.md`](OIDC.md).
+
 Each row has two columns:
 
 - **Core** — implementation shipped with LLNG upstream (✅ complete, `partial` when only part of the spec is covered).
@@ -52,12 +56,16 @@ Specifications are grouped by protocol family:
 | [OAuth 2.0 Token Introspection (RFC 7662)](https://www.rfc-editor.org/rfc/rfc7662)                           | ✅      |                                                                                                                                      |
 | [OAuth 2.0 Device Authorization Grant (RFC 8628)](https://www.rfc-editor.org/rfc/rfc8628)                    |         | 🧩 [`oidc-device-authorization`](plugins/oidc-device-authorization) + [`oidc-device-organization`](plugins/oidc-device-organization) |
 | [OAuth 2.0 Token Exchange (RFC 8693)](https://www.rfc-editor.org/rfc/rfc8693)                                | ✅      |                                                                                                                                      |
+| [Resource Indicators for OAuth 2.0 (RFC 8707)](https://www.rfc-editor.org/rfc/rfc8707)                       |         | 🧩 [`oidc-resource-indicators`](plugins/oidc-resource-indicators)                                                                    |
 | [JWT Secured Authorization Request — JAR (RFC 9101)](https://www.rfc-editor.org/rfc/rfc9101)                 | partial | 🧩 [`oidc-jar`](plugins/oidc-jar)                                                                                                    |
 | [Pushed Authorization Requests — PAR (RFC 9126)](https://www.rfc-editor.org/rfc/rfc9126)                     |         | 🧩 [`oidc-par`](plugins/oidc-par)                                                                                                    |
 | [OAuth 2.0 Authorization Server Issuer Identification (RFC 9207)](https://www.rfc-editor.org/rfc/rfc9207)    | ✅      |                                                                                                                                      |
+| [Rich Authorization Requests — RAR (RFC 9396)](https://www.rfc-editor.org/rfc/rfc9396)                       |         | 🧩 [`oidc-rar`](plugins/oidc-rar)                                                                                                    |
+| [Step-Up Authentication Challenge (RFC 9470)](https://www.rfc-editor.org/rfc/rfc9470) — AS-side claims       |         | 🧩 [`oidc-acr-claims`](plugins/oidc-acr-claims)                                                                                      |
 | [JWT Secured Authorization Response Mode — JARM](https://openid.net/specs/oauth-v2-jarm.html)                |         | 🧩 [`oidc-jarm`](plugins/oidc-jarm)                                                                                                  |
 | [OAuth 2.0 Security Best Current Practice (RFC 9700)](https://www.rfc-editor.org/rfc/rfc9700)                | ✅      |                                                                                                                                      |
 | [JWT Response for OAuth 2.0 Token Introspection (RFC 9701)](https://www.rfc-editor.org/rfc/rfc9701)          | ✅      |                                                                                                                                      |
+| [FAPI Grant Management for OAuth 2.0](https://openid.net/specs/fapi-grant-management.html)                   |         | 🧩 [`oidc-grant-management`](plugins/oidc-grant-management)                                                                          |
 
 ### 1.3 JOSE (JSON Object Signing and Encryption)
 
