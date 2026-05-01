@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.2.0 - 2026-05-01
+
+Touched plugins bumped to **0.2.0** in lockstep: `oidc-rar` (new),
+`oidc-resource-indicators` (new), `oidc-acr-claims` (new), `oidc-par`,
+`twake`.
+
+### oidc-rar (new)
+
+- **Feature - RFC 9396 Rich Authorization Requests** (OIDC Provider
+  side): `authorization_details` parsing on `/oauth2/authorize`,
+  persistence through code/refresh/AT sessions, echo in token
+  responses + JWT AT, introspection, discovery advertisement.
+
+### oidc-resource-indicators (new)
+
+- **Feature - RFC 8707 Resource Indicators** (OIDC Provider side):
+  `resource` parameter on `/oauth2/authorize` and `/oauth2/token`
+  (`client_credentials` + refresh), per-RS scope rules
+  (`oidcRPMetaDataRIScopeRules`), token binding (JWT `aud`,
+  introspection, refresh).
+
+### oidc-acr-claims (new)
+
+- **Feature - RFC 9470 AS-side claims**: emit `acr` + `auth_time` on
+  the JWT access token (mirrors core's ID-token mapping —
+  `oidcServiceMetaDataAuthnContext` then `loa-<level>`). Per-RP opt-in
+  via `oidcRPMetaDataOptionsAcrClaims`.
+
+### oidc-par
+
+- **Feature - forward `authorization_details` (RFC 9396)** through
+  PAR sessions: added to the parameter allowlists in `pushAuthRequest`
+  and `resolvePushedRequest`. Was previously dropped between
+  `/oauth2/par` and `/oauth2/authorize`.
+
+### twake
+
+- **Refactor - dedicated bool activation flag**: replace the
+  `keyTextContainer` condition (`twakeWellKnown`) with a real `bool`
+  attribute (`twakeWellKnownActivation`); manager tree reorganised
+  under a `wellKnown` node.
+
+### crowdsec-filters
+
+- Refresh trendy CVE URIs (snapshot 2026-04-27).
+
+### Tooling & docs
+
+- `llng-build-manager-files`: prefer `terser` over `uglifyjs` when
+  both are available (PR #17).
+- READMEs: clarify that `lemonldap-ng-store` is bundled with
+  LLNG ≥ 2.24.0; LLNG 2.23.x users need the
+  `linagora-lemonldap-ng-store` backport (built from `store/`).
+- `plugin.json`: `author` field normalised.
+
 ## v0.1.20 - 2026-04-22
 
 Touched plugins bumped to **0.1.20** in lockstep: `ssh-ca`, `pam-access`.

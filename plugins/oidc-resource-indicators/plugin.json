@@ -1,6 +1,6 @@
 {
   "name": "oidc-resource-indicators",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "summary": "OAuth 2.0 Resource Indicators (RFC 8707)",
   "description": "Implements RFC 8707 Resource Indicators on the OIDC Provider side: lets clients name the target Resource Server(s) on /authorize and /token via the `resource` parameter, evaluates per-RS scope rules, and binds the issued tokens (access token JWT `aud`, introspection, refresh) to the resolved RS identifiers. RS-side scopes and per-scope Perl rules are configured per RP using `oidcRPMetaDataRIScopes` and `oidcRPMetaDataRIScopeRules` (mirrors the existing scopeRules pattern).",
   "author": "Xavier Guimard <yadd@debian.org>",

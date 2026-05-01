@@ -1,6 +1,6 @@
 {
   "name": "twake",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "summary": "Twake integration: well-known endpoint and applicative accounts",
   "description": "Provides Twake integration for LemonLDAP::NG: a .well-known/twake-configuration endpoint and LDAP-based applicative account management (create/delete/list accounts with generated passwords).",
   "author": "Linagora <https://linagora.com>",
