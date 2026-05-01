@@ -12,18 +12,18 @@ With `lemonldap-ng-store` (LLNG ≥ 2.24.0) or [linagora-lemonldap-ng-store](../
 sudo lemonldap-ng-store install oidc-resource-indicators
 ```
 
-Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCResourceIndicators` to *Custom plugins*, and run `llng-build-manager-files`.
+Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCResourceIndicators` to _Custom plugins_, and run `llng-build-manager-files`.
 
 ## Configuration
 
-For each RP that represents an API (Resource Server), in **Manager → *OIDC Relying Parties* → `<rp>`** :
+For each RP that represents an API (Resource Server), in **Manager → _OIDC Relying Parties_ → `<rp>`** :
 
-| Parameter                            | Type             | Description                                                                                                  |
-| ------------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| `oidcRPMetaDataOptionsEnableRI`      | bool             | Mark this RP as a Resource Server target                                                                     |
-| `oidcRPMetaDataOptionsRIIdentifier`  | text             | RS identifier (audience). Defaults to `clientId` when empty                                                  |
-| `oidcRPMetaDataRIScopes`             | hash             | Hash `scope_name → human description`. Declares which scopes belong to this RS                               |
-| `oidcRPMetaDataRIScopeRules`         | hash             | Hash `scope_name → Perl rule`. The rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies |
+| Parameter                           | Type | Description                                                                                                                                                                                                                      |
+| ----------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsEnableRI`     | bool | Mark this RP as a Resource Server target                                                                                                                                                                                         |
+| `oidcRPMetaDataOptionsRIIdentifier` | text | RS identifier (audience). Defaults to `clientId` when empty                                                                                                                                                                      |
+| `oidcRPMetaDataRIScopes`            | hash | Hash `scope_name → human description`. Declares which scopes belong to this RS                                                                                                                                                   |
+| `oidcRPMetaDataRIScopeRules`        | hash | Hash `scope_name → Perl rule`. The rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies |
 
 ## Flow
 
@@ -47,20 +47,20 @@ Client → API at https://api.example.com with Bearer <token>
 
 ## Hook strategy
 
-The plugin uses **only existing LLNG ≥ 2.23 hooks**, no core change required. The only subtlety is the access token *session* (where introspection reads its data from): there is no `oidcGenerateAccessTokenSession` hook in 2.23, so we patch the AT session post-creation via `oidcGenerateTokenResponse` + `Lemonldap::NG::Common::JWT::getAccessTokenSessionId` (which handles JWT ⇒ jti and opaque ⇒ token-as-id).
+The plugin uses **only existing LLNG ≥ 2.23 hooks**, no core change required. The only subtlety is the access token _session_ (where introspection reads its data from): there is no `oidcGenerateAccessTokenSession` hook in 2.23, so we patch the AT session post-creation via `oidcGenerateTokenResponse` + `Lemonldap::NG::Common::JWT::getAccessTokenSessionId` (which handles JWT ⇒ jti and opaque ⇒ token-as-id).
 
-| Hook                                | Role                                                                       |
-| ----------------------------------- | -------------------------------------------------------------------------- |
-| `oidcGotRequest`                    | Capture `resource` param at /authorize                                     |
+| Hook                                | Role                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------- |
+| `oidcGotRequest`                    | Capture `resource` param at /authorize                                              |
 | `oidcGotTokenRequest`               | Restore RS audiences from code session (auth_code) / capture for client_credentials |
-| `oidcGotOnlineRefresh`              | Re-evaluate RS scopes and audiences on online refresh                      |
-| `oidcGotOfflineRefresh`             | Same for offline refresh                                                   |
-| `oidcResolveScope`                  | Filter scope list against per-RS rules                                     |
-| `oidcGenerateCode`                  | Persist resolved audiences on code session                                 |
-| `oidcGenerateRefreshToken`          | Persist resolved audiences on refresh session                              |
-| `oidcGenerateAccessToken`           | Add resolved audiences to JWT `aud` claim                                  |
-| `oidcGenerateTokenResponse`         | Patch AT session post-creation so introspection sees the audiences         |
-| `oidcGenerateIntrospectionResponse` | Surface RS audiences in introspection response                             |
+| `oidcGotOnlineRefresh`              | Re-evaluate RS scopes and audiences on online refresh                               |
+| `oidcGotOfflineRefresh`             | Same for offline refresh                                                            |
+| `oidcResolveScope`                  | Filter scope list against per-RS rules                                              |
+| `oidcGenerateCode`                  | Persist resolved audiences on code session                                          |
+| `oidcGenerateRefreshToken`          | Persist resolved audiences on refresh session                                       |
+| `oidcGenerateAccessToken`           | Add resolved audiences to JWT `aud` claim                                           |
+| `oidcGenerateTokenResponse`         | Patch AT session post-creation so introspection sees the audiences                  |
+| `oidcGenerateIntrospectionResponse` | Surface RS audiences in introspection response                                      |
 
 ## Origin
 

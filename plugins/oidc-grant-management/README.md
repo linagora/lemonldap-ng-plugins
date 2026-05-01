@@ -80,11 +80,11 @@ Three things, with a **`grant_id`** that ties them together:
 
 ### 1. `grant_management_action` parameter on `/oauth2/authorize`
 
-| Action    | Effect                                                                                                                               |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Action    | Effect                                                                                                                                                                                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `create`  | Mint a fresh grant. The new `grant_id` is returned in the token response. (Action is opt-in: an authorize call without `grant_management_action` does NOT create a grant — the FAPI draft has gone back and forth on whether `create` is implicit; this plugin requires it explicitly.) |
-| `update`  | Load the grant pointed at by the `grant_id` request parameter and **add** the requested scopes/details. Same `grant_id` is returned. |
-| `replace` | Load the grant and **replace** its scope set with the newly requested one. Same `grant_id` is returned.                              |
+| `update`  | Load the grant pointed at by the `grant_id` request parameter and **add** the requested scopes/details. Same `grant_id` is returned.                                                                                                                                                    |
+| `replace` | Load the grant and **replace** its scope set with the newly requested one. Same `grant_id` is returned.                                                                                                                                                                                 |
 
 ### 2. `grant_id` field
 

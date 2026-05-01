@@ -39,15 +39,15 @@ With `lemonldap-ng-store` (LLNG ≥ 2.24.0) or [linagora-lemonldap-ng-store](../
 sudo lemonldap-ng-store install oidc-acr-claims
 ```
 
-Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCAcrClaims` to *Custom plugins*, and run `llng-build-manager-files`.
+Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into `/etc/lemonldap-ng/manager-plugins.d/`, add `::Plugins::OIDCAcrClaims` to _Custom plugins_, and run `llng-build-manager-files`.
 
 ## Configuration
 
-Per-RP, in **Manager → *OIDC Relying Parties* → `<rp>` → *Options* → *Security*** :
+Per-RP, in **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Security_** :
 
-| Parameter                          | Default | Description                                                                                    |
-| ---------------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsAcrClaims`   | `0`     | Emit `acr` + `auth_time` in the JWT access token issued for this RP. Triggers plugin autoload. |
+| Parameter                        | Default | Description                                                                                    |
+| -------------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsAcrClaims` | `0`     | Emit `acr` + `auth_time` in the JWT access token issued for this RP. Triggers plugin autoload. |
 
 The `acr` value is derived from the user's `authenticationLevel` exactly the same way the ID token is built:
 
@@ -64,11 +64,11 @@ The values surfaced on the access token reflect the **original** authentication,
 
 ## Hook map
 
-| Hook                       | Role                                                                                                                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `oidcGenerateRefreshToken` | Stash `authenticationLevel` + `_lastAuthnUTime` on the refresh session at issuance and on each rotation             |
+| Hook                       | Role                                                                                                                                      |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcGenerateRefreshToken` | Stash `authenticationLevel` + `_lastAuthnUTime` on the refresh session at issuance and on each rotation                                   |
 | `oidcGotTokenRequest`      | At /token, restore those values from the refresh session (refresh grant) or from the user session via `user_session_id` (auth_code grant) |
-| `oidcGenerateAccessToken`  | Inject `acr` + `auth_time` into the JWT payload                                                                     |
+| `oidcGenerateAccessToken`  | Inject `acr` + `auth_time` into the JWT payload                                                                                           |
 
 ## What still needs to be done elsewhere
 

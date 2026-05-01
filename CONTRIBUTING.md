@@ -157,11 +157,11 @@ directory.
 Three distinct fields in `plugin.json` describe dependencies; don't
 confuse them:
 
-| Field | Semantics | Consumed by |
-|-------|-----------|-------------|
-| `depends` | **Runtime** plugin deps shipped with the package — the plugin's own code `use`s them. | Our tooling (to graft them into the test tree), and future package installers. |
-| `test_depends` | **Test-time only** plugin deps — the test suite activates them, but the plugin's runtime code doesn't need them. Never exposed to package installers. | Our tooling (CLI + MCP) only. |
-| `build_depends` | **Debian/apt packages** (e.g. `libnet-dns-perl`) required to build or run the tests. Not plugins. | CI workflow's `apt-get install` step. |
+| Field           | Semantics                                                                                                                                             | Consumed by                                                                    |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `depends`       | **Runtime** plugin deps shipped with the package — the plugin's own code `use`s them.                                                                 | Our tooling (to graft them into the test tree), and future package installers. |
+| `test_depends`  | **Test-time only** plugin deps — the test suite activates them, but the plugin's runtime code doesn't need them. Never exposed to package installers. | Our tooling (CLI + MCP) only.                                                  |
+| `build_depends` | **Debian/apt packages** (e.g. `libnet-dns-perl`) required to build or run the tests. Not plugins.                                                     | CI workflow's `apt-get install` step.                                          |
 
 Example — `pam-access` activates `::Plugins::OIDCDeviceAuthorization`
 and `::Plugins::SSHCA` from its test fixtures, but its shipped module

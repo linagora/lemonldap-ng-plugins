@@ -66,9 +66,9 @@ In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Security_*
 
 In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Scopes_ → _Authorization details rules_** :
 
-| Parameter                                  | Default | Description                                                                                                                                              |
-| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataAuthorizationDetailsRules`  | `{}`    | Hash `type → Perl expression`. Mirrors the `oidcRPMetaDataScopeRules` mechanism: each rule is evaluated when an entry of the matching `type` is requested. |
+| Parameter                                 | Default | Description                                                                                                                                                |
+| ----------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataAuthorizationDetailsRules` | `{}`    | Hash `type → Perl expression`. Mirrors the `oidcRPMetaDataScopeRules` mechanism: each rule is evaluated when an entry of the matching `type` is requested. |
 
 ### Authorization model — three layers
 
@@ -85,7 +85,7 @@ Every requested `authorization_details` entry must clear all three:
    entry). Truthy result grants the entry; falsy rejects it (whole authorize
    call fails). Types with no entry in this hash skip layer 2 (granted
    subject to layer 1).
-3. **User consent** *(optional, depending on the use case)* — when
+3. **User consent** _(optional, depending on the use case)_ — when
    `BypassConsent=0` for the RP, the operator's consent template
    (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display `RAR_DETAILS`
    (a pretty-printed JSON summary of the pending entries). The variable is
@@ -108,12 +108,12 @@ Every requested `authorization_details` entry must clear all three:
 RAR fits two quite different deployment patterns; pick the one that
 matches your environment:
 
-| Mode                     | Source of truth                                | `BypassConsent` | Typical context                                              |
-| ------------------------ | ---------------------------------------------- | --------------- | ------------------------------------------------------------ |
-| **B2C / regulated**      | The end-user's informed consent on each call   | `0`             | PSD2 open banking, healthcare, anywhere the law requires it  |
-| **B2B / enterprise**     | The operator's policy (allowlist + Perl rules) | `1`             | Internal SSO, automation, B2B integrations, service accounts |
+| Mode                 | Source of truth                                | `BypassConsent` | Typical context                                              |
+| -------------------- | ---------------------------------------------- | --------------- | ------------------------------------------------------------ |
+| **B2C / regulated**  | The end-user's informed consent on each call   | `0`             | PSD2 open banking, healthcare, anywhere the law requires it  |
+| **B2B / enterprise** | The operator's policy (allowlist + Perl rules) | `1`             | Internal SSO, automation, B2B integrations, service accounts |
 
-In B2C the user is the gatekeeper; the consent screen *is* the policy.
+In B2C the user is the gatekeeper; the consent screen _is_ the policy.
 In B2B the user is just identified; the policy is fully expressed in the
 allowlist and rules, and the consent screen is unnecessary friction. The
 plugin supports both — it never forces a consent screen.
