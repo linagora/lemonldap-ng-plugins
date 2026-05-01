@@ -45,6 +45,8 @@ The `acr` value is derived from the user's `authenticationLevel` exactly the sam
 1. If the deployment defines `oidcServiceMetaDataAuthnContext` mapping (e.g., `urn:llng:loa:basic → 1`, `urn:llng:loa:elevated → 3`), the matching name is used.
 2. Otherwise it falls back to `loa-<level>` (e.g., `loa-2`).
 
+If several names map to the same level (almost always a config mistake), the **alphabetically first name wins**, deterministically across runs and processes. The plugin also logs a loud `userLogger->error` at config-load time pointing at the offending level and the names involved, so operators see the issue before clients do.
+
 `auth_time` is the seconds-epoch of the user's last authentication (`_lastAuthnUTime`), the same value LLNG already exposes on the ID token.
 
 ## Refresh token behavior

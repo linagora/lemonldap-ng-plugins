@@ -33,6 +33,36 @@ use constant hook => {
     oidcGenerateAccessToken  => 'addClaimsToAccessToken',
 };
 
+# Surface mapping mistakes at config-load time: when several `acr` names
+# map to the same authenticationLevel, the chosen one is the alphabetically
+# first (see addClaimsToAccessToken below), but that's almost always a
+# config error rather than an intent. Log it loudly so the operator can fix
+# it, while keeping the runtime behaviour deterministic and unchanged.
+sub init {
+    my ($self) = @_;
+    return unless $self->SUPER::init;
+
+    my $ctx = $self->conf->{oidcServiceMetaDataAuthnContext} || {};
+    my %byLevel;
+    for my $name ( sort keys %$ctx ) {
+        push @{ $byLevel{ $ctx->{$name} } }, $name;
+    }
+    for my $level ( sort keys %byLevel ) {
+        my @names = @{ $byLevel{$level} };
+        next if @names < 2;
+        $self->userLogger->error(
+                "OIDCStepUp: oidcServiceMetaDataAuthnContext maps "
+              . "authenticationLevel=$level to "
+              . scalar(@names)
+              . " ACR names ("
+              . join( ', ', @names )
+              . "). Plugin will deterministically use `$names[0]` "
+              . "(alphabetically first). Fix the config to keep one "
+              . "name per level." );
+    }
+    return 1;
+}
+
 # Hook: oidcGenerateRefreshToken
 # Persist the values needed to recompute acr/auth_time later, on the
 # refresh session itself. Only does work when the RP opts in via

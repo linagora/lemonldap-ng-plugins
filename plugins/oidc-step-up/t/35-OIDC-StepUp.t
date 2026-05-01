@@ -159,9 +159,10 @@ subtest "Deterministic acr resolution when several names map to one level"
     my $op3 = register( 'op_dup', sub { op_with_duplicate_acr() } );
     my $id3 = login( $op3, "french" );
 
-    # Two authorize-code flows back to back: the chosen acr name MUST match.
-    # Without a sorted-keys lookup, Perl's hash randomization could pick a
-    # different name across runs.
+    # Three names (`urn:llng:loa:aaa/bbb/ccc`) all map to level=1. The
+    # documented winner is the alphabetically first one, so `aaa`. Without
+    # a sorted-keys lookup, Perl's hash randomization could pick any of
+    # the three.
     my $first;
     for ( 1 .. 2 ) {
         my $code = codeAuthorize(
@@ -179,7 +180,8 @@ subtest "Deterministic acr resolution when several names map to one level"
         my $payload = jwt_payload( $token_res->{access_token} );
         if ( $_ == 1 ) {
             $first = $payload->{acr};
-            ok( $first =~ /^urn:llng:loa:/, "acr is one of the configured names" );
+            is( $first, "urn:llng:loa:aaa",
+                "alphabetically-first name is chosen (documented winner)" );
         }
         else {
             is( $payload->{acr}, $first,
