@@ -1,0 +1,60 @@
+{
+  "attributes": {
+    "oidcServiceMetaDataGrantManagementURI": {
+      "type": "text",
+      "default": "grants",
+      "documentation": "FAPI Grant Management — endpoint path for `/oauth2/{path}/{grant_id}` (GET to query, DELETE to revoke)"
+    },
+    "oidcServiceGrantExpiration": {
+      "type": "int",
+      "default": 7776000,
+      "documentation": "FAPI Grant Management — TTL of a grant in seconds, default 90 days (PSD2 alignment). Refreshed on every token issuance against the grant."
+    },
+    "oidcRPMetaDataOptionsGrantManagement": {
+      "type": "select",
+      "select": [
+        { "k": "", "v": "Disabled" },
+        { "k": "allowed", "v": "Allowed" },
+        { "k": "required", "v": "Required" }
+      ],
+      "default": "",
+      "documentation": "FAPI Grant Management mode for this RP. `allowed` accepts `grant_management_action` from the client; `required` rejects authorize calls that omit it."
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataEndPoints",
+      "nodes": [
+        "oidcServiceMetaDataGrantManagementURI"
+      ]
+    },
+    {
+      "insert_into": "oidcServiceMetaData/oidcServiceMetaDataTimeouts",
+      "nodes": [
+        "oidcServiceGrantExpiration"
+      ]
+    }
+  ],
+  "ctrees": {
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/security",
+      "nodes": [
+        "oidcRPMetaDataOptionsGrantManagement"
+      ]
+    }
+  },
+  "lang": {
+    "oidcServiceMetaDataGrantManagementURI": {
+      "en": "Grant management endpoint URI",
+      "fr": "URI de l'endpoint Grant Management"
+    },
+    "oidcServiceGrantExpiration": {
+      "en": "Grant TTL (seconds)",
+      "fr": "Durée de vie d'un grant (secondes)"
+    },
+    "oidcRPMetaDataOptionsGrantManagement": {
+      "en": "Grant Management mode",
+      "fr": "Mode Grant Management"
+    }
+  }
+}
