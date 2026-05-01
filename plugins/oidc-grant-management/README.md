@@ -57,14 +57,14 @@ A grant carries `created_at`, `last_used_at`, the cumulative scope set, the cumu
 
 ### Why refresh tokens aren't enough
 
-| Need                                       | Refresh token                                                                                | Grant                                                          |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| "What scopes did this user authorize?"     | Stored implicitly, not queryable                                                             | First-class field                                              |
-| Revoke an authorization                    | Revoke the RT — but ATs issued from it stay valid until expiration                           | Same caveat for v1 (see Limitations), but the intent is captured |
-| Survive RT rotation                        | RT id changes on every rotation; the "authorization" loses identity                          | `grant_id` is stable                                           |
-| Two devices, same auth                     | Two unrelated RT chains; no shared identity                                                  | Optional: same `grant_id` across both, or two grants           |
-| Add/remove permissions mid-life            | Not possible — must re-authorize from scratch                                                | `update` / `replace`                                           |
-| Inspect from the user's account dashboard  | No standard endpoint                                                                         | `GET /oauth2/grants/{id}`                                      |
+| Need                                      | Refresh token                                                       | Grant                                                            |
+| ----------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| "What scopes did this user authorize?"    | Stored implicitly, not queryable                                    | First-class field                                                |
+| Revoke an authorization                   | Revoke the RT — but ATs issued from it stay valid until expiration  | Same caveat for v1 (see Limitations), but the intent is captured |
+| Survive RT rotation                       | RT id changes on every rotation; the "authorization" loses identity | `grant_id` is stable                                             |
+| Two devices, same auth                    | Two unrelated RT chains; no shared identity                         | Optional: same `grant_id` across both, or two grants             |
+| Add/remove permissions mid-life           | Not possible — must re-authorize from scratch                       | `update` / `replace`                                             |
+| Inspect from the user's account dashboard | No standard endpoint                                                | `GET /oauth2/grants/{id}`                                        |
 
 ### Where this matters today
 
@@ -82,7 +82,7 @@ Three things, with a **`grant_id`** that ties them together:
 
 | Action    | Effect                                                                                                                               |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `create`  | (default if RP mode allows) Mint a fresh grant. The new `grant_id` is returned in the token response.                                |
+| `create`  | Mint a fresh grant. The new `grant_id` is returned in the token response. (Action is opt-in: an authorize call without `grant_management_action` does NOT create a grant — the FAPI draft has gone back and forth on whether `create` is implicit; this plugin requires it explicitly.) |
 | `update`  | Load the grant pointed at by the `grant_id` request parameter and **add** the requested scopes/details. Same `grant_id` is returned. |
 | `replace` | Load the grant and **replace** its scope set with the newly requested one. Same `grant_id` is returned.                              |
 
@@ -144,7 +144,7 @@ When at least one RP has Grant Management enabled, the plugin advertises:
 - **Token cascade revocation is best-effort.** `DELETE /oauth2/grants/{id}` removes the grant session, but already-issued access tokens stay valid until they expire. Operators wanting hard cascade can shorten access-token TTLs or pair this plugin with a custom userinfo/introspection hook that re-checks the grant. A hooked re-check feature can land in v2.
 - **`merge` action not supported.** RFC says it's optional and the semantics are ambiguous.
 - **No native consent-screen integration.** When an `update` or `replace` action arrives with `BypassConsent=0`, the user sees the standard consent UI, not a delta-aware one. Operators wanting a delta UI need a custom template.
-- **Grant ownership tied to the RP confKey.** A client renamed in the manager loses access to grants held under its old name. Don't rename RPs in flight.
+- **Grant ownership tied to `client_id`, not the RP confKey.** As long as the OAuth `client_id` stays the same, renaming the RP in the manager (changing its confKey) preserves access. Changing a client's `client_id` is what loses access — that's by design (it's a different client).
 
 ## Hook map
 
@@ -163,7 +163,13 @@ The RESTful endpoint is registered in `init()` via `addUnauthRoute` with the `:g
 
 ## Combining with `oidc-rar`
 
-If `oidc-rar` is also loaded, the grant carries `authorization_details` alongside the scope set: GET on the grant returns the cumulative `authorization_details`, and `update`/`replace` extends/replaces them the same way they do for scopes.
+If `oidc-rar` is also loaded, the grant carries `authorization_details` alongside the scope set. Both follow the same per-action semantics:
+
+- **`create`** — the grant is born with the request's `authorization_details`.
+- **`update`** — the new entries are unioned into the existing list, deduped by structural (JSON-canonical) equality. So a fintech adding a second account doesn't lose the first one.
+- **`replace`** — the existing list is replaced by the request's entries verbatim.
+
+GET on the grant returns the cumulative `authorization_details`.
 
 ## See also
 

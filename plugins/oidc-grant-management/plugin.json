@@ -2,7 +2,7 @@
   "name": "oidc-grant-management",
   "version": "0.1.0",
   "summary": "FAPI Grant Management for OAuth 2.0",
-  "description": "Implements the OpenID Foundation FAPI Grant Management API: introduces grants as durable first-class records, the `grant_management_action` parameter on /oauth2/authorize (`create` / `update` / `replace`), the `grant_id` claim on token responses, and a RESTful endpoint at `/oauth2/grants/{grant_id}` (GET to query, DELETE to revoke with cascade on tokens). Pure plugin, no LLNG core change required.",
+  "description": "Implements the OpenID Foundation FAPI Grant Management API: introduces grants as durable first-class records, the `grant_management_action` parameter on /oauth2/authorize (`create` / `update` / `replace`), the `grant_id` claim on token responses, and a RESTful endpoint at `/oauth2/grants/{grant_id}` (GET to query, DELETE to revoke; token cascade on revoke is best-effort in v1, see plugin README). Pure plugin, no LLNG core change required.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.24.0",

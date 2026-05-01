@@ -95,8 +95,11 @@ sub parseGrantManagementParam {
       || $req->param('grant_id');
 
     # If the RP requires Grant Management, every authorize MUST carry an
-    # action. Default to `create` is acceptable for `allowed` mode but not
-    # for `required` (per FAPI spec §3.1).
+    # action. In `allowed` mode the action is strictly opt-in: requests
+    # without `grant_management_action` produce no `grant_id`. (The FAPI
+    # draft has gone back and forth on whether `create` is the implicit
+    # default; this plugin currently treats absence as "no grant", which
+    # is also what the test suite asserts.)
     if ( $mode eq 'required' and not $action ) {
         $self->logger->error(
             "OIDCGrantManagement: RP `$rp` requires grant_management_action "
@@ -196,27 +199,46 @@ sub materializeGrantAndStoreOnCode {
             return PE_ERROR;
         };
 
+        # Subject check: a client presenting a stolen `grant_id` must NOT
+        # be able to update/replace another user's grant. The user is
+        # authenticated by the time oidcGenerateCode fires, so we can
+        # compare the grant owner against the current session.
+        my $grant_sub = $grant->data->{sub} // '';
+        if ( length $grant_sub and $grant_sub ne $sub ) {
+            $self->logger->error(
+                "OIDCGrantManagement: grant `$grant_id` is owned by a "
+                  . "different subject (got `$sub`, expected `$grant_sub`)"
+            );
+            return PE_ERROR;
+        }
+
         my %merged_scope =
           map { $_ => 1 } split /\s+/, $grant->data->{scope} || '';
 
+        # `authorization_details` (RFC 9396, set by oidc-rar when active)
+        # follows the same semantics as `scope`:
+        #   - update  => union of existing + new entries (deduped by `type`)
+        #   - replace => entries from the current request only
+        my $existing_rar = $grant->data->{authorization_details};
+        my $new_rar;
         if ( $action eq 'update' ) {
             $merged_scope{$_} = 1 for split /\s+/, $scope;
+            $new_rar = _mergeRar( $existing_rar, $rar );
         }
         elsif ( $action eq 'replace' ) {
             %merged_scope = map { $_ => 1 } split /\s+/, $scope;
+            $new_rar = $rar;
         }
-        $self->oidc->updateToken(
-            $grant_id,
-            {
+
+        $grant->update( {
                 scope => join( ' ', sort keys %merged_scope ),
                 (
-                    defined $rar
-                    ? ( authorization_details => $rar )
+                    defined $new_rar
+                    ? ( authorization_details => $new_rar )
                     : ()
                 ),
                 last_used_at => time,
-            }
-        );
+        } );
     }
 
     $ctx->{grant_id} = $grant_id;
@@ -396,6 +418,27 @@ sub _loadGrant {
     my ( $self, $grant_id ) = @_;
     return undef unless $grant_id;
     return $self->oidc->getOpenIDConnectSession( $grant_id, &SESSION_KIND );
+}
+
+# Union of two `authorization_details` arrays, deduped by structural
+# equality (cheap JSON-canonical comparison). Used by the `update`
+# action so a fintech adding a second account doesn't lose the first one.
+sub _mergeRar {
+    my ( $existing, $new ) = @_;
+    return $existing unless defined $new and ref($new) eq 'ARRAY';
+    return $new
+      unless defined $existing
+      and ref($existing) eq 'ARRAY'
+      and @$existing;
+
+    my %seen;
+    my @out;
+    for my $entry ( @$existing, @$new ) {
+        my $key = JSON->new->canonical->encode($entry);
+        next if $seen{$key}++;
+        push @out, $entry;
+    }
+    return \@out;
 }
 
 sub _jsonError {

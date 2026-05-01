@@ -180,6 +180,162 @@ subtest "action=replace replaces the scope set entirely" => sub {
     );
 };
 
+sub _refresh {
+    my ( $op, $client_id, $rt ) = @_;
+    my $q = buildForm( {
+            grant_type    => "refresh_token",
+            refresh_token => $rt,
+    } );
+    return $op->_post(
+        "/oauth2/token",
+        IO::String->new($q),
+        accept => 'application/json',
+        length => length($q),
+        custom => {
+            HTTP_AUTHORIZATION => "Basic "
+              . encode_base64( "$client_id:$client_id", '' ),
+        },
+    );
+}
+
+subtest "offline_access: grant_id survives a refresh-token grant" => sub {
+
+    # Realistic open-banking shape: long-lived offline refresh token, the
+    # client uses it for weeks and the grant_id must keep flowing through
+    # every refresh.
+    my $code = codeAuthorize(
+        $op, $idpId,
+        {
+            response_type           => "code",
+            scope                   => "openid profile offline_access",
+            client_id               => "rpid",
+            state                   => "offline-1",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    my $first =
+      expectJSON( codeGrant( $op, "rpid", $code, "http://client.com/" ) );
+    ok( $first->{grant_id}, "Initial grant_id present" );
+    ok( $first->{refresh_token},
+        "offline refresh_token issued" );
+    my $offline_grant = $first->{grant_id};
+
+    # Refresh: new AT must still carry the grant_id everywhere.
+    my $second = expectJSON( _refresh( $op, "rpid", $first->{refresh_token} ) );
+    is( $second->{grant_id}, $offline_grant,
+        "Refresh response echoes the SAME grant_id" );
+
+    my $payload = jwt_payload( $second->{access_token} );
+    is( $payload->{grant_id}, $offline_grant,
+        "Refresh-issued JWT AT carries grant_id" );
+
+    my $intro =
+      expectJSON( introspect( $op, "rpid", $second->{access_token} ) );
+    is( $intro->{grant_id}, $offline_grant,
+        "Refresh-issued AT introspection still carries grant_id" );
+
+    # The grant itself is still there and queryable.
+    my $get_res = gm_get( $op, "rpid", $offline_grant );
+    is( $get_res->[0], 200,
+        "GET on the grant still returns 200 after refreshing" );
+};
+
+subtest "Refresh-token rotation preserves grant_id across rotations" => sub {
+
+    # Rotation enabled = each refresh issues a NEW refresh_token. The
+    # plugin's storeOnRefresh hook must source from $req->data populated
+    # by restoreOnTokenEndpoint, otherwise the new RT is born without
+    # grant context and the chain breaks at rotation #2 (regression
+    # pattern caught by Copilot on PR #20 / oidc-acr-claims).
+    my $op_rot = register( 'op_rot', sub { op_with_rotation() } );
+    my $id_rot = login( $op_rot, "french" );
+
+    my $code = codeAuthorize(
+        $op_rot, $id_rot,
+        {
+            response_type           => "code",
+            scope                   => "openid profile offline_access",
+            client_id               => "rpid",
+            state                   => "rot-1",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    my $first =
+      expectJSON( codeGrant( $op_rot, "rpid", $code, "http://client.com/" ) );
+    my $rot_grant = $first->{grant_id};
+    ok( $rot_grant, "Initial grant_id present (rotation flavor)" );
+
+    # First rotation
+    my $second = expectJSON( _refresh( $op_rot, "rpid", $first->{refresh_token} ) );
+    isnt( $second->{refresh_token}, $first->{refresh_token},
+        "Rotation issued a fresh refresh_token" );
+    is( $second->{grant_id}, $rot_grant,
+        "After first rotation, grant_id is preserved" );
+
+    # Second rotation — the regression-prone one
+    my $third =
+      expectJSON( _refresh( $op_rot, "rpid", $second->{refresh_token} ) );
+    is( $third->{grant_id}, $rot_grant,
+        "After second rotation, grant_id is STILL preserved" );
+    my $payload = jwt_payload( $third->{access_token} );
+    is( $payload->{grant_id}, $rot_grant,
+        "Twice-rotated AT JWT still carries grant_id" );
+};
+
+subtest "Subject check: another user cannot update someone else's grant" => sub {
+
+    # User `french` already created/updated/replaced $created_grant_id at
+    # this point. Now log in as a different demo user and try to use the
+    # same grant_id with action=update — must be rejected.
+    my $other_idp = login( $op, "dwho" );
+    my $auth_res = authorize(
+        $op, $other_idp,
+        {
+            response_type           => "code",
+            scope                   => "openid",
+            client_id               => "rpid",
+            state                   => "wrong-user",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "update",
+            grant_id                => $created_grant_id,
+        }
+    );
+    expectPortalError( $auth_res, 24,
+        "Cross-subject update is rejected (security)" );
+};
+
+subtest "_mergeRar deduplicates by structural equality" => sub {
+    require Lemonldap::NG::Portal::Plugins::OIDCGrantManagement;
+    my $existing = [
+        { type => "payment_initiation", amount => "100" },
+        { type => "account_information", iban => "FR76..." },
+    ];
+    my $new_entries = [
+        { type => "payment_initiation", amount => "100" }, # dup of existing
+        { type => "payment_initiation", amount => "200" }, # new
+    ];
+    my $merged =
+      Lemonldap::NG::Portal::Plugins::OIDCGrantManagement::_mergeRar(
+        $existing, $new_entries );
+    is( scalar(@$merged), 3,
+        "Merge keeps 3 entries (existing 2 + 1 new, 1 duplicate dropped)" );
+    my @amounts = map { $_->{amount} } grep { $_->{type} eq "payment_initiation" } @$merged;
+    is_deeply( [ sort @amounts ], [qw(100 200)],
+        "Both payment amounts present, no duplicate of 100" );
+
+    # Boundary: empty existing => returns new
+    my $r1 = Lemonldap::NG::Portal::Plugins::OIDCGrantManagement::_mergeRar(
+        undef, $new_entries );
+    is_deeply( $r1, $new_entries, "Empty existing => returns new verbatim" );
+
+    # Boundary: undef new => returns existing
+    my $r2 = Lemonldap::NG::Portal::Plugins::OIDCGrantManagement::_mergeRar(
+        $existing, undef );
+    is_deeply( $r2, $existing, "Undef new => returns existing verbatim" );
+};
+
 subtest "DELETE /oauth2/grants/{id} returns 204 and the grant is gone" => sub {
     my $res = gm_delete( $op, "rpid", $created_grant_id );
     is( $res->[0], 204, "Returns 204 No Content" );
@@ -280,6 +436,7 @@ sub op {
 
                 oidcServiceAllowAuthorizationCodeFlow => 1,
                 oidcServiceAllowOnlyDeclaredScopes    => 0,
+                oidcServiceAllowOffline               => 1,
 
                 oidcRPMetaDataExportedVars => {
                     rp           => { email => "mail", name => "cn" },
@@ -297,6 +454,7 @@ sub op {
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsAllowOffline   => 1,
                         oidcRPMetaDataOptionsGrantManagement => 'allowed',
                     },
                     rp_other => {
@@ -322,6 +480,50 @@ sub op {
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
                         oidcRPMetaDataOptionsGrantManagement => 'required',
+                    },
+                },
+                oidcServicePrivateKeySig => oidc_key_op_private_sig,
+                oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            }
+        }
+    );
+}
+
+sub op_with_rotation {
+    return LLNG::Manager::Test->new( {
+            ini => {
+                domain                          => 'idp.com',
+                portal                          => 'http://auth.op.com/',
+                authentication                  => 'Demo',
+                userDB                          => 'Same',
+                customPlugins                   =>
+                  '::Plugins::OIDCGrantManagement',
+                issuerDBOpenIDConnectActivation => "1",
+                restSessionServer               => 1,
+
+                oidcServiceMetaDataGrantManagementURI => 'grants',
+                oidcServiceGrantExpiration            => 3600,
+
+                oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowOnlyDeclaredScopes    => 0,
+                oidcServiceAllowOffline               => 1,
+
+                oidcRPMetaDataExportedVars =>
+                  { rp => { email => "mail", name => "cn" } },
+                oidcRPMetaDataOptions => {
+                    rp => {
+                        oidcRPMetaDataOptionsDisplayName           => "RP",
+                        oidcRPMetaDataOptionsClientID              => "rpid",
+                        oidcRPMetaDataOptionsClientSecret          => "rpid",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenJWT        => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg    => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsAllowOffline          => 1,
+                        oidcRPMetaDataOptionsRefreshTokenRotation  => 1,
+                        oidcRPMetaDataOptionsGrantManagement       => 'allowed',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
