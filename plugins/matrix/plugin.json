@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "Matrix token exchange for OIDC relying parties",
   "description": "Allows Matrix federation tokens to be exchanged for OIDC access tokens, following Matrix spec v1.9 server-server API for OpenID token validation and server discovery.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.20.0",
   "perl_requires": {

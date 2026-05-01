@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "OpenID Connect Client-Initiated Backchannel Authentication (CIBA)",
   "description": "Implements OIDC CIBA flow for LemonLDAP::NG. Provides backchannel authentication endpoint, poll and ping token delivery modes, external authentication channel integration, and CIBA grant type on the token endpoint. Advertises CIBA support in OIDC discovery via the oidcGenerateMetadata hook.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",
   "perl_requires": {

@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "Redirect authenticated users to an external menu URL",
   "description": "Redirects authenticated users to a configured external URL instead of showing the portal menu. Supports session variable substitution ($uid, $mail, etc.) in the URL.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": "<2.23.0",
   "perl_requires": {

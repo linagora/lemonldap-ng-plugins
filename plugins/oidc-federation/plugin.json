@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "OpenID Connect Federation (server side)",
   "description": "Implements OpenID Federation for LemonLDAP::NG as an OIDC Provider. Provides Entity Configuration endpoint, trust chain resolution, subordinate statement issuance, metadata policy enforcement, and automatic RP resolution via federation trust anchors.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",
   "perl_requires": {},

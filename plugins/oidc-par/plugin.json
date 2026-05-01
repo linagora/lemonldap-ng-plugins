@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "OAuth 2.0 Pushed Authorization Requests (RFC 9126)",
   "description": "Implements RFC 9126 PAR for both OIDC Provider (accept pushed authorization requests from RPs) and OIDC Client (push authorization parameters to remote OPs before redirecting). Adds PAR configuration options to OIDC service, RP, and OP metadata in the Manager.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",
   "perl_requires": {

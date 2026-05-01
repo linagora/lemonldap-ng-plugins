@@ -245,7 +245,7 @@ L<Lemonldap::NG::Manager>, L<Lemonldap::NG::Portal>, L<Lemonldap::NG::Handler>
 
 =over
 
-=item LemonLDAP::NG team L<http://lemonldap-ng.org/team>
+=item Xavier Guimard L<yadd@debian.org>
 
 =back
 

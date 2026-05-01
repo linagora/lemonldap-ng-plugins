@@ -6,7 +6,7 @@
 
 [Lemonldap::NG](https://lemonldap-ng.org/) is the leader SSO in France and one of the best Open-Source SSO in the world.
 
-[LINAGORA](https://linagora.com) is member of [Lemonldap::NG Team](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/project_members) since 2007 and actively continues to contribute.
+[LINAGORA](https://linagora.com) is member of [Lemonldap::NG Team](https://lemonldap-ng.org/professionalservices.html) since 2007 and actively continues to contribute.
 
 Several of these plugins power [**Open Bastion**](https://github.com/linagora/open-bastion), an open-source SSH bastion that relies on LemonLDAP::NG for centralized authentication and authorization. In particular, the [pam-access](plugins/pam-access), [ssh-ca](plugins/ssh-ca), [oidc-device-authorization](plugins/oidc-device-authorization), and [oidc-device-organization](plugins/oidc-device-organization) plugins provide the PAM integration, SSH certificate signing, and server enrollment used by Open Bastion.
 

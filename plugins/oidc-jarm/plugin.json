@@ -3,7 +3,7 @@
   "version": "0.1.14",
   "summary": "JARM - JWT Secured Authorization Response Mode (RFC 9207)",
   "description": "Implements JARM for both OIDC Provider (sign/encrypt authorization responses) and OIDC Client (request and verify JARM responses from remote OPs). Adds JARM configuration options to OIDC RP and OP metadata in the Manager.",
-  "author": "LemonLDAP::NG team <lemonldap-ng@ow2.org>",
+  "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",
   "perl_requires": {},

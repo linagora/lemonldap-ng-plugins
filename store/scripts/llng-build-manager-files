@@ -1362,7 +1362,7 @@ L<Lemonldap::NG::Manager::Build>, L<https://lemonldap-ng.org/>
 
 =head1 AUTHORS
 
-LemonLDAP::NG team L<http://lemonldap-ng.org/team>
+=item Xavier Guimard L<yadd@debian.org>
 
 =head1 LICENSE
 

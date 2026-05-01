@@ -1762,7 +1762,7 @@ L<Lemonldap::NG::Portal::Plugins::DeviceAuthorization> for server enrollment
 
 =over
 
-=item LemonLDAP::NG team L<https://lemonldap-ng.org/team>
+=item Xavier Guimard L<yadd@debian.org>
 
 =back
 

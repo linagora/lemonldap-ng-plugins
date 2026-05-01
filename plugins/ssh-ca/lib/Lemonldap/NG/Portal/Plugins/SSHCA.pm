@@ -1634,7 +1634,7 @@ L<Lemonldap::NG::Portal::Plugins::PamAccess> for PAM authentication/authorizatio
 
 =over
 
-=item LemonLDAP::NG team L<https://lemonldap-ng.org/team>
+=item Xavier Guimard L<yadd@debian.org>
 
 =back
 
