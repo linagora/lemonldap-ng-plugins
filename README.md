@@ -15,8 +15,10 @@ This repository contains:
 - [Plugins for `lemonldap-ng-store`](#lemonldapng-plugins)
 - [LTS files](#lemonldapng-long-term-support-lts)
 
-See also the [list of specifications (RFCs, OIDC, SAML, CAS…) implemented](SPECIFICATIONS.md)
-by LLNG core and by the plugins published here.
+See also:
+
+- the [list of specifications (RFCs, OIDC, SAML, CAS…) implemented](SPECIFICATIONS.md) by LLNG core and by the plugins published here;
+- the [OpenID Connect & OAuth 2.0 narrative documentation](OIDC.md) — what core LLNG ships, what these plugins add, FAPI 2.0 alignment, deployment guides.
 
 ## Lemonldap::NG plugins
 
