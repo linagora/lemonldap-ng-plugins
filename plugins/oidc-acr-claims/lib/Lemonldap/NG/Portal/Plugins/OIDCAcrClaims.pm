@@ -1,4 +1,4 @@
-package Lemonldap::NG::Portal::Plugins::OIDCStepUp;
+package Lemonldap::NG::Portal::Plugins::OIDCAcrClaims;
 
 # RFC 9470: OAuth 2.0 Step-Up Authentication Challenge — AS side
 #
@@ -25,7 +25,7 @@ our $VERSION = '2.23.0';
 
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
-use constant DATA_KEY => '_step_up_claims';
+use constant DATA_KEY => '_acr_claims';
 
 use constant hook => {
     oidcGenerateRefreshToken => 'storeOnRefreshToken',
@@ -51,7 +51,7 @@ sub init {
         my @names = @{ $byLevel{$level} };
         next if @names < 2;
         $self->userLogger->error(
-                "OIDCStepUp: oidcServiceMetaDataAuthnContext maps "
+                "OIDCAcrClaims: oidcServiceMetaDataAuthnContext maps "
               . "authenticationLevel=$level to "
               . scalar(@names)
               . " ACR names ("
@@ -66,7 +66,7 @@ sub init {
 # Hook: oidcGenerateRefreshToken
 # Persist the values needed to recompute acr/auth_time later, on the
 # refresh session itself. Only does work when the RP opts in via
-# oidcRPMetaDataOptionsStepUpClaims, so unrelated RPs are left alone.
+# oidcRPMetaDataOptionsAcrClaims, so unrelated RPs are left alone.
 #
 # Three sources are tried in order:
 #   1. $req->data->{DATA_KEY} — populated by restoreOnTokenEndpoint when
@@ -207,7 +207,7 @@ sub addClaimsToAccessToken {
 sub _enabled {
     my ( $self, $rp ) = @_;
     return $self->oidc->rpOptions->{$rp}
-      ->{oidcRPMetaDataOptionsStepUpClaims} ? 1 : 0;
+      ->{oidcRPMetaDataOptionsAcrClaims} ? 1 : 0;
 }
 
 1;

@@ -29,7 +29,7 @@ subtest "Authorization code grant: acr + auth_time on JWT access token" => sub {
             response_type => "code",
             scope         => "openid profile",
             client_id     => "rpid",
-            state         => "step-up-1",
+            state         => "acr-1",
             redirect_uri  => "http://client.com/",
         }
     );
@@ -53,7 +53,7 @@ subtest "AuthnContext mapping: named acr instead of `loa-<n>`" => sub {
             response_type => "code",
             scope         => "openid profile",
             client_id     => "rpid",
-            state         => "step-up-2",
+            state         => "acr-2",
             redirect_uri  => "http://client.com/",
         }
     );
@@ -73,7 +73,7 @@ subtest "Refresh token grant preserves acr + auth_time" => sub {
             response_type => "code",
             scope         => "openid profile offline_access",
             client_id     => "rpid",
-            state         => "step-up-rt",
+            state         => "acr-rt",
             redirect_uri  => "http://client.com/",
         }
     );
@@ -208,14 +208,14 @@ sub _refresh {
     );
 }
 
-subtest "RP without StepUpClaims does not get the claims" => sub {
+subtest "RP without AcrClaims does not get the claims" => sub {
     my $code = codeAuthorize(
         $op, $idpId,
         {
             response_type => "code",
             scope         => "openid profile",
             client_id     => "rpid_off",
-            state         => "step-up-off",
+            state         => "acr-off",
             redirect_uri  => "http://client.com/",
         }
     );
@@ -240,7 +240,7 @@ sub op {
                 portal                          => 'http://auth.op.com/',
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
-                customPlugins                   => '::Plugins::OIDCStepUp',
+                customPlugins                   => '::Plugins::OIDCAcrClaims',
                 issuerDBOpenIDConnectActivation => "1",
                 restSessionServer               => 1,
 
@@ -263,7 +263,7 @@ sub op {
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
                         oidcRPMetaDataOptionsAllowOffline   => 1,
-                        oidcRPMetaDataOptionsStepUpClaims   => 1,
+                        oidcRPMetaDataOptionsAcrClaims   => 1,
                     },
                     rp_off => {
                         oidcRPMetaDataOptionsDisplayName           => "RP off",
@@ -275,7 +275,7 @@ sub op {
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
-                        # opt-out: oidcRPMetaDataOptionsStepUpClaims absent
+                        # opt-out: oidcRPMetaDataOptionsAcrClaims absent
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
@@ -292,7 +292,7 @@ sub op_with_named_acr {
                 portal                          => 'http://auth.op.com/',
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
-                customPlugins                   => '::Plugins::OIDCStepUp',
+                customPlugins                   => '::Plugins::OIDCAcrClaims',
                 issuerDBOpenIDConnectActivation => "1",
                 restSessionServer               => 1,
 
@@ -315,7 +315,7 @@ sub op_with_named_acr {
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
-                        oidcRPMetaDataOptionsStepUpClaims   => 1,
+                        oidcRPMetaDataOptionsAcrClaims   => 1,
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
@@ -332,7 +332,7 @@ sub op_with_rotation {
                 portal                          => 'http://auth.op.com/',
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
-                customPlugins                   => '::Plugins::OIDCStepUp',
+                customPlugins                   => '::Plugins::OIDCAcrClaims',
                 issuerDBOpenIDConnectActivation => "1",
                 restSessionServer               => 1,
 
@@ -354,7 +354,7 @@ sub op_with_rotation {
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
                         oidcRPMetaDataOptionsAllowOffline             => 1,
                         oidcRPMetaDataOptionsRefreshTokenRotation     => 1,
-                        oidcRPMetaDataOptionsStepUpClaims             => 1,
+                        oidcRPMetaDataOptionsAcrClaims             => 1,
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
@@ -371,7 +371,7 @@ sub op_with_duplicate_acr {
                 portal                          => 'http://auth.op.com/',
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
-                customPlugins                   => '::Plugins::OIDCStepUp',
+                customPlugins                   => '::Plugins::OIDCAcrClaims',
                 issuerDBOpenIDConnectActivation => "1",
                 restSessionServer               => 1,
 
@@ -398,7 +398,7 @@ sub op_with_duplicate_acr {
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
-                        oidcRPMetaDataOptionsStepUpClaims   => 1,
+                        oidcRPMetaDataOptionsAcrClaims   => 1,
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,
