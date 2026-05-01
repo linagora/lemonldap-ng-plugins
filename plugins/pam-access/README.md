@@ -28,7 +28,7 @@ generate temporary access tokens for SSH and other PAM-enabled services.
 
 ## Installation
 
-With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+With `lemonldap-ng-store` _(LLNG >= 2.24.0)_ or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```bash
 sudo lemonldap-ng-store install pam-access

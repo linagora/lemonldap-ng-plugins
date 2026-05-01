@@ -5,7 +5,7 @@ the default portal logout page.
 
 ## Installation
 
-With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+With `lemonldap-ng-store` _(LLNG >= 2.24.0)_ or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```bash
 sudo lemonldap-ng-store install fixed-logout-redirection

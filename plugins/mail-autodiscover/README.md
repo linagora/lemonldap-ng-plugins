@@ -17,7 +17,7 @@ This is a way to explain to Outlook that our server isn't an Exchange server.
 
 ## Installation
 
-With `lemonldap-ng-store` _(LLNG >= 2.23.0)_:
+With `lemonldap-ng-store` _(LLNG >= 2.24.0)_ or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```
 sudo lemonldap-ng-store install mail-autodiscover --activate

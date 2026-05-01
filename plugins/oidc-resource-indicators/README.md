@@ -6,7 +6,7 @@ It lets clients name the target Resource Server(s) on `/oauth2/authorize` and `/
 
 ## Installation
 
-With `lemonldap-ng-store` (LLNG ≥ 2.23.0):
+With `lemonldap-ng-store` (LLNG ≥ 2.24.0) or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```bash
 sudo lemonldap-ng-store install oidc-resource-indicators

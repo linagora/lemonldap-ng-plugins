@@ -20,9 +20,9 @@ by LLNG core and by the plugins published here.
 
 ## Lemonldap::NG plugins
 
-These plugins are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(available since LLNG 2.23.0)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
+These plugins target LemonLDAP::NG ≥ 2.23.0 and are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(bundled with LLNG ≥ 2.24.0; for LLNG 2.23.x install the [`linagora-lemonldap-ng-store`](#installation-with-debian-packages) backport built from the [`store/`](store) directory of this repository)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
 
-### Installation with `lemonldap-ng-store` (LLNG >= 2.23.0)
+### Installation with `lemonldap-ng-store`
 
 ```bash
 # Register this store

@@ -33,7 +33,7 @@ This plugin only delivers the **claims** that make this loop possible. The 401 e
 
 ## Installation
 
-With `lemonldap-ng-store` (LLNG ≥ 2.23.0):
+With `lemonldap-ng-store` (LLNG ≥ 2.24.0) or [linagora-lemonldap-ng-store](../../README.md#installation-with-debian-packages):
 
 ```bash
 sudo lemonldap-ng-store install oidc-acr-claims
