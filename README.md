@@ -196,4 +196,4 @@ are released under **GPL-2+ license**, unless specified:
 
 [^2]: Possible extension via [LINAGORA's OSSA](https://linagora.com/ossa)
 
-[^3]: Supported here
+[^3]: Supported by LINAGORA inside Debian community
