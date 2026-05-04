@@ -170,7 +170,7 @@ Here are the Lemonldap::NG "LTS" versions:
 | 2.21.x  | ✅            | ✅                                       | 2030      |
 
 - [LTS community files](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/releases) for 2.16.x and 2.21.x
-- [LINAGORA files for 2.0.11](./v2.0.11)
+- [Linagora patches for v2.0.11](https://salsa.debian.org/perl-team/modules/packages/lemonldap-ng/-/tree/bullseye/debian/patches)
 
 ## License and copyright
 
