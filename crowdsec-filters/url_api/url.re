@@ -5,4 +5,5 @@
 ^/api/.*version$
 ^/app
 ^/app/
+^/mcp$
 ^/rest/applinks/
