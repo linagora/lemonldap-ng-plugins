@@ -171,7 +171,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libregexp-assemble-perl libjson-perl libio-string-perl perl
+            libregexp-assemble-perl libregexp-common-perl \
+            libjson-perl libio-string-perl libmouse-perl perl
 
       - name: Aggregate all plugin manager-overrides
         run: |
