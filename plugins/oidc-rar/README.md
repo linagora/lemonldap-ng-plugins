@@ -63,12 +63,7 @@ In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Security_*
 | -------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
 | `oidcRPMetaDataOptionsAuthorizationDetailsEnabled` | `0`     | Accept `authorization_details` from this RP. Required to trigger plugin autoload. |
 | `oidcRPMetaDataOptionsAuthorizationDetailsTypes`   | _empty_ | Per-RP allowlist of `type` values, comma-separated. Empty = inherit global only.  |
-
-In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Scopes_ → _Authorization details rules_** :
-
-| Parameter                                 | Default | Description                                                                                                                                                |
-| ----------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataAuthorizationDetailsRules` | `{}`    | Hash `type → Perl expression`. Mirrors the `oidcRPMetaDataScopeRules` mechanism: each rule is evaluated when an entry of the matching `type` is requested. |
+| `oidcRPMetaDataOptionsAuthorizationDetailsRules`   | _empty_ | JSON object `{"<type>": "<Perl expression>"}` of per-type rules; each rule is evaluated when an entry of the matching `type` is requested. Empty string = no rules. Invalid JSON denies all RAR requests for this RP (fail-closed). |
 
 ### Authorization model — three layers
 
@@ -79,12 +74,14 @@ Every requested `authorization_details` entry must clear all three:
    `oidcRPMetaDataOptionsAuthorizationDetailsTypes`. Either set being empty
    means "no restriction at that level". Both empty means any type goes.
 2. **Per-RP, per-type Perl rule** — if a rule is configured for the
-   requested entry's `type` in `oidcRPMetaDataAuthorizationDetailsRules`,
-   it is evaluated in LLNG's sandbox (`Safe::reval`), with the user session
-   attributes plus the magic variable `$detail` (full hashref of the
-   entry). Truthy result grants the entry; falsy rejects it (whole authorize
-   call fails). Types with no entry in this hash skip layer 2 (granted
-   subject to layer 1).
+   requested entry's `type` in
+   `oidcRPMetaDataOptionsAuthorizationDetailsRules` (a JSON object
+   `{type → perl_expr}`), it is evaluated in LLNG's sandbox
+   (`Safe::reval`), with the user session attributes plus the magic
+   variable `$detail` (full hashref of the entry). Truthy result grants
+   the entry; falsy rejects it (whole authorize call fails). Types with
+   no entry skip layer 2 (granted subject to layer 1). Invalid JSON or
+   uncompilable rule = deny-all (fail-closed).
 3. **User consent** _(optional, depending on the use case)_ — when
    `BypassConsent=0` for the RP, the operator's consent template
    (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display `RAR_DETAILS`
@@ -120,12 +117,14 @@ plugin supports both — it never forces a consent screen.
 
 #### Example rules
 
-In `oidcRPMetaDataAuthorizationDetailsRules` for an RP, key = `type`, value
-= Perl expression:
+In `oidcRPMetaDataOptionsAuthorizationDetailsRules` for an RP, JSON object
+with key = `type` and value = Perl expression:
 
-```
-payment_initiation  =>  $groups =~ /\bbanking\b/ and $detail->{instructedAmount}->{amount} <= 1000
-account_information =>  $authenticationLevel >= 2
+```json
+{
+  "payment_initiation":  "$groups =~ /\\bbanking\\b/ and $detail->{instructedAmount}->{amount} <= 1000",
+  "account_information": "$authenticationLevel >= 2"
+}
 ```
 
 ## Where the granted details surface

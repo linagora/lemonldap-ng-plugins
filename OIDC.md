@@ -253,10 +253,9 @@ oidcRPMetaDataOptionsAcrClaims           = 1                    # acr + auth_tim
 oidcRPMetaDataOptionsAllowOffline        = 1
 
 # Per-RP rules: only allow payments above 1000 € when the user has done strong auth
-oidcRPMetaDataAuthorizationDetailsRules:
-  payment_initiation: |
-    $detail->{instructedAmount}->{amount} <= 1000
-    or $authenticationLevel >= 4
+# (JSON object: type → Perl expression)
+oidcRPMetaDataOptionsAuthorizationDetailsRules =
+  '{"payment_initiation": "$detail->{instructedAmount}->{amount} <= 1000 or $authenticationLevel >= 4"}'
 ```
 
 ### 5.2 Multi-API SaaS (Resource Indicators)

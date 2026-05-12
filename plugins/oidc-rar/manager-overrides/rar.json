@@ -15,11 +15,10 @@
       "default": "",
       "documentation": "RFC 9396 — per-RP allowlist of authorization_details `type` values (comma-separated). Empty = inherit global only."
     },
-    "oidcRPMetaDataAuthorizationDetailsRules": {
-      "type": "keyTextContainer",
-      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
-      "default": {},
-      "documentation": "RFC 9396 — per-`type` Perl rules. Key: authorization_details `type` identifier (RFC 6749 token charset). Value: Perl expression evaluated when an entry of that type is requested. Receives the user session attributes plus the magic variable `$detail` (full hashref of the entry). Truthy result grants the entry, falsy rejects it. A type that has no rule entry is permitted (subject to the type allowlist)."
+    "oidcRPMetaDataOptionsAuthorizationDetailsRules": {
+      "type": "longtext",
+      "default": "",
+      "documentation": "RFC 9396 — per-`type` Perl rules, encoded as a JSON object `{\"<type>\": \"<perl_expression>\"}`. Key: authorization_details `type` identifier (RFC 6749 token charset). Value: Perl expression evaluated when an entry of that type is requested. Receives the user session attributes plus the magic variable `$detail` (full hashref of the entry). Truthy result grants the entry, falsy rejects it. A type that has no rule entry is permitted (subject to the type allowlist). Empty string = no rules."
     }
   },
   "tree": [
@@ -31,23 +30,15 @@
     }
   ],
   "ctrees": {
-    "oidcRPMetaDataNode": [
-      {
-        "insert_into": "oidcRPMetaDataOptions/security",
-        "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
-        "nodes": [
-          "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
-          "oidcRPMetaDataOptionsAuthorizationDetailsTypes"
-        ]
-      },
-      {
-        "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsScopes",
-        "insert_after": "oidcRPMetaDataScopeRules",
-        "nodes": [
-          "oidcRPMetaDataAuthorizationDetailsRules"
-        ]
-      }
-    ]
+    "oidcRPMetaDataNode": {
+      "insert_into": "oidcRPMetaDataOptions/security",
+      "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
+      "nodes": [
+        "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
+        "oidcRPMetaDataOptionsAuthorizationDetailsTypes",
+        "oidcRPMetaDataOptionsAuthorizationDetailsRules"
+      ]
+    }
   },
   "lang": {
     "oidcServiceAuthorizationDetailsTypes": {
@@ -62,9 +53,9 @@
       "en": "RAR — allowed types for this RP",
       "fr": "RAR — types autorisés pour ce RP"
     },
-    "oidcRPMetaDataAuthorizationDetailsRules": {
-      "en": "RAR — Authorization details rules",
-      "fr": "RAR — Règles des détails d'autorisation"
+    "oidcRPMetaDataOptionsAuthorizationDetailsRules": {
+      "en": "RAR — Authorization details rules (JSON: type → Perl expr)",
+      "fr": "RAR — Règles des détails d'autorisation (JSON : type → expr. Perl)"
     }
   }
 }
