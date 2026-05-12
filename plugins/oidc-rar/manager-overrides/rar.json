@@ -31,22 +31,23 @@
     }
   ],
   "ctrees": {
-    "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/security",
-      "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
-      "nodes": [
-        "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
-        "oidcRPMetaDataOptionsAuthorizationDetailsTypes"
-      ]
-    },
-    "_oidcRPMetaDataNodeRarRules": {
-      "target": "oidcRPMetaDataNode",
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsScopes",
-      "insert_after": "oidcRPMetaDataScopeRules",
-      "nodes": [
-        "oidcRPMetaDataAuthorizationDetailsRules"
-      ]
-    }
+    "oidcRPMetaDataNode": [
+      {
+        "insert_into": "oidcRPMetaDataOptions/security",
+        "insert_after": "oidcRPMetaDataOptionsRequirePKCE",
+        "nodes": [
+          "oidcRPMetaDataOptionsAuthorizationDetailsEnabled",
+          "oidcRPMetaDataOptionsAuthorizationDetailsTypes"
+        ]
+      },
+      {
+        "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsScopes",
+        "insert_after": "oidcRPMetaDataScopeRules",
+        "nodes": [
+          "oidcRPMetaDataAuthorizationDetailsRules"
+        ]
+      }
+    ]
   },
   "lang": {
     "oidcServiceAuthorizationDetailsTypes": {

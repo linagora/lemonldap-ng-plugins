@@ -86,27 +86,28 @@
     }
   ],
   "ctrees": {
-    "oidcRPMetaDataNode": {
-      "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsAdvanced",
-      "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
-      "nodes": [
-        "oidcRPMetaDataOptionsAllowCIBA"
-      ]
-    },
-    "_oidcRPMetaDataNodeCiba": {
-      "target": "oidcRPMetaDataNode",
-      "insert_before": "oidcRPMetaDataOptionsActivation",
-      "nodes": [
-        {
-          "title": "ciba",
-          "form": "simpleInputContainer",
-          "nodes": [
-            "oidcRPMetaDataOptionsCIBAMode",
-            "oidcRPMetaDataOptionsCIBANotificationEndpoint"
-          ]
-        }
-      ]
-    }
+    "oidcRPMetaDataNode": [
+      {
+        "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsAdvanced",
+        "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
+        "nodes": [
+          "oidcRPMetaDataOptionsAllowCIBA"
+        ]
+      },
+      {
+        "insert_before": "oidcRPMetaDataOptionsActivation",
+        "nodes": [
+          {
+            "title": "ciba",
+            "form": "simpleInputContainer",
+            "nodes": [
+              "oidcRPMetaDataOptionsCIBAMode",
+              "oidcRPMetaDataOptionsCIBANotificationEndpoint"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "lang": {
     "oidcServiceCiba": {
