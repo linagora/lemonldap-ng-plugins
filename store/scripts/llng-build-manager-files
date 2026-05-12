@@ -163,12 +163,40 @@ else {
 }
 
 my @auth_plugins;
+my @ext_loaded;    # parallel to @ext_files, for post-load validation
 for my $ext_file (@ext_files) {
     verbose "Loading extension: $ext_file\n";
     my $ext = load_extension($ext_file);
     merge_extension( $attributes, $tree, $ctrees, $constants, $ext, $ext_file );
     push @auth_plugins, collect_auth_plugins( $ext->{authPlugin}, $ext_file );
+    push @ext_loaded, { file => $ext_file, ext => $ext };
 }
+
+# Reject extensions declaring hash-of-X containers as ctree leaves.
+#
+# Background: Build.pm pushes top-level *Container / catAndAppList
+# attributes into @simpleHashKeys (hence $hashParameters) only when
+# scanned without a $prefix (Build.pm:787). For its own ctree-leaf
+# containers (oidcRPMetaDataExportedVars, oidcRPMetaDataMacros, ...)
+# core compensates with a hardcoded list around Build.pm:291. That
+# list is the wiring point for ctree top-level hash keys and is
+# reserved for core.
+#
+# A plugin that declares a container attribute and references it as a
+# ctree leaf produces an attribute that is in $oidcRPMetaDataNodeKeys
+# (so Parser may accept it) but absent from $hashParameters. The
+# Serializer then stores / reads its value as a raw string, and
+# $conf->{theKey}->{$rp}->{$inner} returns undef at runtime: silent
+# data loss.
+#
+# Allowed patterns for a plugin:
+#   * scalar attributes (text, bool, int, select, longtext, url, ...)
+#     under oidcRPMetaDataOptions/* (or any existing Options namespace)
+#   * hash-of-X data encoded as JSON inside a scalar (longtext) leaf,
+#     with the plugin deserializing at runtime
+#   * a top-level config key via `tree:` (not `ctrees:`), which IS
+#     picked up by Build.pm's dynamic scan
+reject_plugin_ctree_containers( \@ext_loaded );
 
 # Warn on conflicting authPlugin declarations (same k with a different v
 # or a different role set across extension files). Dedup below keeps only
@@ -442,6 +470,100 @@ exit 0;
 #
 # Helper functions
 #
+
+# Walk ctree node specs and collect every string leaf reachable from them.
+# Each spec's nodes array may contain bare strings (leaf attribute names),
+# nested hashes with their own `nodes` array, or `nodes_cond` variants.
+sub _collect_ctree_leaves {
+    my ($nodes, $out) = @_;
+    return unless ref($nodes) eq 'ARRAY';
+    for my $n (@$nodes) {
+        if ( !ref($n) ) {
+            push @$out, $n if defined $n && length $n;
+        }
+        elsif ( ref($n) eq 'HASH' ) {
+            for my $k (qw(nodes nodes_cond)) {
+                _collect_ctree_leaves( $n->{$k}, $out ) if $n->{$k};
+            }
+        }
+    }
+}
+
+# Forbid hash-of-X containers declared by an extension and used as
+# ctree leaves. See the call site for the rationale and accepted
+# alternatives.
+sub reject_plugin_ctree_containers {
+    my ($ext_loaded) = @_;
+
+    my @violations;
+    for my $entry (@$ext_loaded) {
+        my $file = $entry->{file};
+        my $ext  = $entry->{ext};
+
+        my $attrs  = $ext->{attributes} || {};
+        my $ctrees = $ext->{ctrees}     || {};
+        next unless %$attrs && %$ctrees;
+
+        # Names of attributes declared by this extension that are
+        # container types (would need a $hashParameters entry).
+        my %declared_containers;
+        for my $name ( keys %$attrs ) {
+            my $type = ref( $attrs->{$name} ) eq 'HASH'
+              ? ( $attrs->{$name}{type} // '' )
+              : '';
+            $declared_containers{$name} = $type
+              if $type =~ /^(?:catAndAppList|\w+Container)$/;
+        }
+        next unless %declared_containers;
+
+        # Collect every leaf string reachable from this extension's
+        # ctree specs (across all ctree names, array-or-hash forms).
+        my @leaves;
+        for my $ctree_name ( keys %$ctrees ) {
+            my $spec  = $ctrees->{$ctree_name};
+            my @specs = ref $spec eq 'ARRAY' ? @$spec : ($spec);
+            for my $s (@specs) {
+                next unless ref($s) eq 'HASH';
+                _collect_ctree_leaves( $s->{nodes}, \@leaves );
+            }
+        }
+
+        my %seen_leaf = map { $_ => 1 } @leaves;
+        for my $name ( sort keys %declared_containers ) {
+            next unless $seen_leaf{$name};
+            push @violations,
+              {
+                file => $file,
+                name => $name,
+                type => $declared_containers{$name},
+              };
+        }
+    }
+
+    return unless @violations;
+
+    my $msg =
+        "Error: extensions declare hash-of-X containers as ctree leaves.\n"
+      . "Such attributes never end up in \$hashParameters and would be\n"
+      . "silently mis-serialized (stored / read as raw string instead of\n"
+      . "a hashref), causing \$conf->{theKey}->{\$rp}->{\$inner} to return\n"
+      . "undef at runtime.\n\n"
+      . "Offending declarations:\n";
+    for my $v (@violations) {
+        $msg .= "  - $v->{file}: $v->{name} (type=$v->{type})\n";
+    }
+    $msg .=
+        "\nAllowed alternatives:\n"
+      . "  * declare scalar attributes (text, bool, int, select, longtext,\n"
+      . "    url, ...) under an existing Options namespace\n"
+      . "    (e.g. oidcRPMetaDataOptions/*).\n"
+      . "  * to expose hash-of-X data per RP, encode it as JSON inside a\n"
+      . "    `longtext` leaf and have the plugin deserialize at runtime.\n"
+      . "  * for genuine top-level config keys, use `tree:` (not `ctrees:`);\n"
+      . "    Build.pm's dynamic scan picks them up automatically.\n";
+
+    die $msg;
+}
 
 sub load_extension {
     my ($file) = @_;
