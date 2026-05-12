@@ -18,12 +18,12 @@ Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into
 
 For each RP that represents an API (Resource Server), in **Manager → _OIDC Relying Parties_ → `<rp>`** :
 
-| Parameter                           | Type | Description                                                                                                                                                                                                                      |
-| ----------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsEnableRI`     | bool | Mark this RP as a Resource Server target                                                                                                                                                                                         |
-| `oidcRPMetaDataOptionsRIIdentifier` | text | RS identifier (audience). Defaults to `clientId` when empty                                                                                                                                                                      |
-| `oidcRPMetaDataRIScopes`            | hash | Hash `scope_name → human description`. Declares which scopes belong to this RS                                                                                                                                                   |
-| `oidcRPMetaDataRIScopeRules`        | hash | Hash `scope_name → Perl rule`. The rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies |
+| Parameter                           | Type     | Description                                                                                                                                                                                                                                                                             |
+| ----------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsEnableRI`     | bool     | Mark this RP as a Resource Server target                                                                                                                                                                                                                                                |
+| `oidcRPMetaDataOptionsRIIdentifier` | text     | RS identifier (audience). Defaults to `clientId` when empty                                                                                                                                                                                                                             |
+| `oidcRPMetaDataOptionsRIScopes`     | longtext | JSON object `{"<scope>": "<description>"}`. Declares which scopes belong to this RS. Empty string = no RS scopes                                                                                                                                                                        |
+| `oidcRPMetaDataOptionsRIScopeRules` | longtext | JSON object `{"<scope>": "<perl_expression>"}`. Each rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies. Invalid JSON at init: rules ignored |
 
 ## Flow
 
@@ -31,7 +31,7 @@ For each RP that represents an API (Resource Server), in **Manager → _OIDC Rel
 Client → /oauth2/authorize?...&scope=read:users&resource=https://api.example.com
        ↓
        OP looks up the RP whose RIIdentifier == "https://api.example.com" (= the RS)
-       Evaluates oidcRPMetaDataRIScopeRules{<rs>}{read:users} against the user
+       Evaluates oidcRPMetaDataOptionsRIScopeRules{<rs>}{read:users} against the user
        If granted: binds the access token to the RS audience
        ↓
        Issues code → client exchanges → JWT access token has

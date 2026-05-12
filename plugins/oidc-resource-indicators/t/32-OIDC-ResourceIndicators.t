@@ -61,24 +61,18 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsRedirectUris   =>
                       'http://api.example.com/',
                     oidcRPMetaDataOptionsIDTokenSignAlg => "HS512",
-                },
-            },
 
-            # RS scopes available on the API
-            oidcRPMetaDataRIScopes => {
-                api => {
-                    'read:users'  => 'Read user data',
-                    'write:users' => 'Modify user data',
-                    'admin'       => 'Full admin access',
-                },
-            },
+                    # RS scopes available on the API (JSON: scope → description)
+                    oidcRPMetaDataOptionsRIScopes =>
+                        '{"read:users":"Read user data",'
+                      . '"write:users":"Modify user data",'
+                      . '"admin":"Full admin access"}',
 
-            # RS scope authorization rules
-            oidcRPMetaDataRIScopeRules => {
-                api => {
-                    'read:users'  => '1',                   # Always granted
-                    'write:users' => '$uid eq "french"',    # Only user 'french'
-                    'admin'       => '$uid eq "admin"',     # Only user 'admin'
+                    # RS scope authorization rules (JSON: scope → Perl expr)
+                    oidcRPMetaDataOptionsRIScopeRules =>
+                        '{"read:users":"1",'
+                      . '"write:users":"$uid eq \"french\"",'
+                      . '"admin":"$uid eq \"admin\""}',
                 },
             },
 
