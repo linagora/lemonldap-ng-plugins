@@ -22,38 +22,38 @@ LemonLDAP::NG (LLNG) ships a complete OAuth 2.0 / OpenID Connect stack on both s
 
 > Endpoint root is configurable; defaults shown below.
 
-| Capability                                 | Endpoint                                      | Notes                                                                    |
-| ------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------ |
-| Authorization endpoint                     | `/oauth2/authorize`                           | All standard OIDC parameters, `acr_values` and `max_age` honored.        |
-| Token endpoint                             | `/oauth2/token`                               | `authorization_code`, `refresh_token`, `client_credentials`, `password`. |
-| UserInfo                                   | `/oauth2/userinfo`                            | Bearer-protected, JSON or signed/encrypted JWT response.                 |
-| Introspection (RFC 7662 + RFC 9701)        | `/oauth2/introspect`                          | JSON or `application/token-introspection+jwt`.                           |
-| Revocation (RFC 7009)                      | `/oauth2/revoke`                              | Access tokens and refresh tokens.                                        |
-| JWKS                                       | `/oauth2/jwks`                                | RSA, EC, AES — managed via the Manager.                                  |
-| Discovery                                  | `/.well-known/openid-configuration`           | All RFC 8414 fields.                                                     |
-| Dynamic Client Registration (RFC 7591)     | `/oauth2/register`                            | Filter / mutate via `oidcGotRegistrationRequest` / `oidcRegisterClient`. |
-| Front-Channel Logout                       | `frontchannel_logout_uri` per RP              |                                                                          |
-| Back-Channel Logout                        | `backchannel_logout_uri` per RP               | Signed logout token.                                                     |
-| Session Management 1.0                     | `/oauth2/checksession`                        |                                                                          |
-| RP-Initiated Logout                        | `/oauth2/end_session`                         |                                                                          |
-| `iss` in authorization response (RFC 9207) | _automatic_                                   |                                                                          |
-| Native SSO for Mobile Apps                 | _per-RP option_                               |                                                                          |
+| Capability                                 | Endpoint                                                                          | Notes                                                                                                                                       |
+| ------------------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authorization endpoint                     | `/oauth2/authorize`                                                               | All standard OIDC parameters, `acr_values` and `max_age` honored.                                                                           |
+| Token endpoint                             | `/oauth2/token`                                                                   | `authorization_code`, `refresh_token`, `client_credentials`, `password`.                                                                    |
+| UserInfo                                   | `/oauth2/userinfo`                                                                | Bearer-protected, JSON or signed/encrypted JWT response.                                                                                    |
+| Introspection (RFC 7662 + RFC 9701)        | `/oauth2/introspect`                                                              | JSON or `application/token-introspection+jwt`.                                                                                              |
+| Revocation (RFC 7009)                      | `/oauth2/revoke`                                                                  | Access tokens and refresh tokens.                                                                                                           |
+| JWKS                                       | `/oauth2/jwks`                                                                    | RSA, EC, AES — managed via the Manager.                                                                                                     |
+| Discovery                                  | `/.well-known/openid-configuration`                                               | All RFC 8414 fields.                                                                                                                        |
+| Dynamic Client Registration (RFC 7591)     | `/oauth2/register`                                                                | Filter / mutate via `oidcGotRegistrationRequest` / `oidcRegisterClient`.                                                                    |
+| Front-Channel Logout                       | `frontchannel_logout_uri` per RP                                                  |                                                                                                                                             |
+| Back-Channel Logout                        | `backchannel_logout_uri` per RP                                                   | Signed logout token.                                                                                                                        |
+| Session Management 1.0                     | `/oauth2/checksession`                                                            |                                                                                                                                             |
+| RP-Initiated Logout                        | `/oauth2/end_session`                                                             |                                                                                                                                             |
+| `iss` in authorization response (RFC 9207) | _automatic_                                                                       |                                                                                                                                             |
+| Native SSO for Mobile Apps                 | _per-RP option_                                                                   |                                                                                                                                             |
 | Token Exchange (RFC 8693)                  | `/oauth2/token` with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` | Hook-driven (`oidcGotTokenExchange`); request typically carries `subject_token`, `subject_token_type` and optional `audience` / `resource`. |
-| Per-RP scope rules                         | `oidcRPMetaDataScopeRules` (Perl, sandboxed)  | Same plumbing this store extends for RAR rules and RS rules.             |
+| Per-RP scope rules                         | `oidcRPMetaDataScopeRules` (Perl, sandboxed)                                      | Same plumbing this store extends for RAR rules and RS rules.                                                                                |
 
 ### 1.2 Authentication & client metadata
 
-| Feature                                              | Status                   |
-| ---------------------------------------------------- | ------------------------ |
-| `client_secret_basic` / `client_secret_post`         | ✅                       |
-| `client_secret_jwt`                                  | ✅                       |
-| `private_key_jwt` (RFC 7521 + RFC 7523)              | ✅                       |
+| Feature                                              | Status                                                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `client_secret_basic` / `client_secret_post`         | ✅                                                                                                               |
+| `client_secret_jwt`                                  | ✅                                                                                                               |
+| `private_key_jwt` (RFC 7521 + RFC 7523)              | ✅                                                                                                               |
 | `tls_client_auth` / `self_signed_tls_client_auth`    | ⏳ pending upstream LLNG release ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) |
-| PKCE (RFC 7636), enforced via `RequirePKCE` per RP   | ✅                       |
-| ID-token signing: HS\*, RS\*, ES\*, PS\*             | ✅                       |
-| ID-token / userinfo / introspection encryption (JWE) | ✅                       |
-| Refresh-token rotation                               | ✅ per-RP option         |
-| Offline access (`offline_access` scope)              | ✅                       |
+| PKCE (RFC 7636), enforced via `RequirePKCE` per RP   | ✅                                                                                                               |
+| ID-token signing: HS\*, RS\*, ES\*, PS\*             | ✅                                                                                                               |
+| ID-token / userinfo / introspection encryption (JWE) | ✅                                                                                                               |
+| Refresh-token rotation                               | ✅ per-RP option                                                                                                 |
+| Offline access (`offline_access` scope)              | ✅                                                                                                               |
 
 ### 1.3 As an OpenID Connect Relying Party (RP)
 
@@ -135,16 +135,16 @@ The plugins are grouped by use case below. Each is a self-contained `.deb`-insta
 
 ### 3.1 The Security Profile mandates
 
-| FAPI 2.0 requirement                                                      | LLNG status                                                                                                                    |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Authorization code grant only** (no implicit, no hybrid)                | ✅ Configurable per RP — disable `oidcServiceAllowImplicitFlow` and `oidcServiceAllowHybridFlow`.                              |
-| **PKCE S256 mandatory**                                                   | ✅ Core; enforce per RP via `oidcRPMetaDataOptionsRequirePKCE`.                                                                |
-| **PAR mandatory**                                                         | 🧩 [`oidc-par`](plugins/oidc-par); enforce per RP via `oidcRPMetaDataOptionsPAR=required`.                                     |
-| **Pushed `request_uri` only** (no other `request_uri` schemes)            | 🧩 with PAR `required` mode.                                                                                                   |
-| **Resource Indicators (RFC 8707)**                                        | 🧩 [`oidc-resource-indicators`](plugins/oidc-resource-indicators).                                                             |
-| **`iss` in authz response (RFC 9207)**                                    | ✅ Core.                                                                                                                       |
-| **Sender-constrained access tokens — mTLS path (RFC 8705)**               | ⏳ Pending upstream LLNG release ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)).                |
-| **Sender-constrained access tokens — DPoP path (RFC 9449)**               | ⏳ Pending: needs a small core hook (`oidcParseAuthorization` or equivalent) to override the Bearer-only Authorization parser. |
+| FAPI 2.0 requirement                                                      | LLNG status                                                                                                                               |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authorization code grant only** (no implicit, no hybrid)                | ✅ Configurable per RP — disable `oidcServiceAllowImplicitFlow` and `oidcServiceAllowHybridFlow`.                                         |
+| **PKCE S256 mandatory**                                                   | ✅ Core; enforce per RP via `oidcRPMetaDataOptionsRequirePKCE`.                                                                           |
+| **PAR mandatory**                                                         | 🧩 [`oidc-par`](plugins/oidc-par); enforce per RP via `oidcRPMetaDataOptionsPAR=required`.                                                |
+| **Pushed `request_uri` only** (no other `request_uri` schemes)            | 🧩 with PAR `required` mode.                                                                                                              |
+| **Resource Indicators (RFC 8707)**                                        | 🧩 [`oidc-resource-indicators`](plugins/oidc-resource-indicators).                                                                        |
+| **`iss` in authz response (RFC 9207)**                                    | ✅ Core.                                                                                                                                  |
+| **Sender-constrained access tokens — mTLS path (RFC 8705)**               | ⏳ Pending upstream LLNG release ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)).                         |
+| **Sender-constrained access tokens — DPoP path (RFC 9449)**               | ⏳ Pending: needs a small core hook (`oidcParseAuthorization` or equivalent) to override the Bearer-only Authorization parser.            |
 | **Strong client authentication** (`private_key_jwt` or `tls_client_auth`) | ✅ `private_key_jwt` in core; `tls_client_auth` lands with [issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442). |
 
 ### 3.2 The Message Signing Profile mandates
@@ -212,22 +212,22 @@ The DPoP path is the same minus mTLS, plus the `oidc-dpop` plugin (planned, not 
 
 Quick lookup if you know what you need.
 
-| Use case                                                                                          | What to install / enable                                                     |
-| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Plain SSO with OIDC                                                                               | Just core LLNG, RP configuration in the Manager.                             |
-| Mobile / SPA client                                                                               | Core + `RequirePKCE` per RP.                                                 |
-| TV / CLI / device flow                                                                            | `oidc-device-authorization`.                                                 |
-| Decoupled auth (authenticate on phone, app on laptop)                                             | `oidc-ciba`.                                                                 |
-| Hide authorize parameters from the URL bar / referrer                                             | `oidc-par`.                                                                  |
-| Sign authorize request                                                                            | `oidc-jar`.                                                                  |
-| Sign authorize response                                                                           | `oidc-jarm`.                                                                 |
-| Bind tokens to a specific Resource Server (multi-API setups)                                      | `oidc-resource-indicators`.                                                  |
-| Fine-grained, transaction-specific authorizations (PSD2 payment, healthcare order, etc.)          | `oidc-rar`.                                                                  |
-| User-facing dashboard "connected apps", PSD2 / PSD3 consent renewal, single-call grant revocation | `oidc-grant-management`.                                                     |
-| Resource Server needs to enforce step-up / max-age policies                                       | `oidc-acr-claims` (AS side; RS-side challenge logic is on the RS).           |
-| Federation between OPs and RPs through trust anchors                                              | `oidc-federation`.                                                           |
+| Use case                                                                                          | What to install / enable                                                                                                                             |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plain SSO with OIDC                                                                               | Just core LLNG, RP configuration in the Manager.                                                                                                     |
+| Mobile / SPA client                                                                               | Core + `RequirePKCE` per RP.                                                                                                                         |
+| TV / CLI / device flow                                                                            | `oidc-device-authorization`.                                                                                                                         |
+| Decoupled auth (authenticate on phone, app on laptop)                                             | `oidc-ciba`.                                                                                                                                         |
+| Hide authorize parameters from the URL bar / referrer                                             | `oidc-par`.                                                                                                                                          |
+| Sign authorize request                                                                            | `oidc-jar`.                                                                                                                                          |
+| Sign authorize response                                                                           | `oidc-jarm`.                                                                                                                                         |
+| Bind tokens to a specific Resource Server (multi-API setups)                                      | `oidc-resource-indicators`.                                                                                                                          |
+| Fine-grained, transaction-specific authorizations (PSD2 payment, healthcare order, etc.)          | `oidc-rar`.                                                                                                                                          |
+| User-facing dashboard "connected apps", PSD2 / PSD3 consent renewal, single-call grant revocation | `oidc-grant-management`.                                                                                                                             |
+| Resource Server needs to enforce step-up / max-age policies                                       | `oidc-acr-claims` (AS side; RS-side challenge logic is on the RS).                                                                                   |
+| Federation between OPs and RPs through trust anchors                                              | `oidc-federation`.                                                                                                                                   |
 | FAPI 2.0 Security Profile (PSD2-grade)                                                            | upstream mTLS ([#3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) + `oidc-par` + `oidc-resource-indicators` + RP config above. |
-| FAPI 2.0 Message Signing Profile                                                                  | _the above_ + `oidc-jar` + `oidc-jarm`.                                      |
+| FAPI 2.0 Message Signing Profile                                                                  | _the above_ + `oidc-jar` + `oidc-jarm`.                                                                                                              |
 
 ---
 
