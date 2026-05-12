@@ -269,13 +269,11 @@ oidcRPMetaDataOptionsClientID = billing-api
 oidcRPMetaDataOptionsEnableRI = 1
 oidcRPMetaDataOptionsRIIdentifier = https://api.example.com/billing
 
-# Per-RS scope rules
-oidcRPMetaDataRIScopes:
-  read:invoices: Read invoices
-  write:invoices: Modify invoices
-oidcRPMetaDataRIScopeRules:
-  read:invoices: 1
-  write:invoices: '$groups =~ /\bbilling-admin\b/'
+# Per-RS scope catalog and rules (JSON-encoded scalars)
+oidcRPMetaDataOptionsRIScopes =
+  '{"read:invoices": "Read invoices", "write:invoices": "Modify invoices"}'
+oidcRPMetaDataOptionsRIScopeRules =
+  '{"read:invoices": "1", "write:invoices": "$groups =~ /\\bbilling-admin\\b/"}'
 ```
 
 The client then asks for `?resource=https://api.example.com/billing&scope=read:invoices`; the AT issued has `aud` containing `billing-api` (or its identifier), and the API can validate based on `aud` + `scope`.

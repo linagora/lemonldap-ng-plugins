@@ -9,6 +9,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCResourceIndicators;
 
 use strict;
 use Mouse;
+use JSON qw(decode_json);
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
 use Lemonldap::NG::Common::JWT qw(getAccessTokenSessionId);
 
@@ -39,21 +40,69 @@ has _ruleSubs => (
     default => sub { {} },
 );
 
-# INITIALIZATION - Pre-compile RS scope rules at startup
+# Per-RP JSON-decoded views of the scalar Options leaves:
+#   _rsScopes->{$rp}  = { scope => description }
+#   _rsRules->{$rp}   = { scope => perl_rule }
+# Both populated at init from oidcRPMetaDataOptionsRIScopes /
+# oidcRPMetaDataOptionsRIScopeRules. RPs with invalid JSON are absent
+# from these hashes (no RS scopes / no rules → secure default).
+has _rsScopes => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+);
+
+has _rsRules => (
+    is      => 'rw',
+    isa     => 'HashRef',
+    default => sub { {} },
+);
+
+# INITIALIZATION - decode scalar JSON leaves + pre-compile RS scope rules
 sub init {
     my ($self) = @_;
 
-    # Validate and pre-compile all RS scope rules
-    for my $rp ( keys %{ $self->conf->{oidcRPMetaDataRIScopeRules} || {} } ) {
-        my $rules = $self->conf->{oidcRPMetaDataRIScopeRules}->{$rp} || {};
+    my $opts = $self->conf->{oidcRPMetaDataOptions} || {};
+    for my $rp ( keys %$opts ) {
+
+        # RS scope descriptions
+        if ( my $raw = $opts->{$rp}->{oidcRPMetaDataOptionsRIScopes} ) {
+            my $decoded = eval { decode_json($raw) };
+            if ( $@ or ref($decoded) ne 'HASH' ) {
+                my $why = $@ || 'not a JSON object';
+                $self->logger->error(
+                    "OIDCResourceIndicators: invalid JSON in "
+                      . "oidcRPMetaDataOptionsRIScopes for RP '$rp': $why "
+                      . "— ignoring (no RS scopes for this RP)" );
+            }
+            else {
+                $self->_rsScopes->{$rp} = $decoded;
+            }
+        }
+
+        # RS scope rules
+        my $rules;
+        if ( my $raw = $opts->{$rp}->{oidcRPMetaDataOptionsRIScopeRules} ) {
+            $rules = eval { decode_json($raw) };
+            if ( $@ or ref($rules) ne 'HASH' ) {
+                my $why = $@ || 'not a JSON object';
+                $self->logger->error(
+                    "OIDCResourceIndicators: invalid JSON in "
+                      . "oidcRPMetaDataOptionsRIScopeRules for RP '$rp': $why "
+                      . "— ignoring (no rules for this RP)" );
+                next;
+            }
+            $self->_rsRules->{$rp} = $rules;
+        }
+        $rules ||= {};
+
+        # Pre-compile Perl rules (skip the trivial 1 / 0 / accept / deny ones).
         for my $scope ( keys %$rules ) {
             my $rule = $rules->{$scope};
-
-            # Skip simple rules that don't need compilation
+            next unless defined $rule and length $rule;
             next if $rule eq '1' || $rule eq '0';
             next if lc($rule) eq 'accept' || lc($rule) eq 'deny';
 
-            # Try to compile the rule
             my $hd         = $self->p->HANDLER;
             my $expression = $hd->substitute($rule);
             my $sub        = $hd->buildSub($expression);
@@ -66,7 +115,6 @@ sub init {
                 return 0;
             }
 
-            # Cache the compiled rule
             $self->_ruleSubs->{$rule} = $sub;
             $self->logger->debug(
                 "OIDCResourceIndicators: Pre-compiled rule for RS '$rp' "
@@ -304,10 +352,9 @@ sub evaluateRSScopes {
 
         push @resolved_audiences, $aud;
 
-        # Get RS scopes and rules from configuration
-        my $rs_scopes = $self->conf->{oidcRPMetaDataRIScopes}->{$rs_rp} // {};
-        my $rs_rules =
-          $self->conf->{oidcRPMetaDataRIScopeRules}->{$rs_rp} // {};
+        # Get RS scopes and rules from the init-time decoded views
+        my $rs_scopes = $self->_rsScopes->{$rs_rp} // {};
+        my $rs_rules  = $self->_rsRules->{$rs_rp}  // {};
 
         # Check which requested scopes are RS scopes and evaluate their rules
         for my $scope (@$scopeList) {

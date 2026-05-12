@@ -18,7 +18,7 @@ Touched plugins bumped to **0.2.0** in lockstep: `oidc-rar` (new),
 - **Feature - RFC 8707 Resource Indicators** (OIDC Provider side):
   `resource` parameter on `/oauth2/authorize` and `/oauth2/token`
   (`client_credentials` + refresh), per-RS scope rules
-  (`oidcRPMetaDataRIScopeRules`), token binding (JWT `aud`,
+  (`oidcRPMetaDataOptionsRIScopeRules`), token binding (JWT `aud`,
   introspection, refresh).
 
 ### oidc-acr-claims (new)

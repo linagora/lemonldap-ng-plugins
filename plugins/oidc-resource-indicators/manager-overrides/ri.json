@@ -9,30 +9,29 @@
       "type": "text",
       "documentation": "RFC 8707 — Resource Server identifier (audience). Defaults to clientId when empty."
     },
-    "oidcRPMetaDataRIScopes": {
-      "type": "keyTextContainer",
-      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
-      "default": {},
-      "documentation": "RFC 8707 — Resource Server scopes. Key: scope name (RFC 6749 charset). Value: human-readable description."
+    "oidcRPMetaDataOptionsRIScopes": {
+      "type": "longtext",
+      "default": "",
+      "documentation": "RFC 8707 — Resource Server scopes, encoded as a JSON object `{\"<scope>\": \"<description>\"}`. Key: scope name (RFC 6749 charset). Value: human-readable description. Empty string = no RS scopes."
     },
-    "oidcRPMetaDataRIScopeRules": {
-      "type": "keyTextContainer",
-      "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$",
-      "default": {},
-      "documentation": "RFC 8707 — RS scope authorization rules. Key: scope name. Value: Perl expression evaluated against the user session; truthy grants the scope when this RS is targeted. `1` / `accept` always grants; `0` / `deny` always denies."
+    "oidcRPMetaDataOptionsRIScopeRules": {
+      "type": "longtext",
+      "default": "",
+      "documentation": "RFC 8707 — RS scope authorization rules, encoded as a JSON object `{\"<scope>\": \"<perl_expression>\"}`. Each Perl expression is evaluated against the user session when the matching scope is requested for this RS; truthy grants the scope. `1` / `accept` always grants; `0` / `deny` always denies. Empty string = no rules (every declared RS scope is granted)."
     }
   },
   "ctrees": {
     "oidcRPMetaDataNode": {
-      "insert_after": "oidcRPMetaDataMacros",
+      "insert_into": "oidcRPMetaDataOptions",
       "nodes": [
         {
           "title": "oidcRPMetaDataOptionsResourceIndicators",
+          "form": "simpleInputContainer",
           "nodes": [
             "oidcRPMetaDataOptionsEnableRI",
             "oidcRPMetaDataOptionsRIIdentifier",
-            "oidcRPMetaDataRIScopes",
-            "oidcRPMetaDataRIScopeRules"
+            "oidcRPMetaDataOptionsRIScopes",
+            "oidcRPMetaDataOptionsRIScopeRules"
           ]
         }
       ]
@@ -47,13 +46,13 @@
       "en": "Resource Server identifier (audience)",
       "fr": "Identifiant du Resource Server (audience)"
     },
-    "oidcRPMetaDataRIScopes": {
-      "en": "RS scopes",
-      "fr": "Scopes du RS"
+    "oidcRPMetaDataOptionsRIScopes": {
+      "en": "RS scopes (JSON: scope → description)",
+      "fr": "Scopes du RS (JSON : scope → description)"
     },
-    "oidcRPMetaDataRIScopeRules": {
-      "en": "RS scope authorization rules",
-      "fr": "Règles d'autorisation des scopes RS"
+    "oidcRPMetaDataOptionsRIScopeRules": {
+      "en": "RS scope authorization rules (JSON: scope → Perl expr)",
+      "fr": "Règles d'autorisation des scopes RS (JSON : scope → expr. Perl)"
     },
     "oidcRPMetaDataOptionsResourceIndicators": {
       "en": "Resource Indicators",
