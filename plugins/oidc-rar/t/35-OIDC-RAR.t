@@ -438,6 +438,9 @@ sub op {
                         oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
                         oidcRPMetaDataOptionsAuthorizationDetailsTypes =>
                           'payment_initiation',
+                        # Only allow payments up to 50 EUR
+                        oidcRPMetaDataOptionsAuthorizationDetailsRules =>
+                          '{"payment_initiation": "$detail->{instructedAmount}->{amount} <= 50"}',
                     },
                     rp_norar => {
                         oidcRPMetaDataOptionsDisplayName            => "RP NoRAR",
@@ -460,19 +463,9 @@ sub op {
                         oidcRPMetaDataOptionsAccessTokenExpiration  => 3600,
                         oidcRPMetaDataOptionsRedirectUris           => 'http://rp.com/',
                         oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
-                    },
-                },
-                # Per-RP, per-type Perl rules (oidcRPMetaDataAuthorizationDetailsRules
-                # is a top-level keyTextContainer, like oidcRPMetaDataScopeRules).
-                oidcRPMetaDataAuthorizationDetailsRules => {
-                    rp_strict => {
-                        # Only allow payments up to 50 EUR
-                        payment_initiation =>
-                          '$detail->{instructedAmount}->{amount} <= 50',
-                    },
-                    rp_badrule => {
                         # Syntactically broken Perl: must trigger fail-closed
-                        payment_initiation => 'this is not valid perl ((',
+                        oidcRPMetaDataOptionsAuthorizationDetailsRules =>
+                          '{"payment_initiation": "this is not valid perl (("}',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,

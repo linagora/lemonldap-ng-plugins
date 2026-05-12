@@ -55,6 +55,14 @@ has rpRarRule => (
     builder => '_buildRpRarRule',
 );
 
+# Set of RPs whose AuthorizationDetailsRules JSON failed to decode.
+# Populated as a side effect of _buildRpRarRule. Enforcement treats any
+# RAR request for such an RP as denied.
+has rpRarBroken => (
+    is      => 'rw',
+    default => sub { {} },
+);
+
 sub init {
     my ($self) = @_;
     return unless $self->SUPER::init;
@@ -88,13 +96,24 @@ sub _buildRpAllowedTypes {
 sub _buildRpRarRule {
     my ($self) = @_;
     my %compiled;
-    my $opts  = $self->conf->{oidcRPMetaDataOptions}              || {};
-    my $rules = $self->conf->{oidcRPMetaDataAuthorizationDetailsRules} || {};
+    my $opts = $self->conf->{oidcRPMetaDataOptions} || {};
     for my $rp ( keys %$opts ) {
         next
           unless $opts->{$rp}->{oidcRPMetaDataOptionsAuthorizationDetailsEnabled};
-        my $perType = $rules->{$rp} or next;
-        next unless ref($perType) eq 'HASH' and %$perType;
+        my $raw = $opts->{$rp}->{oidcRPMetaDataOptionsAuthorizationDetailsRules};
+        next unless defined $raw and length $raw;
+
+        my $perType = eval { decode_json($raw) };
+        if ( $@ or ref($perType) ne 'HASH' ) {
+            my $why = $@ || 'not a JSON object';
+            $self->userLogger->error(
+                "RAR: invalid JSON in "
+              . "oidcRPMetaDataOptionsAuthorizationDetailsRules for RP $rp: $why"
+              . " — denying all authorization_details for this RP" );
+            $self->rpRarBroken->{$rp} = 1;
+            next;
+        }
+        next unless %$perType;
 
         for my $type ( keys %$perType ) {
             my $rule = $perType->{$type};
@@ -212,6 +231,12 @@ sub enforceRulesAndStoreOnCode {
     my ( $self, $req, $oidc_request, $rp, $code_payload ) = @_;
 
     my $details = $req->data->{ &SESSION_KEY } or return PE_OK;
+
+    if ( $self->rpRarBroken->{$rp} ) {
+        $self->logger->error( "RAR: denying authorization_details for RP $rp "
+              . "(rules JSON failed to decode at init)" );
+        return PE_ERROR;
+    }
 
     my $rpRules = $self->rpRarRule->{$rp};
     if ( $rpRules and %$rpRules ) {
