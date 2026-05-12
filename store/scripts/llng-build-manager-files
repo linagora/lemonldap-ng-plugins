@@ -417,6 +417,60 @@ s{^(use constant DEFAULTCONFFILE\s*=>\s*").*("\s*;)}{$1$saved_conffile$2}m
     }
 }
 
+# 6c. Extend $hashParameters in Constants.pm with plugin-introduced
+#     hash-of-X containers that are ctree leaves.
+#
+#     Background: Build.pm scans tree() and pushes top-level attributes of
+#     type *Container / catAndAppList into @simpleHashKeys, which feeds
+#     $hashParameters in Constants.pm. But when the same attribute is a
+#     ctree leaf (i.e. scanned with a $prefix), it is intentionally NOT
+#     pushed (Build.pm:787 `unless ( $prefix or ... )`). Core works around
+#     this by listing its own ctree-leaf containers in a hardcoded list
+#     (oidcRPMetaDataExportedVars, oidcRPMetaDataMacros, ...). Plugins
+#     cannot extend that list at build time; without help, their
+#     containers stay out of $hashParameters and Serializer/Backends
+#     silently mis-handle the data (stored / read as raw string instead
+#     of a hashref).
+#
+#     This step mirrors core's hardcoded list, but for extensions: any
+#     extension-introduced attribute of container type gets appended to
+#     $hashParameters via a non-capturing alternation.
+if ( $conf_constants_file ne '/dev/null' && -r $conf_constants_file ) {
+    my @ext_hash_attrs =
+      sort
+      grep {
+        my $t = $ext_attributes->{$_}{type} // '';
+        $t =~ /^(?:catAndAppList|\w+Container)$/;
+      } keys %$ext_attributes;
+
+    if (@ext_hash_attrs) {
+        verbose "Extending \$hashParameters with "
+          . scalar(@ext_hash_attrs)
+          . " extension hash container(s): @ext_hash_attrs\n";
+
+        open my $fh, '<', $conf_constants_file
+          or die "Cannot read $conf_constants_file: $!";
+        my $content = do { local $/; <$fh> };
+        close $fh;
+
+        my $alt = join '|', map quotemeta, @ext_hash_attrs;
+        my $matched = ( $content =~
+              s{^(our\s+\$hashParameters\s*=\s*qr/\^)(.+?)(\$/;)}
+               {$1(?:$2|$alt)$3}m );
+
+        if ($matched) {
+            open my $out, '>', $conf_constants_file
+              or die "Cannot write $conf_constants_file: $!";
+            print $out $content;
+            close $out;
+        }
+        else {
+            warn
+"Warning: could not extend \$hashParameters in $conf_constants_file (regex not found)\n";
+        }
+    }
+}
+
 # 6b. Minify conftree.js
 if ( $conftree_file ne '/dev/null' ) {
     minify_conftree($conftree_file);
