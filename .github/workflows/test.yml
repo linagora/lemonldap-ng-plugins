@@ -140,3 +140,63 @@ jobs:
 
       - name: Run tests
         run: ./mcp/cli.js execute "${{ matrix.plugin }}"
+
+  # Global lint: aggregate every plugin's manager-overrides/*.json under a
+  # single directory and run llng-build-manager-files against the union.
+  # Catches cross-plugin issues that per-plugin jobs miss because they only
+  # see their own override file. In particular it triggers the validation
+  # pass that rejects hash-of-X containers declared as ctree leaves.
+  validate-overrides:
+    needs: discover
+    if: needs.discover.outputs.has_tests == 'true'
+    runs-on: ubuntu-latest
+    name: validate manager-overrides
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install MCP/CLI dependencies
+        run: cd mcp && npm install --no-audit --no-fund
+
+      - name: Clone LLNG (default branch, shallow)
+        run: |
+          # Use any plugin to share the prepare logic (clone + make common).
+          ANY_PLUGIN=$(ls plugins | head -n1)
+          ./mcp/cli.js prepare "$ANY_PLUGIN"
+
+      - name: Install build-script Perl dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libregexp-assemble-perl libjson-perl libio-string-perl perl
+
+      - name: Aggregate all plugin manager-overrides
+        run: |
+          mkdir -p .llng-overrides-all
+          for f in plugins/*/manager-overrides/*.json; do
+            [ -f "$f" ] || continue
+            cp "$f" .llng-overrides-all/
+          done
+          echo "Collected $(ls -1 .llng-overrides-all/*.json 2>/dev/null | wc -l) override file(s)"
+          ls -1 .llng-overrides-all/
+
+      - name: Run llng-build-manager-files in lint mode
+        run: |
+          export PERL5LIB="$PWD/.llng-test/lemonldap-ng/lemonldap-ng-manager/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-common/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-handler/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-portal/lib"
+          ./store/scripts/llng-build-manager-files \
+            --plugins-dir=.llng-overrides-all \
+            --struct-file=/dev/null \
+            --conftree-file=/dev/null \
+            --reverse-tree-file=/dev/null \
+            --manager-constants-file=/dev/null \
+            --manager-attributes-file=/dev/null \
+            --default-values-file=/dev/null \
+            --conf-constants-file=/dev/null \
+            --portal-constants-file=/dev/null \
+            --handler-status-constants-file=/dev/null \
+            --doc-constants-file=/dev/null \
+            --first-lmconf-file=/dev/null \
+            --lang-dir=/nonexistent
