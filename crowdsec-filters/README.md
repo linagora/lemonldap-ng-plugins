@@ -48,7 +48,9 @@ Filter families:
 
 - `http-*` — scenario-based detection filters (report to CrowdSec on match).
   Covers admin probing, backdoors, WordPress scans, SQLi / XSS probing,
-  path traversal, sensitive files, and a handful of targeted CVEs
+  path traversal, sensitive files, redirect/state path-injection probing
+  (`http-probing` — OAuth2/SSO redirect parameters abused to scan for
+  `phpinfo.php`, `.env`, `wp-admin`, etc.), and a handful of targeted CVEs
   (CVE-2021-41773, CVE-2021-44228 log4j, CVE-2021-26086 Jira,
   CVE-2024-0012 PAN-OS, CVE-2024-38475 Apache, CVE-2018-20062 ThinkPHP,
   plus the `http-cve-probing` trending list).

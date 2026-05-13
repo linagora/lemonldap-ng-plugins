@@ -1,0 +1,4 @@
+# CrowdSec equivalent: capacity=1 (overflow at 2)
+# Very aggressive - path injection in redirect/state params has no
+# legitimate use; ban quickly after one repeat.
+2
