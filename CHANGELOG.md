@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.2.1 - 2026-05-13
+
+Touched plugins bumped to **0.2.1** in lockstep: `oidc-grant-management`
+(new), `oidc-rar`, `oidc-resource-indicators`, `oidc-ciba`.
+
+### oidc-grant-management (new)
+
+- **Feature - FAPI Grant Management API** (OIDC Provider side):
+  grants as durable first-class records, `grant_management_action`
+  parameter (`create` / `update` / `replace`) on `/oauth2/authorize`,
+  `grant_id` claim on token responses, REST endpoint at
+  `/oauth2/grants/{grant_id}` (GET to query, DELETE to revoke; token
+  cascade on revoke is best-effort in v1).
+
+### oidc-rar
+
+- **Refactor** - encode per-type rules as a JSON scalar option
+  (`oidcRPMetaDataOptionsRARRules`) instead of a hash-of-X ctree
+  container — aligns with the manager-builder constraint (PR #25).
+- **Fix** - use array form for multiple ctree injections; the previous
+  `target` field on the second entry was silently dropped, generating
+  spurious `*Keys` ctrees (with `oidc-ciba`).
+
+### oidc-resource-indicators
+
+- **Fix** - encode RS scopes / rules as JSON scalars
+
+### oidc-ciba
+
+- **Fix** - use array form for multiple ctree injections (`target`
+  field on second ctree entry was dropped, generating a spurious
+  `_oidcRPMetaDataNodeCibaKeys` ctree).
+
+### crowdsec-filters
+
+- **New filter `llng/http-probing`** — catches scanners abusing
+  OAuth2 / SSO redirect parameters (`state`, `redirect_uri`, `return`,
+  `next`, `callback`, …) to probe for sensitive paths
+  (`phpinfo.php`, `.env`, `wp-admin`, …). Threshold 2 hits / 30 s.
+
+### LLNG 2.0.11 backport
+
+- Direct link to Debian sources in `v2.0.11/README.md`.
+
+### Tooling & docs
+
+- **`llng-build-manager-files`** — reject plugin hash-of-X containers
+  as ctree leaves; emit a clear error pointing at the bad node so
+  refactors like `oidc-rar` / `oidc-resource-indicators` above can't
+  regress silently (PR #24).
+- **CI** — new `validate-overrides` job runs `llng-build-manager-files`
+  on every plugin to catch malformed `manager-overrides/*.json` before
+  release; pulls in `Regexp::Common` + `Mouse` test deps.
+- **Docs** — new `OIDC.md` narrative (high-level OIDC plugin tour),
+  `SPECIFICATIONS.md` brought up to date, `oidc-grant-management`
+  README expanded.
+
 ## v0.2.0 - 2026-05-01
 
 Touched plugins bumped to **0.2.0** in lockstep: `oidc-rar` (new),
