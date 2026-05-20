@@ -321,6 +321,11 @@ sub authorize {
         ]
     );
 
+    # Tell Lib::Choice which sub-module to use for this server-to-server
+    # getUser/setSessionInfo run (no interactive auth flow available here).
+    $req->data->{_authChoice} = $self->conf->{pamAccessChoice}
+      if $self->conf->{pamAccessChoice};
+
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
@@ -1013,6 +1018,11 @@ sub userinfo {
         ]
     );
 
+    # Tell Lib::Choice which sub-module to use for this server-to-server
+    # getUser/setSessionInfo run (no interactive auth flow available here).
+    $req->data->{_authChoice} = $self->conf->{pamAccessChoice}
+      if $self->conf->{pamAccessChoice};
+
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
@@ -1258,6 +1268,11 @@ sub bastionToken {
             $self->p->groupsAndMacros, 'setLocalGroups'
         ]
     );
+
+    # Tell Lib::Choice which sub-module to use for this server-to-server
+    # getUser/setSessionInfo run (no interactive auth flow available here).
+    $req->data->{_authChoice} = $self->conf->{pamAccessChoice}
+      if $self->conf->{pamAccessChoice};
 
     my $error = $self->p->process($req);
     if ( $error == PE_OK ) {
@@ -1751,6 +1766,13 @@ received (default: 900)
 
 If enabled, servers must have a recent heartbeat to use /pam/authorize.
 This ensures that the PAM module is still active on the server. (default: 0)
+
+=item pamAccessChoice
+
+When LemonLDAP::NG uses Choice authentication, name of the
+authChoiceModules entry (e.g. C<1_LDAP>) to use for the server-to-server
+endpoints C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token>.
+Leave empty if Choice is not used.
 
 =back
 

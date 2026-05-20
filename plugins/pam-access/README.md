@@ -58,6 +58,7 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessOfflineEnabled`    | Enable offline mode (boolOrExpr)                                                                                                                       | `0`       |
 | `pamAccessOfflineTtl`        | Offline authorization cache TTL (seconds)                                                                                                              | `86400`   |
 | `pamAccessHeartbeatRequired` | Require a recent heartbeat for `/pam/authorize`                                                                                                        | `0`       |
+| `pamAccessChoice`            | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token`. Leave empty when Choice auth is not used. | `""`      |
 
 ## Endpoints
 

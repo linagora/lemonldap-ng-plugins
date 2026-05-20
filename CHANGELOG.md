@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### pam-access
+
+- **Fix** — new `pamAccessChoice` option. When LemonLDAP::NG is
+  configured with Choice authentication (`Auth = Choice`,
+  `UserDB = Choice`), set this to the name of an `authChoiceModules`
+  entry (e.g. `1_LDAP`) so that the server-to-server endpoints
+  `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token` can route
+  their `getUser` step through `Lib::Choice`. Leave empty when Choice
+  auth is not used — behavior is unchanged.
+
 ## v0.2.1 - 2026-05-13
 
 Touched plugins bumped to **0.2.1** in lockstep: `oidc-grant-management`

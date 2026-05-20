@@ -79,6 +79,11 @@
       "type": "int",
       "default": 604800,
       "documentation": "Maximum age (seconds) of the _pamSeen marker on the user's persistent session accepted by /pam/bastion-token. Default 604800 = 7 days. Set to 0 to disable the age check."
+    },
+    "pamAccessChoice": {
+      "type": "text",
+      "default": "",
+      "documentation": "Choice sub-module used by PamAccess server-to-server endpoints (must match an entry of authChoiceModules). Leave empty when Choice auth is not used."
     }
   },
   "tree": [
@@ -112,7 +117,8 @@
             "pamAccessServerGroups",
             "pamAccessBastionGroups",
             "pamAccessBastionJwtTtl",
-            "pamAccessBastionMaxSeenAge"
+            "pamAccessBastionMaxSeenAge",
+            "pamAccessChoice"
           ]
         }
       ]
@@ -190,6 +196,10 @@
     "pamAccessBastionMaxSeenAge": {
       "en": "Max age of _pamSeen marker",
       "fr": "Âge maximal du marqueur _pamSeen"
+    },
+    "pamAccessChoice": {
+      "en": "Choice sub-module for server-to-server endpoints",
+      "fr": "Sous-module Choice pour les endpoints serveur-à-serveur"
     }
   }
 }
