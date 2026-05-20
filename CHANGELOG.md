@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## v0.2.2 - 2026-05-20
+
+Touched plugin bumped to **0.2.2**: `pam-access`.
 
 ### pam-access
 
