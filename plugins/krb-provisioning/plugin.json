@@ -12,6 +12,7 @@
   "build_depends": [
     "libauthen-krb5-admin-perl"
   ],
+  "ci_container": "debian:trixie",
   "customPlugins": "::Plugins::KrbProvisioning",
   "tags": [
     "kerberos",

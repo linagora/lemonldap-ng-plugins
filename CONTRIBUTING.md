@@ -238,6 +238,22 @@ cd mcp && npm install --no-audit --no-fund
 Exit code from `prove` propagates all the way up, so a failing test
 fails the job.
 
+By default jobs run directly on the `ubuntu-latest` runner. A plugin
+that needs a dependency the Ubuntu runner lacks can set
+`plugin.json:ci_container` to a container image (e.g. `"debian:trixie"`);
+its matrix is then routed to a separate job that runs the same steps
+inside that container. Example — `krb-provisioning` needs
+`libauthen-krb5-admin-perl`, which is absent from Ubuntu 24.04 but present
+on Debian:
+
+```json
+{
+  "name": "krb-provisioning",
+  "build_depends": ["libauthen-krb5-admin-perl"],
+  "ci_container": "debian:trixie"
+}
+```
+
 ## Environment overrides
 
 | Variable            | Default                                                |

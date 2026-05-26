@@ -15,6 +15,8 @@ jobs:
     outputs:
       matrix: ${{ steps.find.outputs.matrix }}
       has_tests: ${{ steps.find.outputs.has_tests }}
+      container_matrix: ${{ steps.find.outputs.container_matrix }}
+      has_container_tests: ${{ steps.find.outputs.has_container_tests }}
     steps:
       - uses: actions/checkout@v5
 
@@ -39,10 +41,14 @@ jobs:
           }
 
           entries=()
+          container_entries=()
           for d in plugins/*/; do
             [ -d "$d/t" ] || continue
             name=$(basename "$d")
             compat=$(jq -r '.llng_compat // ""' "$d/plugin.json")
+            # Optional: run this plugin's tests inside a container image (e.g.
+            # a Debian image carrying a dependency Ubuntu runners lack).
+            container=$(jq -r '.ci_container // ""' "$d/plugin.json")
 
             min=$(echo "$compat" | grep -oE '>=\s*[0-9.]+' \
                     | grep -oE '[0-9.]+' | head -1 || true)
@@ -79,21 +85,35 @@ jobs:
 
             for r in "${refs[@]}"; do
               label="${r:-main}"
-              entries+=("{\"plugin\":\"$name\",\"ref\":\"$r\",\"label\":\"$label\"}")
+              if [ -n "$container" ]; then
+                container_entries+=("{\"plugin\":\"$name\",\"ref\":\"$r\",\"label\":\"$label\",\"container\":\"$container\"}")
+              else
+                entries+=("{\"plugin\":\"$name\",\"ref\":\"$r\",\"label\":\"$label\"}")
+              fi
             done
           done
 
           if [ ${#entries[@]} -eq 0 ]; then
             echo "has_tests=false" >> "$GITHUB_OUTPUT"
             echo "matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            include="[$(IFS=,; echo "${entries[*]}")]"
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+            echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+            echo "Host matrix:"
+            echo "$include" | jq .
           fi
 
-          include="[$(IFS=,; echo "${entries[*]}")]"
-          echo "has_tests=true" >> "$GITHUB_OUTPUT"
-          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
-          echo "Matrix:"
-          echo "$include" | jq .
+          if [ ${#container_entries[@]} -eq 0 ]; then
+            echo "has_container_tests=false" >> "$GITHUB_OUTPUT"
+            echo "container_matrix={\"include\":[]}" >> "$GITHUB_OUTPUT"
+          else
+            cinclude="[$(IFS=,; echo "${container_entries[*]}")]"
+            echo "has_container_tests=true" >> "$GITHUB_OUTPUT"
+            echo "container_matrix={\"include\":$cinclude}" >> "$GITHUB_OUTPUT"
+            echo "Container matrix:"
+            echo "$cinclude" | jq .
+          fi
 
   test:
     needs: discover
@@ -106,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
@@ -141,6 +161,60 @@ jobs:
       - name: Run tests
         run: ./mcp/cli.js execute "${{ matrix.plugin }}"
 
+  # Same as `test`, but for plugins that declare `ci_container` in plugin.json
+  # (e.g. a Debian image carrying a build dependency the Ubuntu runners lack).
+  # Steps run as root inside the container, so no `sudo`, and the base tools the
+  # host runner provides (git, jq, node, perl, make) are installed first.
+  test-container:
+    needs: discover
+    if: needs.discover.outputs.has_container_tests == 'true'
+    runs-on: ubuntu-latest
+    container: ${{ matrix.container }}
+    name: ${{ matrix.plugin }} @ ${{ matrix.label }} (${{ matrix.container }})
+    strategy:
+      matrix: ${{ fromJson(needs.discover.outputs.container_matrix) }}
+      fail-fast: false
+    steps:
+      # Install the tooling the host runner ships with but a minimal Debian
+      # image does not (git is needed before checkout can clone).
+      - name: Install container prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            git jq curl ca-certificates build-essential \
+            devscripts equivs perl nodejs npm
+
+      - uses: actions/checkout@v5
+
+      - name: Install MCP/CLI dependencies
+        run: cd mcp && npm install --no-audit --no-fund
+
+      - name: Prepare plugin (clone LLNG + make common + symlinks)
+        run: |
+          REF="${{ matrix.ref }}"
+          if [ -n "$REF" ]; then
+            ./mcp/cli.js prepare "${{ matrix.plugin }}" --ref "$REF"
+          else
+            ./mcp/cli.js prepare "${{ matrix.plugin }}"
+          fi
+
+      - name: Install LLNG build dependencies
+        run: |
+          cd .llng-test/lemonldap-ng
+          mk-build-deps -i -t 'apt-get -y --no-install-recommends' debian/control
+
+      - name: Install plugin extra build dependencies
+        run: |
+          PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          BUILD_DEPS=$(jq -r '.build_depends // [] | .[]' "$PLUGIN_DIR/plugin.json")
+          if [ -n "$BUILD_DEPS" ]; then
+            echo "Installing extra build deps: $BUILD_DEPS"
+            apt-get install -y --no-install-recommends $BUILD_DEPS
+          fi
+
+      - name: Run tests
+        run: ./mcp/cli.js execute "${{ matrix.plugin }}"
+
   # Global lint: aggregate every plugin's manager-overrides/*.json under a
   # single directory and run llng-build-manager-files against the union.
   # Catches cross-plugin issues that per-plugin jobs miss because they only
@@ -154,7 +228,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
 
