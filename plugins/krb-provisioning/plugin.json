@@ -1,0 +1,23 @@
+{
+  "name": "krb-provisioning",
+  "version": "0.1.0",
+  "summary": "On-the-fly Kerberos principal provisioning from SSO logins",
+  "description": "At each real (password-based) login, this LemonLDAP::NG plugin (re)sets the user's Kerberos key equal to the password just validated by the SSO, by talking to a kadmind service. It lets a dedicated MIT KDC issue tickets for users whose identities live in a separate general LDAP directory the KDC cannot delegate to. Hooks endAuth, is strictly non-blocking, never logs or stores the password, and is a silent no-op on cookie SSO or federated logins. Uses Authen::Krb5::Admin when available, otherwise shells to kadmin feeding the password on stdin.",
+  "author": "Xavier Guimard <yadd@debian.org>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.23.0",
+  "customPlugins": "::Plugins::KrbProvisioning",
+  "tags": [
+    "kerberos",
+    "kdc",
+    "provisioning",
+    "kadmin"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "krbProvisioningActivation",
+      "module": "::Plugins::KrbProvisioning"
+    }
+  ]
+}
