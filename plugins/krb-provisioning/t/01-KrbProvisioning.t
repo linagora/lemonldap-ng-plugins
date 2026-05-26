@@ -3,6 +3,14 @@ use Test::More;
 use strict;
 use IO::String;
 
+# The plugin hard-requires Authen::Krb5::Admin (Debian: libauthen-krb5-admin-perl);
+# init() refuses to load without it, so there is nothing to test then.
+BEGIN {
+    plan skip_all =>
+      'Authen::Krb5::Admin required (Debian: libauthen-krb5-admin-perl)'
+      unless eval { require Authen::Krb5::Admin; 1 };
+}
+
 require 't/test-lib.pm';
 
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
@@ -183,17 +191,6 @@ count(2);
         'password never appears in any log line' );
     count(3);
 }
-
-# ===========================================================================
-# 6. _kadminBaseArgv: the password is NEVER on the command line
-# ===========================================================================
-my @argv = $plugin->_kadminBaseArgv;
-ok( ( grep { $_ eq '-k' } @argv ), 'kadmin invoked with -k (keytab auth)' );
-ok( ( grep { $_ eq 'lemonldap/admin@EXAMPLE.COM' } @argv ),
-    'service principal present in argv' );
-ok( !( grep { /s3cret|dwho|-pw/ } @argv ),
-    'no password and no -pw flag in argv' );
-count(3);
 
 clean_sessions();
 done_testing();

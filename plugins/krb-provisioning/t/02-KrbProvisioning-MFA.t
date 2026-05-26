@@ -3,6 +3,12 @@ use Test::More;
 use strict;
 use IO::String;
 
+BEGIN {
+    plan skip_all =>
+      'Authen::Krb5::Admin required (Debian: libauthen-krb5-admin-perl)'
+      unless eval { require Authen::Krb5::Admin; 1 };
+}
+
 require 't/test-lib.pm';
 
 # This test proves the plugin provisions Kerberos correctly when a second

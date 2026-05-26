@@ -16,10 +16,10 @@
 # there is no cleartext password (SSO cookie reuse, SAML/OIDC/SPNEGO
 # federation) it is a silent no-op.
 #
-# Two kadmind backends, by order of preference:
-#   1. Authen::Krb5::Admin (libkadm5 bindings) -> in-memory, no shell, no leak.
-#   2. Fallback: shell out to `kadmin -k -t <keytab> -p <principal>` feeding the
-#      password on STDIN. The password is NEVER passed as an argv argument.
+# kadmind is reached through Authen::Krb5::Admin (libkadm5 bindings): the key is
+# set in memory, no shell, no password on any command line. The module is a hard
+# requirement (Debian: libauthen-krb5-admin-perl) -- init() refuses to load the
+# plugin if it is missing.
 #
 # See SPEC: docs/llng-kerberos-provisioning-plugin.md (pure-kdc project).
 
@@ -42,30 +42,19 @@ use constant name => 'KrbProvisioning';
 # preferred over endAuth (MFA compatibility).
 use constant betweenAuthAndData => 'provision';
 
-# Whether the Authen::Krb5::Admin bindings are available. Resolved lazily and
-# only once: if present we use the in-memory API, otherwise we shell to kadmin.
-has _krb5AdminAvailable => (
-    is      => 'rw',
-    lazy    => 1,
-    default => sub {
-        my ($self) = @_;
-        my $ok = eval {
-            require Authen::Krb5;
-            require Authen::Krb5::Admin;
-            1;
-        };
-        unless ($ok) {
-            $self->logger->info( 'KrbProvisioning: Authen::Krb5::Admin not '
-                  . 'available, falling back to the kadmin command' );
-        }
-        return $ok ? 1 : 0;
-    },
-);
-
 # INITIALIZATION
 
 sub init {
     my ($self) = @_;
+
+    # Hard dependency: without Authen::Krb5::Admin the plugin cannot do anything,
+    # so refuse to load with a clear message rather than failing silently at
+    # every login.
+    unless ( eval { require Authen::Krb5; require Authen::Krb5::Admin; 1 } ) {
+        $self->logger->error( 'KrbProvisioning requires Authen::Krb5::Admin '
+              . '(Debian: libauthen-krb5-admin-perl); plugin disabled' );
+        return 0;
+    }
 
     # Required parameters: without them the plugin cannot reach kadmind.
     for my $key (qw(krbRealm krbAdminServer krbServicePrincipal krbKeytab)) {
@@ -145,12 +134,10 @@ sub _principalFor {
     return undef unless defined $login && length $login;
 
     # Strict allowlist rather than a blocklist: a login becomes a Kerberos
-    # principal component and, in the kadmin fallback, is interpolated into a
-    # quoted `-q` query string. Only accept characters that are unambiguous
-    # there -- letters, digits, dot, underscore, hyphen, plus a trailing '$'
-    # for machine accounts. This rejects whitespace, '@', '/', NUL, quotes,
-    # backslashes and any control/metacharacter that could break or inject the
-    # query.
+    # principal component. Only accept characters that are unambiguous there --
+    # letters, digits, dot, underscore, hyphen, plus a trailing '$' for machine
+    # accounts. This rejects whitespace, '@', '/', NUL, quotes, backslashes and
+    # any control/metacharacter that has no business in a principal name.
     return undef unless $login =~ /\A[A-Za-z0-9._-]+\$?\z/;
 
     my $fmt = $self->conf->{krbPrincipalFormat} || '%s@%s';
@@ -191,7 +178,7 @@ sub _setKerberosPassword {
         POSIX::setsid();
         my $rc = 0;
         eval {
-            $self->_dispatchBackend( $princ, $pwd );
+            $self->_setViaKrb5Admin( $princ, $pwd );
             1;
         } or do {
             my $e = $@ || 'unknown error';
@@ -235,16 +222,7 @@ sub _setKerberosPassword {
     return 1;
 }
 
-sub _dispatchBackend {
-    my ( $self, $princ, $pwd ) = @_;
-
-    if ( $self->_krb5AdminAvailable ) {
-        return $self->_setViaKrb5Admin( $princ, $pwd );
-    }
-    return $self->_setViaShell( $princ, $pwd );
-}
-
-# Preferred backend: Authen::Krb5::Admin (libkadm5), entirely in memory.
+# kadmind backend: Authen::Krb5::Admin (libkadm5), entirely in memory.
 sub _setViaKrb5Admin {
     my ( $self, $princ, $pwd ) = @_;
 
@@ -303,107 +281,6 @@ sub _setViaKrb5Admin {
     }
 
     return 1;
-}
-
-# Fallback backend: drive the kadmin command, feeding the password on STDIN.
-# The password is never present in the argv (cf. /proc/<pid>/cmdline).
-sub _setViaShell {
-    my ( $self, $princ, $pwd ) = @_;
-
-    # Strip the realm: kadmin commands take the bare principal, the realm is
-    # already provided with -r.
-    ( my $shortPrinc = $princ ) =~ s/\@.*$//;
-
-    # 1. Existence check (no password involved).
-    my ( $exists, undef ) =
-      $self->_runKadmin( "getprinc -terse \"$shortPrinc\"", undef );
-
-    # Feed the password twice (kadmin prompts for confirmation), on STDIN only.
-    my $stdin = "$pwd\n$pwd\n";
-
-    if ($exists) {
-        my ($ok) = $self->_runKadmin( "cpw \"$shortPrinc\"", $stdin );
-        die "kadmin cpw returned a non-zero status\n" unless $ok;
-        $self->logger->debug("KrbProvisioning: cpw $princ (resync)");
-    }
-    else {
-        my $policy = $self->conf->{krbDefaultPolicy};
-        my $query =
-          ( defined $policy && length $policy )
-          ? "addprinc -policy \"$policy\" \"$shortPrinc\""
-          : "addprinc \"$shortPrinc\"";
-        my ($ok) = $self->_runKadmin( $query, $stdin );
-        die "kadmin addprinc returned a non-zero status\n" unless $ok;
-        $self->userLogger->info(
-            "KrbProvisioning: created Kerberos principal $princ");
-    }
-
-    return 1;
-}
-
-# Base kadmin argv, WITHOUT any password. Exposed as a method so the test suite
-# can assert the password never appears on the command line.
-sub _kadminBaseArgv {
-    my ($self) = @_;
-    return (
-        'kadmin',
-        '-k',
-        '-t', $self->conf->{krbKeytab},
-        '-p', $self->conf->{krbServicePrincipal},
-        '-r', $self->conf->{krbRealm},
-        '-s', $self->conf->{krbAdminServer},
-    );
-}
-
-# Run a single kadmin query, optionally feeding $stdin to the child process,
-# with a short timeout. Returns (success_bool, captured_output).
-sub _runKadmin {
-    my ( $self, $query, $stdin ) = @_;
-
-    require IPC::Open3;
-    require Symbol;
-
-    my @cmd = ( $self->_kadminBaseArgv, '-q', $query );
-    my $timeout = $self->conf->{krbConnectTimeout} || 5;
-
-    my ( $wtr, $rdr, $err );
-    $err = Symbol::gensym();
-
-    my $output = '';
-    my $pid;
-    my $ok = eval {
-        local $SIG{ALRM} = sub { die "timeout\n" };
-        alarm $timeout;
-
-        $pid = IPC::Open3::open3( $wtr, $rdr, $err, @cmd );
-
-        if ( defined $stdin ) {
-            print {$wtr} $stdin;
-        }
-        close $wtr;
-
-        local $/;
-        $output = <$rdr> // '';
-        $output .= <$err> // '';
-
-        waitpid( $pid, 0 );
-        alarm 0;
-        1;
-    };
-    my $error = $@;
-    alarm 0;
-
-    if ( !$ok ) {
-        # Timeout or spawn failure: reap the child if we have one.
-        if ($pid) {
-            kill 'TERM', $pid;
-            waitpid( $pid, 0 );
-        }
-        die "kadmin call failed: $error";
-    }
-
-    my $status = $?;
-    return ( ( $status == 0 ) ? 1 : 0, $output );
 }
 
 1;

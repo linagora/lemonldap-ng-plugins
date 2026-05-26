@@ -2,6 +2,12 @@ use warnings;
 use Test::More;
 use strict;
 
+BEGIN {
+    plan skip_all =>
+      'Authen::Krb5::Admin required (Debian: libauthen-krb5-admin-perl)'
+      unless eval { require Authen::Krb5::Admin; 1 };
+}
+
 require 't/test-lib.pm';
 
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
@@ -46,7 +52,7 @@ count(1);
 # runs this (and is SIGKILLed); the real _setKerberosPassword wrapper stays.
 {
     no warnings 'redefine', 'once';
-    *Lemonldap::NG::Portal::Plugins::KrbProvisioning::_dispatchBackend =
+    *Lemonldap::NG::Portal::Plugins::KrbProvisioning::_setViaKrb5Admin =
       sub { sleep 30; return 1; };
 
     # Capture logs to confirm the timeout is reported (without the password).

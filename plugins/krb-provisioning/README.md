@@ -34,17 +34,20 @@ project and a separate reconciliation job.
 - **Silent no-op without a cleartext password** — cookie SSO, SAML/OIDC
   federation, SPNEGO: nothing to provision, no kadmin call.
 - **Password never leaks** — it is used in memory only, never logged, and
-  never passed as a command-line argument (no `-pw`, cf. `/proc/<pid>/cmdline`).
-- **Two backends** — [`Authen::Krb5::Admin`](https://metacpan.org/pod/Authen::Krb5::Admin)
-  (in-memory `libkadm5` bindings) when available, otherwise a fallback that
-  shells to `kadmin` and feeds the password on **stdin**, with a short timeout.
+  never passed as a command-line argument: the key is set through the
+  `libkadm5` bindings in process, so it never reaches a shell or `/proc`.
+- **In-memory `libkadm5` backend** — uses
+  [`Authen::Krb5::Admin`](https://metacpan.org/pod/Authen::Krb5::Admin)
+  exclusively. The module is a hard requirement; `init` disables the plugin
+  (with a clear log) if it is missing rather than failing silently per login.
 
 ## Requirements
 
 - LemonLDAP::NG >= 2.23.0
+- **`Authen::Krb5::Admin`** — Debian: `libauthen-krb5-admin-perl`
+  (declared as a dependency; installed automatically with the package).
 - A reachable `kadmind`, a service principal (e.g. `lemonldap/admin@REALM`)
   and its keytab, readable only by the portal process.
-- `Authen::Krb5::Admin` _(recommended)_, or the `kadmin` client in `PATH`.
 - The KDC's `kadm5.acl` must grant the service principal **only** `add`,
   `changepw` and `modify` (no `delete`, no `*`).
 
@@ -127,11 +130,12 @@ is used.
 ```
 
 The test suite mocks the kadmind backend (no real KDC needed) and covers the
-mapping, the no-op paths, the non-blocking guarantee, the hard timeout (a
-hanging backend returns `PE_OK` promptly), the password-never-logged /
-never-in-argv constraints, and an **MFA** scenario (external 2F) proving the
-principal is provisioned on the credentials request and not lost across the
-OTP step.
+mapping (including rejection of injection-prone logins), the no-op paths, the
+non-blocking guarantee, the hard timeout (a hanging backend returns `PE_OK`
+promptly), the password-never-logged constraint, and an **MFA** scenario
+(external 2F) proving the principal is provisioned on the credentials request
+and not lost across the OTP step. The tests skip when `Authen::Krb5::Admin` is
+not installed.
 
 ## License
 
