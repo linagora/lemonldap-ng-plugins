@@ -6,10 +6,15 @@
 # (kinit / Kerberos SSO) for users whose identities live in a separate, general
 # LDAP directory that the KDC cannot delegate to at kinit time.
 #
-# It hooks `endAuth` (after a successful authentication, when $req->data->{password}
-# is still populated). It is strictly NON-BLOCKING: any provisioning error is
-# logged but never fails the SSO authentication. When there is no cleartext
-# password (SSO cookie reuse, SAML/OIDC/SPNEGO federation) it is a silent no-op.
+# It hooks `betweenAuthAndData`, which runs right after `authenticate` succeeds
+# and BEFORE the second-factor gate (`secondFactor`) and `endAuth`. This is the
+# only stage where success is already guaranteed AND $req->data->{password} is
+# still populated: under MFA, the OTP is submitted in a *second* request that
+# carries no password and only re-runs `buildCookie`+`endAuth`, so hooking
+# `endAuth` would never provision MFA users. It is strictly NON-BLOCKING: any
+# provisioning error is logged but never fails the SSO authentication. When
+# there is no cleartext password (SSO cookie reuse, SAML/OIDC/SPNEGO
+# federation) it is a silent no-op.
 #
 # Two kadmind backends, by order of preference:
 #   1. Authen::Krb5::Admin (libkadm5 bindings) -> in-memory, no shell, no leak.
@@ -30,10 +35,12 @@ extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'KrbProvisioning';
 
-# Hook: executed at the end of a successful authentication, after the cookie
-# is built. At this stage $req->data->{password} still holds the cleartext
-# password for password-based authentication modules.
-use constant endAuth => 'provision';
+# Hook: executed just after authentication succeeds and before the second
+# factor / session finalization. At this stage $req->data->{password} still
+# holds the cleartext password for password-based authentication modules, and
+# the login is available as $req->{user}. See the file header for why this is
+# preferred over endAuth (MFA compatibility).
+use constant betweenAuthAndData => 'provision';
 
 # Whether the Authen::Krb5::Admin bindings are available. Resolved lazily and
 # only once: if present we use the in-memory API, otherwise we shell to kadmin.
@@ -86,10 +93,13 @@ sub init {
 sub provision {
     my ( $self, $req ) = @_;
 
-    # Resolve the login used to derive the principal.
+    # Resolve the login used to derive the principal. At this stage (before
+    # setSessionInfo) $req->{user} holds the validated login; sessionInfo holds
+    # only what the UserDB populated during getUser. If krbPrincipalAttribute
+    # is set but not yet available, fall back to the login.
     my $attr = $self->conf->{krbPrincipalAttribute};
     my $login =
-        ( defined $attr && length $attr )
+      ( defined $attr && length $attr && defined $req->{sessionInfo}->{$attr} )
       ? $req->{sessionInfo}->{$attr}
       : $req->{user};
 

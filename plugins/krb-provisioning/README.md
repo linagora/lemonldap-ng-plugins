@@ -20,8 +20,9 @@ project and a separate reconciliation job.
 
 ## Features
 
-- **`endAuth` hook** — runs after a successful authentication, while the
-  cleartext password is still available on the request.
+- **`betweenAuthAndData` hook** — runs right after the password is validated
+  and **before** the second-factor gate, while the cleartext password is still
+  on the request. This is deliberately *not* `endAuth`: see [MFA](#mfa) below.
 - **Idempotent** — creates the principal on first login (`addprinc`), and
   resets its key on every subsequent login (`cpw`) to absorb password drift
   in the general directory.
@@ -82,6 +83,27 @@ ignored.
 > **Note:** do not enable `storePassword` for this plugin. The password is only
 > needed transiently, in memory, for the duration of the kadmin call.
 
+## MFA
+
+With multi-factor authentication, the OTP is submitted in a **second** request
+that carries no password and only re-runs `buildCookie` + `endAuth`. Hooking
+`endAuth` would therefore see an empty `$req->data->{password}` and never
+provision MFA users. The plugin hooks `betweenAuthAndData` instead, which runs
+on the **credentials** request, right after the password is validated and
+before the second-factor gate — so provisioning happens exactly once, with the
+password, regardless of whether a second factor follows.
+
+Consequence: the Kerberos key is set as soon as the password is validated,
+even if the user later fails or abandons the second factor. This is consistent
+with Kerberos itself, which is single-factor by design and cannot enforce the
+SSO's OTP at `kinit` time — the password was genuinely validated against the
+directory, which is the guarantee that matters for setting the key.
+
+Because the principal is resolved this early, `krbPrincipalAttribute` must name
+an attribute already populated by the UserDB at `getUser` time. When empty (the
+default) or when the attribute is not yet available, the login (`REMOTE_USER`)
+is used.
+
 ## Acceptance criteria
 
 1. First login of a known user → principal `<uid>@REALM` created; `kinit`
@@ -101,5 +123,7 @@ ignored.
 ```
 
 The test suite mocks the kadmind backend (no real KDC needed) and covers the
-mapping, the no-op paths, the non-blocking guarantee, and the
-password-never-logged / never-in-argv constraints.
+mapping, the no-op paths, the non-blocking guarantee, the
+password-never-logged / never-in-argv constraints, and an **MFA** scenario
+(external 2F) proving the principal is provisioned on the credentials request
+and not lost across the OTP step.
