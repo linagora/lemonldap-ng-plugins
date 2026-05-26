@@ -1,0 +1,115 @@
+{
+  "attributes": {
+    "krbProvisioningActivation": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Enable on-the-fly Kerberos principal provisioning"
+    },
+    "krbRealm": {
+      "type": "text",
+      "default": "",
+      "documentation": "Kerberos realm of the provisioned principals"
+    },
+    "krbAdminServer": {
+      "type": "text",
+      "default": "",
+      "documentation": "kadmind server as host[:port]"
+    },
+    "krbServicePrincipal": {
+      "type": "text",
+      "default": "",
+      "documentation": "Service principal used to authenticate to kadmind (e.g. lemonldap/admin@REALM)"
+    },
+    "krbKeytab": {
+      "type": "text",
+      "default": "",
+      "documentation": "Path to the keytab of the service principal, readable only by the portal process"
+    },
+    "krbPrincipalAttribute": {
+      "type": "text",
+      "default": "",
+      "documentation": "Session attribute holding the principal name. Empty means the login (REMOTE_USER)."
+    },
+    "krbPrincipalFormat": {
+      "type": "text",
+      "default": "%s@%s",
+      "documentation": "sprintf template applied to (login, realm) to build the principal"
+    },
+    "krbDefaultPolicy": {
+      "type": "text",
+      "default": "",
+      "documentation": "Kerberos policy applied to created principals (optional)"
+    },
+    "krbConnectTimeout": {
+      "type": "int",
+      "default": 5,
+      "documentation": "Hard time budget (seconds) for the whole kadmind operation. A non-responding kadmind/LDAP is killed after this delay and never blocks the login."
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "generalParameters/plugins",
+      "insert_after": "pamAccess",
+      "nodes": [
+        {
+          "title": "krbProvisioning",
+          "help": "krbprovisioning.html",
+          "form": "simpleInputContainer",
+          "nodes": [
+            "krbProvisioningActivation",
+            "krbRealm",
+            "krbAdminServer",
+            "krbServicePrincipal",
+            "krbKeytab",
+            "krbPrincipalAttribute",
+            "krbPrincipalFormat",
+            "krbDefaultPolicy",
+            "krbConnectTimeout"
+          ]
+        }
+      ]
+    }
+  ],
+  "lang": {
+    "krbProvisioning": {
+      "en": "Kerberos provisioning",
+      "fr": "Provisioning Kerberos"
+    },
+    "krbProvisioningActivation": {
+      "en": "Activation",
+      "fr": "Activation"
+    },
+    "krbRealm": {
+      "en": "Realm",
+      "fr": "Royaume (realm)"
+    },
+    "krbAdminServer": {
+      "en": "Admin server (kadmind)",
+      "fr": "Serveur d'administration (kadmind)"
+    },
+    "krbServicePrincipal": {
+      "en": "Service principal",
+      "fr": "Principal de service"
+    },
+    "krbKeytab": {
+      "en": "Keytab path",
+      "fr": "Chemin du keytab"
+    },
+    "krbPrincipalAttribute": {
+      "en": "Principal session attribute",
+      "fr": "Attribut de session du principal"
+    },
+    "krbPrincipalFormat": {
+      "en": "Principal format",
+      "fr": "Gabarit du principal"
+    },
+    "krbDefaultPolicy": {
+      "en": "Default policy",
+      "fr": "Politique par défaut"
+    },
+    "krbConnectTimeout": {
+      "en": "Connection timeout (s)",
+      "fr": "Délai de connexion (s)"
+    }
+  }
+}
