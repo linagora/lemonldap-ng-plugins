@@ -22,7 +22,7 @@ project and a separate reconciliation job.
 
 - **`betweenAuthAndData` hook** — runs right after the password is validated
   and **before** the second-factor gate, while the cleartext password is still
-  on the request. This is deliberately *not* `endAuth`: see [MFA](#mfa) below.
+  on the request. This is deliberately _not_ `endAuth`: see [MFA](#mfa) below.
 - **Idempotent** — creates the principal on first login (`addprinc`), and
   resets its key on every subsequent login (`cpw`) to absorb password drift
   in the general directory.
@@ -62,17 +62,17 @@ to `customPlugins`, and run `llng-build-manager-files`.
 In the Manager under **General Parameters** > **Plugins** > **Kerberos
 provisioning**:
 
-| Parameter                   | Description                                                          | Default      |
-| --------------------------- | -------------------------------------------------------------------- | ------------ |
-| `krbProvisioningActivation` | Enable the plugin                                                    | `0`          |
-| `krbRealm`                  | Kerberos realm of the provisioned principals                        | _(required)_ |
-| `krbAdminServer`            | `kadmind` server as `host[:port]`                                    | _(required)_ |
-| `krbServicePrincipal`       | Service principal used to authenticate to kadmind                    | _(required)_ |
-| `krbKeytab`                 | Path to the service principal's keytab                              | _(required)_ |
-| `krbPrincipalAttribute`     | Session attribute holding the principal name (empty = login)         | _(login)_    |
-| `krbPrincipalFormat`        | `sprintf` template applied to `(login, realm)`                       | `%s@%s`      |
-| `krbDefaultPolicy`          | Kerberos policy applied to created principals (optional)             | _(empty)_    |
-| `krbConnectTimeout`         | kadmind connection/command timeout in seconds                        | `3`          |
+| Parameter                   | Description                                                  | Default      |
+| --------------------------- | ------------------------------------------------------------ | ------------ |
+| `krbProvisioningActivation` | Enable the plugin                                            | `0`          |
+| `krbRealm`                  | Kerberos realm of the provisioned principals                 | _(required)_ |
+| `krbAdminServer`            | `kadmind` server as `host[:port]`                            | _(required)_ |
+| `krbServicePrincipal`       | Service principal used to authenticate to kadmind            | _(required)_ |
+| `krbKeytab`                 | Path to the service principal's keytab                       | _(required)_ |
+| `krbPrincipalAttribute`     | Session attribute holding the principal name (empty = login) | _(login)_    |
+| `krbPrincipalFormat`        | `sprintf` template applied to `(login, realm)`               | `%s@%s`      |
+| `krbDefaultPolicy`          | Kerberos policy applied to created principals (optional)     | _(empty)_    |
+| `krbConnectTimeout`         | kadmind connection/command timeout in seconds                | `3`          |
 
 The mapping is `principal = sprintf(krbPrincipalFormat, login, krbRealm)`,
 where `login` is `krbPrincipalAttribute` from the session, or the login
