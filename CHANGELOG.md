@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.0 - 2026-05-26
+
+Touched plugin bumped to **0.3.0**: `krb-provisioning` (new).
+
+### krb-provisioning (new)
+
+- **Feature — on-the-fly Kerberos provisioning from SSO logins**: at each
+  real (password-based) login, (re)sets the user's Kerberos key equal to the
+  password just validated by the SSO, by talking to `kadmind` through
+  `Authen::Krb5::Admin` (libkadm5). Lets a dedicated MIT KDC issue tickets for
+  users whose identities live in a separate general LDAP directory the KDC
+  cannot delegate to. Creates the principal on first login (`addprinc`) and
+  resets its key on every subsequent login (`cpw`) to absorb password drift.
+
 ## v0.2.2 - 2026-05-20
 
 Touched plugin bumped to **0.2.2**: `pam-access`.
