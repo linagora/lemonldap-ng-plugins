@@ -52,7 +52,7 @@ count(1);
 # failure to prove the hook stays non-blocking.
 # ---------------------------------------------------------------------------
 {
-    no warnings 'redefine';
+    no warnings 'redefine', 'once';
     *Lemonldap::NG::Portal::Plugins::KrbProvisioning::_setKerberosPassword =
       sub {
         my ( $self, $princ, $pwd ) = @_;

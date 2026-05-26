@@ -26,8 +26,11 @@ project and a separate reconciliation job.
 - **Idempotent** — creates the principal on first login (`addprinc`), and
   resets its key on every subsequent login (`cpw`) to absorb password drift
   in the general directory.
-- **Strictly non-blocking** — any kadmind error is logged and swallowed; the
-  SSO authentication always succeeds.
+- **Strictly non-blocking, with a hard timeout** — any kadmind error is logged
+  and swallowed; the SSO authentication always returns `PE_OK`. The whole
+  kadmind operation runs in a forked child bounded by `krbConnectTimeout`
+  (default **5 s**): an unresponsive kadmind — or the Kerberos LDAP behind it —
+  is SIGKILLed after that delay and can never delay, let alone block, the login.
 - **Silent no-op without a cleartext password** — cookie SSO, SAML/OIDC
   federation, SPNEGO: nothing to provision, no kadmin call.
 - **Password never leaks** — it is used in memory only, never logged, and
@@ -72,7 +75,7 @@ provisioning**:
 | `krbPrincipalAttribute`     | Session attribute holding the principal name (empty = login) | _(login)_    |
 | `krbPrincipalFormat`        | `sprintf` template applied to `(login, realm)`               | `%s@%s`      |
 | `krbDefaultPolicy`          | Kerberos policy applied to created principals (optional)     | _(empty)_    |
-| `krbConnectTimeout`         | kadmind connection/command timeout in seconds                | `3`          |
+| `krbConnectTimeout`         | Hard time budget (seconds) for the whole kadmind operation   | `5`          |
 
 The mapping is `principal = sprintf(krbPrincipalFormat, login, krbRealm)`,
 where `login` is `krbPrincipalAttribute` from the session, or the login
@@ -111,8 +114,9 @@ is used.
 2. Repeated login → no error, `kinit` keeps working (idempotent `cpw`).
 3. Password changed in the general directory, then new SSO login → `kinit`
    succeeds with the **new** password (resync).
-4. `kadmind` down during a login → SSO **still succeeds** (failure logged,
-   non-blocking).
+4. `kadmind` down or **unresponsive** during a login → SSO **still succeeds**,
+   and the login is never delayed more than `krbConnectTimeout` (failure
+   logged, non-blocking).
 5. Cookie SSO (no re-entry) → no kadmin call.
 6. The password appears in no log and in no `/proc` entry.
 
@@ -123,7 +127,12 @@ is used.
 ```
 
 The test suite mocks the kadmind backend (no real KDC needed) and covers the
-mapping, the no-op paths, the non-blocking guarantee, the
-password-never-logged / never-in-argv constraints, and an **MFA** scenario
-(external 2F) proving the principal is provisioned on the credentials request
-and not lost across the OTP step.
+mapping, the no-op paths, the non-blocking guarantee, the hard timeout (a
+hanging backend returns `PE_OK` promptly), the password-never-logged /
+never-in-argv constraints, and an **MFA** scenario (external 2F) proving the
+principal is provisioned on the credentials request and not lost across the
+OTP step.
+
+## License
+
+AGPL-3.0.

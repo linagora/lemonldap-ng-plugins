@@ -42,8 +42,8 @@
     },
     "krbConnectTimeout": {
       "type": "int",
-      "default": 3,
-      "documentation": "kadmind connection/command timeout in seconds"
+      "default": 5,
+      "documentation": "Hard time budget (seconds) for the whole kadmind operation. A non-responding kadmind/LDAP is killed after this delay and never blocks the login."
     }
   },
   "tree": [

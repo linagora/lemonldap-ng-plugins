@@ -155,7 +155,83 @@ sub _principalFor {
 
 # KADMIND BACKEND DISPATCH
 
+# Run the kadmind operation under a hard time budget so that an unresponsive
+# kadmind (or the Kerberos LDAP behind it) can never delay -- let alone block --
+# the login. The work runs in a forked child; the parent waits at most
+# krbConnectTimeout seconds, then SIGKILLs the child's whole process group.
+#
+# Why fork rather than a plain alarm(): the preferred Authen::Krb5::Admin
+# backend is an XS call into libkadm5; Perl safe-signals cannot interrupt a
+# blocking C syscall, so alarm() alone would not unblock a hung RPC. SIGKILL on
+# a separate process does. Any failure (timeout, fork error, backend error) is
+# thrown and caught by provision(), which always returns PE_OK.
 sub _setKerberosPassword {
+    my ( $self, $princ, $pwd ) = @_;
+
+    my $timeout = $self->conf->{krbConnectTimeout} || 5;
+    require POSIX;
+
+    # Pipe to carry the child's detailed error message back to the parent, so
+    # all logging stays in one place.
+    pipe( my $rdr, my $wtr ) or die "pipe failed: $!\n";
+
+    my $pid = fork();
+    die "fork failed: $!\n" unless defined $pid;
+
+    unless ($pid) {
+
+        # CHILD: isolate in its own session/process group so the parent can
+        # reap any kadmin grandchild too. POSIX::_exit avoids running END/DESTROY
+        # blocks, which would otherwise disturb the portal's shared resources.
+        close $rdr;
+        POSIX::setsid();
+        my $rc = 0;
+        eval {
+            $self->_dispatchBackend( $princ, $pwd );
+            1;
+        } or do {
+            my $e = $@ || 'unknown error';
+            chomp $e;
+            print {$wtr} $e;
+            $rc = 1;
+        };
+        close $wtr;
+        POSIX::_exit($rc);
+    }
+
+    # PARENT: bound the wait. alarm() interrupts waitpid() (a Perl-level wait),
+    # which is enough here because the blocking work lives in the child.
+    close $wtr;
+    my $childErr = '';
+    my $timedOut = 0;
+    {
+        local $SIG{ALRM} = sub { die "alarm\n" };
+        eval {
+            alarm $timeout;
+            waitpid( $pid, 0 );
+            local $/;
+            $childErr = <$rdr> // '';    # small message, EOF is immediate
+            alarm 0;
+            1;
+        } or do { $timedOut = 1 };
+        alarm 0;
+    }
+    close $rdr;
+
+    if ($timedOut) {
+        kill 'KILL', $pid;     # the child itself...
+        kill 'KILL', -$pid;    # ...and any kadmin grandchild in its group
+        waitpid( $pid, 0 );
+        die "kadmind did not respond within ${timeout}s\n";
+    }
+
+    if ( $? != 0 ) {
+        die( ( length $childErr ) ? "$childErr\n" : "kadmin failed\n" );
+    }
+    return 1;
+}
+
+sub _dispatchBackend {
     my ( $self, $princ, $pwd ) = @_;
 
     if ( $self->_krb5AdminAvailable ) {
@@ -275,7 +351,7 @@ sub _runKadmin {
     require Symbol;
 
     my @cmd = ( $self->_kadminBaseArgv, '-q', $query );
-    my $timeout = $self->conf->{krbConnectTimeout} || 3;
+    my $timeout = $self->conf->{krbConnectTimeout} || 5;
 
     my ( $wtr, $rdr, $err );
     $err = Symbol::gensym();

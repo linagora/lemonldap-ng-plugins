@@ -46,7 +46,7 @@ ok(
 # Capture provisioning calls instead of talking to a real kadmind (installed
 # after init, see 01-KrbProvisioning.t for the rationale).
 {
-    no warnings 'redefine';
+    no warnings 'redefine', 'once';
     *Lemonldap::NG::Portal::Plugins::KrbProvisioning::_setKerberosPassword =
       sub {
         my ( $self, $princ, $pwd ) = @_;
