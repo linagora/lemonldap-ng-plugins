@@ -59,10 +59,10 @@ into `/etc/lemonldap-ng/manager-plugins.d/`, add
 
 In **Manager → _OIDC Relying Parties_ → `<rp>` → _Options_ → _Security_** :
 
-| Parameter                                          | Default | Description                                                                       |
-| -------------------------------------------------- | ------- | --------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsAuthorizationDetailsEnabled` | `0`     | Accept `authorization_details` from this RP. Required to trigger plugin autoload. |
-| `oidcRPMetaDataOptionsAuthorizationDetailsTypes`   | _empty_ | Per-RP allowlist of `type` values, comma-separated. Empty = inherit global only.  |
+| Parameter                                          | Default | Description                                                                                                                                                                                                                         |
+| -------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsAuthorizationDetailsEnabled` | `0`     | Accept `authorization_details` from this RP. Required to trigger plugin autoload.                                                                                                                                                   |
+| `oidcRPMetaDataOptionsAuthorizationDetailsTypes`   | _empty_ | Per-RP allowlist of `type` values, comma-separated. Empty = inherit global only.                                                                                                                                                    |
 | `oidcRPMetaDataOptionsAuthorizationDetailsRules`   | _empty_ | JSON object `{"<type>": "<Perl expression>"}` of per-type rules; each rule is evaluated when an entry of the matching `type` is requested. Empty string = no rules. Invalid JSON denies all RAR requests for this RP (fail-closed). |
 
 ### Authorization model — three layers
@@ -122,7 +122,7 @@ with key = `type` and value = Perl expression:
 
 ```json
 {
-  "payment_initiation":  "$groups =~ /\\bbanking\\b/ and $detail->{instructedAmount}->{amount} <= 1000",
+  "payment_initiation": "$groups =~ /\\bbanking\\b/ and $detail->{instructedAmount}->{amount} <= 1000",
   "account_information": "$authenticationLevel >= 2"
 }
 ```
