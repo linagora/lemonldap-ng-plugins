@@ -118,7 +118,11 @@ is( $plugin->_principalFor(''),       undef, 'empty login rejected' );
 is( $plugin->_principalFor('a b'),    undef, 'login with space rejected' );
 is( $plugin->_principalFor('a@b'),    undef, 'login with @ rejected' );
 is( $plugin->_principalFor('a/b'),    undef, 'login with / rejected' );
-count(5);
+is( $plugin->_principalFor('a"b'),    undef, 'login with double-quote rejected (query injection)' );
+is( $plugin->_principalFor('a\\b'),   undef, 'login with backslash rejected' );
+is( $plugin->_principalFor("a\tb"),   undef, 'login with control char rejected' );
+is( $plugin->_principalFor('host$'),  'host$@EXAMPLE.COM', 'machine account ($) accepted' );
+count(8);
 
 # ===========================================================================
 # 5. provision(): no-op guards via a lightweight fake request

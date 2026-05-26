@@ -88,7 +88,7 @@ sub init {
     return 1;
 }
 
-# RUNNING METHOD (endAuth hook)
+# RUNNING METHOD (betweenAuthAndData hook)
 
 sub provision {
     my ( $self, $req ) = @_;
@@ -144,10 +144,14 @@ sub _principalFor {
     my ( $self, $login ) = @_;
     return undef unless defined $login && length $login;
 
-    # Reject whitespace, NUL, and the principal separators '@' and '/'. Such a
-    # login can't map to a single principal component and is almost certainly a
-    # spoofed / malformed identity.
-    return undef if $login =~ m{[\s\@/\x00]};
+    # Strict allowlist rather than a blocklist: a login becomes a Kerberos
+    # principal component and, in the kadmin fallback, is interpolated into a
+    # quoted `-q` query string. Only accept characters that are unambiguous
+    # there -- letters, digits, dot, underscore, hyphen, plus a trailing '$'
+    # for machine accounts. This rejects whitespace, '@', '/', NUL, quotes,
+    # backslashes and any control/metacharacter that could break or inject the
+    # query.
+    return undef unless $login =~ /\A[A-Za-z0-9._-]+\$?\z/;
 
     my $fmt = $self->conf->{krbPrincipalFormat} || '%s@%s';
     return sprintf( $fmt, $login, $self->conf->{krbRealm} );
@@ -250,11 +254,20 @@ sub _setViaKrb5Admin {
 
     Authen::Krb5::init_context();
 
+    # Target the configured kadmind explicitly rather than relying on the
+    # system krb5.conf / DNS. krbAdminServer is "host[:port]".
+    my ( $host, $port ) = split /:/, $self->conf->{krbAdminServer}, 2;
+    my $config = Authen::Krb5::Admin::Config->new;
+    $config->realm( $self->conf->{krbRealm} );
+    $config->admin_server($host) if defined $host && length $host;
+    $config->kadmind_port( int $port ) if defined $port && length $port;
+
     # Authenticate to kadmind with the service principal via the keytab.
     my $handle = Authen::Krb5::Admin->init_with_skey(
         $self->conf->{krbServicePrincipal},
         $self->conf->{krbKeytab},
         Authen::Krb5::Admin::KADM5_ADMIN_SERVICE(),
+        $config,
     ) or die "kadm5 init failed: " . Authen::Krb5::Admin::error() . "\n";
 
     my $kprinc = Authen::Krb5::parse_name($princ)
