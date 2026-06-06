@@ -94,8 +94,8 @@ Package: linagora-lemonldap-ng-store
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
-Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~), liblemonldap-ng-portal-perl (>= 2.23.0~)
+Depends: liblemonldap-ng-common-perl (>= 2.23.0~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
+Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
 Section: web
 Priority: optional
 Description: Plugin store manager for LemonLDAP::NG (backport)
@@ -158,10 +158,6 @@ for pm_file in "${REPO_ROOT}/store/lib/Lemonldap/NG/Common/Store.pm" \
   rel="${pm_file#${REPO_ROOT}/store/lib/}"
   install_file "$pm_file" "${STORE_BUILD}/usr/share/perl5/${rel}"
 done
-
-# Install OIDCPlugin.pm backport (needed by OIDC plugins on LLNG < 2.23.0)
-install_file "${REPO_ROOT}/store/lib/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm" \
-  "${STORE_BUILD}/usr/share/perl5/Lemonldap/NG/Portal/Lib/OIDCPlugin.pm"
 
 # Install Autoloader plugin backport (needed on LLNG < 2.24.0 to auto-load
 # store plugins from /etc/lemonldap-ng/autoload.d/; on LLNG >= 2.24.0 the
@@ -314,6 +310,21 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
   depends="$(build_perl_depends "$perl_requires" "")"
   # Remove leading ", " from depends if base was empty
   depends="${depends#, }"
+
+  # Enforce the plugin's minimum LLNG version (from plugin.json llng_compat)
+  # on liblemonldap-ng-common-perl: it is the one LLNG package always
+  # installed (the manager image has no portal), and LLNG components are
+  # released in lockstep, so it is a reliable version floor.
+  compat_min="$(jq -r '.llng_compat // ""' "$plugin_json" \
+    | grep -oE '>=\s*[0-9.]+' | grep -oE '[0-9.]+' | head -1 || true)"
+  if [ -n "$compat_min" ]; then
+    min_dep="liblemonldap-ng-common-perl (>= ${compat_min}~)"
+    if [ -n "$depends" ]; then
+      depends="${min_dep}, ${depends}"
+    else
+      depends="$min_dep"
+    fi
+  fi
 
   # Add inter-plugin dependencies
   while IFS= read -r dep; do
