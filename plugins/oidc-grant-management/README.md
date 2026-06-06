@@ -105,7 +105,7 @@ Authenticated as the OAuth client that owns the grant (`Authorization: Basic` or
 
 ## Installation
 
-With `lemonldap-ng-store` (LLNG ≥ 2.24.0):
+With `lemonldap-ng-store` (LLNG ≥ 2.23.0):
 
 ```bash
 sudo lemonldap-ng-store install oidc-grant-management

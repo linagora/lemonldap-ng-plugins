@@ -326,6 +326,20 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     fi
   fi
 
+  # Same for the plugin's maximum LLNG version ("<X" in llng_compat, used by
+  # plugins whose feature entered LLNG core at version X and whose files
+  # would collide with the core packages from X on).
+  compat_max="$(jq -r '.llng_compat // ""' "$plugin_json" \
+    | grep -oE '<\s*[0-9.]+' | grep -oE '[0-9.]+' | head -1 || true)"
+  if [ -n "$compat_max" ]; then
+    max_dep="liblemonldap-ng-common-perl (<< ${compat_max}~)"
+    if [ -n "$depends" ]; then
+      depends="${depends}, ${max_dep}"
+    else
+      depends="$max_dep"
+    fi
+  fi
+
   # Add inter-plugin dependencies
   while IFS= read -r dep; do
     [ -z "$dep" ] && continue
