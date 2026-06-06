@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.3.1 - 2026-06-06
+
+- **store** - Add fix for LLNG 2.23.0
+
 ## v0.3.0 - 2026-05-26
 
 Touched plugin bumped to **0.3.0**: `krb-provisioning` (new).
