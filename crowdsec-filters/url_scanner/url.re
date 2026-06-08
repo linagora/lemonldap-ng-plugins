@@ -1875,7 +1875,6 @@
 ^/includes/js/mambojavascript\.js
 ^/incoming/
 ^/indeks\.php\?db=frontpage
-^/index
 ^/index\.action
 ^/index\.asp
 ^/index\.aspx
