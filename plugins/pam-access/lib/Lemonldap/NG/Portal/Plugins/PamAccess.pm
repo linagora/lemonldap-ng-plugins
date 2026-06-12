@@ -1163,6 +1163,26 @@ sub bastionToken {
     my $target_host  = $body->{target_host}  || '';
     my $target_group = $body->{target_group} || 'default';
 
+    # Probe mode (ob-bastion-id): a server self-identifying the bastion_id it
+    # would receive does not vouch for any real user, so the per-user _pamSeen
+    # recency gate below does not apply, and no `user` is required. Steps 1-4
+    # already proved the caller holds a valid device-grant token for a group
+    # listed in pamAccessBastionGroups — which is exactly what authorises it
+    # to learn its own bastion_id. We return the identifier only, never a
+    # usable JWT, so probe mode cannot be abused to mint credentials.
+    if ( $body->{probe} ) {
+        $self->logger->info( "PAM bastion-token: probe request — "
+              . "returning bastion_id '$bastion_id' (group=$server_group)" );
+        return $self->p->sendJSONresponse(
+            $req,
+            {
+                bastion_id   => $bastion_id,
+                server_group => $server_group,
+                probe        => JSON::true(),
+            }
+        );
+    }
+
     unless ($user) {
         return $self->_badRequest( $req, 'Missing user parameter' );
     }
