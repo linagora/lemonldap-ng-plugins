@@ -547,7 +547,7 @@ sub _signSshKey {
     my ( $self, $userPubKey, $principals, $validityMinutes, $serial, $keyId,
         $opts )
       = @_;
-    $opts ||= {};
+    $opts = {} unless ref $opts eq 'HASH';
 
     require File::Temp;
 

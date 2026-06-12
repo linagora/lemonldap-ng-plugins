@@ -1737,6 +1737,21 @@ sub _checkSshFingerprint {
 }
 
 # Is $server_group one of the configured bastion groups?
+# Read a positive-integer duration from conf, falling back to $default when
+# the key is unset or misconfigured. A non-numeric or <= 0 value would mint
+# immediately-expired vouchers or break the ssh-keygen -V validity spec.
+sub _confPositiveInt {
+    my ( $self, $key, $default ) = @_;
+    my $v = $self->conf->{$key};
+    return $default unless defined $v && $v ne '';
+    unless ( $v =~ /\A[0-9]+\z/ && $v > 0 ) {
+        $self->logger->warn(
+            "PamAccess: ignoring invalid $key value '$v', using $default");
+        return $default;
+    }
+    return $v + 0;
+}
+
 sub _isBastionGroup {
     my ( $self, $server_group ) = @_;
     return 0 unless defined $server_group && $server_group ne '';
@@ -1761,7 +1776,8 @@ sub _mintBastionVoucher {
     }
 
     my $now    = time();
-    my $ttlCap = $self->conf->{pamAccessBastionVoucherTtl} || 43200;    # 12h
+    my $ttlCap =
+      $self->_confPositiveInt( 'pamAccessBastionVoucherTtl', 43200 );    # 12h
     my $exp    = $now + $ttlCap;
     $exp = $cert_expires_at
       if $cert_expires_at && $cert_expires_at > $now && $cert_expires_at < $exp;
@@ -1917,11 +1933,20 @@ sub bastionCert {
         );
 
         # Machine-readable reason so ob-ssh-proxy can show a precise message
-        # (e.g. 'voucher_expired' -> "reconnect to the bastion").
+        # (e.g. 'voucher_expired' -> "reconnect to the bastion"). Internal
+        # conditions (session backend failure, corrupted voucher map) are
+        # server errors, not authorization denials: 5xx keeps clients and
+        # monitoring from treating them as a 403 "reconnect to the bastion".
+        my $internal = $vres->{reason} =~
+          /\A(?:no_session|session_error|voucher_corrupted)\z/;
         return $self->p->sendJSONresponse(
             $req,
-            { error => 'voucher_rejected', reason => $vres->{reason} },
-            code => 403
+            {
+                error => $internal ? 'voucher_check_failed'
+                : 'voucher_rejected',
+                reason => $vres->{reason}
+            },
+            code => $internal ? 500 : 403
         );
     }
 
@@ -1944,7 +1969,7 @@ sub bastionCert {
     my $keyId = sprintf( 'bastion=%s;user=%s;target=%s',
         $clean->($bastion_id), $clean->($user), $clean->($target_host) );
 
-    my $ttl    = $self->conf->{pamAccessBastionCertTtl} || 120;
+    my $ttl    = $self->_confPositiveInt( 'pamAccessBastionCertTtl', 120 );
     my $serial = $sshca->_getNextSerial;
     my %signOpts = ( validity => "+${ttl}s" );
 
@@ -2102,6 +2127,55 @@ Response:
   "reason": "..." (only if denied)
 }
 
+When the calling server belongs to a bastion group (see
+C<pamAccessBastionGroups>), a successful authorization also returns:
+{
+  "bastion_voucher": "uuid",
+  "bastion_voucher_expires_in": 43200
+}
+
+The voucher is a reusable (bastion, user) capability stored in the user's
+persistent session; the bastion later presents it to C</pam/bastion-cert>.
+
+=head2 POST /pam/bastion-cert
+
+Sign a short-lived ephemeral SSH user certificate for a bastion-to-backend
+hop (requires the ssh-ca plugin). The bastion proves it holds a valid
+device-grant Bearer token for a bastion group, plus a fresh
+(bastion, user) voucher minted by C</pam/authorize> when the user actually
+connected to it. The certificate is pinned to the bastion's IP
+(C<source-address> critical option) and encodes the bastion identity in
+its key-id so backends can enforce an allowed-bastions list.
+
+Requires: Bearer token in Authorization header
+
+Request body:
+{
+  "user": "username",
+  "target_host": "backend.example.com",
+  "target_group": "production",
+  "public_key": "ssh-ed25519 AAAA... ephemeral",
+  "voucher": "uuid"
+}
+
+Response:
+{
+  "certificate": "ssh-ed25519-cert-v01@openssh.com AAAA...",
+  "expires_in": 120,
+  "serial": 1234,
+  "key_id": "bastion=...;user=...;target=..."
+}
+
+On voucher rejection, returns 403 with a machine-readable reason
+(C<no_voucher_supplied>, C<voucher_expired>, C<voucher_mismatch>); internal
+failures (session backend error, corrupted voucher map) return 500.
+
+=head2 POST /pam/bastion-token (DEPRECATED)
+
+Legacy JWT-based vouching endpoint, superseded by C</pam/bastion-cert>
+(see F<doc/design/bastion-cert-vouching.md>). Kept for backward
+compatibility only.
+
 =head2 POST /pam/heartbeat
 
 Server heartbeat for monitoring enrolled PAM servers.
@@ -2159,6 +2233,24 @@ received (default: 900)
 
 If enabled, servers must have a recent heartbeat to use /pam/authorize.
 This ensures that the PAM module is still active on the server. (default: 0)
+
+=item pamAccessBastionGroups
+
+Comma/space-separated list of server groups considered bastions
+(default: 'bastion'). Members of these groups get a bastion voucher from
+C</pam/authorize> and may call C</pam/bastion-cert>.
+
+=item pamAccessBastionVoucherTtl
+
+Maximum validity of a bastion voucher in seconds (default: 43200, i.e. 12h).
+The voucher is further capped by the user's SSO certificate expiry when
+known. Must be a positive integer; invalid values fall back to the default.
+
+=item pamAccessBastionCertTtl
+
+Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
+seconds (default: 120). Must be a positive integer; invalid values fall
+back to the default.
 
 =item pamAccessChoice
 
