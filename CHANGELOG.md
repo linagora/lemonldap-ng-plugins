@@ -1,5 +1,62 @@
 # Changelog
 
+## v0.3.3 - 2026-06-12
+
+Touched plugins bumped to **0.3.3** in lockstep: `oidc-device-authorization`,
+`oidc-device-organization`, `pam-access`. Theme: long-lived **offline**
+tokens for organization devices (Open Bastion), so an enrolled server keeps
+a durable machine identity decoupled from the admin's SSO session.
+
+### oidc-device-authorization
+
+- **Fix — issue offline refresh tokens independently of the online
+  `RefreshToken` option**. `_generateTokens` now mirrors the core token
+  endpoint: an *offline* refresh token is gated by the `offline_access`
+  scope **plus** `oidcRPMetaDataOptionsAllowOffline`, while an *online*
+  refresh token is gated by `oidcRPMetaDataOptionsRefreshToken`. These are
+  two independent gates, so `AllowOffline` alone is now enough to mint an
+  offline refresh token even when the online `RefreshToken` option is off
+  (previously an offline token required the online option to also be set).
+  Offline tokens stay standalone (no `user_session_id`), carrying the user
+  info — e.g. the synthetic organization identity injected by
+  `oidc-device-organization`.
+
+### oidc-device-organization
+
+- **Feature — keep `offline_access` for organization devices**.
+  `handleOrganizationDevice` no longer strips `offline_access` from the
+  scope, so an organization device receives a long-lived offline refresh
+  token (durable machine identity per RFC 8628 / OIDC `offline_access`)
+  instead of an online one tied to the admin's SSO session. The classic
+  objection — offline refresh re-resolves the synthetic `client_id` in the
+  UserDB and fails — does not apply: Open Bastion never uses the core
+  `/oauth2/token` refresh grant for these tokens; `pam-access`
+  `/pam/heartbeat` mints access tokens directly from the refresh token's
+  stored synthetic session data, so the UserDB is never queried at refresh
+  time.
+
+### pam-access
+
+- **Fix — scope-check the refresh token in `/pam/heartbeat` (security)**.
+  The endpoint mints access tokens and slides the refresh token's lifetime,
+  so it now requires the refresh token to actually carry the `pam` /
+  `pam:server` scope (`PAM_*` → HTTP 403 `Invalid token scope`). Without
+  this gate, any device-code refresh token issued for another RP/scope could
+  call `/pam/heartbeat` to obtain access tokens and keep itself alive
+  indefinitely. Same scope gate as `/pam/authorize` and
+  `/pam/bastion-token`.
+- **Feature — `/pam/heartbeat` mints a fresh access token and renews the
+  offline session**. The endpoint now resolves the RP from the refresh
+  token's `_clientConfKey` (falling back to a `client_id` lookup), mints a
+  fresh access token from the stored synthetic session data via
+  `newAccessToken` (returned as `access_token` + `expires_in`), and slides
+  the refresh-token session's `_utime` forward by the RP's
+  `OfflineSessionExpiration`. A live server that keeps beating thus never
+  ages out, while a server that stops beating is purged after that grace
+  window. Minting locally (rather than via the core refresh grant) keeps the
+  server identity self-contained and avoids the UserDB re-resolution that
+  fails for synthetic organization identities.
+
 ## v0.3.2 - 2026-06-12
 
 Touched plugin bumped to **0.3.2**: `pam-access`.

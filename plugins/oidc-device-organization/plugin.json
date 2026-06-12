@@ -1,6 +1,6 @@
 {
   "name": "oidc-device-organization",
-  "version": "0.1.14",
+  "version": "0.3.3",
   "summary": "Organization Device Ownership for OIDC Device Authorization",
   "description": "Extension to RFC 8628 Device Authorization Grant. When a RP is configured with organization ownership, tokens issued via Device Authorization Grant identify the client application rather than the approving admin. Useful for enrolling servers, kiosks, and IoT devices that belong to the organization.",
   "author": "Xavier Guimard <yadd@debian.org>",
