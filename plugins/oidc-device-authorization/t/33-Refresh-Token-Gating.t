@@ -177,7 +177,15 @@ ok(
 );
 ok( $tok->{access_token},  'rp_offline: access_token present' );
 ok( $tok->{refresh_token}, 'rp_offline: refresh_token present (offline gate)' );
-count(3);
+
+# M1: offline_access is a request marker, not a granted scope — it must be
+# stripped from the advertised response scope even though it gated the
+# refresh token above (mirrors the core token endpoint).
+unlike( $tok->{scope} // '', qr/\boffline_access\b/,
+    'rp_offline: response scope strips offline_access' );
+like( $tok->{scope} // '', qr/\bopenid\b/,
+    'rp_offline: response scope keeps openid' );
+count(5);
 
 # ===========================================================================
 # Case 2: rp_online + openid scope only
@@ -218,6 +226,74 @@ ok(
 );
 ok( !$tok->{refresh_token}, 'rp_none openid-only: refresh_token absent' );
 count(2);
+
+# ===========================================================================
+# Case 5: an approved device_code is single-use (M4)
+#   The code is consumed before the tokens are minted, so a second exchange
+#   with the same approved code must be rejected rather than minting a
+#   duplicate token set.
+# ===========================================================================
+{
+    my $query = buildForm( { client_id => 'rp_online', scope => 'openid' } );
+    my $res = $op->_post(
+        '/oauth2/device',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $init = from_json( $res->[2]->[0] );
+    my $device_code = $init->{device_code};
+    ( my $user_code = $init->{user_code} ) =~ s/-//g;
+
+    $res = $op->_get(
+        '/device',
+        query  => "user_code=$user_code",
+        cookie => "lemonldap=$sid",
+        accept => 'text/html',
+    );
+    my ($csrf) = $res->[2]->[0] =~ m/name="token"\s+value="([^"]+)"/;
+
+    $query = buildForm(
+        { user_code => $user_code, action => 'approve', token => $csrf } );
+    $res = $op->_post(
+        '/device',
+        IO::String->new($query),
+        cookie => "lemonldap=$sid",
+        accept => 'text/html',
+        length => length($query),
+    );
+    is( $res->[0], 200, 'M4: device approved' );
+
+    my $exchange = sub {
+        my $q = buildForm( {
+                grant_type  => 'urn:ietf:params:oauth:grant-type:device_code',
+                device_code => $device_code,
+                client_id   => 'rp_online',
+            }
+        );
+        return $op->_post(
+            '/oauth2/token',
+            IO::String->new($q),
+            accept => 'application/json',
+            length => length($q),
+        );
+    };
+
+    my $r1 = $exchange->();
+    is( $r1->[0], 200, 'M4: first exchange succeeds' );
+    ok( from_json( $r1->[2]->[0] )->{access_token},
+        '  -> access_token issued' );
+
+    my $r2 = $exchange->();
+    is( $r2->[0], 400, 'M4: second exchange with the same code is rejected' );
+    my $err = from_json( $r2->[2]->[0] );
+    like(
+        $err->{error},
+        qr/^(?:expired_token|invalid_grant)$/,
+        "  -> error is expired_token/invalid_grant (got $err->{error})"
+    );
+    count(5);
+}
 
 clean_sessions();
 done_testing();
