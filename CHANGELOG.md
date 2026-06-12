@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.2 - 2026-06-12
+
+Touched plugin bumped to **0.3.2**: `pam-access`.
+
+### pam-access
+
+- **Fix — probe mode for `/pam/bastion-token`**. When the request body
+  carries `"probe": true`, the endpoint returns the `bastion_id`
+  (derived from the token's `client_id`) directly, skipping the per-user
+  `_pamSeen` recency gate and without minting a usable JWT. The earlier
+  checks (valid device-grant token, scope, and group membership in
+  `pamAccessBastionGroups`) still apply, so only a legitimate bastion can
+  learn its own id. Lets `ob-bastion-id` self-identify — it previously
+  got HTTP 403 because its synthetic probe user can never satisfy the
+  recency gate.
+
 ## v0.3.1 - 2026-06-06
 
 - **store** - Add fix for LLNG 2.23.0

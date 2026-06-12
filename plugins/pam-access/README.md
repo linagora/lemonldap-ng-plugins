@@ -129,6 +129,23 @@ Bastions remain responsible for only calling `/pam/bastion-token` for
 users whose SSH session they are actively proxying; the portal only
 checks the identity is known and fresh on its side.
 
+### Probe mode (`"probe": true`)
+
+A bastion can self-identify the `bastion_id` it would be assigned by
+POSTing `{"probe": true}` (no `user` required). The portal returns the
+`bastion_id` (derived from the token's `client_id`) and `server_group`
+directly, skipping the `_pamSeen` recency gate and **without** minting a
+usable JWT:
+
+```json
+{ "bastion_id": "...", "server_group": "...", "probe": true }
+```
+
+The device-grant token, scope and `pamAccessBastionGroups` membership
+checks still apply, so only a legitimate bastion can learn its own id.
+This is what `ob-bastion-id` uses to identify itself; a probe vouches
+for no real user, so the per-user freshness check does not apply.
+
 ## See Also
 
 - [PAM Access documentation](https://lemonldap-ng.org/documentation/latest/pamaccess)
