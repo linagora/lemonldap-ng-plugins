@@ -877,8 +877,21 @@ sub _generateTokens {
         }
     }
 
-    # Generate refresh token if allowed
-    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsRefreshToken} ) {
+    # Decide whether to issue a refresh token. Mirror the core token endpoint
+    # (Issuer/OpenIDConnect.pm): an *offline* refresh token is gated by the
+    # offline_access scope + oidcRPMetaDataOptionsAllowOffline, while an
+    # *online* refresh token is gated by oidcRPMetaDataOptionsRefreshToken.
+    # These are two independent gates: AllowOffline alone must be enough to
+    # get an offline refresh token, even when RefreshToken (online) is off.
+    my $is_offline =
+      (      $self->oidc->_hasScope( 'offline_access', $scope )
+          && $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsAllowOffline} )
+      ? 1
+      : 0;
+
+    if (   $is_offline
+        || $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsRefreshToken} )
+    {
         my $refresh_token_data = {
             scope        => $scope,
             client_id    => $device_auth->{client_id},
@@ -888,16 +901,10 @@ sub _generateTokens {
             %$session_data,
         };
 
-        # Offline refresh token if offline_access scope was requested
-        # and allowed by RP configuration
-        my $is_offline = 0;
-        if (    $self->oidc->_hasScope( 'offline_access', $scope )
-            and
-            $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsAllowOffline} )
-        {
-            $is_offline = 1;
-        }
-
+        # Online refresh tokens are tied to the user's SSO session; offline
+        # ones are standalone (the refresh token carries the user info, e.g.
+        # the synthetic organization identity injected by the
+        # oidc-device-organization plugin via $session_data).
         $refresh_token_data->{user_session_id} = $user_session_id
           unless $is_offline;
 

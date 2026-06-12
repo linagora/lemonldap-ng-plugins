@@ -95,11 +95,17 @@ sub handleOrganizationDevice {
     # Point to the new synthetic session instead of the admin's
     $device_auth->{user_session_id} = $session->id;
 
-    # Remove offline_access from scope to force online refresh token
-    # (offline would try to resolve client_id in UserDB and fail)
-    $device_auth->{scope} =~ s/\boffline_access\b//g;
-    $device_auth->{scope} =~ s/\s+/ /g;
-    $device_auth->{scope} =~ s/^\s+|\s+$//g;
+    # NOTE: we deliberately KEEP offline_access in the scope so the device
+    # gets a long-lived *offline* refresh token (the durable machine identity,
+    # decoupled from the admin's SSO session — RFC 8628 / OIDC offline_access).
+    #
+    # The classic objection — "offline refresh re-resolves the user in the
+    # UserDB and fails for the synthetic client_id" — does not apply here:
+    # Open Bastion never uses the core /oauth2/token refresh grant for these
+    # tokens. The PamAccess /pam/heartbeat endpoint mints fresh access tokens
+    # directly from the refresh token's stored (synthetic) session data, so
+    # the UserDB is never queried at refresh time. The synthetic attributes
+    # are copied into the refresh token via %$session_data below.
 
     # Replace session_data so tokens carry synthetic attributes
     %$session_data = %{ $session->data };

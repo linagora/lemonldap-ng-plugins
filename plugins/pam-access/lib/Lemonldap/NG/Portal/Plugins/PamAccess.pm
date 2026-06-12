@@ -928,16 +928,47 @@ sub heartbeat {
             'Token not from Device Authorization Grant' );
     }
 
-    # 5. Update metadata in refresh_token session
-    my $now      = time();
+    # 5. Resolve the RP (conf key) this refresh token belongs to. The
+    #    synthetic session created by oidc-device-organization stamps
+    #    _clientConfKey; fall back to a client_id lookup for safety.
+    my $now = time();
+    my $rp  = $rtSession->data->{_clientConfKey};
+    unless ( $rp and $self->oidc->rpOptions->{$rp} ) {
+        my $cid = $rtSession->data->{client_id} // '';
+        for my $k ( keys %{ $self->oidc->rpOptions } ) {
+            next
+              unless ( $self->oidc->rpOptions->{$k}
+                ->{oidcRPMetaDataOptionsClientID} // '' ) eq $cid;
+            $rp = $k;
+            last;
+        }
+    }
+    unless ( $rp and $self->oidc->rpOptions->{$rp} ) {
+        $self->logger->error(
+            'PAM heartbeat: cannot resolve RP for refresh token');
+        return $self->_unauthorizedResponse( $req, 'Unknown client' );
+    }
+
+    # 6. Update metadata in refresh_token session AND slide its expiration.
+    #    LLNG purges sessions on (time - _utime > timeout); pushing _utime
+    #    forward by OfflineSessionExpiration on every beat is what makes a
+    #    live server's credential effectively never expire, while a server
+    #    that stops beating ages out after that window (the grace period).
     my $hostname = $body->{hostname} || 'unknown';
-    my $updates  = {
+    my $offlineExp =
+      $self->oidc->rpOptions->{$rp}
+      ->{oidcRPMetaDataOptionsOfflineSessionExpiration}
+      || $self->conf->{oidcServiceOfflineSessionExpiration}
+      || 2592000;
+
+    my $updates = {
         _pamServer      => 1,
         _pamHostname    => $hostname,
         _pamServerGroup => $body->{server_group} || 'default',
         _pamVersion     => $body->{version}      || '',
         _pamLastSeen    => $now,
         _pamStatus      => 'active',
+        _utime          => $now + $offlineExp - $self->conf->{timeout},
     };
 
     # Store stats as JSON string if provided
@@ -955,12 +986,40 @@ sub heartbeat {
 
     $self->logger->debug("PAM heartbeat from $hostname");
 
-    # 6. Respond with next heartbeat interval
+    # 7. Mint a fresh access token from the refresh token's stored (synthetic)
+    #    session data. We deliberately do NOT use the core /oauth2/token
+    #    refresh grant: its offline branch re-resolves the user in the UserDB,
+    #    which fails for the synthetic organization identity. Minting here keeps
+    #    the server's identity self-contained (RFC spirit: short access token,
+    #    long refresh token, refresh loop driven by the device).
+    my $scope = $rtSession->data->{scope} || '';
+    my $access_token =
+      $self->oidc->newAccessToken( $req, $rp, $scope, $rtSession->data,
+        { grant_type => 'device_code' } );
+
+    unless ($access_token) {
+        $self->logger->error('PAM heartbeat: failed to mint access token');
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'token generation failed' },
+            code => 500
+        );
+    }
+
+    my $at_ttl =
+      $self->oidc->rpOptions->{$rp}
+      ->{oidcRPMetaDataOptionsAccessTokenExpiration}
+      || $self->conf->{oidcServiceAccessTokenExpiration}
+      || 3600;
+
+    # 8. Respond with the fresh access token + next heartbeat interval
     my $interval = $self->conf->{pamAccessHeartbeatInterval} || 300;
     return $self->p->sendJSONresponse(
         $req,
         {
             status         => 'ok',
+            access_token   => "$access_token",
+            expires_in     => $at_ttl + 0,
             next_heartbeat => $interval,
             server_time    => $now,
         }
