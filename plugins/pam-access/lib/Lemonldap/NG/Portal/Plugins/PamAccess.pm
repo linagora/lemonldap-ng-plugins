@@ -89,8 +89,20 @@ sub init {
 
       # Route for bastion token generation (bastion -> LLNG)
       # Returns a JWT that proves the bastion has a valid session
+      # DEPRECATED: the SendEnv/pam_getenv transport this JWT relied on is
+      # structurally broken (see doc/design/bastion-cert-vouching.md). Kept for
+      # backward-compat; superseded by /pam/bastion-cert below.
       ->addUnauthRoute(
         pam => { 'bastion-token' => 'bastionToken' },
+        ['POST']
+      )
+
+      # Route for bastion ephemeral-certificate vouching (bastion -> LLNG).
+      # The bastion sends an ephemeral public key + the (bastion_id, user)
+      # voucher minted by /pam/authorize; LLNG returns a short-lived,
+      # CA-signed user certificate the bastion uses to connect to the backend.
+      ->addUnauthRoute(
+        pam => { 'bastion-cert' => 'bastionCert' },
         ['POST']
       )
 
@@ -373,9 +385,10 @@ sub authorize {
         },
     );
     return $fp_bail if $fp_bail;
+    my $sshCheck;    # captured for the bastion-voucher cap below
     if ( defined $fingerprint ) {
 
-        my $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
+        $sshCheck = $self->_checkSshFingerprint( $user, $fingerprint );
         unless ( $sshCheck->{ok} ) {
             $self->logger->info(
                 "PAM authorize: SSH fingerprint check failed for user '$user' "
@@ -496,6 +509,28 @@ sub authorize {
             $self->logger->debug(
 "PAM authorize: offline mode enabled for user '$user' (TTL: ${offlineTtl}s)"
             );
+        }
+
+        # Bastion vouching: when the caller is itself a bastion, mint a
+        # reusable (bastion_id, user) voucher bound to this real connection.
+        # The bastion later presents it to /pam/bastion-cert to obtain
+        # short-lived certs for THIS user only — closing the hole where a
+        # bastion could vouch for any user it never saw. Bound to the user's
+        # SSO cert lifetime when a fingerprint matched above.
+        if ( $self->_isBastionGroup($server_group) ) {
+            my ( $nonce, $vexp ) = $self->_mintBastionVoucher(
+                $req, $user, $server_id,
+                ( $sshCheck && $sshCheck->{ok} )
+                ? $sshCheck->{expires_at}
+                : undef
+            );
+            if ($nonce) {
+                $response->{bastion_voucher}            = $nonce;
+                $response->{bastion_voucher_expires_in} = $vexp - time();
+                $self->logger->debug(
+"PAM authorize: minted bastion voucher for user '$user' (bastion='$server_id', exp=$vexp)"
+                );
+            }
         }
     }
     else {
@@ -1691,13 +1726,304 @@ sub _checkSshFingerprint {
             return { ok => 0, reason => 'expired' };
         }
         return {
-            ok     => 1,
-            serial => $cert->{serial},
-            label  => $cert->{label},
-            key_id => $cert->{key_id},
+            ok         => 1,
+            serial     => $cert->{serial},
+            label      => $cert->{label},
+            key_id     => $cert->{key_id},
+            expires_at => $cert->{expires_at},
         };
     }
     return { ok => 0, reason => 'not-found' };
+}
+
+# Is $server_group one of the configured bastion groups?
+# Read a positive-integer duration from conf, falling back to $default when
+# the key is unset or misconfigured. A non-numeric or <= 0 value would mint
+# immediately-expired vouchers or break the ssh-keygen -V validity spec.
+sub _confPositiveInt {
+    my ( $self, $key, $default ) = @_;
+    my $v = $self->conf->{$key};
+    return $default unless defined $v && $v ne '';
+    unless ( $v =~ /\A[0-9]+\z/ && $v > 0 ) {
+        $self->logger->warn(
+            "PamAccess: ignoring invalid $key value '$v', using $default");
+        return $default;
+    }
+    return $v + 0;
+}
+
+sub _isBastionGroup {
+    my ( $self, $server_group ) = @_;
+    return 0 unless defined $server_group && $server_group ne '';
+    my $bastion_groups = $self->conf->{pamAccessBastionGroups} || 'bastion';
+    for my $allowed ( split /[,;\s]+/, $bastion_groups ) {
+        return 1 if $server_group eq $allowed;
+    }
+    return 0;
+}
+
+# Mint (replace) a reusable (bastion_id, user) voucher in the user's persistent
+# session. Validity is capped by the user's SSO cert expiry when known, else by
+# pamAccessBastionVoucherTtl (default 12h). Returns ($nonce, $exp) or ().
+sub _mintBastionVoucher {
+    my ( $self, $req, $user, $bastion_id, $cert_expires_at ) = @_;
+
+    my $nonce = $self->_generateUUID();
+    unless ($nonce) {
+        $self->logger->error(
+            'PAM authorize: cannot generate bastion voucher nonce');
+        return ();
+    }
+
+    my $now    = time();
+    my $ttlCap =
+      $self->_confPositiveInt( 'pamAccessBastionVoucherTtl', 43200 );    # 12h
+    my $exp    = $now + $ttlCap;
+    $exp = $cert_expires_at
+      if $cert_expires_at && $cert_expires_at > $now && $cert_expires_at < $exp;
+
+    my $ps = $self->p->getPersistentSession($user);
+    unless ( $ps && !$ps->error ) {
+        $self->logger->error(
+            "PAM authorize: cannot load persistent session for '$user' "
+              . "to store bastion voucher" );
+        return ();
+    }
+
+    my $raw  = $ps->data->{_pamBastionVouchers};
+    my $vmap = $raw ? eval { from_json($raw) } : {};
+    $vmap = {} unless ref $vmap eq 'HASH';
+
+    # Prune expired/invalid entries so the map stays bounded.
+    for my $k ( keys %$vmap ) {
+        delete $vmap->{$k}
+          if ref $vmap->{$k} ne 'HASH' || ( $vmap->{$k}{exp} || 0 ) <= $now;
+    }
+    $vmap->{$bastion_id} = { nonce => $nonce, exp => $exp };
+    $ps->update( { _pamBastionVouchers => to_json($vmap) } );
+
+    return ( $nonce, $exp );
+}
+
+# Validate a (bastion_id, user) voucher presented by a bastion at /pam/bastion-cert.
+# $ps is the user's already-loaded persistent session. Returns { ok => 1 } or
+# { ok => 0, reason => '...' } with a machine-readable reason.
+sub _checkBastionVoucher {
+    my ( $self, $ps, $bastion_id, $voucher ) = @_;
+
+    return { ok => 0, reason => 'no_session' } unless $ps;
+    return { ok => 0, reason => 'session_error' } if $ps->error;
+    return { ok => 0, reason => 'no_voucher_supplied' }
+      unless defined $voucher && $voucher ne '';
+
+    my $raw = $ps->data->{_pamBastionVouchers};
+    return { ok => 0, reason => 'voucher_expired' } unless $raw;
+
+    my $vmap = eval { from_json($raw) };
+    return { ok => 0, reason => 'voucher_corrupted' }
+      if $@ || ref $vmap ne 'HASH';
+
+    my $entry = $vmap->{$bastion_id};
+    return { ok => 0, reason => 'voucher_expired' }
+      unless $entry && ref $entry eq 'HASH';
+    return { ok => 0, reason => 'voucher_expired' }
+      if ( $entry->{exp} || 0 ) <= time();
+    return { ok => 0, reason => 'voucher_mismatch' }
+      unless ( $entry->{nonce} || '' ) eq $voucher;
+
+    return { ok => 1 };
+}
+
+# POST /pam/bastion-cert - Sign a short-lived user certificate for a bastion
+#
+# The bastion proves: (1) it holds a valid device-grant token for a bastion
+# group (Bearer); (2) it holds a fresh (bastion_id, user) voucher minted by
+# /pam/authorize when this user actually connected to it. LLNG then signs the
+# supplied ephemeral public key with the ssh-ca CA key, pinning the cert to the
+# bastion's IP (source-address) and encoding bastion_id in the key-id so the
+# backend can enforce its allowed-bastions list.
+#
+# Request: { user, target_host, target_group, public_key, voucher }
+# Response: { certificate, expires_in, serial, key_id }
+sub bastionCert {
+    my ( $self, $req ) = @_;
+
+    # 1-4. Same caller gates as bastionToken: valid device-grant token, pam
+    #      scope, and a resolved server_group that is a bastion group.
+    my $access_token = $self->oidc->getEndPointAccessToken($req);
+    return $self->_unauthorizedResponse( $req, 'Bearer token required' )
+      unless $access_token;
+
+    my $tokenSession = $self->oidc->getAccessToken($access_token);
+    return $self->_unauthorizedResponse( $req, 'Invalid or expired token' )
+      unless $tokenSession;
+
+    my $grant_type = $tokenSession->data->{grant_type} || '';
+    return $self->_forbiddenResponse( $req,
+        'Server not enrolled. Use Device Authorization Grant.' )
+      unless $grant_type eq 'device_code';
+
+    my $scope = $tokenSession->data->{scope} || '';
+    return $self->_forbiddenResponse( $req, 'Invalid token scope' )
+      unless $scope =~ /\bpam(?::server)?\b/;
+
+    my $bastion_id    = $tokenSession->data->{client_id} || 'unknown';
+    my $session_group = $tokenSession->data->{server_group};
+    my $server_group =
+      $self->_resolveServerGroup( $req, $bastion_id, $session_group,
+        'PAM bastion-cert' );
+    return $self->_forbiddenResponse( $req, $server_group->{message} )
+      if ref $server_group eq 'HASH' && $server_group->{rejected};
+
+    unless ( $self->_isBastionGroup($server_group) ) {
+        $self->logger->warn( "PAM bastion-cert: server group '$server_group' "
+              . "is not a bastion group" );
+        return $self->_forbiddenResponse( $req,
+            "Server is not an authorized bastion (group: $server_group)" );
+    }
+
+    # 5. Parse + validate request body.
+    my $body = eval { from_json( $req->content ) };
+    if ($@) {
+        $self->logger->error("PAM bastion-cert: Invalid JSON body: $@");
+        return $self->_badRequest( $req, 'Invalid JSON' );
+    }
+
+    my $user         = $body->{user};
+    my $target_host  = $body->{target_host}  || '';
+    my $target_group = $body->{target_group} || 'default';
+    my $public_key   = $body->{public_key};
+    my $voucher      = $body->{voucher};
+
+    return $self->_badRequest( $req, 'Missing user parameter' ) unless $user;
+
+    # The principal we sign equals the unix login; reject separators that
+    # ssh-keygen -n would split into multiple principals or that would poison
+    # the key-id encoding.
+    return $self->_badRequest( $req, 'Invalid user parameter' )
+      if $user =~ m{[\s,/;]};
+
+    return $self->_badRequest( $req, 'Missing public_key parameter' )
+      unless $public_key;
+    return $self->_badRequest( $req, 'Missing voucher parameter' )
+      unless $voucher;
+
+    # Strict SSH public key validation (same contract as ssh-ca /ssh/sign).
+    unless ( $public_key =~
+        /\A(ssh-\w+|ecdsa-sha2-\w+)\s+[A-Za-z0-9+\/]+={0,2}(?:\s+[^\r\n]*)?\z/ )
+    {
+        return $self->_badRequest( $req, 'Invalid SSH public key format' );
+    }
+
+    # 6. Voucher check: proves this user really connected to THIS bastion.
+    my $ps   = $self->p->getPersistentSession($user);
+    my $vres = $self->_checkBastionVoucher( $ps, $bastion_id, $voucher );
+    unless ( $vres->{ok} ) {
+        $self->logger->info(
+                "PAM bastion-cert: voucher rejected for user '$user' "
+              . "(bastion='$bastion_id', reason=$vres->{reason})" );
+        $self->p->auditLog(
+            $req,
+            code        => 'PAM_BASTION_CERT_VOUCHER_REJECTED',
+            user        => $user,
+            message     => "PAM bastion-cert denied: $vres->{reason}",
+            bastion_id  => $bastion_id,
+            target_host => $target_host,
+            reason      => $vres->{reason},
+        );
+
+        # Machine-readable reason so ob-ssh-proxy can show a precise message
+        # (e.g. 'voucher_expired' -> "reconnect to the bastion"). Internal
+        # conditions (session backend failure, corrupted voucher map) are
+        # server errors, not authorization denials: 5xx keeps clients and
+        # monitoring from treating them as a 403 "reconnect to the bastion".
+        my $internal = $vres->{reason} =~
+          /\A(?:no_session|session_error|voucher_corrupted)\z/;
+        return $self->p->sendJSONresponse(
+            $req,
+            {
+                error => $internal ? 'voucher_check_failed'
+                : 'voucher_rejected',
+                reason => $vres->{reason}
+            },
+            code => $internal ? 500 : 403
+        );
+    }
+
+    # 7. Reach the ssh-ca plugin to sign with the CA key.
+    my $sshca =
+      $self->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::SSHCA'};
+    unless ( $sshca && $sshca->can('_signSshKey') && $sshca->sshPrivKey ) {
+        $self->logger->error(
+            'PAM bastion-cert: SSHCA plugin not available/initialised');
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'SSH CA not available' },
+            code => 500
+        );
+    }
+
+    # 8. Encode bastion identity in the key-id for the backend to allowlist.
+    #    Sanitize each part so the `k=v;` encoding stays unambiguous.
+    my $clean = sub { my $v = shift // ''; $v =~ s/[^A-Za-z0-9._-]/_/g; $v };
+    my $keyId = sprintf( 'bastion=%s;user=%s;target=%s',
+        $clean->($bastion_id), $clean->($user), $clean->($target_host) );
+
+    my $ttl    = $self->_confPositiveInt( 'pamAccessBastionCertTtl', 120 );
+    my $serial = $sshca->_getNextSerial;
+    my %signOpts = ( validity => "+${ttl}s" );
+
+    # Pin the cert to the vouching bastion's IP (sshd-native enforcement).
+    my $bastion_ip = $req->address;
+    if ( defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/ ) {
+        $signOpts{source_address} = $bastion_ip;
+    }
+
+    my $result =
+      $sshca->_signSshKey( $public_key, [$user], 2, $serial, $keyId,
+        \%signOpts );
+    unless ( $result && $result->{certificate} ) {
+        $self->logger->error(
+            "PAM bastion-cert: signing failed for user '$user'");
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Failed to sign certificate' },
+            code => 500
+        );
+    }
+
+    $self->p->auditLog(
+        $req,
+        code    => 'PAM_BASTION_CERT_ISSUED',
+        user    => $user,
+        message =>
+          "Bastion ephemeral cert issued for '$user' to '$target_host'",
+        bastion_id   => $bastion_id,
+        target_host  => $target_host,
+        target_group => $target_group,
+        serial       => $serial,
+        key_id       => $keyId,
+        ttl          => $ttl,
+        (
+            $signOpts{source_address}
+            ? ( source_address => $signOpts{source_address} )
+            : ()
+        ),
+    );
+
+    $self->logger->info( "PAM bastion-cert: issued cert serial=$serial for "
+          . "user '$user' (bastion='$bastion_id' -> '$target_host', ttl=${ttl}s)"
+    );
+
+    return $self->p->sendJSONresponse(
+        $req,
+        {
+            certificate => $result->{certificate},
+            expires_in  => $ttl + 0,
+            serial      => $serial,
+            key_id      => $keyId,
+        }
+    );
 }
 
 1;
@@ -1801,6 +2127,55 @@ Response:
   "reason": "..." (only if denied)
 }
 
+When the calling server belongs to a bastion group (see
+C<pamAccessBastionGroups>), a successful authorization also returns:
+{
+  "bastion_voucher": "uuid",
+  "bastion_voucher_expires_in": 43200
+}
+
+The voucher is a reusable (bastion, user) capability stored in the user's
+persistent session; the bastion later presents it to C</pam/bastion-cert>.
+
+=head2 POST /pam/bastion-cert
+
+Sign a short-lived ephemeral SSH user certificate for a bastion-to-backend
+hop (requires the ssh-ca plugin). The bastion proves it holds a valid
+device-grant Bearer token for a bastion group, plus a fresh
+(bastion, user) voucher minted by C</pam/authorize> when the user actually
+connected to it. The certificate is pinned to the bastion's IP
+(C<source-address> critical option) and encodes the bastion identity in
+its key-id so backends can enforce an allowed-bastions list.
+
+Requires: Bearer token in Authorization header
+
+Request body:
+{
+  "user": "username",
+  "target_host": "backend.example.com",
+  "target_group": "production",
+  "public_key": "ssh-ed25519 AAAA... ephemeral",
+  "voucher": "uuid"
+}
+
+Response:
+{
+  "certificate": "ssh-ed25519-cert-v01@openssh.com AAAA...",
+  "expires_in": 120,
+  "serial": 1234,
+  "key_id": "bastion=...;user=...;target=..."
+}
+
+On voucher rejection, returns 403 with a machine-readable reason
+(C<no_voucher_supplied>, C<voucher_expired>, C<voucher_mismatch>); internal
+failures (session backend error, corrupted voucher map) return 500.
+
+=head2 POST /pam/bastion-token (DEPRECATED)
+
+Legacy JWT-based vouching endpoint, superseded by C</pam/bastion-cert>
+(see F<doc/design/bastion-cert-vouching.md>). Kept for backward
+compatibility only.
+
 =head2 POST /pam/heartbeat
 
 Server heartbeat for monitoring enrolled PAM servers.
@@ -1858,6 +2233,24 @@ received (default: 900)
 
 If enabled, servers must have a recent heartbeat to use /pam/authorize.
 This ensures that the PAM module is still active on the server. (default: 0)
+
+=item pamAccessBastionGroups
+
+Comma/space-separated list of server groups considered bastions
+(default: 'bastion'). Members of these groups get a bastion voucher from
+C</pam/authorize> and may call C</pam/bastion-cert>.
+
+=item pamAccessBastionVoucherTtl
+
+Maximum validity of a bastion voucher in seconds (default: 43200, i.e. 12h).
+The voucher is further capped by the user's SSO certificate expiry when
+known. Must be a positive integer; invalid values fall back to the default.
+
+=item pamAccessBastionCertTtl
+
+Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
+seconds (default: 120). Must be a positive integer; invalid values fall
+back to the default.
 
 =item pamAccessChoice
 
