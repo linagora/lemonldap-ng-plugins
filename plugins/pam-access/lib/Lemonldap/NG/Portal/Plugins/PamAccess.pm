@@ -928,6 +928,19 @@ sub heartbeat {
             'Token not from Device Authorization Grant' );
     }
 
+    # 4b. Verify the refresh token actually carries the bastion server scope.
+    #     This endpoint mints access tokens and slides the refresh token's
+    #     lifetime, so it must only accept tokens meant for pam-access. Without
+    #     this check, any device_code refresh token issued for another RP/scope
+    #     could use /pam/heartbeat to obtain access tokens and keep itself alive
+    #     indefinitely. Same gate as /pam/authorize and /pam/bastion-token.
+    my $rt_scope = $rtSession->data->{scope} || '';
+    unless ( $rt_scope =~ /\bpam(?::server)?\b/ ) {
+        $self->logger->warn(
+            "PAM heartbeat: refresh token has invalid scope '$rt_scope'");
+        return $self->_forbiddenResponse( $req, 'Invalid token scope' );
+    }
+
     # 5. Resolve the RP (conf key) this refresh token belongs to. The
     #    synthetic session created by oidc-device-organization stamps
     #    _clientConfKey; fall back to a client_id lookup for safety.
