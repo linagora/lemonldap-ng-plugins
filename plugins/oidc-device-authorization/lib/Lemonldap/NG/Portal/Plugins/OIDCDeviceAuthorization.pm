@@ -582,6 +582,17 @@ sub submitVerification {
     my $user_session_id = $req->id || $req->userData->{_session_id};
     my $user            = $req->userData->{ $self->conf->{whatToTrace} };
 
+    # Resolve the granted scope through the core gate now that we have the
+    # consenting user's context ($req->userData). The device endpoint is
+    # pre-auth, so the scope requested there is unfiltered; resolving it here
+    # applies declared-scope filtering (oidcServiceAllowOnlyDeclaredScopes) and
+    # the per-user dynamic scope rules (rpScopeRules) exactly like the
+    # authorization-code flow, so a device cannot obtain a privileged scope the
+    # approving user is not entitled to. offline_access is intentionally kept
+    # (it is the offline refresh-token marker, stripped later at token minting).
+    my $granted_scope =
+      $self->oidc->getScope( $req, $rp, $device_auth->{scope} );
+
     $self->_updateDeviceAuthStatus(
         $device_auth,
         'approved',
@@ -589,6 +600,7 @@ sub submitVerification {
             user_session_id => $user_session_id,
             user            => $user,
             approved_at     => time(),
+            scope           => $granted_scope,
         }
     );
 
@@ -611,7 +623,7 @@ sub submitVerification {
         params => {
             DEVICE_APPROVED => 1,
             CLIENT_ID       => $device_auth->{client_id},
-            SCOPE           => $device_auth->{scope},
+            SCOPE           => $granted_scope,
             MSG             => 'deviceApproved',
         }
     );
