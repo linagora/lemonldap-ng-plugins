@@ -300,7 +300,7 @@ jobs:
           GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" debian/build-repo.sh _debs _site/debian
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
