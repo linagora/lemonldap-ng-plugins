@@ -534,9 +534,20 @@ sub sshCaSign {
 }
 
 # HELPER: Sign SSH key using ssh-keygen
+#
+# $opts (optional hashref) lets callers other than the interactive /ssh/sign
+# route (e.g. pam-access bastion-cert vouching) tighten the certificate:
+#   - validity       : explicit ssh-keygen -V spec (e.g. "+120s"), overrides
+#                      the $validityMinutes argument. Enables sub-minute TTLs.
+#   - source_address : value for the `source-address` critical option. sshd
+#                      itself then refuses the cert unless the connection comes
+#                      from that address/CIDR. MUST be pre-validated by the
+#                      caller (passed verbatim to ssh-keygen -O).
 sub _signSshKey {
-    my ( $self, $userPubKey, $principals, $validityMinutes, $serial, $keyId ) =
-      @_;
+    my ( $self, $userPubKey, $principals, $validityMinutes, $serial, $keyId,
+        $opts )
+      = @_;
+    $opts ||= {};
 
     require File::Temp;
 
@@ -564,15 +575,23 @@ sub _signSshKey {
     close $fh;
 
     # Build ssh-keygen command
+    my $validitySpec = $opts->{validity} || "+${validityMinutes}m";
     my @cmd = (
         'ssh-keygen',
         '-s', $caKeyFile,                   # CA key
         '-I', $keyId,                       # Key identity
         '-n', join( ',', @$principals ),    # Principals
-        '-V', "+${validityMinutes}m",       # Validity
+        '-V', $validitySpec,                # Validity (override via $opts)
         '-z', $serial,                      # Serial number
-        $userKeyFile                        # User's public key to sign
     );
+
+    # Optional `source-address` critical option: sshd refuses the cert unless
+    # the connection originates from this address/CIDR. Used by bastion-cert
+    # vouching to pin a cert to the vouching bastion's IP.
+    push @cmd, '-O', "source-address=$opts->{source_address}"
+      if defined $opts->{source_address} && $opts->{source_address} ne '';
+
+    push @cmd, $userKeyFile;               # User's public key to sign (last)
 
     $self->logger->debug( "SSH CA: Running: " . join( ' ', @cmd ) );
 
