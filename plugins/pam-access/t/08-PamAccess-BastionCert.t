@@ -4,6 +4,7 @@ use strict;
 use IO::String;
 use JSON;
 use File::Temp qw(tempdir);
+use Time::Local qw(timelocal);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -86,7 +87,14 @@ ok(
                 # resolves to 'default' in legacy mode) counts as a bastion.
                 pamAccessBastionGroups => 'default,bastion',
                 pamAccessSshRules      => { default => '1' },
-                pamAccessBastionCertTtl => 120,
+                # 90s (not a multiple of 60) so the issued cert can only
+                # come from the "+90s" $opts override, not the legacy
+                # minute-granularity argument.
+                pamAccessBastionCertTtl => 90,
+
+                # Deliberately invalid: minting must fall back to the 12h
+                # default instead of issuing dead vouchers.
+                pamAccessBastionVoucherTtl => 'twelve-hours',
             }
         }
     ),
@@ -223,6 +231,7 @@ is( from_json( $res->[2]->[0] )->{error},
 # ============================================================================
 # Successful issuance + cert contents
 # ============================================================================
+my $t_sign = time;
 $res = bastion_post(
     '/pam/bastion-cert',
     {
@@ -236,6 +245,7 @@ $res = bastion_post(
 is( $res->[0], 200, 'valid voucher -> 200 cert issued' );
 my $certresp = from_json( $res->[2]->[0] );
 ok( $certresp->{certificate}, '  -> certificate returned' );
+is( $certresp->{expires_in}, 90, '  -> expires_in is the configured TTL' );
 is(
     $certresp->{key_id},
     'bastion=pam-access;user=french;target=backend1.op.com',
@@ -244,7 +254,7 @@ is(
 
 # Inspect the signed certificate with ssh-keygen -L
 SKIP: {
-    skip "no certificate to inspect", 3 unless $certresp->{certificate};
+    skip "no certificate to inspect", 6 unless $certresp->{certificate};
     my $tmpdir = tempdir( CLEANUP => 1 );
     open my $fh, '>', "$tmpdir/c-cert.pub" or die;
     print $fh $certresp->{certificate};
@@ -255,6 +265,25 @@ SKIP: {
     like( $L, qr/Principals:\s*\n\s+french\b/, '  -> principal is french' );
     like( $L, qr/Key ID: "bastion=pam-access;user=french;target=backend1\.op\.com"/,
         '  -> key-id present in cert' );
+
+    # The _signSshKey $opts contract: source-address pins the cert to the
+    # vouching bastion's IP (test requests come from 127.0.0.1)...
+    like( $L, qr/source-address\s+127\.0\.0\.1/,
+        '  -> source-address critical option pins the bastion IP' );
+
+    # ...and validity carries the sub-minute "+90s" $opts override. OpenSSH
+    # backdates the start by a 60s clock-skew allowance rounded down to the
+    # minute, so only the end timestamp is assertable: it must land ~90s
+    # after the signing request (the legacy +2m path would give ~120s).
+    my ( $from, $to ) = $L =~ /Valid:\s+from\s+(\S+)\s+to\s+(\S+)/;
+    ok( $from && $to, '  -> validity window present' );
+    my $epoch = sub {
+        my @f = $_[0] =~ /(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/;
+        return @f ? timelocal( @f[ 5, 4, 3 ], $f[2], $f[1] - 1, $f[0] ) : 0;
+    };
+    my $end = $epoch->($to) - $t_sign;
+    ok( $end >= 85 && $end <= 95,
+        "  -> cert expires ~90s after signing (got ${end}s)" );
 }
 
 # Voucher is REUSABLE (not consumed) -> supports multi-hop / scp host1: host2:
@@ -268,5 +297,50 @@ $res = bastion_post(
     }
 );
 is( $res->[0], 200, 'same voucher reused for a second hop -> 200' );
+
+# ============================================================================
+# Expired voucher -> 403 voucher_expired (client tells user to reconnect)
+# ============================================================================
+{
+    my $ps   = $op->p->getPersistentSession('french');
+    my $vmap = from_json( $ps->data->{_pamBastionVouchers} );
+    $_->{exp} = time - 10 for values %$vmap;
+    $ps->update( { _pamBastionVouchers => to_json($vmap) } );
+}
+$res = bastion_post(
+    '/pam/bastion-cert',
+    {
+        user        => 'french',
+        target_host => 'b',
+        public_key  => $eph_pubkey,
+        voucher     => $voucher,
+    }
+);
+is( $res->[0], 403, 'expired voucher -> 403' );
+is( from_json( $res->[2]->[0] )->{reason},
+    'voucher_expired', '  -> reason voucher_expired' );
+
+# ============================================================================
+# Corrupted voucher map -> 500 (internal failure, not an authz denial)
+# ============================================================================
+{
+    my $ps = $op->p->getPersistentSession('french');
+    $ps->update( { _pamBastionVouchers => 'not-json{' } );
+}
+$res = bastion_post(
+    '/pam/bastion-cert',
+    {
+        user        => 'french',
+        target_host => 'b',
+        public_key  => $eph_pubkey,
+        voucher     => $voucher,
+    }
+);
+is( $res->[0], 500, 'corrupted voucher map -> 500' );
+{
+    my $err = from_json( $res->[2]->[0] );
+    is( $err->{error},  'voucher_check_failed', '  -> voucher_check_failed' );
+    is( $err->{reason}, 'voucher_corrupted',    '  -> reason voucher_corrupted' );
+}
 
 done_testing();
