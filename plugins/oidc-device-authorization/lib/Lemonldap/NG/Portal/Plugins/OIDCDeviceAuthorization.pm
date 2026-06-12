@@ -837,6 +837,26 @@ sub _generateTokens {
     $user_session_id = $device_auth->{user_session_id};
     $scope           = $device_auth->{scope};
 
+    # Single-use enforcement: consume the device authorization now that every
+    # terminal check (PKCE, live user session, grant hook) has passed. Doing it
+    # here rather than after the tokens are minted stops a second poll — at the
+    # normal RFC 8628 5s cadence — from exchanging the same approved code twice
+    # and getting a duplicate token set. The in-memory $device_auth copy is kept
+    # for the refresh-token data and audit log below.
+    $self->_deleteDeviceAuth($device_auth);
+
+    # Decide offline-ness BEFORE stripping offline_access, then drop it from the
+    # granted scope so it is not advertised in the access token, the response
+    # `scope`, the ID token or the refresh token. Mirrors the core token
+    # endpoint (Issuer/OpenIDConnect.pm:891-924), where offline_access is a
+    # request marker, not a granted scope.
+    my $is_offline =
+      (      $self->oidc->_hasScope( 'offline_access', $scope )
+          && $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsAllowOffline} )
+      ? 1
+      : 0;
+    $scope = join ' ', grep { $_ ne 'offline_access' } split /\s+/, $scope;
+
     # Generate access token
     my $access_token_extra = {
         scope      => $scope,
@@ -878,17 +898,12 @@ sub _generateTokens {
     }
 
     # Decide whether to issue a refresh token. Mirror the core token endpoint
-    # (Issuer/OpenIDConnect.pm): an *offline* refresh token is gated by the
-    # offline_access scope + oidcRPMetaDataOptionsAllowOffline, while an
-    # *online* refresh token is gated by oidcRPMetaDataOptionsRefreshToken.
-    # These are two independent gates: AllowOffline alone must be enough to
-    # get an offline refresh token, even when RefreshToken (online) is off.
-    my $is_offline =
-      (      $self->oidc->_hasScope( 'offline_access', $scope )
-          && $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsAllowOffline} )
-      ? 1
-      : 0;
-
+    # (Issuer/OpenIDConnect.pm): an *offline* refresh token ($is_offline,
+    # computed above) is gated by the offline_access scope +
+    # oidcRPMetaDataOptionsAllowOffline, while an *online* refresh token is
+    # gated by oidcRPMetaDataOptionsRefreshToken. These are two independent
+    # gates: AllowOffline alone must be enough to get an offline refresh token,
+    # even when RefreshToken (online) is off.
     if (   $is_offline
         || $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsRefreshToken} )
     {
@@ -916,8 +931,7 @@ sub _generateTokens {
         }
     }
 
-    # Clean up the device authorization
-    $self->_deleteDeviceAuth($device_auth);
+    # (device authorization already consumed above, before token minting)
 
     $self->logger->debug("Device code grant completed for RP $rp");
 
