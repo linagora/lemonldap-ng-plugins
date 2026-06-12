@@ -1,5 +1,54 @@
 # Changelog
 
+## v0.3.4 - 2026-06-12
+
+Touched plugins bumped to **0.3.4** in lockstep: `pam-access`, `ssh-ca`,
+`oidc-device-authorization`. Theme: certificate-based bastion→backend
+vouching for Open Bastion (replacing the structurally-broken JWT
+`/pam/bastion-token` hop), plus correctness hardening on the device-grant
+token endpoint.
+
+### pam-access
+
+- **Feature — `/pam/bastion-cert` certificate vouching**. A new
+  server-to-server endpoint signs a short-lived ephemeral SSH user
+  certificate for a bastion→backend hop. The bastion proves (1) a valid
+  device-grant token for a bastion group and (2) a fresh `(bastion, user)`
+  voucher minted by `/pam/authorize` when the user actually connected to it.
+  The certificate is pinned to the vouching bastion's IP (`source-address`
+  critical option) and encodes the bastion identity in its key-id so a
+  backend can enforce its allowed-bastions list. Supersedes the
+  structurally-broken JWT `/pam/bastion-token`, now deprecated.
+- **Hardening** — `pamAccessBastionVoucherTtl` / `pamAccessBastionCertTtl`
+  are validated as positive integers (warn + fall back to the default on
+  misconfiguration) instead of feeding garbage to the expiry math and
+  `ssh-keygen -V`. Internal voucher-check failures (session backend error,
+  corrupted voucher map) now return HTTP 500 `voucher_check_failed` instead
+  of 403, so clients and monitoring don't read them as an authorization
+  denial. New POD documents the endpoint, the `/pam/authorize` voucher
+  fields, the `/pam/bastion-token` deprecation and the `pamAccessBastion*`
+  config keys.
+
+### ssh-ca
+
+- **Feature — `_signSshKey` validity / source-address options**. The signing
+  helper accepts an optional `$opts` hashref letting callers (pam-access
+  bastion-cert vouching) set a sub-minute `validity` (`-V` spec) and a
+  `source-address` critical option that pins the issued certificate to a
+  given IP/CIDR, enforced natively by sshd. `$opts` is normalized to `{}`
+  unless it is a HASH ref.
+
+### oidc-device-authorization
+
+- **Fix — single-use `device_code`**. The device authorization is now
+  consumed before the tokens are minted, so a second poll at the normal
+  RFC 8628 cadence can no longer exchange the same approved code twice for a
+  duplicate token set.
+- **Fix — strip `offline_access` from the granted scope**. Mirroring the
+  core token endpoint, `offline_access` gates the offline refresh token but
+  is no longer advertised in the access token, the response `scope`, the ID
+  token or the refresh token (it is a request marker, not a granted scope).
+
 ## v0.3.3 - 2026-06-12
 
 Touched plugins bumped to **0.3.3** in lockstep: `oidc-device-authorization`,
