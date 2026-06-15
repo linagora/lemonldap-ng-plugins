@@ -141,6 +141,8 @@ my $hb_body = to_json( {
         refresh_token => $rt,
         hostname      => 'srv1.example.com',
         server_group  => 'default',
+        version       => '0.3.0',
+        node_role     => 'bastion',
     }
 );
 ok(
@@ -197,7 +199,9 @@ count(2);
 my $oidc_mod = $op->p->loadedModules->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'};
 my $rt_session = $oidc_mod->getRefreshToken($rt);
 ok( $rt_session, 'Can read refresh token session after heartbeat' );
-count(1);
+is( $rt_session->data->{_pamVersion},  '0.3.0',   'client version stored as _pamVersion' );
+is( $rt_session->data->{_pamNodeRole}, 'bastion', 'node role stored as _pamNodeRole' );
+count(3);
 
 my $utime   = $rt_session->data->{_utime};
 my $offline_exp = 2592000;
