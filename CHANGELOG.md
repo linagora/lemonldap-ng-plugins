@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.3.5 - 2026-06-15
+
+Touched plugins bumped to **0.3.5** in lockstep: `pam-access`,
+`oidc-device-authorization`. Theme: fleet visibility from the Open Bastion
+heartbeat (who is connected and what each enrolled machine runs), plus an
+authorization fix so device-grant tokens honour the same per-user scope
+gate as the authorization-code flow.
+
+### pam-access
+
+- **Feature — connected users from heartbeat**. `/pam/heartbeat` now
+  persists the list of users currently connected on a server, reported by
+  `ob-heartbeat` in a `sessions` array, into the refresh-token session as
+  `_pamSessions` (JSON) plus a `_pamSessionCount`, on the same model as
+  `_pamStats` — letting administrators see "who is connected" per machine.
+- **Feature — node role from heartbeat**. The `node_role` reported by
+  `ob-heartbeat` (`bastion` | `standalone` | `backend`) is stored as
+  `_pamNodeRole` next to the existing `_pamVersion`, so the SSO can show
+  what each enrolled machine runs.
+- **Hardening** — `_pamSessions` is always persisted as a JSON array; a
+  non-array `sessions` payload is now coerced to `[]` (with a warning)
+  instead of being stored as an inconsistent JSON type while
+  `_pamSessionCount` is 0. Covered in `t/07-PamAccess-Heartbeat.t`.
+
+### oidc-device-authorization
+
+- **Fix — resolve granted scope through `getScope` at approval**. The device
+  authorization endpoint is pre-auth, so the scope requested there was
+  unfiltered and propagated verbatim into the issued tokens, bypassing the
+  core `getScope` gate the authorization-code flow applies — neither
+  declared-scope filtering (`oidcServiceAllowOnlyDeclaredScopes`) nor the
+  per-user dynamic scope rules (`rpScopeRules`) were enforced for
+  device-grant tokens. `submitVerification` now resolves the requested scope
+  via `getScope` at approval time, where `$req->userData` is the consenting
+  user, and stores the resolved scope on the device authorization.
+
 ## v0.3.4 - 2026-06-12
 
 Touched plugins bumped to **0.3.4** in lockstep: `pam-access`, `ssh-ca`,
