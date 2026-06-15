@@ -1024,6 +1024,15 @@ sub heartbeat {
         $updates->{_pamStats} = to_json( $body->{stats} );
     }
 
+    # Store the list of users currently connected on this machine ("who is
+    # connected"), reported by ob-heartbeat. Kept as a JSON string alongside a
+    # quick-access count, on the same model as _pamStats.
+    if ( $body->{sessions} ) {
+        $updates->{_pamSessions} = to_json( $body->{sessions} );
+        $updates->{_pamSessionCount} =
+          ref $body->{sessions} eq 'ARRAY' ? scalar @{ $body->{sessions} } : 0;
+    }
+
     # First heartbeat = enrollment timestamp
     unless ( $rtSession->data->{_pamEnrolledAt} ) {
         $updates->{_pamEnrolledAt} = $now;
