@@ -246,5 +246,71 @@ ok(
 is( $res->[0], 401, 'Invalid refresh_token yields HTTP 401' );
 count(2);
 
+# ===========================================================================
+# Test 6: connected sessions are persisted into the refresh-token session
+# ===========================================================================
+
+my $sess_body = to_json( {
+        refresh_token => $rt,
+        hostname      => 'srv1.example.com',
+        server_group  => 'default',
+        sessions      => [
+            { user => 'dwho', from => '10.0.0.5', tty => 'pts/0', since => 1700000000 },
+            { user => 'rtyler', from => '', tty => 'tty1', since => 1700000100 },
+        ],
+    }
+);
+ok(
+    $res = $op->_post(
+        '/pam/heartbeat',
+        IO::String->new($sess_body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($sess_body),
+    ),
+    'POST /pam/heartbeat with sessions list'
+);
+expectOK($res);
+count(1);
+
+$rt_session = $oidc_mod->getRefreshToken($rt);
+ok( $rt_session->data->{_pamSessions}, '_pamSessions stored in refresh session' );
+is( $rt_session->data->{_pamSessionCount}, 2, '_pamSessionCount matches list length' );
+my $stored = from_json( $rt_session->data->{_pamSessions} );
+is( ref $stored,            'ARRAY', '_pamSessions decodes to a JSON array' );
+is( $stored->[0]->{user},   'dwho',  'first session user persisted' );
+is( $stored->[0]->{from},   '10.0.0.5', 'first session source host persisted' );
+is( $stored->[1]->{tty},    'tty1',  'second session tty persisted' );
+count(6);
+
+# ===========================================================================
+# Test 7: malformed "sessions" (not an array) is coerced to an empty list
+# ===========================================================================
+
+my $bad_sess_body = to_json( {
+        refresh_token => $rt,
+        hostname      => 'srv1.example.com',
+        server_group  => 'default',
+        sessions      => 'not-an-array',
+    }
+);
+ok(
+    $res = $op->_post(
+        '/pam/heartbeat',
+        IO::String->new($bad_sess_body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($bad_sess_body),
+    ),
+    'POST /pam/heartbeat with malformed sessions'
+);
+expectOK($res);
+count(1);
+
+$rt_session = $oidc_mod->getRefreshToken($rt);
+is( $rt_session->data->{_pamSessions}, '[]', 'malformed sessions coerced to empty JSON array' );
+is( $rt_session->data->{_pamSessionCount}, 0, 'malformed sessions yields count 0' );
+count(2);
+
 clean_sessions();
 done_testing();

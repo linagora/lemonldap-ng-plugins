@@ -1024,6 +1024,21 @@ sub heartbeat {
         $updates->{_pamStats} = to_json( $body->{stats} );
     }
 
+    # Store the list of users currently connected on this machine ("who is
+    # connected"), reported by ob-heartbeat. Always persist a JSON array so
+    # consumers can rely on _pamSessions being an array consistent with
+    # _pamSessionCount; coerce a malformed (non-array) payload to an empty list.
+    if ( $body->{sessions} ) {
+        my $sessions = $body->{sessions};
+        unless ( ref $sessions eq 'ARRAY' ) {
+            $self->logger->warn(
+                'PAM heartbeat: ignoring malformed "sessions" (not an array)');
+            $sessions = [];
+        }
+        $updates->{_pamSessions}     = to_json($sessions);
+        $updates->{_pamSessionCount} = scalar @$sessions;
+    }
+
     # First heartbeat = enrollment timestamp
     unless ( $rtSession->data->{_pamEnrolledAt} ) {
         $updates->{_pamEnrolledAt} = $now;
