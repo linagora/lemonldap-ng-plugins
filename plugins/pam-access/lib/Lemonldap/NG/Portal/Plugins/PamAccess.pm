@@ -1014,6 +1014,7 @@ sub heartbeat {
         _pamHostname    => $hostname,
         _pamServerGroup => $body->{server_group} || 'default',
         _pamVersion     => $body->{version}      || '',
+        _pamNodeRole    => $body->{node_role}    || '',
         _pamLastSeen    => $now,
         _pamStatus      => 'active',
         _utime          => $now + $offlineExp - $self->conf->{timeout},
