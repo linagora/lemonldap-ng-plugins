@@ -123,7 +123,13 @@ sub handleOrganizationDevice {
     # session id is a live credential — anyone who learned it could replay it as
     # a `lemonldap` cookie and impersonate the synthetic session. The digest is
     # deterministic (stable across refreshes), unique per device, and one-way.
-    $session_data->{_deviceId} = sha256_hex( $session->id );
+    #
+    # The fixed prefix is domain separation: with hashedSessionStore enabled the
+    # backend storage key is itself sha256_hex(session id), so a bare
+    # sha256_hex(session id) here would equal that internal key. Prefixing
+    # guarantees the exposed device-id can never coincide with a LLNG storage
+    # key, in either storage mode.
+    $session_data->{_deviceId} = sha256_hex( 'pam-device-id:' . $session->id );
 
     $self->userLogger->notice(
 "Organization device enrolled: client=$client_id for RP $rp (approved by $approved_by)"
