@@ -304,8 +304,9 @@ SKIP: {
     my $ps  = $op->p->getPersistentSession('french');
     my $raw = $ps->data->{ "_pamEphCert::" . $eph_fp };
     ok( $raw, 'ephemeral hop cert registered under its per-fingerprint key' );
-    ok( !$ps->data->{_sshCerts}
-          || from_json( $ps->data->{_sshCerts} ) ne $raw,
+    my $sshCerts =
+      $ps->data->{_sshCerts} ? from_json( $ps->data->{_sshCerts} ) : [];
+    ok( !( grep { ( $_->{fingerprint} || '' ) eq $eph_fp } @$sshCerts ),
         '  -> NOT mixed into the ssh-ca _sshCerts list' );
     my $rec = $raw ? from_json($raw) : {};
     ok( $rec->{expires_at} && $rec->{expires_at} <= time() + 90 + 5,
