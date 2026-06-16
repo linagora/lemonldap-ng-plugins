@@ -83,10 +83,15 @@ ok(
                     }
                 },
 
-                # 'default' is a bastion group, so an enrolled server (which
-                # resolves to 'default' in legacy mode) counts as a bastion.
-                pamAccessBastionGroups => 'default,bastion',
-                pamAccessSshRules      => { default => '1' },
+                # 'default' is deliberately NOT a bastion group. An enrolled
+                # server resolves to 'default' in legacy mode (no per-host
+                # server_group in the device-grant session — the realistic case
+                # with one project-wide client_id), so this proves /pam/bastion-
+                # cert and /pam/bastion-token no longer gate on the caller's
+                # group: the voucher (minted only when the caller authorizes with
+                # a real bastion group) is the sole security control.
+                pamAccessBastionGroups => 'bastion',
+                pamAccessSshRules      => { default => '1', bastion => '1' },
                 # Pin issued certs to the bastion IP (off by default); the
                 # "pin disabled" block below overrides this back to 0.
                 pamAccessBastionCertPinSourceAddress => 1,
@@ -160,7 +165,7 @@ sub bastion_post {
 
 # --- /pam/authorize mints a (bastion_id, user) voucher -----------------------
 $res = bastion_post( '/pam/authorize',
-    { user => 'french', server_group => 'default', host => 'b1', service => 'ssh' } );
+    { user => 'french', server_group => 'bastion', host => 'b1', service => 'ssh' } );
 is( $res->[0], 200, '/pam/authorize 200' );
 my $authz = from_json( $res->[2]->[0] );
 ok( $authz->{authorized}, '  -> authorized' );
@@ -313,14 +318,14 @@ SKIP: {
         '  -> entry is short-lived (cert TTL)' );
 
     # Integration: the backend's /pam/authorize with that fingerprint is now
-    # authorized (previously denied as fingerprint not-found). 'default' is a
-    # bastion group here, so this mints a fresh voucher — capture it so the
+    # authorized (previously denied as fingerprint not-found). 'bastion' is a
+    # real bastion group, so this mints a fresh voucher — capture it so the
     # voucher-reuse tests below keep working.
     $res = bastion_post(
         '/pam/authorize',
         {
             user         => 'french',
-            server_group => 'default',
+            server_group => 'bastion',
             host         => 'backend1.op.com',
             service      => 'ssh',
             fingerprint  => $eph_fp,
@@ -336,7 +341,7 @@ SKIP: {
         '/pam/authorize',
         {
             user         => 'french',
-            server_group => 'default',
+            server_group => 'bastion',
             host         => 'backend1.op.com',
             service      => 'ssh',
             fingerprint  => 'SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',

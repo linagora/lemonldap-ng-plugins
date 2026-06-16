@@ -265,6 +265,93 @@ is( $payload->{target_host},  '', 'Default target_host is empty' );
 is( $payload->{target_group}, 'default', 'Default target_group is "default"' );
 count(2);
 
+# ============================================================================
+# Authoritative server_group resolution (pamAccessServerGroups configured)
+# ----------------------------------------------------------------------------
+# When the client_id->group mapping is configured, the JWT's bastion_group
+# claim must come from the mapping, never from the caller-provided request
+# body: /pam/bastion-token treats the group as informational, but it still must
+# not sign a value the caller could forge. A body group that contradicts the
+# mapping is rejected exactly as in /pam/authorize.
+# ============================================================================
+{
+    my $op2;
+    ok(
+        $op2 = LLNG::Manager::Test->new( {
+                ini => {
+                    logLevel => $debug,
+                    domain   => 'op.com',
+                    portal   => 'http://auth.op.com',
+                    pam_lib::base_config(),
+                    pamAccessSshRules      => { default => '1' },
+                    pamAccessBastionGroups => 'bastion',
+                    pamAccessBastionJwtTtl => 300,
+
+                    # The enrolled server (client_id 'pam-access') is
+                    # authoritatively mapped to the 'bastion' group.
+                    pamAccessServerGroups => { 'pam-access' => 'bastion' },
+                }
+            }
+        ),
+        'OP with pamAccessServerGroups mapping'
+    );
+
+    my $id2  = $op2->login('french');
+    my $tok2 = pam_lib::enroll_server( $op2, $id2 );
+    ok( $tok2, 'Got server token (mapped OP)' );
+    count(1);
+
+    # Stamp the _pamSeen marker for 'french' (as the real /pam flow would).
+    {
+        my $q = 'duration=60';
+        my $r = $op2->_post(
+            '/pam',
+            IO::String->new($q),
+            accept => 'application/json',
+            cookie => "lemonldap=$id2",
+            length => length($q),
+        );
+        expectOK($r);
+    }
+
+    # A caller-forged bastion_group that contradicts the mapping is rejected.
+    my $forged = to_json(
+        { user => 'french', bastion_group => 'evil-forged-group' } );
+    ok(
+        $res = $op2->_post(
+            '/pam/bastion-token',
+            IO::String->new($forged),
+            accept => 'application/json',
+            type   => 'application/json',
+            length => length($forged),
+            custom => { HTTP_AUTHORIZATION => "Bearer $tok2" },
+        ),
+        'POST /pam/bastion-token with a forged bastion_group'
+    );
+    expectReject( $res, 403 );
+
+    # Without a contradicting body group, the JWT carries the *mapped* group.
+    my $ok_body = to_json( { user => 'french' } );
+    ok(
+        $res = $op2->_post(
+            '/pam/bastion-token',
+            IO::String->new($ok_body),
+            accept => 'application/json',
+            type   => 'application/json',
+            length => length($ok_body),
+            custom => { HTTP_AUTHORIZATION => "Bearer $tok2" },
+        ),
+        'POST /pam/bastion-token (mapped OP) succeeds'
+    );
+    expectOK($res);
+    my $j2 = expectJSON($res);
+    my @p2 = split /\./, $j2->{bastion_jwt};
+    my $pl2 = from_json( decode_base64url( $p2[1] ) );
+    is( $pl2->{bastion_group}, 'bastion',
+        'JWT bastion_group is the authoritative mapped value' );
+    count(1);
+}
+
 clean_sessions();
 done_testing();
 
