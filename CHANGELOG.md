@@ -1,5 +1,35 @@
 # Changelog
 
+## v0.3.6 - 2026-06-16
+
+Touched plugins bumped to **0.3.6** in lockstep: `pam-access`. Theme: make
+the `/pam/bastion-cert` vouching hop work end-to-end with the `/pam/authorize`
+SSH-fingerprint binding, and let deployments behind NAT/PAT or a reverse proxy
+opt out of source-address pinning.
+
+### pam-access
+
+- **Fix — accept ephemeral bastion-hop certificates on `/pam/authorize`**.
+  Once the backend forwards the ephemeral certificate's public-key
+  fingerprint, the `/pam/authorize` SSH-fingerprint binding
+  (`_checkSshFingerprint`) rejected the vouched hop as "fingerprint not-found"
+  because that fingerprint was never recorded anywhere. `/pam/bastion-cert`
+  now registers the issued fingerprint at signing time under a dedicated
+  per-fingerprint persistent-session key (`_pamEphCert::<fp>`), consulted
+  first by `_checkSshFingerprint`. It is stored outside `_sshCerts` on
+  purpose: concurrent hops (`scp host1: host2:`) cannot clobber each other
+  (per-key `Session->update` merge) and ssh-ca's SSO cert records are left
+  untouched. Entries self-expire with the certificate TTL.
+- **Feature — `pamAccessBastionCertPinSourceAddress`**. New boolean option
+  (default `0`) gating whether `/pam/bastion-cert` pins the issued certificate
+  to the bastion's IP via the `source-address` critical option. Enable it
+  whenever there is no NAT/PAT between the bastions and the portal — a free,
+  transparent hardening so a leaked certificate is only usable from the
+  bastion that requested it. Left off by default so deployments where the
+  address LLNG observes differs from the bastion's SSH egress address (reverse
+  proxy, multi-homed bastion, NAT/PAT) are not broken. The pin was previously
+  unconditional.
+
 ## v0.3.5 - 2026-06-15
 
 Touched plugins bumped to **0.3.5** in lockstep: `pam-access`,
