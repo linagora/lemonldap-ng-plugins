@@ -289,6 +289,62 @@ SKIP: {
         "  -> cert expires ~90s after signing (got ${end}s)" );
 }
 
+# ============================================================================
+# The ephemeral cert's fingerprint is registered (under its own per-fingerprint
+# key, not in _sshCerts) so the backend's /pam/authorize SSH-fingerprint binding
+# accepts the vouched hop (otherwise it is denied as "fingerprint not-found").
+# ============================================================================
+{
+    # The ephemeral cert was signed from $eph_pubkey; its public-key fingerprint
+    # is what the backend forwards and what we must have registered.
+    my $sshca = $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::SSHCA'};
+    my $eph_fp = $sshca->_sshKeyFingerprint($eph_pubkey);
+    ok( $eph_fp, 'computed ephemeral key fingerprint' );
+
+    my $ps  = $op->p->getPersistentSession('french');
+    my $raw = $ps->data->{ "_pamEphCert::" . $eph_fp };
+    ok( $raw, 'ephemeral hop cert registered under its per-fingerprint key' );
+    ok( !$ps->data->{_sshCerts}
+          || from_json( $ps->data->{_sshCerts} ) ne $raw,
+        '  -> NOT mixed into the ssh-ca _sshCerts list' );
+    my $rec = $raw ? from_json($raw) : {};
+    ok( $rec->{expires_at} && $rec->{expires_at} <= time() + 90 + 5,
+        '  -> entry is short-lived (cert TTL)' );
+
+    # Integration: the backend's /pam/authorize with that fingerprint is now
+    # authorized (previously denied as fingerprint not-found). 'default' is a
+    # bastion group here, so this mints a fresh voucher — capture it so the
+    # voucher-reuse tests below keep working.
+    $res = bastion_post(
+        '/pam/authorize',
+        {
+            user         => 'french',
+            server_group => 'default',
+            host         => 'backend1.op.com',
+            service      => 'ssh',
+            fingerprint  => $eph_fp,
+        }
+    );
+    is( $res->[0], 200, 'POST /pam/authorize with ephemeral fp -> 200' );
+    my $a = from_json( $res->[2]->[0] );
+    ok( $a->{authorized}, '  -> authorized (fp binding satisfied)' );
+    $voucher = $a->{bastion_voucher} if $a->{bastion_voucher};
+
+    # An ephemeral fingerprint that was never issued is still rejected.
+    $res = bastion_post(
+        '/pam/authorize',
+        {
+            user         => 'french',
+            server_group => 'default',
+            host         => 'backend1.op.com',
+            service      => 'ssh',
+            fingerprint  => 'SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        }
+    );
+    ok( !from_json( $res->[2]->[0] )->{authorized},
+        'POST /pam/authorize with an unknown fp -> denied (binding intact)' );
+}
+
 # Voucher is REUSABLE (not consumed) -> supports multi-hop / scp host1: host2:
 $res = bastion_post(
     '/pam/bastion-cert',

@@ -22,6 +22,12 @@ use Lemonldap::NG::Portal::Main::Constants qw(
 
 our $VERSION = '2.22.0';
 
+# Persistent-session key prefix for ephemeral bastion-hop cert fingerprints.
+# One key per fingerprint ($EPH_CERT_PREFIX.<fp>) so concurrent hops don't
+# clobber each other (Session->update merges per key). See /pam/bastion-cert
+# and _checkSshFingerprint.
+our $EPH_CERT_PREFIX = '_pamEphCert::';
+
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'PamAccess';
@@ -1723,6 +1729,26 @@ sub _checkSshFingerprint {
         return { ok => 0, reason => 'session-error' };
     }
 
+    my $now = time();
+
+    # Ephemeral bastion-hop certs are registered per-fingerprint by
+    # /pam/bastion-cert (see $EPH_CERT_PREFIX) rather than in _sshCerts, so check
+    # that keyspace first — a direct key lookup, and it also covers users whose
+    # _sshCerts is empty.
+    my $ephRaw = $ps->data->{ $EPH_CERT_PREFIX . $fingerprint };
+    if ($ephRaw) {
+        my $rec = eval { from_json($ephRaw) };
+        if ( $rec && ( !$rec->{expires_at} || $rec->{expires_at} >= $now ) ) {
+            return {
+                ok         => 1,
+                serial     => $rec->{serial},
+                key_id     => $rec->{key_id},
+                expires_at => $rec->{expires_at},
+                ephemeral  => 1,
+            };
+        }
+    }
+
     my $raw = $ps->data->{_sshCerts};
     return { ok => 0, reason => 'no-certs' } unless $raw;
 
@@ -1732,7 +1758,6 @@ sub _checkSshFingerprint {
         return { ok => 0, reason => 'corrupted' };
     }
 
-    my $now = time();
     for my $cert (@$certs) {
         next unless ( $cert->{fingerprint} || '' ) eq $fingerprint;
         if ( $cert->{revoked_at} ) {
@@ -2012,6 +2037,50 @@ sub bastionCert {
             { error => 'Failed to sign certificate' },
             code => 500
         );
+    }
+
+    # Register the ephemeral cert's public-key fingerprint so the backend this
+    # hop targets accepts it: its /pam/authorize SSH-fingerprint binding
+    # (_checkSshFingerprint) only admits fingerprints we know, otherwise the
+    # vouched hop is denied as "fingerprint not-found".
+    #
+    # Stored under a PER-FINGERPRINT key ($EPH_CERT_PREFIX.<fp>), NOT in the
+    # shared _sshCerts list, deliberately:
+    #   * Concurrency — Lemonldap::NG::Common::Session->update re-reads the store
+    #     and merges per key, so two hops minted at the same time each keep their
+    #     own entry; a read-modify-write of one shared list/array would lose one.
+    #   * Separation — _sshCerts holds the user's SSO certs owned by ssh-ca,
+    #     which intentionally keeps expired records (revoking via the KRL). We
+    #     must not prune those, so ephemeral hop certs live in their own keyspace.
+    # Entries self-expire via expires_at (enforced in _checkSshFingerprint); we
+    # opportunistically drop our OWN expired keys in the same update — safe
+    # because per-key merge never clobbers a concurrently-added fresh key.
+    my $eph_fp = $sshca->_sshKeyFingerprint($public_key);
+    if ( $eph_fp && $ps && !$ps->error ) {
+        my $now  = time();
+        my %upd  = (
+            $EPH_CERT_PREFIX . $eph_fp => to_json(
+                {
+                    serial     => $serial,
+                    key_id     => $keyId,
+                    issued_at  => $now,
+                    expires_at => $now + $ttl,
+                }
+            )
+        );
+        for my $k ( keys %{ $ps->data } ) {
+            next unless index( $k, $EPH_CERT_PREFIX ) == 0;
+            next if $k eq $EPH_CERT_PREFIX . $eph_fp;
+            my $r = eval { from_json( $ps->data->{$k} // '' ) };
+            $upd{$k} = undef
+              if !$r || ( $r->{expires_at} && $r->{expires_at} < $now );
+        }
+        $ps->update( \%upd );
+    }
+    elsif ( !$eph_fp ) {
+        $self->logger->warn(
+                "PAM bastion-cert: could not compute fingerprint for ephemeral "
+              . "key (user '$user'); the backend fp binding may deny this hop" );
     }
 
     $self->p->auditLog(
