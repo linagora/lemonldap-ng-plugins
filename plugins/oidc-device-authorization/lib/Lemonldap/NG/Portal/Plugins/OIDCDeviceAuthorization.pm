@@ -219,6 +219,12 @@ sub deviceAuthorizationEndpoint {
             $user_code_hash,
             kind   => sessionKind,
             noInfo => 1,
+
+            # These device-authorization sessions are stored under a fixed id
+            # (the SHA-256 of the code), created with hashStore => 0; every
+            # lookup must opt out of hashedSessionStore too, or it would search
+            # under sha256_hex(id) and never find them.
+            hashStore => 0,
         );
 
         if ( !$existing ) {
@@ -684,7 +690,8 @@ sub _findByUserCode {
     my $user_code_hash = sha256_hex($user_code);
 
     my $user_code_session =
-      $self->p->getApacheSession( $user_code_hash, kind => sessionKind, );
+      $self->p->getApacheSession( $user_code_hash, kind => sessionKind,
+        hashStore => 0, );
 
     unless ( $user_code_session && $user_code_session->data ) {
         $self->logger->debug("User code session not found: $user_code");
@@ -713,7 +720,8 @@ sub _getDeviceAuthByHash {
     my ( $self, $device_code_hash ) = @_;
 
     my $session =
-      $self->p->getApacheSession( $device_code_hash, kind => sessionKind, );
+      $self->p->getApacheSession( $device_code_hash, kind => sessionKind,
+        hashStore => 0, );
 
     unless ( $session && $session->data ) {
         $self->logger->debug("Device auth session not found");
@@ -754,8 +762,9 @@ sub _updateDeviceAuthStatus {
     # Update session
     $self->p->getApacheSession(
         $session->id,
-        kind => sessionKind,
-        info => $info,
+        kind      => sessionKind,
+        info      => $info,
+        hashStore => 0,
     );
 }
 
@@ -771,7 +780,8 @@ sub _deleteDeviceAuth {
     if ( my $user_code = $device_auth->{user_code} ) {
         my $user_code_hash = sha256_hex($user_code);
         my $user_code_session =
-          $self->p->getApacheSession( $user_code_hash, kind => sessionKind, );
+          $self->p->getApacheSession( $user_code_hash, kind => sessionKind,
+            hashStore => 0, );
         $user_code_session->remove if $user_code_session;
     }
 }

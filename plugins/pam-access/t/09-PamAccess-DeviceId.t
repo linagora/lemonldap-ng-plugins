@@ -58,9 +58,10 @@ ok(
 
 # Probe /pam/bastion-token (no voucher/ssh-ca needed) → returns bastion_id.
 sub probe_bastion_id {
-    my ($token) = @_;
+    my ( $token, $opx ) = @_;
+    $opx ||= $op;
     my $body = to_json( { probe => JSON::true(), target_group => 'bastion' } );
-    my $r    = $op->_post(
+    my $r    = $opx->_post(
         '/pam/bastion-token',
         IO::String->new($body),
         accept => 'application/json',
@@ -161,5 +162,53 @@ ok( $tok_hb, 'heartbeat minted a fresh access token' );
 my $id_hb = probe_bastion_id($tok_hb);
 is( $id_hb, $id_c,
     'device-id SURVIVES the heartbeat refresh (not reverted to client_id)' );
+
+# ---------------------------------------------------------------------------
+# End-to-end under hashedSessionStore: the org-device bastion enrollment that
+# first surfaced the device-authorization session-lookup bug must now work, and
+# the device-id (derived from the cleartext session id, domain-separated) stays
+# a valid per-device identifier in this storage mode.
+# ---------------------------------------------------------------------------
+{
+    my $op2;
+    ok(
+        $op2 = LLNG::Manager::Test->new( {
+                ini => {
+                    logLevel           => $debug,
+                    domain             => 'op.com',
+                    portal             => 'http://auth.op.com',
+                    hashedSessionStore => 1,
+                    pam_lib::base_config(),
+                    customPlugins =>
+'::Plugins::PamAccess ::Plugins::OIDCDeviceAuthorization ::Plugins::OIDCDeviceOrganization',
+                    oidcRPMetaDataOptions => {
+                        'pam-access' => {
+                            oidcRPMetaDataOptionsDisplayName  => 'PAM Access',
+                            oidcRPMetaDataOptionsClientID     => 'pam-access',
+                            oidcRPMetaDataOptionsClientSecret => 'pamsecret',
+                            oidcRPMetaDataOptionsAccessTokenExpiration => 600,
+                            oidcRPMetaDataOptionsAllowDeviceAuthorization => 1,
+                            oidcRPMetaDataOptionsAllowOffline             => 1,
+                            oidcRPMetaDataOptionsDeviceOwnership => 'organization',
+                        }
+                    },
+                    pamAccessSshRules      => { default => '1', bastion => '1' },
+                    pamAccessBastionGroups => 'bastion',
+                }
+            }
+        ),
+        'OP with hashedSessionStore enabled'
+    );
+
+    my $hsid  = $op2->login('french');
+    my $tok_h = pam_lib::enroll_server( $op2, $hsid );
+    ok( $tok_h, 'org-device enrollment succeeds under hashedSessionStore' );
+    my $id_h = probe_bastion_id( $tok_h, $op2 );
+    ok( $id_h, "device-id present under hashedSessionStore ($id_h)" );
+    like( $id_h, qr/\A[0-9a-f]{64}\z/,
+        'device-id is still a SHA-256 hex digest under hashedSessionStore' );
+    isnt( $id_h, 'pam-access',
+        'device-id is the per-device id, not the shared client_id' );
+}
 
 done_testing();
