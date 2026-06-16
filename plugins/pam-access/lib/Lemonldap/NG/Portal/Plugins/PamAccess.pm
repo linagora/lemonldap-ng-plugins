@@ -1264,18 +1264,19 @@ sub bastionToken {
     }
 
     # 4. Identify the calling server.
-    # bastion_id is the OIDC client_id, which in this model identifies a
-    # *project* (it enrolls every machine of the project) — it is set at RP
-    # registration and cannot be forged by the host. We do NOT gate this
-    # endpoint on a "bastion group": with a project-wide client_id the
-    # device-grant session carries no per-host server_group (it would resolve to
-    # "default" and reject every probe). The caller already proved it holds a
-    # valid device-grant token with the pam scope (steps 1-3), which is all that
-    # is required to learn its own bastion_id. The bastion-group distinction is
-    # enforced where it matters — voucher minting in /pam/authorize — not here.
-    # Prefer the per-device identifier (stamped at enrollment by the
-    # oidc-device-organization plugin) so a project-wide client_id still yields a
-    # unique id per bastion; fall back to client_id for legacy enrollments.
+    # bastion_id is taken from the device-grant token session and cannot be
+    # forged by the host: we prefer the per-device identifier `_deviceId`
+    # (stamped at enrollment by oidc-device-organization) so that a project-wide
+    # client_id — which enrolls every machine of the project and so identifies
+    # only the *project* — still yields an id unique per bastion; we fall back
+    # to client_id for legacy enrollments that carry no _deviceId.
+    # We do NOT gate this endpoint on a "bastion group": with a project-wide
+    # client_id the device-grant session carries no per-host server_group (it
+    # would resolve to "default" and reject every probe). The caller already
+    # proved it holds a valid device-grant token with the pam scope (steps 1-3),
+    # which is all that is required to learn its own bastion_id. The
+    # bastion-group distinction is enforced where it matters — voucher minting
+    # in /pam/authorize — not here.
     my $bastion_id = $tokenSession->data->{_deviceId}
       || $tokenSession->data->{client_id}
       || 'unknown';

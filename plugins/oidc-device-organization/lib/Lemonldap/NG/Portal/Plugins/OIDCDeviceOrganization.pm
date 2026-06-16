@@ -16,6 +16,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCDeviceOrganization;
 
 use strict;
 use Mouse;
+use Digest::SHA qw(sha256_hex);
 use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
 
 our $VERSION = '2.23.0';
@@ -92,11 +93,11 @@ sub handleOrganizationDevice {
         return PE_OK;    # Fall back to normal user-linked behavior
     }
 
-    # Point to the new synthetic session instead of the admin's. Its id is also a
-    # stable, unique-per-device identifier (one synthetic session per enrolled
-    # device), reused below as the device-id carried in the tokens.
-    my $device_id = $session->id;
-    $device_auth->{user_session_id} = $device_id;
+    # Point to the new synthetic session instead of the admin's (its real id is
+    # used for session lookups). One synthetic session is created per enrolled
+    # device, so it is also a stable, unique-per-device anchor — but we never
+    # expose the raw session id: see _deviceId below.
+    $device_auth->{user_session_id} = $session->id;
 
     # NOTE: we deliberately KEEP offline_access in the scope so the device
     # gets a long-lived *offline* refresh token (the durable machine identity,
@@ -116,8 +117,13 @@ sub handleOrganizationDevice {
     # Stable, unique per-device identifier carried into every token derived from
     # this enrollment (access + refresh), so downstream consumers (PamAccess
     # bastion vouching) can identify the individual device — not just its shared,
-    # project-wide client_id.
-    $session_data->{_deviceId} = $device_id;
+    # project-wide client_id. We derive it as a SHA-256 digest of the synthetic
+    # session id rather than exposing the id itself: the value is surfaced in
+    # tokens and API responses (e.g. the /pam/bastion-token probe), and the raw
+    # session id is a live credential — anyone who learned it could replay it as
+    # a `lemonldap` cookie and impersonate the synthetic session. The digest is
+    # deterministic (stable across refreshes), unique per device, and one-way.
+    $session_data->{_deviceId} = sha256_hex( $session->id );
 
     $self->userLogger->notice(
 "Organization device enrolled: client=$client_id for RP $rp (approved by $approved_by)"

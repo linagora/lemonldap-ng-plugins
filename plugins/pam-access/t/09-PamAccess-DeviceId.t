@@ -90,6 +90,10 @@ isnt( $id_a, 'pam-access',
 isnt( $id_b, 'pam-access', 'bastion_id B is the per-device id' );
 isnt( $id_a, $id_b, 'two enrolled devices get DISTINCT device-ids' );
 
+# The device-id is a SHA-256 digest of the synthetic session id, never the raw
+# session id (which is a live credential replayable as a `lemonldap` cookie).
+like( $id_a, qr/\A[0-9a-f]{64}\z/, 'device-id is a SHA-256 hex digest' );
+
 # ---------------------------------------------------------------------------
 # The device-id must SURVIVE a heartbeat refresh: in production the bastion's
 # access token expires and is re-minted via /pam/heartbeat from the refresh
