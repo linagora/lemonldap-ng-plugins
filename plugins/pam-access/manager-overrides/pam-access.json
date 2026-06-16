@@ -84,6 +84,11 @@
       "type": "text",
       "default": "",
       "documentation": "Choice sub-module used by PamAccess server-to-server endpoints (must match an entry of authChoiceModules). Leave empty when Choice auth is not used."
+    },
+    "pamAccessBastionCertPinSourceAddress": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Pin the ephemeral certificate issued by /pam/bastion-cert to the bastion's IP (source-address critical option), so a leaked cert is only usable from the bastion that requested it. Recommended when there is no NAT/PAT between the bastion and the portal. Leave disabled when the address LLNG observes differs from the bastion's SSH egress address (reverse proxy, multi-homed bastion, NAT/PAT). Default 0 (disabled)."
     }
   },
   "tree": [
@@ -118,7 +123,8 @@
             "pamAccessBastionGroups",
             "pamAccessBastionJwtTtl",
             "pamAccessBastionMaxSeenAge",
-            "pamAccessChoice"
+            "pamAccessChoice",
+            "pamAccessBastionCertPinSourceAddress"
           ]
         }
       ]
@@ -200,6 +206,10 @@
     "pamAccessChoice": {
       "en": "Choice sub-module for server-to-server endpoints",
       "fr": "Sous-module Choice pour les endpoints serveur-à-serveur"
+    },
+    "pamAccessBastionCertPinSourceAddress": {
+      "en": "Pin bastion certificate to source address",
+      "fr": "Lier le certificat bastion à l'adresse source"
     }
   }
 }

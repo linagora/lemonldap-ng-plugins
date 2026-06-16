@@ -1855,9 +1855,10 @@ sub _checkBastionVoucher {
 # The bastion proves: (1) it holds a valid device-grant token for a bastion
 # group (Bearer); (2) it holds a fresh (bastion_id, user) voucher minted by
 # /pam/authorize when this user actually connected to it. LLNG then signs the
-# supplied ephemeral public key with the ssh-ca CA key, pinning the cert to the
-# bastion's IP (source-address) and encoding bastion_id in the key-id so the
-# backend can enforce its allowed-bastions list.
+# supplied ephemeral public key with the ssh-ca CA key, optionally pinning the
+# cert to the bastion's IP (source-address, gated by
+# pamAccessBastionCertPinSourceAddress) and encoding bastion_id in the key-id
+# so the backend can enforce its allowed-bastions list.
 #
 # Request: { user, target_host, target_group, public_key, voucher }
 # Response: { certificate, expires_in, serial, key_id }
@@ -1989,9 +1990,14 @@ sub bastionCert {
     my $serial = $sshca->_getNextSerial;
     my %signOpts = ( validity => "+${ttl}s" );
 
-    # Pin the cert to the vouching bastion's IP (sshd-native enforcement).
+    # Optionally pin the cert to the vouching bastion's IP (sshd-native
+    # enforcement), so a leaked ephemeral cert is only usable from the bastion
+    # that requested it. Off by default: the observed address must match the
+    # bastion's SSH egress address (no NAT/PAT, no reverse proxy in between).
+    my $pinSource = $self->conf->{pamAccessBastionCertPinSourceAddress};
     my $bastion_ip = $req->address;
-    if ( defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/ ) {
+    if ( $pinSource && defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/ )
+    {
         $signOpts{source_address} = $bastion_ip;
     }
 
@@ -2159,9 +2165,10 @@ Sign a short-lived ephemeral SSH user certificate for a bastion-to-backend
 hop (requires the ssh-ca plugin). The bastion proves it holds a valid
 device-grant Bearer token for a bastion group, plus a fresh
 (bastion, user) voucher minted by C</pam/authorize> when the user actually
-connected to it. The certificate is pinned to the bastion's IP
-(C<source-address> critical option) and encodes the bastion identity in
-its key-id so backends can enforce an allowed-bastions list.
+connected to it. When C<pamAccessBastionCertPinSourceAddress> is enabled the
+certificate is pinned to the bastion's IP (C<source-address> critical
+option); it always encodes the bastion identity in its key-id so backends
+can enforce an allowed-bastions list.
 
 Requires: Bearer token in Authorization header
 
@@ -2267,6 +2274,19 @@ known. Must be a positive integer; invalid values fall back to the default.
 Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
 seconds (default: 120). Must be a positive integer; invalid values fall
 back to the default.
+
+=item pamAccessBastionCertPinSourceAddress
+
+When enabled, the ephemeral certificate issued by C</pam/bastion-cert> is
+pinned to the bastion's IP through the C<source-address> critical option,
+so that a leaked certificate can only be used from the bastion that
+requested it (sshd-native enforcement). It is B<recommended to enable this>
+whenever there is no NAT/PAT between the bastions and the portal, as it adds
+a strong, transparent restriction at no cost. Leave it disabled when the
+address LemonLDAP::NG observes does not match the bastion's SSH egress
+address (portal behind a reverse proxy, multi-homed bastion, NAT/PAT),
+otherwise legitimate certificates would be rejected by the backend.
+(default: 0, disabled)
 
 =item pamAccessChoice
 

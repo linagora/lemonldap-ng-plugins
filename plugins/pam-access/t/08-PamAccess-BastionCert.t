@@ -87,6 +87,9 @@ ok(
                 # resolves to 'default' in legacy mode) counts as a bastion.
                 pamAccessBastionGroups => 'default,bastion',
                 pamAccessSshRules      => { default => '1' },
+                # Pin issued certs to the bastion IP (off by default); the
+                # "pin disabled" block below overrides this back to 0.
+                pamAccessBastionCertPinSourceAddress => 1,
                 # 90s (not a multiple of 60) so the issued cert can only
                 # come from the "+90s" $opts override, not the legacy
                 # minute-granularity argument.
@@ -297,6 +300,35 @@ $res = bastion_post(
     }
 );
 is( $res->[0], 200, 'same voucher reused for a second hop -> 200' );
+
+# ============================================================================
+# pamAccessBastionCertPinSourceAddress = 0 drops the source-address pin
+# (for deployments where the IP LLNG observes is not the bastion's SSH egress
+# address: portal behind a reverse proxy, multi-homed bastion, NAT, ...).
+# ============================================================================
+SKIP: {
+    skip "no ssh-keygen for cert inspection", 2 unless $certresp->{certificate};
+    my $conf = $op->p->conf;
+    local $conf->{pamAccessBastionCertPinSourceAddress} = 0;
+    $res = bastion_post(
+        '/pam/bastion-cert',
+        {
+            user        => 'french',
+            target_host => 'backend3.op.com',
+            public_key  => $eph_pubkey,
+            voucher     => $voucher,
+        }
+    );
+    is( $res->[0], 200, 'pin disabled -> 200 cert still issued' );
+    my $nc = from_json( $res->[2]->[0] );
+    my $tmpdir = tempdir( CLEANUP => 1 );
+    open my $fh, '>', "$tmpdir/n-cert.pub" or die;
+    print $fh $nc->{certificate};
+    close $fh;
+    my $L = `ssh-keygen -L -f $tmpdir/n-cert.pub 2>&1`;
+    unlike( $L, qr/source-address/,
+        '  -> no source-address critical option when pin disabled' );
+}
 
 # ============================================================================
 # Expired voucher -> 403 voucher_expired (client tells user to reconnect)
