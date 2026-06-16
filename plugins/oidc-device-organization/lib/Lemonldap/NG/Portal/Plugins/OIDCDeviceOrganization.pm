@@ -92,8 +92,11 @@ sub handleOrganizationDevice {
         return PE_OK;    # Fall back to normal user-linked behavior
     }
 
-    # Point to the new synthetic session instead of the admin's
-    $device_auth->{user_session_id} = $session->id;
+    # Point to the new synthetic session instead of the admin's. Its id is also a
+    # stable, unique-per-device identifier (one synthetic session per enrolled
+    # device), reused below as the device-id carried in the tokens.
+    my $device_id = $session->id;
+    $device_auth->{user_session_id} = $device_id;
 
     # NOTE: we deliberately KEEP offline_access in the scope so the device
     # gets a long-lived *offline* refresh token (the durable machine identity,
@@ -109,6 +112,12 @@ sub handleOrganizationDevice {
 
     # Replace session_data so tokens carry synthetic attributes
     %$session_data = %{ $session->data };
+
+    # Stable, unique per-device identifier carried into every token derived from
+    # this enrollment (access + refresh), so downstream consumers (PamAccess
+    # bastion vouching) can identify the individual device — not just its shared,
+    # project-wide client_id.
+    $session_data->{_deviceId} = $device_id;
 
     $self->userLogger->notice(
 "Organization device enrolled: client=$client_id for RP $rp (approved by $approved_by)"

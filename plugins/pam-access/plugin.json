@@ -12,6 +12,7 @@
   "customPlugins": "::Plugins::PamAccess",
   "test_depends": [
     "oidc-device-authorization",
+    "oidc-device-organization",
     "ssh-ca"
   ],
   "tags": [
