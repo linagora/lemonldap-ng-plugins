@@ -1738,9 +1738,14 @@ sub _checkSshFingerprint {
     my $ephRaw = $ps->data->{ $EPH_CERT_PREFIX . $fingerprint };
     if ($ephRaw) {
         my $rec = eval { from_json($ephRaw) };
-        if ( ref($rec) eq 'HASH'
-            && ( !$rec->{expires_at} || $rec->{expires_at} >= $now ) )
-        {
+        if ( $@ || ref($rec) ne 'HASH' ) {
+
+            # Corrupted entry: ignore it and fall through to _sshCerts rather
+            # than failing the whole lookup.
+            $self->logger->warn(
+                "PAM verify: corrupted ephemeral cert record for $user: $@");
+        }
+        elsif ( !$rec->{expires_at} || $rec->{expires_at} >= $now ) {
             return {
                 ok         => 1,
                 serial     => $rec->{serial},
@@ -2075,7 +2080,8 @@ sub bastionCert {
             next if $k eq $EPH_CERT_PREFIX . $eph_fp;
             my $r = eval { from_json( $ps->data->{$k} // '' ) };
             $upd{$k} = undef
-              if ref($r) ne 'HASH'
+              if $@
+              || ref($r) ne 'HASH'
               || ( $r->{expires_at} && $r->{expires_at} < $now );
         }
         $ps->update( \%upd );
