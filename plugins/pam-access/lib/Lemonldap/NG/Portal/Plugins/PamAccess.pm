@@ -2019,10 +2019,10 @@ sub bastionCert {
     # enforcement), so a leaked ephemeral cert is only usable from the bastion
     # that requested it. Off by default: the observed address must match the
     # bastion's SSH egress address (no NAT/PAT, no reverse proxy in between).
-    my $pinSource = $self->conf->{pamAccessBastionCertPinSourceAddress};
+    my $pinSource  = $self->conf->{pamAccessBastionCertPinSourceAddress};
     my $bastion_ip = $req->address;
-    if ( $pinSource && defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/ )
-    {
+    my $valid_ip = defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/;
+    if ( $pinSource && $valid_ip ) {
         $signOpts{source_address} = $bastion_ip;
     }
 

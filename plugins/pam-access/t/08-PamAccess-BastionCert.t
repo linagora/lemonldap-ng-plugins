@@ -363,7 +363,7 @@ is( $res->[0], 200, 'same voucher reused for a second hop -> 200' );
 # address: portal behind a reverse proxy, multi-homed bastion, NAT, ...).
 # ============================================================================
 SKIP: {
-    skip "no ssh-keygen for cert inspection", 2 unless $certresp->{certificate};
+    skip "no certificate to inspect", 2 unless $certresp->{certificate};
     my $conf = $op->p->conf;
     local $conf->{pamAccessBastionCertPinSourceAddress} = 0;
     $res = bastion_post(
@@ -381,7 +381,7 @@ SKIP: {
     open my $fh, '>', "$tmpdir/n-cert.pub" or die;
     print $fh $nc->{certificate};
     close $fh;
-    my $L = `ssh-keygen -L -f $tmpdir/n-cert.pub 2>&1`;
+    my $L = `ssh-keygen -L -f "$tmpdir/n-cert.pub" 2>&1`;
     unlike( $L, qr/source-address/,
         '  -> no source-address critical option when pin disabled' );
 }
