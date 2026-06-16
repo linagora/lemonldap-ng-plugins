@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.3.7 - 2026-06-16
+
+Touched plugins bumped to **0.3.7** in lockstep: `pam-access`. Theme: make
+the bastion-hop endpoints work under the realistic "one OIDC `client_id` per
+project" model, where the device-grant session carries no per-host server
+group.
+
+### pam-access
+
+- **Fix — stop gating the bastion endpoints on the caller's `server_group`**.
+  `/pam/bastion-token` and `/pam/bastion-cert` previously re-derived the
+  caller's group from the access-token session and rejected it unless it was
+  in `pamAccessBastionGroups`. With a single OIDC `client_id` shared by every
+  host of a project, the device-grant session carries no per-host
+  `server_group`, so this always resolved to `default` and rejected every
+  legitimate bastion hop. The group check is removed at both endpoints. The
+  security property — a bastion may mint credentials only for a user who
+  actually connected to it — is carried entirely by the `(bastion_id, user)`
+  voucher, which `/pam/authorize` mints only for a host whose resolved
+  `server_group` is in `pamAccessBastionGroups`. `/pam/bastion-cert` verifies
+  that voucher, so its existence already proves the caller was a legitimate
+  bastion at connection time.
+- **Change — resolve `/pam/bastion-token`'s informational group
+  authoritatively**. The `bastion_group` carried in audit logs, the probe
+  response and the signed JWT is now resolved through `pamAccessServerGroups`
+  rather than trusted from the request body: when the `client_id`→group
+  mapping is configured the mapped group is authoritative (a forged or
+  mismatched body group is rejected, as in `/pam/authorize`), so a
+  caller-forgeable group is never signed into the JWT. Legacy mode (empty
+  mapping) keeps trusting the caller-claimed value. The group remains
+  informational for this endpoint — no bastion-group gate is reintroduced.
+
 ## v0.3.6 - 2026-06-16
 
 Touched plugins bumped to **0.3.6** in lockstep: `pam-access`. Theme: make
