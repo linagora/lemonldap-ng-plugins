@@ -96,8 +96,8 @@ a durable machine identity decoupled from the admin's SSO session.
 
 - **Fix — issue offline refresh tokens independently of the online
   `RefreshToken` option**. `_generateTokens` now mirrors the core token
-  endpoint: an *offline* refresh token is gated by the `offline_access`
-  scope **plus** `oidcRPMetaDataOptionsAllowOffline`, while an *online*
+  endpoint: an _offline_ refresh token is gated by the `offline_access`
+  scope **plus** `oidcRPMetaDataOptionsAllowOffline`, while an _online_
   refresh token is gated by `oidcRPMetaDataOptionsRefreshToken`. These are
   two independent gates, so `AllowOffline` alone is now enough to mint an
   offline refresh token even when the online `RefreshToken` option is off
