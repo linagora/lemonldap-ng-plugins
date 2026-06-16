@@ -22,6 +22,12 @@ use Lemonldap::NG::Portal::Main::Constants qw(
 
 our $VERSION = '2.22.0';
 
+# Persistent-session key prefix for ephemeral bastion-hop cert fingerprints.
+# One key per fingerprint ($EPH_CERT_PREFIX.<fp>) so concurrent hops don't
+# clobber each other (Session->update merges per key). See /pam/bastion-cert
+# and _checkSshFingerprint.
+our $EPH_CERT_PREFIX = '_pamEphCert::';
+
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'PamAccess';
@@ -1723,6 +1729,33 @@ sub _checkSshFingerprint {
         return { ok => 0, reason => 'session-error' };
     }
 
+    my $now = time();
+
+    # Ephemeral bastion-hop certs are registered per-fingerprint by
+    # /pam/bastion-cert (see $EPH_CERT_PREFIX) rather than in _sshCerts, so check
+    # that keyspace first — a direct key lookup, and it also covers users whose
+    # _sshCerts is empty.
+    my $ephRaw = $ps->data->{ $EPH_CERT_PREFIX . $fingerprint };
+    if ($ephRaw) {
+        my $rec = eval { from_json($ephRaw) };
+        if ( $@ || ref($rec) ne 'HASH' ) {
+
+            # Corrupted entry: ignore it and fall through to _sshCerts rather
+            # than failing the whole lookup.
+            $self->logger->warn(
+                "PAM verify: corrupted ephemeral cert record for $user: $@");
+        }
+        elsif ( !$rec->{expires_at} || $rec->{expires_at} >= $now ) {
+            return {
+                ok         => 1,
+                serial     => $rec->{serial},
+                key_id     => $rec->{key_id},
+                expires_at => $rec->{expires_at},
+                ephemeral  => 1,
+            };
+        }
+    }
+
     my $raw = $ps->data->{_sshCerts};
     return { ok => 0, reason => 'no-certs' } unless $raw;
 
@@ -1732,7 +1765,6 @@ sub _checkSshFingerprint {
         return { ok => 0, reason => 'corrupted' };
     }
 
-    my $now = time();
     for my $cert (@$certs) {
         next unless ( $cert->{fingerprint} || '' ) eq $fingerprint;
         if ( $cert->{revoked_at} ) {
@@ -1855,9 +1887,10 @@ sub _checkBastionVoucher {
 # The bastion proves: (1) it holds a valid device-grant token for a bastion
 # group (Bearer); (2) it holds a fresh (bastion_id, user) voucher minted by
 # /pam/authorize when this user actually connected to it. LLNG then signs the
-# supplied ephemeral public key with the ssh-ca CA key, pinning the cert to the
-# bastion's IP (source-address) and encoding bastion_id in the key-id so the
-# backend can enforce its allowed-bastions list.
+# supplied ephemeral public key with the ssh-ca CA key, optionally pinning the
+# cert to the bastion's IP (source-address, gated by
+# pamAccessBastionCertPinSourceAddress) and encoding bastion_id in the key-id
+# so the backend can enforce its allowed-bastions list.
 #
 # Request: { user, target_host, target_group, public_key, voucher }
 # Response: { certificate, expires_in, serial, key_id }
@@ -1989,9 +2022,14 @@ sub bastionCert {
     my $serial = $sshca->_getNextSerial;
     my %signOpts = ( validity => "+${ttl}s" );
 
-    # Pin the cert to the vouching bastion's IP (sshd-native enforcement).
+    # Optionally pin the cert to the vouching bastion's IP (sshd-native
+    # enforcement), so a leaked ephemeral cert is only usable from the bastion
+    # that requested it. Off by default: the observed address must match the
+    # bastion's SSH egress address (no NAT/PAT, no reverse proxy in between).
+    my $pinSource  = $self->conf->{pamAccessBastionCertPinSourceAddress};
     my $bastion_ip = $req->address;
-    if ( defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/ ) {
+    my $valid_ip = defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/;
+    if ( $pinSource && $valid_ip ) {
         $signOpts{source_address} = $bastion_ip;
     }
 
@@ -2006,6 +2044,52 @@ sub bastionCert {
             { error => 'Failed to sign certificate' },
             code => 500
         );
+    }
+
+    # Register the ephemeral cert's public-key fingerprint so the backend this
+    # hop targets accepts it: its /pam/authorize SSH-fingerprint binding
+    # (_checkSshFingerprint) only admits fingerprints we know, otherwise the
+    # vouched hop is denied as "fingerprint not-found".
+    #
+    # Stored under a PER-FINGERPRINT key ($EPH_CERT_PREFIX.<fp>), NOT in the
+    # shared _sshCerts list, deliberately:
+    #   * Concurrency — Lemonldap::NG::Common::Session->update re-reads the store
+    #     and merges per key, so two hops minted at the same time each keep their
+    #     own entry; a read-modify-write of one shared list/array would lose one.
+    #   * Separation — _sshCerts holds the user's SSO certs owned by ssh-ca,
+    #     which intentionally keeps expired records (revoking via the KRL). We
+    #     must not prune those, so ephemeral hop certs live in their own keyspace.
+    # Entries self-expire via expires_at (enforced in _checkSshFingerprint); we
+    # opportunistically drop our OWN expired keys in the same update — safe
+    # because per-key merge never clobbers a concurrently-added fresh key.
+    my $eph_fp = $sshca->_sshKeyFingerprint($public_key);
+    if ( $eph_fp && $ps && !$ps->error ) {
+        my $now  = time();
+        my %upd  = (
+            $EPH_CERT_PREFIX . $eph_fp => to_json(
+                {
+                    serial     => $serial,
+                    key_id     => $keyId,
+                    issued_at  => $now,
+                    expires_at => $now + $ttl,
+                }
+            )
+        );
+        for my $k ( keys %{ $ps->data } ) {
+            next unless index( $k, $EPH_CERT_PREFIX ) == 0;
+            next if $k eq $EPH_CERT_PREFIX . $eph_fp;
+            my $r = eval { from_json( $ps->data->{$k} // '' ) };
+            $upd{$k} = undef
+              if $@
+              || ref($r) ne 'HASH'
+              || ( $r->{expires_at} && $r->{expires_at} < $now );
+        }
+        $ps->update( \%upd );
+    }
+    elsif ( !$eph_fp ) {
+        $self->logger->warn(
+                "PAM bastion-cert: could not compute fingerprint for ephemeral "
+              . "key (user '$user'); the backend fp binding may deny this hop" );
     }
 
     $self->p->auditLog(
@@ -2159,9 +2243,10 @@ Sign a short-lived ephemeral SSH user certificate for a bastion-to-backend
 hop (requires the ssh-ca plugin). The bastion proves it holds a valid
 device-grant Bearer token for a bastion group, plus a fresh
 (bastion, user) voucher minted by C</pam/authorize> when the user actually
-connected to it. The certificate is pinned to the bastion's IP
-(C<source-address> critical option) and encodes the bastion identity in
-its key-id so backends can enforce an allowed-bastions list.
+connected to it. When C<pamAccessBastionCertPinSourceAddress> is enabled the
+certificate is pinned to the bastion's IP (C<source-address> critical
+option); it always encodes the bastion identity in its key-id so backends
+can enforce an allowed-bastions list.
 
 Requires: Bearer token in Authorization header
 
@@ -2267,6 +2352,19 @@ known. Must be a positive integer; invalid values fall back to the default.
 Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
 seconds (default: 120). Must be a positive integer; invalid values fall
 back to the default.
+
+=item pamAccessBastionCertPinSourceAddress
+
+When enabled, the ephemeral certificate issued by C</pam/bastion-cert> is
+pinned to the bastion's IP through the C<source-address> critical option,
+so that a leaked certificate can only be used from the bastion that
+requested it (sshd-native enforcement). It is B<recommended to enable this>
+whenever there is no NAT/PAT between the bastions and the portal, as it adds
+a strong, transparent restriction at no cost. Leave it disabled when the
+address LemonLDAP::NG observes does not match the bastion's SSH egress
+address (portal behind a reverse proxy, multi-homed bastion, NAT/PAT),
+otherwise legitimate certificates would be rejected by the backend.
+(default: 0, disabled)
 
 =item pamAccessChoice
 

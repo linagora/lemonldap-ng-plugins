@@ -43,22 +43,37 @@ into `/etc/lemonldap-ng/manager-overrides.d/`, add `::Plugins::PamAccess` to
 
 In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 
-| Parameter                    | Description                                                                                                                                                                              | Default   |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `pamAccessActivation`        | Enable the plugin                                                                                                                                                                        | `0`       |
-| `pamAccessTokenDuration`     | Default user token TTL (seconds)                                                                                                                                                         | `600`     |
-| `pamAccessMaxDuration`       | Maximum user token TTL (seconds)                                                                                                                                                         | `3600`    |
-| `pamAccessSshRules`          | Per-group SSH authorization rules                                                                                                                                                        | `{}`      |
-| `pamAccessSudoRules`         | Per-group sudo authorization rules                                                                                                                                                       | `{}`      |
-| `pamAccessExportedVars`      | Session attributes to expose to PAM modules                                                                                                                                              | `{}`      |
-| `pamAccessServerGroups`      | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` and `/pam/bastion-token` enforce the mapping and reject mismatches.                                   | `{}`      |
-| `pamAccessBastionGroups`     | Comma-separated list of server groups allowed to call `/pam/bastion-token`                                                                                                               | `bastion` |
-| `pamAccessBastionJwtTtl`     | Bastion JWT validity in seconds                                                                                                                                                          | `300`     |
-| `pamAccessBastionMaxSeenAge` | Maximum age (seconds) of the `_pamSeen` marker accepted by `/pam/bastion-token`. Default 1 week. Set to `0` to disable the age check.                                                    | `604800`  |
-| `pamAccessOfflineEnabled`    | Enable offline mode (boolOrExpr)                                                                                                                                                         | `0`       |
-| `pamAccessOfflineTtl`        | Offline authorization cache TTL (seconds)                                                                                                                                                | `86400`   |
-| `pamAccessHeartbeatRequired` | Require a recent heartbeat for `/pam/authorize`                                                                                                                                          | `0`       |
-| `pamAccessChoice`            | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token`. Leave empty when Choice auth is not used. | `""`      |
+| Parameter                              | Description                                                                                                                                                                              | Default   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `pamAccessActivation`                  | Enable the plugin                                                                                                                                                                        | `0`       |
+| `pamAccessTokenDuration`               | Default user token TTL (seconds)                                                                                                                                                         | `600`     |
+| `pamAccessMaxDuration`                 | Maximum user token TTL (seconds)                                                                                                                                                         | `3600`    |
+| `pamAccessSshRules`                    | Per-group SSH authorization rules                                                                                                                                                        | `{}`      |
+| `pamAccessSudoRules`                   | Per-group sudo authorization rules                                                                                                                                                       | `{}`      |
+| `pamAccessExportedVars`                | Session attributes to expose to PAM modules                                                                                                                                              | `{}`      |
+| `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` and `/pam/bastion-token` enforce the mapping and reject mismatches.                                   | `{}`      |
+| `pamAccessBastionGroups`               | Comma-separated list of server groups allowed to call `/pam/bastion-token`                                                                                                               | `bastion` |
+| `pamAccessBastionJwtTtl`               | Bastion JWT validity in seconds                                                                                                                                                          | `300`     |
+| `pamAccessBastionMaxSeenAge`           | Maximum age (seconds) of the `_pamSeen` marker accepted by `/pam/bastion-token`. Default 1 week. Set to `0` to disable the age check.                                                    | `604800`  |
+| `pamAccessOfflineEnabled`              | Enable offline mode (boolOrExpr)                                                                                                                                                         | `0`       |
+| `pamAccessOfflineTtl`                  | Offline authorization cache TTL (seconds)                                                                                                                                                | `86400`   |
+| `pamAccessHeartbeatRequired`           | Require a recent heartbeat for `/pam/authorize`                                                                                                                                          | `0`       |
+| `pamAccessChoice`                      | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token`. Leave empty when Choice auth is not used. | `""`      |
+| `pamAccessBastionCertPinSourceAddress` | Pin the ephemeral cert issued by `/pam/bastion-cert` to the bastion's IP (`source-address` critical option). See the note below.                                                         | `0`       |
+
+> **Recommendation — `pamAccessBastionCertPinSourceAddress`**
+>
+> When enabled, the certificate issued by `/pam/bastion-cert` carries a
+> `source-address` critical option pinning it to the bastion's IP, so a leaked
+> certificate is only usable from the bastion that requested it (enforced
+> natively by `sshd`). **Enable it whenever there is no NAT/PAT between the
+> bastions and the portal** — it is a free, transparent hardening of the
+> bastion-to-backend hop.
+>
+> Keep it disabled (the default) when the address LemonLDAP::NG observes does
+> not match the bastion's SSH egress address — portal behind a reverse proxy,
+> multi-homed bastion, or NAT/PAT — otherwise legitimate certificates would be
+> rejected by the backend.
 
 ## Endpoints
 
