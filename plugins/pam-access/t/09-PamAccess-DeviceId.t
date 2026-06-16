@@ -211,4 +211,5 @@ is( $id_hb, $id_c,
         'device-id is the per-device id, not the shared client_id' );
 }
 
+clean_sessions();
 done_testing();

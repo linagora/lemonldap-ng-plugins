@@ -115,4 +115,5 @@ ok( $payload->{access_token}, "Got access_token" );
 ok( $payload->{id_token},     "Got id_token" );
 count(3);
 
+clean_sessions();
 done_testing();
