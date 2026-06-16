@@ -1251,35 +1251,17 @@ sub bastionToken {
         return $self->_forbiddenResponse( $req, 'Invalid token scope' );
     }
 
-    # 4. Resolve this server's authoritative group.
-    # In legacy mode (no pamAccessServerGroups mapping), preserve the
-    # prior behaviour of reading `server_group` from the access-token
-    # session, so deployments that populate it out-of-band keep working.
-    my $bastion_id    = $tokenSession->data->{client_id} || 'unknown';
-    my $session_group = $tokenSession->data->{server_group};
-    my $server_group =
-      $self->_resolveServerGroup( $req, $bastion_id, $session_group,
-        'PAM bastion-token' );
-    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
-        return $self->_forbiddenResponse( $req, $server_group->{message} );
-    }
-
-    my $bastion_groups = $self->conf->{pamAccessBastionGroups} || 'bastion';
-    my @allowed_groups = split /[,;\s]+/, $bastion_groups;
-    my $is_bastion     = 0;
-    for my $allowed (@allowed_groups) {
-        if ( $server_group eq $allowed ) {
-            $is_bastion = 1;
-            last;
-        }
-    }
-    unless ($is_bastion) {
-        $self->logger->warn(
-"PAM bastion-token: Server group '$server_group' is not a bastion group"
-        );
-        return $self->_forbiddenResponse( $req,
-            "Server is not an authorized bastion (group: $server_group)" );
-    }
+    # 4. Identify the calling server.
+    # bastion_id is the OIDC client_id, which in this model identifies a
+    # *project* (it enrolls every machine of the project) — it is set at RP
+    # registration and cannot be forged by the host. We do NOT gate this
+    # endpoint on a "bastion group": with a project-wide client_id the
+    # device-grant session carries no per-host server_group (it would resolve to
+    # "default" and reject every probe). The caller already proved it holds a
+    # valid device-grant token with the pam scope (steps 1-3), which is all that
+    # is required to learn its own bastion_id. The bastion-group distinction is
+    # enforced where it matters — voucher minting in /pam/authorize — not here.
+    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
 
     # 5. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -1291,14 +1273,18 @@ sub bastionToken {
     my $user         = $body->{user};
     my $target_host  = $body->{target_host}  || '';
     my $target_group = $body->{target_group} || 'default';
+    # Informational only (audit logs / probe response): the group the caller
+    # claims for itself. Not a security control — see step 4.
+    my $server_group =
+      $body->{bastion_group} || $tokenSession->data->{server_group} || 'default';
 
     # Probe mode (ob-bastion-id): a server self-identifying the bastion_id it
     # would receive does not vouch for any real user, so the per-user _pamSeen
-    # recency gate below does not apply, and no `user` is required. Steps 1-4
-    # already proved the caller holds a valid device-grant token for a group
-    # listed in pamAccessBastionGroups — which is exactly what authorises it
-    # to learn its own bastion_id. We return the identifier only, never a
-    # usable JWT, so probe mode cannot be abused to mint credentials.
+    # recency gate below does not apply, and no `user` is required. Steps 1-3
+    # already proved the caller holds a valid device-grant token with the pam
+    # scope — which is all that is required to learn its own bastion_id. We
+    # return the identifier only, never a usable JWT, so probe mode cannot be
+    # abused to mint credentials.
     if ( $body->{probe} ) {
         $self->logger->info( "PAM bastion-token: probe request — "
               . "returning bastion_id '$bastion_id' (group=$server_group)" );
@@ -1916,20 +1902,20 @@ sub bastionCert {
     return $self->_forbiddenResponse( $req, 'Invalid token scope' )
       unless $scope =~ /\bpam(?::server)?\b/;
 
-    my $bastion_id    = $tokenSession->data->{client_id} || 'unknown';
-    my $session_group = $tokenSession->data->{server_group};
-    my $server_group =
-      $self->_resolveServerGroup( $req, $bastion_id, $session_group,
-        'PAM bastion-cert' );
-    return $self->_forbiddenResponse( $req, $server_group->{message} )
-      if ref $server_group eq 'HASH' && $server_group->{rejected};
+    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
 
-    unless ( $self->_isBastionGroup($server_group) ) {
-        $self->logger->warn( "PAM bastion-cert: server group '$server_group' "
-              . "is not a bastion group" );
-        return $self->_forbiddenResponse( $req,
-            "Server is not an authorized bastion (group: $server_group)" );
-    }
+    # NB: we deliberately do NOT re-derive or require a "bastion group" here.
+    # The only security property that matters at this endpoint — a bastion may
+    # mint a certificate ONLY for a user who actually connected to it — is
+    # carried entirely by the voucher checked below. That voucher is minted by
+    # /pam/authorize ONLY for a host whose server_group is in
+    # pamAccessBastionGroups, and it binds (bastion_id, user); so its mere
+    # existence already proves the caller was a legitimate bastion at connection
+    # time. Re-checking the group from the access-token session here was both
+    # redundant and wrong for the intended model (one OIDC client_id per
+    # *project*, with finer-grained PAM groups inside it): the device-grant
+    # session carries no per-host server_group, so it always resolved to
+    # "default" and rejected every legitimate hop.
 
     # 5. Parse + validate request body.
     my $body = eval { from_json( $req->content ) };
