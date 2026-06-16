@@ -878,6 +878,14 @@ sub _generateTokens {
     $access_token_extra->{user_session_id} = $user_session_id
       if $user_session_id;
 
+    # Propagate a per-device identifier set by the grant hook (e.g.
+    # oidc-device-organization stamps the synthetic session id as _deviceId) into
+    # the access token session, so consumers can identify the individual enrolled
+    # device. newAccessToken() only persists $access_token_extra, not arbitrary
+    # $session_data keys, hence this explicit forward.
+    $access_token_extra->{_deviceId} = $session_data->{_deviceId}
+      if $session_data->{_deviceId};
+
     my $access_token =
       $self->oidc->newAccessToken( $req, $rp, $scope, $session_data,
         $access_token_extra );

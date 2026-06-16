@@ -278,8 +278,13 @@ sub authorize {
         return $self->_forbiddenResponse( $req, 'Invalid token scope' );
     }
 
-    # Log server identity from token
-    my $server_id = $tokenSession->data->{client_id} || 'unknown';
+    # Log server identity from token. Prefer the per-device id (stamped at
+    # enrollment by oidc-device-organization) so the voucher we mint binds to the
+    # individual bastion, matching what /pam/bastion-cert checks; fall back to
+    # client_id for legacy enrollments.
+    my $server_id = $tokenSession->data->{_deviceId}
+      || $tokenSession->data->{client_id}
+      || 'unknown';
     $self->logger->info(
         "PAM authorize request from enrolled server: $server_id");
 
@@ -1063,9 +1068,16 @@ sub heartbeat {
     #    the server's identity self-contained (RFC spirit: short access token,
     #    long refresh token, refresh loop driven by the device).
     my $scope = $rtSession->data->{scope} || '';
+    # Carry the per-device identifier across refreshes: newAccessToken() only
+    # persists this $info hash, not arbitrary $rtSession->data keys, so without
+    # this the bastion_id would revert to the shared client_id after the first
+    # heartbeat (the device-grant token has it, the refreshed ones would not).
+    my %at_extra = ( grant_type => 'device_code' );
+    $at_extra{_deviceId} = $rtSession->data->{_deviceId}
+      if $rtSession->data->{_deviceId};
     my $access_token =
       $self->oidc->newAccessToken( $req, $rp, $scope, $rtSession->data,
-        { grant_type => 'device_code' } );
+        \%at_extra );
 
     unless ($access_token) {
         $self->logger->error('PAM heartbeat: failed to mint access token');
@@ -1252,16 +1264,22 @@ sub bastionToken {
     }
 
     # 4. Identify the calling server.
-    # bastion_id is the OIDC client_id, which in this model identifies a
-    # *project* (it enrolls every machine of the project) — it is set at RP
-    # registration and cannot be forged by the host. We do NOT gate this
-    # endpoint on a "bastion group": with a project-wide client_id the
-    # device-grant session carries no per-host server_group (it would resolve to
-    # "default" and reject every probe). The caller already proved it holds a
-    # valid device-grant token with the pam scope (steps 1-3), which is all that
-    # is required to learn its own bastion_id. The bastion-group distinction is
-    # enforced where it matters — voucher minting in /pam/authorize — not here.
-    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    # bastion_id is taken from the device-grant token session and cannot be
+    # forged by the host: we prefer the per-device identifier `_deviceId`
+    # (stamped at enrollment by oidc-device-organization) so that a project-wide
+    # client_id — which enrolls every machine of the project and so identifies
+    # only the *project* — still yields an id unique per bastion; we fall back
+    # to client_id for legacy enrollments that carry no _deviceId.
+    # We do NOT gate this endpoint on a "bastion group": with a project-wide
+    # client_id the device-grant session carries no per-host server_group (it
+    # would resolve to "default" and reject every probe). The caller already
+    # proved it holds a valid device-grant token with the pam scope (steps 1-3),
+    # which is all that is required to learn its own bastion_id. The
+    # bastion-group distinction is enforced where it matters — voucher minting
+    # in /pam/authorize — not here.
+    my $bastion_id = $tokenSession->data->{_deviceId}
+      || $tokenSession->data->{client_id}
+      || 'unknown';
 
     # 5. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -1914,7 +1932,12 @@ sub bastionCert {
     return $self->_forbiddenResponse( $req, 'Invalid token scope' )
       unless $scope =~ /\bpam(?::server)?\b/;
 
-    my $bastion_id = $tokenSession->data->{client_id} || 'unknown';
+    # Prefer the per-device identifier (stamped at enrollment by the
+    # oidc-device-organization plugin) so a project-wide client_id still yields a
+    # unique id per bastion; fall back to client_id for legacy enrollments.
+    my $bastion_id = $tokenSession->data->{_deviceId}
+      || $tokenSession->data->{client_id}
+      || 'unknown';
 
     # NB: we deliberately do NOT re-derive or require a "bastion group" here.
     # The only security property that matters at this endpoint — a bastion may
