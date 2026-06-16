@@ -1273,10 +1273,21 @@ sub bastionToken {
     my $user         = $body->{user};
     my $target_host  = $body->{target_host}  || '';
     my $target_group = $body->{target_group} || 'default';
-    # Informational only (audit logs / probe response): the group the caller
-    # claims for itself. Not a security control — see step 4.
+    # Informational only (audit logs / probe response / JWT claims): not a
+    # security control for *this* endpoint — see step 4. We still resolve it
+    # through pamAccessServerGroups rather than trusting the request body
+    # blindly: when the client_id->group mapping is configured the resolved
+    # group is authoritative (and an unmapped/mismatched caller is rejected,
+    # as in /pam/authorize), so we never sign a caller-forged group into the
+    # JWT; in legacy mode (empty mapping) we fall back to the caller-claimed
+    # value, exactly as /pam/authorize does.
     my $server_group =
-      $body->{bastion_group} || $tokenSession->data->{server_group} || 'default';
+      $self->_resolveServerGroup( $req, $bastion_id,
+        $body->{bastion_group} || $tokenSession->data->{server_group},
+        'PAM bastion-token' );
+    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
+        return $self->_forbiddenResponse( $req, $server_group->{message} );
+    }
 
     # Probe mode (ob-bastion-id): a server self-identifying the bastion_id it
     # would receive does not vouch for any real user, so the per-user _pamSeen
@@ -1883,8 +1894,9 @@ sub _checkBastionVoucher {
 sub bastionCert {
     my ( $self, $req ) = @_;
 
-    # 1-4. Same caller gates as bastionToken: valid device-grant token, pam
-    #      scope, and a resolved server_group that is a bastion group.
+    # 1-3. Same caller gates as bastionToken: a valid device-grant token with
+    #      the pam scope. We do NOT require any "bastion group" here (see NB
+    #      below); the voucher checked in step 6 is the sole authorization.
     my $access_token = $self->oidc->getEndPointAccessToken($req);
     return $self->_unauthorizedResponse( $req, 'Bearer token required' )
       unless $access_token;
@@ -1908,10 +1920,14 @@ sub bastionCert {
     # The only security property that matters at this endpoint — a bastion may
     # mint a certificate ONLY for a user who actually connected to it — is
     # carried entirely by the voucher checked below. That voucher is minted by
-    # /pam/authorize ONLY for a host whose server_group is in
+    # /pam/authorize ONLY for a host whose resolved server_group is in
     # pamAccessBastionGroups, and it binds (bastion_id, user); so its mere
-    # existence already proves the caller was a legitimate bastion at connection
-    # time. Re-checking the group from the access-token session here was both
+    # existence proves the caller was treated as a bastion at connection time.
+    # (How strong that proof is depends on configuration: when
+    # pamAccessServerGroups maps client_id->group the group is authoritative;
+    # in legacy mode, with that mapping empty, /pam/authorize trusts the
+    # caller-provided server_group, so configure the mapping to harden this.)
+    # Re-checking the group from the access-token session here was both
     # redundant and wrong for the intended model (one OIDC client_id per
     # *project*, with finer-grained PAM groups inside it): the device-grant
     # session carries no per-host server_group, so it always resolved to
