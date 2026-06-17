@@ -1,5 +1,68 @@
 # Changelog
 
+## v0.3.8 - 2026-06-17
+
+Touched plugins bumped to **0.3.8** in lockstep: `oidc-device-organization`,
+`oidc-device-authorization`, `pam-access`. Theme: give every enrolled host a
+stable per-device identity when a whole project shares one OIDC `client_id`,
+carry that identity end-to-end as the bastion/server id, and fix the
+device-grant flow under `hashedSessionStore`.
+
+### oidc-device-organization
+
+- **Feature — stamp a per-device id (`_deviceId`) on the token session**. With
+  one OIDC `client_id` per *project*, `client_id` no longer identifies an
+  individual bastion, so the voucher binding and a backend's allowed-bastions
+  allowlist had nothing unique to pin on. The synthetic per-device session id
+  created at enrollment is now exposed as `_deviceId` for the rest of the
+  chain to consume.
+- **Security — derive `_deviceId` as a domain-separated digest, not the raw
+  session id**. `_deviceId` is surfaced in tokens and API responses (e.g. the
+  `/pam/bastion-token` probe), so stamping the raw synthetic session id leaked
+  a live credential that could be replayed as a `lemonldap` cookie to
+  impersonate the synthetic session. It is now `sha256_hex` of the session id
+  with a domain-separating prefix — deterministic, unique per device, one-way,
+  and guaranteed never to collide with a LLNG backend storage key (itself a
+  `sha256_hex` under `hashedSessionStore`). `user_session_id` keeps pointing to
+  the real session id for lookups.
+
+### oidc-device-authorization
+
+- **Feature — forward `_deviceId` into the access-token session**.
+  `_generateTokens` carries `_deviceId` through to the access token so the
+  per-device id reaches the PAM endpoints.
+- **Fix — make device sessions work under `hashedSessionStore`**. The
+  `user_code`/`device_code` device-authorization sessions are stored under a
+  fixed id (the SHA-256 of the code) with `hashStore => 0`, but the lookups
+  omitted `hashStore => 0`. With `hashedSessionStore` enabled,
+  `getApacheSession` then searched under `sha256_hex(id)` and never found
+  them: the verification page could not resolve the `user_code`, approval
+  silently failed, and the token exchange returned `expired_token` — breaking
+  every device-grant enrollment (including org-device bastion enrollment). All
+  fixed-id session lookups/updates/removals now force `hashStore => 0` to match
+  how the sessions are created; the real user SSO-session lookup is left to
+  respect `hashedSessionStore`.
+
+### pam-access
+
+- **Feature — use the per-device id as `bastion_id`/`server_id` under a shared
+  `client_id`**. `/pam/authorize`, `/pam/bastion-token` and `/pam/bastion-cert`
+  now prefer `_deviceId` as the server/bastion id, falling back to `client_id`
+  for legacy enrollments. `/pam/heartbeat` re-carries `_deviceId` into the
+  refreshed access token so the id survives refreshes instead of reverting to
+  the shared `client_id` after the first heartbeat.
+- **Fix — reuse the bastion voucher across concurrent sessions**. A user who
+  holds several SSH logins on the same bastion at once shares a single
+  `(bastion_id, user)` voucher across them. Minting a fresh nonce on every
+  `/pam/authorize` overwrote the nonce already exported into the other live
+  sessions' shells, which then failed at `/pam/bastion-cert` with
+  `voucher_mismatch` (symptom: "works only from the most recent login").
+  `_mintBastionVoucher` now reuses a still-valid nonce and only extends its
+  expiry (never shortens a live voucher), generating a new nonce only when none
+  is usable. Voucher minting is gated on the PAM login service
+  (`pamAccessBastionVoucherServices`, default `sshd ssh`) so a `sudo`
+  authorization check on the bastion has no voucher side effect.
+
 ## v0.3.7 - 2026-06-16
 
 Touched plugins bumped to **0.3.7** in lockstep: `pam-access`. Theme: make
