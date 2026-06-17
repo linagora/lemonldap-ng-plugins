@@ -529,13 +529,12 @@ sub authorize {
         # bastion could vouch for any user it never saw. Bound to the user's
         # SSO cert lifetime when a fingerprint matched above.
         #
-        # Only the interactive SSH login mints (and thus rotates) the voucher.
-        # A sudo elevation on the bastion ('sudo'/'sudo-i', canonicalized to
-        # 'sudo' by the PAM module) also reaches /pam/authorize, but minting
-        # there would generate a fresh nonce and overwrite the one already
-        # exported into the user's login shell — which then fails at
-        # /pam/bastion-cert with voucher_mismatch. Gate minting on the login
-        # service so a sudo authorization check has no voucher side effect.
+        # Only the interactive SSH login issues a voucher. A sudo elevation on
+        # the bastion ('sudo'/'sudo-i', canonicalized to 'sudo' by the PAM
+        # module) also reaches /pam/authorize, but a sudo authorization check
+        # must have no voucher side effect at all — neither rotating the stored
+        # nonce nor returning one in the response. Gate issuance on the login
+        # service so sudo stays voucher-free.
         if (   $self->_isBastionGroup($server_group)
             && $self->_isVoucherMintingService($service) )
         {
@@ -549,7 +548,7 @@ sub authorize {
                 $response->{bastion_voucher}            = $nonce;
                 $response->{bastion_voucher_expires_in} = $vexp - time();
                 $self->logger->debug(
-"PAM authorize: minted bastion voucher for user '$user' (bastion='$server_id', exp=$vexp)"
+"PAM authorize: issued bastion voucher for user '$user' (bastion='$server_id', exp=$vexp)"
                 );
             }
         }
@@ -1853,9 +1852,11 @@ sub _isVoucherMintingService {
     return 0;
 }
 
-# Mint (replace) a reusable (bastion_id, user) voucher in the user's persistent
-# session. Validity is capped by the user's SSO cert expiry when known, else by
-# pamAccessBastionVoucherTtl (default 12h). Returns ($nonce, $exp) or ().
+# Ensure a reusable (bastion_id, user) voucher exists in the user's persistent
+# session: reuse the current still-valid nonce when present (only extending its
+# expiry), otherwise generate a fresh one. Validity is capped by the user's SSO
+# cert expiry when known, else by pamAccessBastionVoucherTtl (default 12h).
+# Returns ($nonce, $exp) or ().
 sub _mintBastionVoucher {
     my ( $self, $req, $user, $bastion_id, $cert_expires_at ) = @_;
 
