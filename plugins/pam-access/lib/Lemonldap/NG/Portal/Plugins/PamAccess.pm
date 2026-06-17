@@ -528,7 +528,16 @@ sub authorize {
         # short-lived certs for THIS user only — closing the hole where a
         # bastion could vouch for any user it never saw. Bound to the user's
         # SSO cert lifetime when a fingerprint matched above.
-        if ( $self->_isBastionGroup($server_group) ) {
+        #
+        # Only the interactive SSH login issues a voucher. A sudo elevation on
+        # the bastion ('sudo'/'sudo-i', canonicalized to 'sudo' by the PAM
+        # module) also reaches /pam/authorize, but a sudo authorization check
+        # must have no voucher side effect at all — neither rotating the stored
+        # nonce nor returning one in the response. Gate issuance on the login
+        # service so sudo stays voucher-free.
+        if (   $self->_isBastionGroup($server_group)
+            && $self->_isVoucherMintingService($service) )
+        {
             my ( $nonce, $vexp ) = $self->_mintBastionVoucher(
                 $req, $user, $server_id,
                 ( $sshCheck && $sshCheck->{ok} )
@@ -539,7 +548,7 @@ sub authorize {
                 $response->{bastion_voucher}            = $nonce;
                 $response->{bastion_voucher_expires_in} = $vexp - time();
                 $self->logger->debug(
-"PAM authorize: minted bastion voucher for user '$user' (bastion='$server_id', exp=$vexp)"
+"PAM authorize: issued bastion voucher for user '$user' (bastion='$server_id', exp=$vexp)"
                 );
             }
         }
@@ -1825,18 +1834,31 @@ sub _isBastionGroup {
     return 0;
 }
 
-# Mint (replace) a reusable (bastion_id, user) voucher in the user's persistent
-# session. Validity is capped by the user's SSO cert expiry when known, else by
-# pamAccessBastionVoucherTtl (default 12h). Returns ($nonce, $exp) or ().
+# Whether the PAM service that triggered this /pam/authorize is allowed to mint
+# (and therefore rotate) the bastion voucher. Only the interactive SSH login
+# should: it is the one whose minted nonce is exported into the user's shell
+# environment. Other services that also authorize for the same (bastion_id,
+# user) — notably sudo/sudo-i — must leave the existing voucher untouched, or
+# they rotate the nonce and break the voucher already handed to the login shell
+# (the bastion then fails at /pam/bastion-cert with voucher_mismatch).
+# Configurable via pamAccessBastionVoucherServices (default: "sshd ssh").
+sub _isVoucherMintingService {
+    my ( $self, $service ) = @_;
+    return 0 unless defined $service && $service ne '';
+    my $services = $self->conf->{pamAccessBastionVoucherServices} || 'sshd ssh';
+    for my $allowed ( split /[,;\s]+/, $services ) {
+        return 1 if $service eq $allowed;
+    }
+    return 0;
+}
+
+# Ensure a reusable (bastion_id, user) voucher exists in the user's persistent
+# session: reuse the current still-valid nonce when present (only extending its
+# expiry), otherwise generate a fresh one. Validity is capped by the user's SSO
+# cert expiry when known, else by pamAccessBastionVoucherTtl (default 12h).
+# Returns ($nonce, $exp) or ().
 sub _mintBastionVoucher {
     my ( $self, $req, $user, $bastion_id, $cert_expires_at ) = @_;
-
-    my $nonce = $self->_generateUUID();
-    unless ($nonce) {
-        $self->logger->error(
-            'PAM authorize: cannot generate bastion voucher nonce');
-        return ();
-    }
 
     my $now    = time();
     my $ttlCap =
@@ -1862,6 +1884,32 @@ sub _mintBastionVoucher {
         delete $vmap->{$k}
           if ref $vmap->{$k} ne 'HASH' || ( $vmap->{$k}{exp} || 0 ) <= $now;
     }
+
+    # Idempotent reuse. A user routinely holds several concurrent sessions on
+    # the same bastion, and the (bastion_id, user) voucher is shared across all
+    # of them (it is keyed per bastion, not per session). Minting a fresh nonce
+    # on every /pam/authorize would overwrite the nonce already exported into
+    # the other live sessions' shells, which then fail at /pam/bastion-cert with
+    # voucher_mismatch (symptom: "works only from the most recent login"). So
+    # keep an existing still-valid nonce and only extend its expiry; generate a
+    # new nonce solely when none is usable (the prune above already dropped any
+    # expired entry for this bastion_id).
+    my $existing = $vmap->{$bastion_id};
+    my $nonce;
+    if ( $existing && ( $existing->{nonce} // '' ) ne '' ) {
+        $nonce = $existing->{nonce};
+        $exp   = $existing->{exp}
+          if ( $existing->{exp} || 0 ) > $exp;    # never shorten a live voucher
+    }
+    else {
+        $nonce = $self->_generateUUID();
+        unless ($nonce) {
+            $self->logger->error(
+                'PAM authorize: cannot generate bastion voucher nonce');
+            return ();
+        }
+    }
+
     $vmap->{$bastion_id} = { nonce => $nonce, exp => $exp };
     $ps->update( { _pamBastionVouchers => to_json($vmap) } );
 
@@ -2365,6 +2413,16 @@ This ensures that the PAM module is still active on the server. (default: 0)
 Comma/space-separated list of server groups considered bastions
 (default: 'bastion'). Members of these groups get a bastion voucher from
 C</pam/authorize> and may call C</pam/bastion-cert>.
+
+=item pamAccessBastionVoucherServices
+
+Comma/space-separated list of PAM service names whose C</pam/authorize> call
+is allowed to mint (and rotate) the bastion voucher (default: 'sshd ssh').
+Only the interactive SSH login should mint, since its nonce is exported into
+the user's shell. Other services that also authorize for the same bastion and
+user — notably C<sudo>/C<sudo-i> — must be excluded, otherwise they rotate the
+nonce and invalidate the voucher already held by the login shell (which then
+fails at C</pam/bastion-cert> with C<voucher_mismatch>).
 
 =item pamAccessBastionVoucherTtl
 

@@ -364,6 +364,41 @@ $res = bastion_post(
 is( $res->[0], 200, 'same voucher reused for a second hop -> 200' );
 
 # ============================================================================
+# Concurrent sessions: a user routinely holds several SSH logins on the same
+# bastion at once. The voucher is keyed per (bastion_id, user), so a second
+# login's /pam/authorize must REUSE the existing nonce, not rotate it -- else
+# the first session's already-exported voucher would start failing with
+# voucher_mismatch ("works only from the most recent login").
+{
+    $res = bastion_post( '/pam/authorize',
+        { user => 'french', server_group => 'bastion', host => 'b1', service => 'sshd' } );
+    is( $res->[0], 200, 'second concurrent login /pam/authorize -> 200' );
+    my $v2 = from_json( $res->[2]->[0] )->{bastion_voucher};
+    is( $v2, $voucher, '  -> reuses the same voucher nonce (no rotation)' );
+
+    # And a sudo elevation must not mint/rotate the voucher at all.
+    $res = bastion_post( '/pam/authorize',
+        { user => 'french', server_group => 'bastion', host => 'b1', service => 'sudo' } );
+    is( $res->[0], 200, 'sudo /pam/authorize -> 200' );
+    my $a = from_json( $res->[2]->[0] );
+    ok( !exists $a->{bastion_voucher},
+        '  -> sudo does not mint a voucher' );
+
+    # The original login voucher is still valid after both -> not rotated.
+    $res = bastion_post(
+        '/pam/bastion-cert',
+        {
+            user        => 'french',
+            target_host => 'backend9.op.com',
+            public_key  => $eph_pubkey,
+            voucher     => $voucher,
+        }
+    );
+    is( $res->[0], 200,
+        'login voucher still valid after a concurrent login + sudo -> 200' );
+}
+
+# ============================================================================
 # pamAccessBastionCertPinSourceAddress = 0 drops the source-address pin
 # (for deployments where the IP LLNG observes is not the bastion's SSH egress
 # address: portal behind a reverse proxy, multi-homed bastion, NAT, ...).
