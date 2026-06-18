@@ -271,6 +271,17 @@ jobs:
                 older versions. It is pulled automatically when needed.
               </div>
 
+              <h2>RPM Repository (EL9 &amp; EL10)</h2>
+              <p>The <code>linagora-lemonldap-ng-store</code> package is also
+              available as a signed <a href="rpm/">dnf/yum repository</a> for
+              RHEL/Rocky/AlmaLinux 9 &amp; 10 (single <code>noarch</code> package).</p>
+
+              <h3>Setup</h3>
+              <pre>sudo curl -fsSL ${PAGES_URL}rpm/linagora-llng-plugins.repo \\
+            -o /etc/yum.repos.d/linagora-llng-plugins.repo
+
+          sudo dnf install linagora-lemonldap-ng-store</pre>
+
             </div>
 
             <div class="footer">
@@ -278,6 +289,7 @@ jobs:
                 <li><a href="index.json">Store index (JSON)</a></li>
                 <li><a href="store-key.asc">GPG public key</a></li>
                 <li><a href="debian/">Debian packages</a></li>
+                <li><a href="rpm/">RPM packages (EL9/EL10)</a></li>
                 <li><a href="https://github.com/linagora/lemonldap-ng-plugins">Source repository</a></li>
                 <li><a href="https://lemonldap-ng.org">LemonLDAP::NG</a></li>
                 <li><a href="https://linagora.com">Linagora</a></li>
@@ -298,6 +310,22 @@ jobs:
         run: |
           chmod +x debian/build-repo.sh
           GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" debian/build-repo.sh _debs _site/debian
+
+      - name: Build RPM packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm createrepo-c
+          chmod +x rpm/build-rpms.sh
+          TAG="${GITHUB_REF_NAME#v}"
+          TAG="$TAG" rpm/build-rpms.sh _rpms
+
+      - name: Build RPM repository
+        run: |
+          chmod +x rpm/build-repo.sh
+          PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          REPO_URL="${PAGES_URL}rpm" \
+            GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" \
+            rpm/build-repo.sh _rpms _site/rpm
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
