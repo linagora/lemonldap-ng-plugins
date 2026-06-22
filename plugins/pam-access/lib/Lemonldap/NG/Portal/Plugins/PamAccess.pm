@@ -312,8 +312,15 @@ sub authorize {
     # If pamAccessServerGroups is empty, fall back to the legacy behaviour
     # (group from body) so existing deployments keep working; a warning is
     # emitted to encourage admins to lock down.
+    # pamAccessServerGroups is keyed by OIDC client_id (one client per project,
+    # the group shared by every bastion of that project), NOT by the per-device
+    # _deviceId. Resolve the group by client_id; $server_id (the _deviceId when
+    # present) stays the audit / voucher-binding identity. Passing $server_id
+    # here rejected every enrollment carrying a _deviceId, because that digest is
+    # never a key in the map ("Unknown enrolled server").
+    my $group_client_id = $tokenSession->data->{client_id} // $server_id;
     my $server_group =
-      $self->_resolveServerGroup( $req, $server_id, $body_server_group,
+      $self->_resolveServerGroup( $req, $group_client_id, $body_server_group,
         'PAM authorize' );
     if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
         $self->p->auditLog(
@@ -1308,8 +1315,12 @@ sub bastionToken {
     # as in /pam/authorize), so we never sign a caller-forged group into the
     # JWT; in legacy mode (empty mapping) we fall back to the caller-claimed
     # value, exactly as /pam/authorize does.
+    # Resolve the group by OIDC client_id, the key of pamAccessServerGroups
+    # (see /pam/authorize): $bastion_id is the per-device _deviceId, which is
+    # never a key in that map, so using it rejected every device-id enrollment.
+    my $group_client_id = $tokenSession->data->{client_id} // $bastion_id;
     my $server_group =
-      $self->_resolveServerGroup( $req, $bastion_id,
+      $self->_resolveServerGroup( $req, $group_client_id,
         $body->{bastion_group} || $tokenSession->data->{server_group},
         'PAM bastion-token' );
     if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
