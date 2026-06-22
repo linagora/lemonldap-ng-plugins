@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.3.9 - 2026-06-22
+
+Touched plugins bumped to **0.3.9** in lockstep: `pam-access`. Theme: let
+device-id enrollments resolve their authoritative server group when
+`pamAccessServerGroups` is configured.
+
+### pam-access
+
+- **Fix — resolve the server group by OIDC `client_id`, not by `_deviceId`**.
+  `pamAccessServerGroups` is keyed by `client_id` (one OIDC client per project,
+  the group shared by every bastion of that project), while `_deviceId` is the
+  per-device SHA-256 digest used as the audit / voucher-binding identity. Both
+  `/pam/authorize` and `/pam/bastion-token` were passing `_deviceId` to the
+  group resolver; since that digest is never a key of `pamAccessServerGroups`,
+  every enrollment carrying a `_deviceId` was rejected with
+  `Unknown enrolled server` even though its `client_id` was correctly mapped.
+  The group is now resolved by `client_id`, with `_deviceId` kept as the
+  audit / voucher-binding identity. Enforcement is unchanged — a caller-forged
+  group that contradicts the mapping is still rejected. Adds
+  `10-PamAccess-ServerGroupsDeviceId.t`, covering the previously-untested
+  combination of `oidc-device-organization` (which stamps `_deviceId`) with a
+  configured `pamAccessServerGroups`.
+
 ## v0.3.8 - 2026-06-17
 
 Touched plugins bumped to **0.3.8** in lockstep: `oidc-device-organization`,
