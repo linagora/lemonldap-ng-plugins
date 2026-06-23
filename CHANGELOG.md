@@ -34,7 +34,7 @@ device-grant flow under `hashedSessionStore`.
 ### oidc-device-organization
 
 - **Feature — stamp a per-device id (`_deviceId`) on the token session**. With
-  one OIDC `client_id` per *project*, `client_id` no longer identifies an
+  one OIDC `client_id` per _project_, `client_id` no longer identifies an
   individual bastion, so the voucher binding and a backend's allowed-bastions
   allowlist had nothing unique to pin on. The synthetic per-device session id
   created at enrollment is now exposed as `_deviceId` for the rest of the

@@ -5,7 +5,9 @@ generate temporary access tokens for SSH and other PAM-enabled services.
 
 ## Features
 
-- **Portal interface** (`/pam`): users generate short-lived one-time tokens.
+- **Portal interface** (`/pam`): users generate short-lived one-time tokens,
+  either from the web UI or with the [`llng` client](https://github.com/linagora/simple-oidc-client)
+  `pam_token` command.
 - **Token verification** (`/pam/verify`): server-to-server endpoint for PAM
   modules, with optional SSH fingerprint binding (see below).
 - **Authorization** (`/pam/authorize`): server-to-server endpoint for SSH /
@@ -83,6 +85,11 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | ------ | ------ | -------------------------------------------------------- |
 | GET    | `/pam` | Web UI to generate a short-lived one-time token          |
 | POST   | `/pam` | Generate a one-time token (`{token, login, expires_in}`) |
+
+The [`llng` client](https://github.com/linagora/simple-oidc-client) wraps this
+`POST /pam` call in its `pam_token` command, a scriptable alternative to the web
+UI. The requested TTL is passed as `{"duration": <seconds>}` (CLI flag
+`--pam-duration`, default `600`), capped by `pamAccessMaxDuration`.
 
 Each `/pam` POST also stamps a `_pamSeen` marker on the user's persistent
 session. This marker makes the user eligible for `/pam/bastion-token` (see
