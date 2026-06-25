@@ -124,6 +124,41 @@ even if the SSH server's KRL is stale.
   surfaced (in `attrs` for `/pam/verify`, at the top level for
   `/pam/authorize`).
 
+#### Hop-certificate binding window
+
+Two kinds of certificate can match the fingerprint:
+
+- **User SSO certificates** (`/ssh/sign`, stored in `_sshCerts`) — used when a
+  user connects directly to a host (e.g. a standalone server). They are
+  long-lived (default 30 days) and the binding accepts them until they expire
+  or are revoked.
+- **Ephemeral hop certificates** (`/pam/bastion-cert`) — minted per bastion→
+  backend hop and registered per fingerprint. The SSH certificate itself is
+  deliberately short-lived, just long enough for `sshd` to accept the
+  connection.
+
+For ephemeral hop certificates the binding must outlive the certificate: the
+backend SSH session stays open far longer than the certificate's validity, and
+a later `sudo` on that still-open session (with a fresh one-time token)
+re-presents the same fingerprint. Acceptance is therefore gated on a separate
+**binding window**, not on the certificate's own expiry — otherwise `sudo`
+would start failing a couple of minutes into every session. Two independent
+knobs control this (both code-level tunables read from the configuration, with
+safe defaults; not surfaced in the Manager UI):
+
+| Parameter                    | Description                                                                                                                                                   | Default            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `pamAccessBastionCertTtl`    | Validity of the ephemeral SSH certificate issued by `/pam/bastion-cert` (seconds) — the connection window enforced by `sshd`. Keep it short.                  | `120`              |
+| `pamAccessBastionBindingTtl` | How long that certificate's fingerprint stays bindable for a still-open backend session (seconds), independent of the cert TTL. Raised to the cert TTL if lower. | `86400` (24h)      |
+
+Keeping `pamAccessBastionCertTtl` short limits the blast radius of a leaked hop
+certificate (it can only open *new* connections for that brief window — pair it
+with `pamAccessBastionCertPinSourceAddress`), while `pamAccessBastionBindingTtl`
+lets `sudo` keep working for the realistic lifetime of an open session. The
+binding window only authorizes a `sudo` that **also** presents a fresh one-time
+token, and it is server-side state (never transmitted), so a long value here
+carries little risk. Revocation is always honored regardless of either value.
+
 ### Server-group enforcement (`pamAccessServerGroups`)
 
 - If the mapping is non-empty, `/pam/authorize` and `/pam/bastion-token`
