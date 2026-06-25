@@ -351,6 +351,53 @@ SKIP: {
         'POST /pam/authorize with an unknown fp -> denied (binding intact)' );
 }
 
+# ============================================================================
+# Binding window outlives the hop cert's own (short) validity. Regression for
+# "sudo fails a couple of minutes into a long backend SSH session": the SSH
+# cert's expires_at lapses quickly, but a still-open session must keep
+# validating its fingerprint until binding_expires_at. _checkSshFingerprint
+# must gate on binding_expires_at, not expires_at — while still rejecting once
+# the binding window is closed.
+# ============================================================================
+{
+    my $pam =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::PamAccess'};
+    my $sshca =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::SSHCA'};
+    my $eph_fp = $sshca->_sshKeyFingerprint($eph_pubkey);
+    my $key    = "_pamEphCert::" . $eph_fp;
+
+    my $ps  = $op->p->getPersistentSession('french');
+    my $rec = from_json( $ps->data->{$key} );
+    ok(
+        $rec->{binding_expires_at}
+          && $rec->{binding_expires_at} > $rec->{expires_at},
+        'binding_expires_at is set and outlives the cert expires_at'
+    );
+
+    # Long-open session: the hop cert's validity has lapsed, binding still open.
+    $rec->{expires_at}         = time() - 10;
+    $rec->{binding_expires_at} = time() + 3600;
+    $ps->update( { $key => to_json($rec) } );
+    ok( $pam->_checkSshFingerprint( 'french', $eph_fp )->{ok},
+        'cert expired but binding window open -> fingerprint accepted' );
+
+    # Binding window closed too -> rejected (falls through to _sshCerts).
+    $ps  = $op->p->getPersistentSession('french');
+    $rec = from_json( $ps->data->{$key} );
+    $rec->{binding_expires_at} = time() - 10;
+    $ps->update( { $key => to_json($rec) } );
+    ok( !$pam->_checkSshFingerprint( 'french', $eph_fp )->{ok},
+        'binding window closed -> fingerprint rejected' );
+
+    # Restore a healthy record so the voucher tests below are unaffected.
+    $ps  = $op->p->getPersistentSession('french');
+    $rec = from_json( $ps->data->{$key} );
+    $rec->{expires_at}         = time() + 90;
+    $rec->{binding_expires_at} = time() + 86400;
+    $ps->update( { $key => to_json($rec) } );
+}
+
 # Voucher is REUSABLE (not consumed) -> supports multi-hop / scp host1: host2:
 $res = bastion_post(
     '/pam/bastion-cert',

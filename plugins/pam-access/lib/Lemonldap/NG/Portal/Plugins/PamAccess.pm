@@ -1780,14 +1780,27 @@ sub _checkSshFingerprint {
             $self->logger->warn(
                 "PAM verify: corrupted ephemeral cert record for $user: $@");
         }
-        elsif ( !$rec->{expires_at} || $rec->{expires_at} >= $now ) {
-            return {
-                ok         => 1,
-                serial     => $rec->{serial},
-                key_id     => $rec->{key_id},
-                expires_at => $rec->{expires_at},
-                ephemeral  => 1,
-            };
+        else {
+            # Gate acceptance on the BINDING window, not the SSH cert's own
+            # expires_at. The hop cert is deliberately short-lived (~120s,
+            # pamAccessBastionCertTtl) — just long enough for sshd to accept it
+            # at connection time — but the resulting backend SSH session lives
+            # much longer, and a later sudo (fresh OTP) on that still-open
+            # session legitimately presents the same fingerprint. Binding to the
+            # cert's expiry broke sudo a couple of minutes into every session;
+            # bind to binding_expires_at instead (falls back to expires_at for
+            # records minted before this field existed). Still return the real
+            # expires_at so callers (e.g. voucher minting) keep cert semantics.
+            my $bindExp = $rec->{binding_expires_at} || $rec->{expires_at};
+            if ( !$bindExp || $bindExp >= $now ) {
+                return {
+                    ok         => 1,
+                    serial     => $rec->{serial},
+                    key_id     => $rec->{key_id},
+                    expires_at => $rec->{expires_at},
+                    ephemeral  => 1,
+                };
+            }
         }
     }
 
@@ -2103,6 +2116,16 @@ sub bastionCert {
         $clean->($bastion_id), $clean->($user), $clean->($target_host) );
 
     my $ttl    = $self->_confPositiveInt( 'pamAccessBastionCertTtl', 120 );
+
+    # Binding window: how long the backend's SSH-fingerprint check
+    # (_checkSshFingerprint) keeps accepting this hop cert's fingerprint for a
+    # still-open session — independent of the SSH cert's own (short) validity.
+    # Must cover a realistic backend session (default 24h); never shorter than
+    # the cert TTL.
+    my $bindingTtl =
+      $self->_confPositiveInt( 'pamAccessBastionBindingTtl', 86400 );
+    $bindingTtl = $ttl if $bindingTtl < $ttl;
+
     my $serial = $sshca->_getNextSerial;
     my %signOpts = ( validity => "+${ttl}s" );
 
@@ -2152,10 +2175,11 @@ sub bastionCert {
         my %upd  = (
             $EPH_CERT_PREFIX . $eph_fp => to_json(
                 {
-                    serial     => $serial,
-                    key_id     => $keyId,
-                    issued_at  => $now,
-                    expires_at => $now + $ttl,
+                    serial             => $serial,
+                    key_id             => $keyId,
+                    issued_at          => $now,
+                    expires_at         => $now + $ttl,
+                    binding_expires_at => $now + $bindingTtl,
                 }
             )
         );
@@ -2163,10 +2187,17 @@ sub bastionCert {
             next unless index( $k, $EPH_CERT_PREFIX ) == 0;
             next if $k eq $EPH_CERT_PREFIX . $eph_fp;
             my $r = eval { from_json( $ps->data->{$k} // '' ) };
+            # Drop on the binding window (fallback to the cert expiry for
+            # pre-existing records), matching _checkSshFingerprint's acceptance
+            # rule — otherwise we would prune entries that are still bindable.
+            my $rexp =
+              ref($r) eq 'HASH'
+              ? ( $r->{binding_expires_at} || $r->{expires_at} )
+              : undef;
             $upd{$k} = undef
               if $@
               || ref($r) ne 'HASH'
-              || ( $r->{expires_at} && $r->{expires_at} < $now );
+              || ( $rexp && $rexp < $now );
         }
         $ps->update( \%upd );
     }
@@ -2446,6 +2477,21 @@ known. Must be a positive integer; invalid values fall back to the default.
 Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
 seconds (default: 120). Must be a positive integer; invalid values fall
 back to the default.
+
+=item pamAccessBastionBindingTtl
+
+How long a hop certificate's fingerprint stays bindable on the target
+backend, in seconds (default: 86400, i.e. 24h). This is independent of
+C<pamAccessBastionCertTtl>: the SSH certificate is short-lived (just long
+enough for sshd to accept the connection), but the resulting backend SSH
+session lives much longer, and a later C<sudo> on that still-open session
+(with a fresh one-time token) must keep validating against the same
+fingerprint. C<_checkSshFingerprint> therefore accepts the fingerprint until
+this binding window elapses rather than until the certificate expires. Must
+be a positive integer; values below C<pamAccessBastionCertTtl> are raised to
+it. Revocation still applies. Only affects hop certificates
+(C</pam/bastion-cert>); direct C<_sshCerts> certificates keep their own
+(longer) validity.
 
 =item pamAccessBastionCertPinSourceAddress
 
