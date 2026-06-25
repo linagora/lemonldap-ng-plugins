@@ -1,5 +1,37 @@
 # Changelog
 
+## v0.3.10 - 2026-06-25
+
+Touched plugins bumped to **0.3.10** in lockstep: `pam-access`. Theme: keep a
+bastion hop certificate's fingerprint bindable for the whole backend SSH
+session, not just for the certificate's own (short) validity.
+
+### pam-access
+
+- **Fix — bind the hop-cert fingerprint to a session window, not the cert
+  TTL**. The ephemeral certificate issued by `/pam/bastion-cert` is
+  deliberately short-lived (~120s, `pamAccessBastionCertTtl`) — just long
+  enough for `sshd` to accept it at connection time. But the resulting backend
+  SSH session lives much longer, and a later `sudo` (with a fresh one-time
+  token) on that still-open session legitimately presents the same fingerprint.
+  Gating `_checkSshFingerprint` on the cert's `expires_at` broke `sudo` a couple
+  of minutes into every session. A separate binding window is now stored on the
+  ephemeral record (`binding_expires_at`); `_checkSshFingerprint` and the prune
+  loop accept/keep the fingerprint until that window elapses, falling back to
+  `expires_at` for records minted before the field existed, while still
+  returning the real `expires_at` so voucher minting keeps cert semantics.
+- **New option `pamAccessBastionBindingTtl`** (default `86400`, i.e. 24h):
+  how long a hop certificate's fingerprint stays bindable on the target
+  backend, independent of `pamAccessBastionCertTtl`. Must be a positive
+  integer; values below the cert TTL are raised to it. Only affects hop
+  certificates (`/pam/bastion-cert`); direct `_sshCerts` certificates keep
+  their own (longer) validity.
+
+### Tooling & docs
+
+- **`rpm/`** — add RPM build scripts (`build-rpms.sh`, `build-repo.sh`)
+  to package the plugins and assemble a YUM/DNF repository.
+
 ## v0.3.9 - 2026-06-22
 
 Touched plugins bumped to **0.3.9** in lockstep: `pam-access`. Theme: let
