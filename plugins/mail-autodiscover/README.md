@@ -27,8 +27,17 @@ Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::MailAutodis
 
 ## Configuration
 
-Edit `$imapServer` and `$smtpServer` variables at the top of
-`Lemonldap::NG::Portal::Plugins::MailAutodiscover` to match your mail servers.
+Set the following custom parameters in the LLNG configuration (Manager →
+_General Parameters_ → _Plugins custom parameters_, or directly in `lemonldap-ng.ini`):
+
+| Parameter                    | Description      | Default            |
+| ---------------------------- | ---------------- | ------------------ |
+| `mailAutodiscoverImapServer` | IMAP server name | `imap.example.com` |
+| `mailAutodiscoverSmtpServer` | SMTP server name | `smtp.example.com` |
+| `mailAutodiscoverImapPort`   | IMAP port        | `993`              |
+| `mailAutodiscoverSmtpPort`   | SMTP port        | `465`              |
+
+When a parameter is not set, the corresponding default above is used.
 
 ## Files
 
