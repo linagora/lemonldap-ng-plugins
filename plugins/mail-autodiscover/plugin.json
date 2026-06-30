@@ -1,6 +1,6 @@
 {
   "name": "mail-autodiscover",
-  "version": "1.0.0",
+  "version": "0.3.11",
   "summary": "SMTP/IMAP autodiscover for Outlook and Thunderbird",
   "description": "Handles /autodiscover/autodiscover.xml queries for mail client autoconfiguration. Add autodiscover.mydomain.tld as an alias to your LLNG portal in your web server configuration. Also returns 404 for Exchange-specific endpoints (/EWS, autodiscover.json).",
   "author": "Xavier Guimard / Linagora <https://linagora.com>",

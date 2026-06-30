@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.3.11 - 2026-06-30
+
+Touched plugins bumped to **0.3.11** in lockstep: `mail-autodiscover`. Theme:
+make the advertised IMAP/SMTP servers configurable instead of shipping bad
+hardcoded defaults.
+
+### mail-autodiscover
+
+- **Fix — make the IMAP/SMTP servers configurable**. The server names were
+  hardcoded at compile time (`imap.mydomain.tld` / `smtp.mydomain.tld`) and
+  interpolated once into the autodiscover XML template, so they could not be
+  changed without editing the module and shipped with unusable defaults. The
+  template now uses placeholders that are substituted per request from the LLNG
+  configuration.
+- **New custom parameters** (with sane fallbacks): `mailAutodiscoverImapServer`
+  (default `imap.example.com`), `mailAutodiscoverSmtpServer` (default
+  `smtp.example.com`), `mailAutodiscoverImapPort` (default `993`) and
+  `mailAutodiscoverSmtpPort` (default `465`).
+- **Environment variable overrides** (handy for Docker/Helm):
+  `LLNG_MAILAUTODISCOVER_IMAP_SERVER`, `LLNG_MAILAUTODISCOVER_SMTP_SERVER`,
+  `LLNG_MAILAUTODISCOVER_IMAP_PORT` and `LLNG_MAILAUTODISCOVER_SMTP_PORT`. Each
+  value is resolved as environment variable → LLNG custom parameter → built-in
+  default, the environment variable taking precedence.
+
 ## v0.3.10 - 2026-06-25
 
 Touched plugins bumped to **0.3.10** in lockstep: `pam-access`. Theme: keep a

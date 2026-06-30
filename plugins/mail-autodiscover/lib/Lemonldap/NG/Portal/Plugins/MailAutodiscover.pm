@@ -60,12 +60,22 @@ has smtpPort   => ( is => 'rw' );
 sub init {
     my ($self) = @_;
 
-    # Resolve mail servers from the LLNG configuration, falling back to the
-    # package defaults when the custom parameters are not set.
-    $self->imapServer( $self->conf->{mailAutodiscoverImapServer} || $imapServer );
-    $self->smtpServer( $self->conf->{mailAutodiscoverSmtpServer} || $smtpServer );
-    $self->imapPort( $self->conf->{mailAutodiscoverImapPort}     || $imapPort );
-    $self->smtpPort( $self->conf->{mailAutodiscoverSmtpPort}     || $smtpPort );
+    # Resolve mail servers with the following precedence:
+    #   1. environment variable (LLNG_MAILAUTODISCOVER_*)
+    #   2. LLNG custom parameter (mailAutodiscover*)
+    #   3. package default
+    $self->imapServer( $ENV{LLNG_MAILAUTODISCOVER_IMAP_SERVER}
+          || $self->conf->{mailAutodiscoverImapServer}
+          || $imapServer );
+    $self->smtpServer( $ENV{LLNG_MAILAUTODISCOVER_SMTP_SERVER}
+          || $self->conf->{mailAutodiscoverSmtpServer}
+          || $smtpServer );
+    $self->imapPort( $ENV{LLNG_MAILAUTODISCOVER_IMAP_PORT}
+          || $self->conf->{mailAutodiscoverImapPort}
+          || $imapPort );
+    $self->smtpPort( $ENV{LLNG_MAILAUTODISCOVER_SMTP_PORT}
+          || $self->conf->{mailAutodiscoverSmtpPort}
+          || $smtpPort );
 
     $self->addUnauthRoute(
         autodiscover => {
