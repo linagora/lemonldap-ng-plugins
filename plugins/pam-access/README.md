@@ -146,13 +146,13 @@ would start failing a couple of minutes into every session. Two independent
 knobs control this (both code-level tunables read from the configuration, with
 safe defaults; not surfaced in the Manager UI):
 
-| Parameter                    | Description                                                                                                                                                   | Default            |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| `pamAccessBastionCertTtl`    | Validity of the ephemeral SSH certificate issued by `/pam/bastion-cert` (seconds) — the connection window enforced by `sshd`. Keep it short.                  | `120`              |
-| `pamAccessBastionBindingTtl` | How long that certificate's fingerprint stays bindable for a still-open backend session (seconds), independent of the cert TTL. Raised to the cert TTL if lower. | `86400` (24h)      |
+| Parameter                    | Description                                                                                                                                                      | Default       |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `pamAccessBastionCertTtl`    | Validity of the ephemeral SSH certificate issued by `/pam/bastion-cert` (seconds) — the connection window enforced by `sshd`. Keep it short.                     | `120`         |
+| `pamAccessBastionBindingTtl` | How long that certificate's fingerprint stays bindable for a still-open backend session (seconds), independent of the cert TTL. Raised to the cert TTL if lower. | `86400` (24h) |
 
 Keeping `pamAccessBastionCertTtl` short limits the blast radius of a leaked hop
-certificate (it can only open *new* connections for that brief window — pair it
+certificate (it can only open _new_ connections for that brief window — pair it
 with `pamAccessBastionCertPinSourceAddress`), while `pamAccessBastionBindingTtl`
 lets `sudo` keep working for the realistic lifetime of an open session. The
 binding window only authorizes a `sudo` that **also** presents a fresh one-time
