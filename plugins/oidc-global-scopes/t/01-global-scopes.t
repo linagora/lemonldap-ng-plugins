@@ -10,6 +10,14 @@ BEGIN {
     require 't/oidc-lib.pm';
 }
 
+# cn of the `french` demo account, injected in the fixture by t/test-lib.pm.
+# LLNG <= 2.23 stores it as a byte string, master as a text string since
+# "Adjust existing code to handle text strings" (#2748) — read it back from
+# the fixture instead of hardcoding either encoding.
+sub frenchCn {
+    return $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{french}->{cn};
+}
+
 my $debug = 'error';
 
 # Initialization with global extra scopes:
@@ -113,7 +121,7 @@ $res = $op->_post(
     },
 );
 $json = expectJSON($res);
-is( $json->{name}, 'Frédéric Accents', "Standard profile claim 'name' present" );
+is( $json->{name}, frenchCn(), "Standard profile claim 'name' present" );
 is( $json->{department}, 'Engineering',
     "Global extra claim 'department' added to profile scope" );
 

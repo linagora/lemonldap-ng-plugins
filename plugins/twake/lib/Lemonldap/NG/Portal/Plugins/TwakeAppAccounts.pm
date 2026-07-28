@@ -402,6 +402,17 @@ sub getContent {
     return $query;
 }
 
+# Steps computing groups and macros of a user looked up without a session.
+# LLNG <= 2.23 exposes Main::Run::groupsAndMacros(), which honours the
+# `groupsBeforeMacros` option; that option was dropped upstream (#3482) and
+# groups are now always computed first.
+sub groupsAndMacros {
+    my ($self) = @_;
+    return $self->p->can('groupsAndMacros')
+      ? $self->p->groupsAndMacros
+      : qw(setGroups setMacros);
+}
+
 sub apiCall {
     my ( $self, $req, $sub ) = @_;
 
@@ -417,8 +428,8 @@ sub apiCall {
 
     # Build user
     $req->steps( [
-            'getUser',                 'setSessionInfo',
-            $self->p->groupsAndMacros, 'setLocalGroups'
+            'getUser',              'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
         ]
     );
     $req->data->{findUserChoice} = '1_LDAP';

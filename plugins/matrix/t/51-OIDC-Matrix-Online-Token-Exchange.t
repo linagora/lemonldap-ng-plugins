@@ -11,6 +11,14 @@ BEGIN {
     require 't/oidc-lib.pm';
 }
 
+# cn of the `french` demo account, injected in the fixture by t/test-lib.pm.
+# LLNG <= 2.23 stores it as a byte string, master as a text string since
+# "Adjust existing code to handle text strings" (#2748) — read it back from
+# the fixture instead of hardcoding either encoding.
+sub frenchCn {
+    return $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{french}->{cn};
+}
+
 LWP::Protocol::PSGI->register(
     sub {
         my $req = Plack::Request->new(@_);
@@ -57,7 +65,7 @@ sub checkJWT {
     my $payload = expectJWT(
         $access_token,
         iss       => "http://auth.op.com",
-        name      => "Frédéric Accents",
+        name      => frenchCn(),
         sub       => "french",
         scope     => "openid profile email",
         client_id => "rpid",
@@ -132,14 +140,14 @@ sub runTest {
     is( $id_token_payload->{sub}, 'french', 'Found sub in ID token' );
     is(
         $id_token_payload->{name},
-        'Frédéric Accents',
+        frenchCn(),
         'Found claim in ID token'
     );
 
     $json = expectJSON( getUserinfo( $op, $access_token ) );
 
     ok( $json->{'sub'} eq "french",            'Got User Info' );
-    ok( $json->{'name'} eq "Frédéric Accents", 'Got User Info' );
+    ok( $json->{'name'} eq frenchCn(),         'Got User Info' );
 
     # Skip ahead in time again
     Time::Fake->offset("+4h");

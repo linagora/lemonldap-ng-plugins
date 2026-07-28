@@ -57,6 +57,17 @@ has _serverGroupLegacyWarned => (
     default => 0,
 );
 
+# Steps computing groups and macros of a user looked up without a session.
+# LLNG <= 2.23 exposes Main::Run::groupsAndMacros(), which honours the
+# `groupsBeforeMacros` option; that option was dropped upstream (#3482) and
+# groups are now always computed first.
+sub groupsAndMacros {
+    my ($self) = @_;
+    return $self->p->can('groupsAndMacros')
+      ? $self->p->groupsAndMacros
+      : qw(setGroups setMacros);
+}
+
 # INITIALIZATION
 
 sub init {
@@ -346,8 +357,8 @@ sub authorize {
     $req->data->{_pamAuthorize} = 1;
     $req->steps(
         [
-            'getUser',                 'setSessionInfo',
-            $self->p->groupsAndMacros, 'setLocalGroups'
+            'getUser',              'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
         ]
     );
 
@@ -1170,8 +1181,8 @@ sub userinfo {
     $req->data->{_pamUserinfo} = 1;
     $req->steps(
         [
-            'getUser',                 'setSessionInfo',
-            $self->p->groupsAndMacros, 'setLocalGroups'
+            'getUser',              'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
         ]
     );
 
@@ -1448,8 +1459,8 @@ sub bastionToken {
     $req->data->{_pamBastionToken} = 1;
     $req->steps(
         [
-            'getUser',                 'setSessionInfo',
-            $self->p->groupsAndMacros, 'setLocalGroups'
+            'getUser',              'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
         ]
     );
 
