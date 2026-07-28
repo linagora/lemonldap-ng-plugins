@@ -129,6 +129,11 @@ is( isPrivateIp(''),                      0, 'empty address' );
 is( isPrivateIp('not an ip'),             0, 'unparsable address' );
 is( isPrivateIp( '10.1.2.3', 'garbage' ), 0, 'unparsable extra network' );
 
+# isPrivateIp() catches Net::CIDR exceptions: the caller's $@ must survive
+eval { die "previous error\n" };
+isPrivateIp('not an ip');
+is( $@, "previous error\n", "isPrivateIp() does not clobber the caller's \$@" );
+
 # Function list to be declared in customFunctions
 is_deeply( [ Lemonldap::NG::Common::CustomFunctions->functions ],
     [qw(uuid isPrivateIp)], 'functions() lists the provided functions' );

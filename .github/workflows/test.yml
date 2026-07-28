@@ -25,6 +25,16 @@ jobs:
         run: |
           set -euo pipefail
           REPO="$LLNG_REPO"
+
+          # Name of the branch a plain clone lands on. Upstream used to
+          # develop in `v2.0`; that branch is gone and HEAD now points to
+          # `master` (next major). Resolve it instead of hardcoding a name,
+          # so the job labels stay honest if it moves again.
+          DEFAULT_BRANCH=$(git ls-remote --symref "$REPO" HEAD 2>/dev/null \
+            | awk '/^ref:/ {sub("refs/heads/", "", $2); print $2; exit}')
+          DEFAULT_BRANCH="${DEFAULT_BRANCH:-default}"
+          echo "Upstream default branch: $DEFAULT_BRANCH"
+
           # Cache of already-checked tags across plugins
           declare -A TAG_KNOWN
           tag_exists() {
@@ -73,7 +83,7 @@ jobs:
               if tag_exists "$tag"; then
                 refs+=("$tag")
                 skip_main=true
-                echo "  $name: max tag $tag found -> skipping main"
+                echo "  $name: max tag $tag found -> skipping $DEFAULT_BRANCH"
               else
                 echo "  $name: max tag $tag not in remote"
               fi
@@ -84,7 +94,7 @@ jobs:
             fi
 
             for r in "${refs[@]}"; do
-              label="${r:-main}"
+              label="${r:-$DEFAULT_BRANCH}"
               if [ -n "$container" ]; then
                 container_entries+=("{\"plugin\":\"$name\",\"ref\":\"$r\",\"label\":\"$label\",\"container\":\"$container\"}")
               else
@@ -120,6 +130,11 @@ jobs:
     if: needs.discover.outputs.has_tests == 'true'
     runs-on: ubuntu-latest
     name: ${{ matrix.plugin }} @ ${{ matrix.label }}
+    # The upstream default branch is a development line (formerly `v2.0`, now
+    # `master`, i.e. the next major): a breaking change there must show up as
+    # an early warning, not redden every unrelated PR until each plugin has
+    # been adapted. Released tags stay blocking.
+    continue-on-error: ${{ matrix.ref == '' }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.matrix) }}
       fail-fast: false
@@ -171,6 +186,8 @@ jobs:
     runs-on: ubuntu-latest
     container: ${{ matrix.container }}
     name: ${{ matrix.plugin }} @ ${{ matrix.label }} (${{ matrix.container }})
+    # Same rule as `test`: only released tags gate a merge.
+    continue-on-error: ${{ matrix.ref == '' }}
     strategy:
       matrix: ${{ fromJson(needs.discover.outputs.container_matrix) }}
       fail-fast: false

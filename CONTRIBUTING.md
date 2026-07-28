@@ -226,6 +226,15 @@ and builds a test matrix:
 Ranges (`>=A, <B`) are supported — each bound contributes its own tag
 to the matrix, and a satisfied `<` still removes the default branch.
 
+The default branch is resolved at run time from the upstream repository
+(`git ls-remote --symref … HEAD`) and used as the job label — it was
+`v2.0` historically, that branch is gone and it is now `master`, i.e. the
+**next major development line**. Because a breaking change there would
+otherwise redden every pull request until each plugin has been adapted,
+default-branch jobs are `continue-on-error`: they are an early-warning
+signal, and only the released-tag jobs gate a merge. Their failures are
+still visible in the run summary — check them before blaming your patch.
+
 Each matrix job does the same thing a contributor does locally:
 
 ```sh

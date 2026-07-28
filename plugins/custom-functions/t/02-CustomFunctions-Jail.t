@@ -29,8 +29,9 @@ my $functions = "${lib}::uuid ${lib}::isPrivateIp";
 # Both accepted syntaxes of the `require` parameter. The file path is the
 # recommended one (the ini loader resolves that value as a file name), the
 # module name is only understood by the jail builder.
-my ($path) =
-  grep { -f $_ } map { "$_/Lemonldap/NG/Common/CustomFunctions.pm" } @INC;
+# (@INC may hold code refs / objects used as require hooks: keep directories)
+my ($path) = grep { -f $_ }
+  map { "$_/Lemonldap/NG/Common/CustomFunctions.pm" } grep { !ref } @INC;
 ok( $path, 'library file found in @INC' ) or BAIL_OUT('library not installed');
 
 ok( !$lib->can('uuid'), 'library not loaded before the first jail is built' );
@@ -46,7 +47,9 @@ sub buildJail {
     );
 
     # Loading the library twice (once per `require` syntax) triggers
-    # "Subroutine redefined" warnings: keep them out of the test output
+    # "Subroutine redefined" warnings: downgrade them to TAP notes so they
+    # stay readable in the log without polluting stderr. Real warnings from
+    # the jail builder are still reported this way.
     local $SIG{__WARN__} = sub { note $_[0] };
 
     # 2nd argument is the `require` parameter of lemonldap-ng.ini

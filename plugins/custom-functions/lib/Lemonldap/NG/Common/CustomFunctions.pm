@@ -75,6 +75,10 @@ sub uuid {
 sub isPrivateIp {
     my ( $ip, @others ) = @_;
     return 0 unless defined $ip and length $ip;
+
+    # Net::CIDR dies on an unparsable address or network; localize $@ so the
+    # caller's error handling isn't disturbed by our own eval
+    local $@;
     my $res = eval { Net::CIDR::cidrlookup( $ip, @PRIVATE_NETWORKS, @others ) };
     return $res ? 1 : 0;
 }
