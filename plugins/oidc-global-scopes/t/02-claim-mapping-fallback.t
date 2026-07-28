@@ -10,6 +10,14 @@ BEGIN {
     require 't/oidc-lib.pm';
 }
 
+# cn of the `french` demo account, injected in the fixture by t/test-lib.pm.
+# LLNG <= 2.23 stores it as a byte string, master as a text string since
+# "Adjust existing code to handle text strings" (#2748) — read it back from
+# the fixture instead of hardcoding either encoding.
+sub frenchCn {
+    return $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{french}->{cn};
+}
+
 my $debug = 'error';
 
 # Fixture: an RP that declares ONLY `name` in its Exported Attributes.
@@ -126,7 +134,7 @@ is( $json->{title}, 'Developer',
     "Identity fallback: claim 'title' resolved via session attr 'title'" );
 
 # Claim 3: RP declaration wins — `name` was declared with cn
-is( $json->{name}, 'Frédéric Accents',
+is( $json->{name}, frenchCn(),
     "RP declaration takes precedence over global mapping" );
 
 # ====================================================================

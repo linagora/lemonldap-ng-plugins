@@ -149,6 +149,17 @@ print JSON->new->canonical->pretty->encode( {
 
 exit $overallExit;
 
+# Steps computing groups and macros of a user looked up without a session.
+# LLNG <= 2.23 exposes Main::Run::groupsAndMacros(), which honours the
+# `groupsBeforeMacros` option; that option was dropped upstream (#3482) and
+# groups are now always computed first.
+sub groupsAndMacros {
+    my ($p) = @_;
+    return $p->can('groupsAndMacros')
+      ? $p->groupsAndMacros
+      : qw(setGroups setMacros);
+}
+
 sub resolveUser {
     my $id  = shift;
     my $req = Lemonldap::NG::Portal::Main::Request->new( {
@@ -162,7 +173,7 @@ sub resolveUser {
     $req->user($id);
     $req->steps( [
         'getUser',        @{ $p->betweenAuthAndData },
-        'setSessionInfo', $p->groupsAndMacros,
+        'setSessionInfo', groupsAndMacros($p),
         'setLocalGroups',
     ] );
     my $rc = $p->process($req);

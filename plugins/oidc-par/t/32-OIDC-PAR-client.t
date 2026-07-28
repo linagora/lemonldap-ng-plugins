@@ -17,6 +17,14 @@ BEGIN {
     require 't/oidc-lib.pm';
 }
 
+# cn of the `french` demo account, injected in the fixture by t/test-lib.pm.
+# LLNG <= 2.23 stores it as a byte string, master as a text string since
+# "Adjust existing code to handle text strings" (#2748) — read it back from
+# the fixture instead of hardcoding either encoding.
+sub frenchCn {
+    return $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{french}->{cn};
+}
+
 my ( $op, $rp, $res );
 
 # Set up LWP interceptor for cross-server requests
@@ -140,7 +148,7 @@ subtest "End-to-end PAR flow: complete authentication via PAR" => sub {
     my $rp_session = getSession($rp_id);
     ok( $rp_session, "Can retrieve RP session" );
     is( $rp_session->data->{uid}, 'french', "Session has correct uid" );
-    is( $rp_session->data->{cn}, 'Frédéric Accents', "Session has correct cn (UTF-8)" );
+    is( $rp_session->data->{cn}, frenchCn(), "Session has correct cn" );
     ok( $rp_session->data->{mail}, "Session has mail attribute" );
 
     # Step 8: Verify authenticated access works
