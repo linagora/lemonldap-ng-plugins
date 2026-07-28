@@ -113,13 +113,19 @@ foreach my $case (
             "isPrivateIp() accepts extra networks from a rule ($mode)"
         );
 
-        # Core functions must still be available
-        is(
-            buildSub( $jail, 'ipInSubnet($s->{ipAddr}, "10.0.0.0/8") ? 1 : 0' )
-              ->( {}, $session ),
-            1,
-            "core Safelib functions are still shared ($mode)"
-        );
+        # Core functions must still be shared. ipInSubnet() joined Safelib
+        # along the 2.0.x line, so older LLNG releases just skip this.
+      SKIP: {
+            skip "ipInSubnet() is not in this LLNG's Safelib", 2
+              unless Lemonldap::NG::Common::Safelib->can('ipInSubnet');
+            is(
+                buildSub( $jail,
+                    'ipInSubnet($s->{ipAddr}, "10.0.0.0/8") ? 1 : 0' )
+                  ->( {}, $session ),
+                1,
+                "core Safelib functions are still shared ($mode)"
+            );
+        }
     }
 }
 
