@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.4.0 - 2026-07-28
+
+Touched plugins bumped to **0.4.0** in lockstep: `custom-functions` (new),
+`pam-access`, `twake`, `json-file`, `matrix-token-exchange`,
+`oidc-global-scopes`, `oidc-par`. Theme: a new library of custom functions,
+and catching up with the LemonLDAP::NG `master` branch that replaced `v2.0`
+upstream.
+
+### custom-functions (new)
+
+- **Feature — extra functions for `customFunctions`**, usable in rules,
+  macros and headers. For now:
+  * `uuid($value, $namespace)` returns the name-based UUID version 5
+  * `isPrivateIp($ip, @networks)` returns 1 when the IP address is in the
+    RFC 1918 private space
+
+### pam-access, twake, json-file
+
+- **Fix — LLNG `master` compatibility: `groupsAndMacros()` is gone**.
+  Upstream removed `Lemonldap::NG::Portal::Main::Run::groupsAndMacros()`
+  along with the `groupsBeforeMacros` option it implemented (#3482, "groups
+  are now always computed before macros"). They now go through a local shim
+  that still delegates to the portal when it provides the method, so the
+  option keeps being honoured on LLNG <= 2.23. Same fix applied to the
+  `json-file` example script.
+
+### matrix-token-exchange, oidc-global-scopes, oidc-par
+
+- **Fix — test suites adapted to upstream text strings**. LLNG moved its
+  internals to text strings (#2748) and `t/test-lib.pm` gained `use utf8`
+
 ## v0.3.11 - 2026-06-30
 
 Touched plugins bumped to **0.3.11** in lockstep: `mail-autodiscover`. Theme:

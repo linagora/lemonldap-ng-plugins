@@ -1,6 +1,6 @@
 {
   "name": "custom-functions",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "summary": "Extra functions for rules, macros and headers (customFunctions)",
   "description": "Function library to be declared in the customFunctions parameter, usable in LLNG rules, macros and headers: uuid() computes a stable name-based UUIDv5 (RFC 9562) from any value, isPrivateIp() tells whether an IP address belongs to the RFC 1918 private address space (plus any extra CIDR network given as argument). Both are Safe jail compatible. This plugin has no portal module: the library is loaded through the 'require' parameter of lemonldap-ng.ini.",
   "author": "Xavier Guimard / Linagora <https://linagora.com>",
