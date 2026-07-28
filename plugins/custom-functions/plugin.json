@@ -1,0 +1,16 @@
+{
+  "name": "custom-functions",
+  "version": "0.1.0",
+  "summary": "Extra functions for rules, macros and headers (customFunctions)",
+  "description": "Function library to be declared in the customFunctions parameter, usable in LLNG rules, macros and headers: uuid() computes a stable name-based UUIDv5 (RFC 9562) from any value, isPrivateIp() tells whether an IP address belongs to the RFC 1918 private address space (plus any extra CIDR network given as argument). Both are Safe jail compatible. This plugin has no portal module: the library is loaded through the 'require' parameter of lemonldap-ng.ini.",
+  "author": "Xavier Guimard / Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {
+    "Digest::SHA": "0",
+    "Net::CIDR": "0"
+  },
+  "tags": ["customFunctions", "macros", "rules", "headers", "uuid", "ip"],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "post_install": "Add 'require = /usr/share/perl5/Lemonldap/NG/Common/CustomFunctions.pm' (adapt the path to your Perl site lib) in the [all] section of lemonldap-ng.ini, on every portal and handler server, then declare the functions in the Manager under General Parameters > Advanced Parameters > Custom functions: 'Lemonldap::NG::Common::CustomFunctions::uuid Lemonldap::NG::Common::CustomFunctions::isPrivateIp'."
+}
