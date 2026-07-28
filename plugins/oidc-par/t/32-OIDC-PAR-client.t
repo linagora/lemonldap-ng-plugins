@@ -148,7 +148,7 @@ subtest "End-to-end PAR flow: complete authentication via PAR" => sub {
     my $rp_session = getSession($rp_id);
     ok( $rp_session, "Can retrieve RP session" );
     is( $rp_session->data->{uid}, 'french', "Session has correct uid" );
-    is( $rp_session->data->{cn}, frenchCn(), "Session has correct cn (UTF-8)" );
+    is( $rp_session->data->{cn}, frenchCn(), "Session has correct cn" );
     ok( $rp_session->data->{mail}, "Session has mail attribute" );
 
     # Step 8: Verify authenticated access works
