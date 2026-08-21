@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.4.1 - 2026-08-21
+
+Touched plugins bumped to **0.4.1** in lockstep: `oidc-acr-claims`,
+`oidc-ciba`, `oidc-device-authorization`, `oidc-device-organization`.
+Theme: catching up with the LemonLDAP::NG `master` branch. Everything
+here is a no-op on the released 2.23 branch.
+
+### oidc-acr-claims, oidc-ciba, oidc-device-authorization, oidc-device-organization
+
+- **Fix — `getApacheSession()` now requires an explicit session kind**.
+  Upstream dropped the implicit `SSO` default, so calls without `kind`
+  return undef: `acr` / `auth_time` vanished from JWT access tokens, the
+  CIBA grant lost its user session, and device flows answered
+  `access_denied` (which also broke the `pam-access` suite). All five
+  call sites now pass `kind => 'SSO'`, like core does.
+
+### store
+
+- **Fix — `test` / `keyTest` of manager overrides compiled into `qr//`**.
+  `llng-build-manager-files` copied them verbatim into the generated
+  `Manager/Attributes.pm`, where a plain string makes every
+  configuration save die with `Malformed test for <attribute>/<key>`.
+  Affected `oidc-global-scopes`, whose two attributes were unusable as
+  soon as a value was set. Deployed installations must re-run
+  `llng-build-manager-files` to regenerate `Attributes.pm`.
+
 ## v0.4.0 - 2026-07-28
 
 Touched plugins bumped to **0.4.0** in lockstep: `custom-functions` (new),
