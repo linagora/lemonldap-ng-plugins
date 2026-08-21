@@ -610,7 +610,8 @@ sub handleCibaGrant {
         }
 
         # Get user session
-        my $session = $self->p->getApacheSession($user_session_id);
+        my $session =
+          $self->p->getApacheSession( $user_session_id, kind => 'SSO' );
         unless ($session) {
             $self->logger->error('CIBA grant: User session not found');
             $self->_deleteCibaSession($auth_req_id);
@@ -937,7 +938,8 @@ sub _createUserSessionForCiba {
     };
 
     # Create the session
-    my $session = $self->p->getApacheSession( undef, info => $sessionInfo );
+    my $session =
+      $self->p->getApacheSession( undef, info => $sessionInfo, kind => 'SSO' );
     unless ($session) {
         $self->logger->error('CIBA: Failed to create Apache session');
         return undef;
