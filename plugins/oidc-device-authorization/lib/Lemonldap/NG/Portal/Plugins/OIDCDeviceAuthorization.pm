@@ -824,7 +824,8 @@ sub _generateTokens {
 
     # Verify user session is still valid
     my $user_session_id = $device_auth->{user_session_id};
-    my $session         = $self->p->getApacheSession($user_session_id);
+    my $session =
+      $self->p->getApacheSession( $user_session_id, kind => 'SSO' );
 
     unless ($session) {
         $self->logger->error("User session not found for device authorization");

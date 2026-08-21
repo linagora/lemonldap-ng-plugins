@@ -86,7 +86,8 @@ sub handleOrganizationDevice {
               || 365 * 86400 ),
     };
 
-    my $session = $self->p->getApacheSession( undef, info => $infos );
+    my $session =
+      $self->p->getApacheSession( undef, info => $infos, kind => 'SSO' );
     unless ($session) {
         $self->logger->error(
             "Failed to create synthetic session for org device");

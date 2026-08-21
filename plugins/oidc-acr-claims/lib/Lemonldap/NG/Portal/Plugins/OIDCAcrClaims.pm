@@ -143,7 +143,7 @@ sub restoreOnTokenEndpoint {
         # `auth_time` rather than `iat`.
         my $usid = $cs->data->{user_session_id};
         if ($usid) {
-            my $us = $self->p->getApacheSession($usid);
+            my $us = $self->p->getApacheSession( $usid, kind => 'SSO' );
             if ($us) {
                 $req->data->{ &DATA_KEY } = {
                     (
