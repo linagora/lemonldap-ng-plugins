@@ -283,3 +283,30 @@ non-standard layout.
 4. `./mcp/cli.js test <your-plugin>` and iterate.
 5. `./mcp/cli.js clean-all` before committing if you want a clean
    working tree (not strictly required — `.llng-test/` is ignored).
+
+### Manager overrides and `test` / `keyTest`
+
+New attributes declared in `manager-overrides/*.json` may restrict the
+accepted values with `test` (value) and `keyTest` (key of a
+`*Container` / hash attribute). Write them as plain regexp **strings**;
+`llng-build-manager-files` compiles them to `qr//` before handing them
+to `Build.pm`:
+
+```json
+"oidcServiceGlobalExtraScopes": {
+  "type": "keyTextContainer",
+  "keyTest": "^[\\x21\\x23-\\x5B\\x5D-\\x7E]+$"
+}
+```
+
+This compilation step is mandatory: `Manager::Conf::Parser::_execTest()`
+only accepts a regexp ref, a code ref or a hash ref, so a string left
+as-is in the generated `Manager/Attributes.pm` makes every configuration
+save die with
+
+```
+Malformed test for <attribute>/<key>: only regexp ref or sub are accepted (type "")
+```
+
+An invalid regexp is reported at build time. `.pm` overrides can use
+`qr//` (or a subroutine, which JSON cannot express) directly.
