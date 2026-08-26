@@ -676,20 +676,14 @@ sub _verifySelfIssuedJwt {
         return;
     }
 
+    # Only asymmetric algorithms reach this point, so the key always comes
+    # from the published signing keys -- never from the client secret.
     my @keys;
-    if ( $alg =~ /^HS/ ) {
-        my $secret =
-          $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientSecret};
-        return unless $secret;
-        @keys = ($secret);
-    }
-    else {
-        my $list = $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsSigningKey}
-          || $self->conf->{oidcServiceSignatureKey};
-        for my $keyId ( split( /\s*,\s*/, $list || '' ) ) {
-            my $key = $oidc->get_public_key($keyId) or next;
-            push @keys, \$key->{public};
-        }
+    my $list = $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsSigningKey}
+      || $self->conf->{oidcServiceSignatureKey};
+    for my $keyId ( split( /\s*,\s*/, $list || '' ) ) {
+        my $key = $oidc->get_public_key($keyId) or next;
+        push @keys, \$key->{public};
     }
 
     for my $key (@keys) {
