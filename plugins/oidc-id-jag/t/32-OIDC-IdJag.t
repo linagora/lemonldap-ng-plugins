@@ -35,6 +35,11 @@ my $baseConfig = {
                 family_name => "cn",
                 name        => "cn",
             },
+            rp5 => {
+                email       => "mail",
+                family_name => "cn",
+                name        => "cn",
+            },
         },
         oidcRPMetaDataOptions => {
 
@@ -60,7 +65,7 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsUserIDAttr         => "",
                 oidcRPMetaDataOptionsRedirectUris       => 'http://test/',
                 oidcRPMetaDataOptionsIdJagAudience      => $AUDIENCE,
-                oidcRPMetaDataOptionsTokenXAuthorizedRP => 'rp rp4',
+                oidcRPMetaDataOptionsTokenXAuthorizedRP => 'rp rp4 rp5',
             },
 
             # Another Resource Authorization Server, rp is not allowed on it.
@@ -72,6 +77,19 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsUserIDAttr    => "",
                 oidcRPMetaDataOptionsRedirectUris  => 'http://test/',
                 oidcRPMetaDataOptionsIdJagAudience => 'https://api.other.com/',
+            },
+
+            # Allowed to ask for an ID-JAG, and *not* allowed to get refresh
+            # tokens: its ID tokens can only be resolved through the sid index
+            rp5 => {
+                oidcRPMetaDataOptionsDisplayName      => "RP5",
+                oidcRPMetaDataOptionsClientID         => "rpid5",
+                oidcRPMetaDataOptionsClientSecret     => "rpid5",
+                oidcRPMetaDataOptionsIDTokenSignAlg   => "HS512",
+                oidcRPMetaDataOptionsBypassConsent    => 1,
+                oidcRPMetaDataOptionsUserIDAttr       => "",
+                oidcRPMetaDataOptionsRedirectUris     => 'http://test/',
+                oidcRPMetaDataOptionsAllowIdJagGrant  => 1,
             },
 
             # Allowed to ask for an ID-JAG, but owns no token
@@ -254,6 +272,42 @@ subtest 'client_id override' => sub {
     delete $baseConfig->{ini}->{oidcRPMetaDataOptions}->{rp}
       ->{oidcRPMetaDataOptionsIdJagClientId};
     $op = $saved;
+};
+
+subtest 'ID token of a client without refresh tokens' => sub {
+
+    # rp5 cannot get a refresh token, so no session carries the `sid` of its
+    # ID tokens: resolution goes through the index maintained by the plugin.
+    my $c = codeAuthorize(
+        $op, $idpId,
+        {
+            response_type => "code",
+            scope         => "openid profile",
+            client_id     => "rpid5",
+            state         => "af0ifjsldkj",
+            redirect_uri  => "http://test/"
+        }
+    );
+    my $tokens = expectJSON( codeGrant( $op, "rpid5", $c, "http://test/" ) );
+    ok( $tokens->{id_token}, 'Got an ID token' );
+    ok( !$tokens->{refresh_token}, 'And no refresh token' );
+
+    my $json = expectJSON(
+        getIdJag(
+            _client            => 'rpid5',
+            subject_token      => $tokens->{id_token},
+            subject_token_type => 'urn:ietf:params:oauth:token-type:id_token',
+        )
+    );
+    my $payload = eval {
+        decode_jwt(
+            token => $json->{access_token},
+            key   => \oidc_key_op_public_sig
+        );
+    };
+    ok( $payload, 'Got an assertion' ) or diag $@;
+    is( $payload->{sub},       'french', 'Correct subject' );
+    is( $payload->{client_id}, 'rpid5',  'Correct client_id' );
 };
 
 sub expectError {

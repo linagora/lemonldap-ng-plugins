@@ -14,6 +14,7 @@ use strict;
 use Mouse;
 use JSON;
 use Crypt::JWT qw(decode_jwt);
+use Digest::SHA qw(sha256_hex);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Common::JWT qw(getJWTHeader);
 use Lemonldap::NG::Portal::Main::Constants qw(
@@ -30,10 +31,21 @@ use constant ID_JAG_TYP        => 'oauth-id-jag+jwt';
 use constant TOKEN_EXCHANGE_GRANT =>
   'urn:ietf:params:oauth:grant-type:token-exchange';
 
+# Session key used by the oidc-rar plugin to carry RFC 9396 granted
+# authorization_details across the code / refresh / access token sessions.
+# Read-only coupling: no code dependency, and everything below degrades to
+# "no authorization_details" when oidc-rar is not installed.
+use constant RAR_SESSION_KEY => '_rar_details';
+
+# Prefix of the fixed-id sessions indexing `sid` -> user session id. See
+# indexIdTokenSid().
+use constant SID_INDEX_PREFIX => 'idjag-sid:';
+
 # INTERFACE
 use constant hook => {
     oidcGotTokenExchange => 'handleIdentityAssertionGrant',
     oidcGenerateMetadata => 'advertiseIdentityChaining',
+    oidcGenerateIDToken  => 'indexIdTokenSid',
 };
 
 # Entry point: called for every RFC 8693 token exchange request.
@@ -114,8 +126,10 @@ sub _run {
         return $oidc->sendOIDCError( $req, 'access_denied', 400 );
     }
 
-    # 4. Resolve the subject from the presented token
-    my $userData = $self->_getUserData( $req, $rp );
+    # 4. Resolve the subject from the presented token. $tokenData is the
+    #    subject token's own session data, kept for the claims that travel
+    #    with the grant rather than with the user (authorization_details).
+    my ( $userData, $tokenData ) = $self->_getUserData( $req, $rp );
     return $oidc->sendOIDCError( $req, 'invalid_grant', 400 )
       unless $userData;
 
@@ -162,6 +176,14 @@ sub _run {
             : ()
         ),
     };
+
+    # RFC 9396 authorization_details granted to the subject token travel with
+    # the assertion, narrowed down by the target RP type allowlist.
+    if ( my $details = $self->_forwardedAuthorizationDetails( $tokenData,
+            $target ) )
+    {
+        $payload->{authorization_details} = $details;
+    }
 
     my $h =
       $self->p->processHook( $req, 'oidcGenerateIdJag', $payload, $rp, $target,
@@ -243,7 +265,7 @@ sub _signatureAlg {
     return $alg;
 }
 
-# Resolve the subject_token into user session data.
+# Resolve the subject_token into ( user session data, token session data ).
 #
 # The draft allows an Identity Assertion (ID Token) or a Refresh Token as
 # subject_token. LemonLDAP::NG additionally accepts an Access Token, which is
@@ -261,15 +283,17 @@ sub _getUserData {
     my $type = $req->param('subject_token_type') || '';
     $type =~ s/^urn:ietf:params:oauth:token-type://;
 
-    my $tokenSession;
+    my $tokenData;
     if ( $type eq 'id_token' ) {
-        $tokenSession = $self->_getSessionFromIdToken( $rp, $subjectToken );
+        $tokenData = $self->_getDataFromIdToken( $req, $rp, $subjectToken );
     }
     elsif ( $type eq 'refresh_token' ) {
-        $tokenSession = $oidc->getRefreshToken($subjectToken);
+        my $s = $oidc->getRefreshToken($subjectToken);
+        $tokenData = $s->data if $s;
     }
     elsif ( $type eq 'access_token' or $type eq '' ) {
-        $tokenSession = $oidc->getAccessToken($subjectToken);
+        my $s = $oidc->getAccessToken($subjectToken);
+        $tokenData = $s->data if $s;
     }
     else {
         $self->userLogger->error(
@@ -277,15 +301,15 @@ sub _getUserData {
         return;
     }
 
-    unless ($tokenSession) {
+    unless ($tokenData) {
         $self->userLogger->error('Unable to validate ID-JAG subject_token');
         return;
     }
 
     # The subject_token MUST have been issued to the authenticated client
     my $clientId = $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID};
-    my $tokenClientId = $tokenSession->data->{client_id} || '';
-    my $tokenRp       = $tokenSession->data->{rp}        || '';
+    my $tokenClientId = $tokenData->{client_id} || '';
+    my $tokenRp       = $tokenData->{rp}        || '';
     unless ( $tokenClientId eq $clientId or $tokenRp eq $rp ) {
         $self->userLogger->error(
             "ID-JAG subject_token was not issued to client $clientId");
@@ -294,10 +318,10 @@ sub _getUserData {
 
     # Online tokens are tied to a SSO session, offline ones embed a copy of
     # the user attributes
-    my $sessionId = $tokenSession->data->{user_session_id};
+    my $sessionId = $tokenData->{user_session_id};
     unless ($sessionId) {
-        return $tokenSession->data
-          if $tokenSession->data->{ $self->conf->{whatToTrace} };
+        return ( $tokenData, $tokenData )
+          if $tokenData->{ $self->conf->{whatToTrace} };
         $self->userLogger->error(
             'ID-JAG subject_token is not tied to a user session');
         return;
@@ -310,13 +334,103 @@ sub _getUserData {
         return;
     }
 
-    return $userData;
+    return ( $userData, $tokenData );
 }
 
-# Resolve an ID Token issued by this OP into the refresh token session which
-# carries the same `sid`
-sub _getSessionFromIdToken {
-    my ( $self, $rp, $idToken ) = @_;
+# RFC 9396 authorization_details carried by the subject token, narrowed down
+# by the type allowlist of the target relying party.
+#
+# The details were granted by *this* OP to the requesting client; the target
+# authorization server is a different trust domain, so an entry whose type is
+# not part of what the target accepts is dropped rather than forwarded. An
+# empty allowlist means "no restriction at that level", exactly like in
+# oidc-rar. Plugins can still amend the list through the oidcGenerateIdJag
+# hook.
+sub _forwardedAuthorizationDetails {
+    my ( $self, $tokenData, $target ) = @_;
+
+    my $details = $tokenData->{ &RAR_SESSION_KEY };
+    return unless $details and ref($details) eq 'ARRAY' and @$details;
+
+    my $allowed = $self->oidc->rpOptions->{$target}
+      ->{oidcRPMetaDataOptionsAuthorizationDetailsTypes};
+    return $details unless defined $allowed and $allowed =~ /\S/;
+
+    my %ok = map { $_ => 1 } grep { length } split /[\s,]+/, $allowed;
+    my @kept = grep { $ok{ $_->{type} // '' } } @$details;
+
+    unless (@kept) {
+        $self->logger->debug(
+            "ID-JAG: no authorization_details type accepted by $target");
+        return;
+    }
+    if ( @kept < @$details ) {
+        $self->logger->debug( 'ID-JAG: dropped '
+              . ( @$details - @kept )
+              . " authorization_details entry(ies) not accepted by $target" );
+    }
+    return \@kept;
+}
+
+# Hook: oidcGenerateIDToken
+#
+# The `sid` claim of an ID Token is only persisted by LemonLDAP::NG on refresh
+# token sessions, so resolving an ID Token back to its user session used to
+# require the client to be allowed to get refresh tokens. Maintain our own
+# reverse index instead: one short lived, fixed-id session per issued ID
+# Token, living exactly as long as the ID Token it describes.
+#
+# Only relying parties allowed to request an ID-JAG pay for this.
+sub indexIdTokenSid {
+    my ( $self, $req, $payload, $rp, $sessionData ) = @_;
+
+    return PE_OK
+      unless $self->oidc->rpOptions->{$rp}
+      ->{oidcRPMetaDataOptionsAllowIdJagGrant};
+
+    my $sid = $payload->{sid}                 or return PE_OK;
+    my $id  = $sessionData->{_session_id}     or return PE_OK;
+
+    my $ttl =
+         $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsIDTokenExpiration}
+      || $self->conf->{oidcServiceIDTokenExpiration}
+      || 3600;
+
+    my $session = $self->p->getApacheSession(
+        $self->_sidIndexId($sid),
+        kind => $self->oidc->sessionKind,
+        info => {
+            _type           => 'idjag_sid',
+            _utime          => time() - $self->conf->{timeout} + $ttl,
+            user_session_id => $id,
+            rp              => $rp,
+        },
+        force     => 1,
+        hashStore => 0,
+    );
+    $self->logger->debug("Unable to index ID Token sid $sid") unless $session;
+
+    return PE_OK;
+}
+
+sub _sidIndexId {
+    my ( $self, $sid ) = @_;
+    return sha256_hex( SID_INDEX_PREFIX . $sid );
+}
+
+# Resolve an ID Token issued by this OP into token session data.
+#
+# Two lookups, in order:
+#   1. our own `sid` index (see indexIdTokenSid), which works for every client
+#      but only knows about ID Tokens issued while this plugin was loaded;
+#   2. the historical search of OIDC sessions on `_oidc_sid`, which finds the
+#      refresh token session carrying the same sid. It also covers sessions
+#      opened against an upstream OP, where `_oidc_sid` is the OP's own sid.
+#
+# Route 1 returns the user session id only, so no authorization_details come
+# with it; route 2 returns the full refresh token session data.
+sub _getDataFromIdToken {
+    my ( $self, $req, $rp, $idToken ) = @_;
     my $oidc = $self->oidc;
 
     $idToken = $oidc->decryptJwt($idToken) or return;
@@ -339,6 +453,25 @@ sub _getSessionFromIdToken {
         return;
     }
 
+    # 1. Our own reverse index
+    my $index = $self->p->getApacheSession(
+        $self->_sidIndexId($sid),
+        kind      => $oidc->sessionKind,
+        noInfo    => 1,
+        hashStore => 0,
+    );
+    if ( $index and $index->data->{user_session_id} ) {
+
+        # The azp claim was verified above, so the ID Token does belong to
+        # $rp: hand back a token-session shape the caller can check.
+        return {
+            rp              => $rp,
+            client_id       => $clientId,
+            user_session_id => $index->data->{user_session_id},
+        };
+    }
+
+    # 2. Refresh token session carrying the same sid
     my %opts    = $oidc->_storeOpts;
     my $options = $opts{storageModuleOptions};
     $options->{backend} = $opts{storageModule};
@@ -356,7 +489,7 @@ sub _getSessionFromIdToken {
         my $session =
           $oidc->getOpenIDConnectSession( $id, 'refresh_token',
             hashStore => 0 );
-        return $session if $session;
+        return $session->data if $session;
     }
 
     $self->userLogger->error("No session found for ID Token sid $sid");
@@ -444,7 +577,8 @@ access token for that server's APIs.
 
   POST /oauth2/token
   Authorization: Basic ...
-  
+
+
   grant_type=urn:ietf:params:oauth:grant-type:token-exchange
   &requested_token_type=urn:ietf:params:oauth:token-type:id-jag
   &audience=https://resource.example.com
@@ -488,25 +622,30 @@ only, defaults to RS256 or ES256).
 =item C<oidcRPMetaDataOptionsIdJagExpiration>: assertion lifetime, defaults to
 C<oidcServiceIdJagExpiration> (300s).
 
+=item C<oidcRPMetaDataOptionsAuthorizationDetailsTypes> (from the C<oidc-rar>
+plugin): when set, restricts which RFC 9396 C<authorization_details> types are
+copied from the subject token into the assertion.
+
 =back
 
 =head1 LIMITATIONS
 
-The draft is not stabilized yet, and this implementation covers the Identity
-Provider side only:
+The draft is not stabilized yet: claim names and behaviour may still change.
 
 =over
 
-=item When an ID Token is used as C<subject_token>, the user session is
-resolved through its C<sid> claim, which is only stored in refresh token
-sessions: the client must be allowed to get refresh tokens.
+=item The C<client_id> claim can only be overridden globally per client, not
+per (client, resource) pair.
 
-=item C<authorization_details> is not forwarded.
-
-=item Consuming an ID-JAG through the JWT Bearer grant (Resource Authorization
-Server role) is not implemented.
+=item C<authorization_details> forwarded from an ID Token C<subject_token>
+requires that ID Token to resolve through a refresh token session; the C<sid>
+index alone carries the user session, not the grant.
 
 =back
+
+The Resource Authorization Server role -- consuming an ID-JAG through the JWT
+Bearer grant -- lives in
+L<Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrantServer>.
 
 =head1 HOOKS
 
@@ -524,6 +663,7 @@ assertion is signed:
 =head1 SEE ALSO
 
 L<Lemonldap::NG::Portal>,
+L<Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrantServer>,
 L<Lemonldap::NG::Portal::Lib::OIDCTokenExchange>,
 L<https://github.com/linagora/lemonldap-ng-plugins>
 

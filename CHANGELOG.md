@@ -4,37 +4,24 @@
 
 ### oidc-id-jag (new)
 
-- **Feature — Cross-App Access (XAA), the Identity Assertion JWT
-  Authorization Grant**. Implements the _Identity Provider Authorization
-  Server_ role of
-  [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/):
-  a confidential client exchanges one of its tokens against a short-lived
-  `oauth-id-jag+jwt` assertion targeting another authorization server,
-  which it then presents using the JWT Bearer grant. Mainly aimed at AI
-  agents and MCP servers reaching enterprise APIs without asking the user
-  for a second OAuth consent.
-- Answered through the `oidcGotTokenExchange` hook, so the token endpoint
-  is untouched and the plugin composes with the other token exchange
-  consumers. `subject_token` accepts an ID token, a refresh token or an
-  access token; ID tokens are verified with the signature algorithm
-  declared for the client — pinned, to avoid algorithm substitution.
-- Authorization is the resource RP's own policy: the requested `audience`
-  is resolved into the relying party declaring it, then its
-  `TokenXAuthorizedRP` list and its access rule both have to pass. The
-  assertion is always signed with an asymmetric key, so the remote server
-  can verify it against our JWKS.
-- **New options**: `oidcRPMetaDataOptionsAllowIdJagGrant` and
-  `oidcRPMetaDataOptionsIdJagClientId` on the client,
-  `oidcRPMetaDataOptionsIdJagAudience`, `oidcRPMetaDataOptionsIdJagSignAlg`
-  and `oidcRPMetaDataOptionsIdJagExpiration` on the resource,
-  `oidcServiceIdJagExpiration` globally.
-- The discovery document advertises the token exchange grant and the new
-  `identity_chaining_requested_token_types_supported` field (via the
-  `oidcGenerateMetadata` hook — no core patch needed), and other plugins
-  can enrich the assertion through the new `oidcGenerateIdJag` hook.
-- The Resource Authorization Server role (jwt-bearer grant) is not
-  implemented. The draft is not stabilized: claim names and behaviour may
-  still change.
+- **Feature — Cross-App Access (XAA)**, both ends of
+  [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/),
+  as two separately autoloaded modules. Issuing side
+  (`::Plugins::OIDCIdentityAssertionGrant`): a confidential client exchanges
+  one of its tokens against a short-lived `oauth-id-jag+jwt` assertion for
+  another authorization server, through the `oidcGotTokenExchange` hook.
+  Consuming side (`::Plugins::OIDCIdentityAssertionGrantServer`): a client
+  presents such an assertion with the RFC 7523 JWT Bearer grant and gets a
+  local access token, after signature / audience / freshness / client checks
+  and single-use `jti` enforcement.
+- RFC 9396 `authorization_details` travel with the assertion, narrowed down by
+  the target relying party's own type allowlist.
+- An ID Token used as `subject_token` no longer requires the client to be
+  allowed refresh tokens: the plugin keeps its own short-lived `sid` index.
+- The discovery document advertises the token exchange and jwt-bearer grants
+  and `identity_chaining_requested_token_types_supported`; plugins can enrich
+  the assertion through the new `oidcGenerateIdJag` hook.
+- The draft is not stabilized: claim names and behaviour may still change.
 
 ## v0.4.1 - 2026-08-21
 

@@ -115,12 +115,12 @@ The plugins are grouped by use case below. Each is a self-contained `.deb`-insta
 
 ### 2.4 Alternative grants
 
-| Plugin                                                           | Spec                                                                                                                                    | What it does                                                                                                              |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [`oidc-ciba`](plugins/oidc-ciba)                                 | [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html)                         | Client-Initiated Backchannel Authentication (push/poll/ping modes).                                                       |
-| [`oidc-device-authorization`](plugins/oidc-device-authorization) | [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)                                                                                      | Device Authorization Grant for input-constrained clients (TVs, CLIs).                                                     |
-| [`oidc-device-organization`](plugins/oidc-device-organization)   | _Companion_                                                                                                                             | Organization-aware device enrollment (used with `oidc-device-authorization`).                                             |
-| [`oidc-id-jag`](plugins/oidc-id-jag)                             | [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) 🧪 | Cross-App Access: exchanges a client token against a short-lived ID-JAG assertion targeting another authorization server. |
+| Plugin                                                           | Spec                                                                                                                                    | What it does                                                                                                                          |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| [`oidc-ciba`](plugins/oidc-ciba)                                 | [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html)                         | Client-Initiated Backchannel Authentication (push/poll/ping modes).                                                                   |
+| [`oidc-device-authorization`](plugins/oidc-device-authorization) | [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)                                                                                      | Device Authorization Grant for input-constrained clients (TVs, CLIs).                                                                 |
+| [`oidc-device-organization`](plugins/oidc-device-organization)   | _Companion_                                                                                                                             | Organization-aware device enrollment (used with `oidc-device-authorization`).                                                         |
+| [`oidc-id-jag`](plugins/oidc-id-jag)                             | [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) 🧪 | Cross-App Access, both ends: issues a short-lived ID-JAG for another authorization server, and consumes one via the JWT Bearer grant. |
 
 ### 2.5 Federation
 
@@ -185,15 +185,15 @@ Once mTLS lands upstream ([issue #3442](https://gitlab.ow2.org/lemonldap-ng/lemo
 1. Install `oidc-par` and `oidc-resource-indicators` from this store.
 2. Configure your RPs:
 
-   | Option                                                       | Value                            |
-   | ------------------------------------------------------------ | -------------------------------- |
-   | `oidcRPMetaDataOptionsRequirePKCE`                           | `1`                              |
-   | `oidcRPMetaDataOptionsPAR`                                   | `required`                       |
-   | `oidcRPMetaDataOptionsAuthMethod`                            | `tls_client_auth`                |
-   | `oidcRPMetaDataOptionsTLSClientCertificateBoundAccessTokens` | `1`                              |
-   | `oidcRPMetaDataOptionsAllowImplicitFlow`                     | `0`                              |
-   | `oidcRPMetaDataOptionsAllowHybridFlow`                       | `0`                              |
-   | `oidcRPMetaDataOptionsEnableRI`                              | `1` (on each Resource Server RP) |
+| Option                                                       | Value                            |
+| ------------------------------------------------------------ | -------------------------------- |
+| `oidcRPMetaDataOptionsRequirePKCE`                           | `1`                              |
+| `oidcRPMetaDataOptionsPAR`                                   | `required`                       |
+| `oidcRPMetaDataOptionsAuthMethod`                            | `tls_client_auth`                |
+| `oidcRPMetaDataOptionsTLSClientCertificateBoundAccessTokens` | `1`                              |
+| `oidcRPMetaDataOptionsAllowImplicitFlow`                     | `0`                              |
+| `oidcRPMetaDataOptionsAllowHybridFlow`                       | `0`                              |
+| `oidcRPMetaDataOptionsEnableRI`                              | `1` (on each Resource Server RP) |
 
 3. Disable `oidcServiceAllowImplicitFlow` and `oidcServiceAllowHybridFlow` at the service level.
 

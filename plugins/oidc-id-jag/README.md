@@ -23,12 +23,19 @@ The flow relies on a short-lived assertion called the **ID-JAG**:
    (`urn:ietf:params:oauth:grant-type:jwt-bearer`);
 4. it uses the resulting access token to call the resource APIs.
 
-**This plugin implements step 2 only.** The Resource Authorization Server role
-(step 3, consuming an ID-JAG through the JWT Bearer grant) is not implemented.
+This plugin implements **both ends**, as two independent modules you can enable
+separately:
 
-The exchange is answered through the `oidcGotTokenExchange` hook, so the token
-endpoint itself is left untouched and the plugin composes with the other token
-exchange consumers (Native SSO, `matrix-token-exchange`, …).
+| Module                                        | Role                                                                        | Enabled by                                         |
+| --------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------- |
+| `::Plugins::OIDCIdentityAssertionGrant`       | **Identity Provider AS** — issues the assertion (step 2)                    | an RP with _Allow Identity Assertion Grant_        |
+| `::Plugins::OIDCIdentityAssertionGrantServer` | **Resource AS** — consumes an assertion and issues an access token (step 3) | an OP with _Accept ID-JAG issued by this provider_ |
+
+The issuing side is answered through the `oidcGotTokenExchange` hook, so the
+token endpoint itself is left untouched and it composes with the other token
+exchange consumers (Native SSO, `matrix-token-exchange`, …). The consuming side
+plugs into `oidcGotTokenRequest`, the same extension point CIBA and the device
+grant use.
 
 ## Installation
 
@@ -38,12 +45,16 @@ With `lemonldap-ng-store` (LLNG ≥ 2.24.0) or [linagora-lemonldap-ng-store](../
 sudo lemonldap-ng-store install oidc-id-jag
 ```
 
-The plugin ships an `autoload` rule, so it loads by itself as soon as one
-relying party has _Allow Identity Assertion Grant (ID-JAG)_ enabled.
+Each module ships its own `autoload` rule, so each loads by itself as soon as
+its own condition becomes true: the issuing side when a relying party has
+_Allow Identity Assertion Grant (ID-JAG)_ enabled, the consuming side when a
+provider has _Accept ID-JAG issued by this provider_ enabled. Enabling one does
+not load the other.
 
 Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/`
-into `/etc/lemonldap-ng/manager-plugins.d/`, add
-`::Plugins::OIDCIdentityAssertionGrant` to _Custom plugins_, and run
+into `/etc/lemonldap-ng/manager-plugins.d/`, add the module(s) you need —
+`::Plugins::OIDCIdentityAssertionGrant` and/or
+`::Plugins::OIDCIdentityAssertionGrantServer` — to _Custom plugins_, and run
 `llng-build-manager-files`.
 
 ## Configuration
@@ -63,7 +74,7 @@ In **Manager → _OIDC Relying Parties_ → `<client>` → _Options_**:
 | `oidcRPMetaDataOptionsAllowIdJagGrant` | _Security_                  | `0`     | Enables the grant, and triggers the plugin autoload. The client must be **confidential** (`oidcRPMetaDataOptionsPublic` off).                                                                          |
 | `oidcRPMetaDataOptionsIdJagClientId`   | _Cross-App Access (ID-JAG)_ | _empty_ | Value of the `client_id` claim of the assertion. Defaults to the client identifier known by LemonLDAP::NG; set it when the client is registered under another name on the remote authorization server. |
 
-### Resource Authorization Server
+### Target resource (the remote authorization server)
 
 The remote authorization server must be declared as a relying party too, since
 it already trusts LemonLDAP::NG for single sign-on. In its options:
@@ -134,16 +145,101 @@ The assertion is a JWT with a `oauth-id-jag+jwt` type header and this payload:
 }
 ```
 
+### Forwarded `authorization_details`
+
+When the subject token carries RFC 9396 `authorization_details` (granted by the
+[`oidc-rar`](../oidc-rar) plugin), they travel with the assertion as an
+`authorization_details` claim.
+
+The target relying party is a different trust domain, so the entries are
+narrowed down by **its** `oidcRPMetaDataOptionsAuthorizationDetailsTypes`
+allowlist: an entry whose `type` the target does not accept is dropped rather
+than forwarded. An empty allowlist means no restriction, exactly as in
+`oidc-rar`. The `oidcGenerateIdJag` hook can still amend the list.
+
 ### Using an ID Token as subject token
 
 This is the flow described by the draft. The ID Token is verified against the
 signature algorithm **declared for the client** — pinned, to avoid algorithm
 substitution — then the user session is resolved through its `sid` claim.
 
-> `sid` is only stored by LemonLDAP::NG in refresh token sessions, so the
-> requesting client must have **Use refresh tokens** _(or offline access)_
-> enabled. Otherwise, use the refresh token or the access token directly as
-> `subject_token`.
+LemonLDAP::NG only persists `sid` on refresh token sessions, so resolving an
+ID Token would otherwise require the client to be allowed refresh tokens. The
+plugin therefore keeps its own reverse index: one short-lived record per ID
+Token issued to a relying party that is allowed to request an ID-JAG, living
+exactly as long as the ID Token it describes. Clients without refresh tokens
+work out of the box; only RPs with the grant enabled pay for the extra record.
+
+> Resolution falls back to the historical `sid` search when the index has no
+> entry — ID Tokens issued before this plugin was installed, and sessions
+> opened against an upstream OP, which carry the OP's own `sid`. Only that
+> fallback path also carries `authorization_details`.
+
+## Consuming an ID-JAG — the Resource Authorization Server role
+
+The other half of the flow: a client that holds an ID-JAG minted by a trusted
+identity provider presents it here, with the RFC 7523 JWT Bearer grant, and
+gets a local access token.
+
+```bash
+curl -X POST \
+ -u "client-id:client-secret" \
+ --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" \
+ --data-urlencode "assertion=eyJ0eXAiOiJvYXV0aC1pZC1qYWcrand0Ii..." \
+ --data-urlencode "scope=openid profile" \
+ http://resource-as.example.com/oauth2/token
+```
+
+### Declaring the trusted identity provider
+
+The issuing provider is declared as an **OpenID Connect Provider** in the
+Manager — the same object LemonLDAP::NG uses when it is an OIDC client, so its
+`issuer` and JWKS come from the usual metadata fields
+(`oidcOPMetaDataJSON` / `oidcOPMetaDataJWKS`, or a configuration URI).
+
+| Parameter                                 | Default | Description                                                                                       |
+| ----------------------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| `oidcOPMetaDataOptionsAllowIdJagGrant`    | `0`     | Accept ID-JAGs issued by this provider. Required to trigger the autoload of the consuming module. |
+| `oidcOPMetaDataOptionsIdJagUserAttribute` | `sub`   | Claim of the assertion carrying the local user identifier.                                        |
+
+On the client presenting the assertion:
+
+| Parameter                               | Default | Description                                                  |
+| --------------------------------------- | ------- | ------------------------------------------------------------ |
+| `oidcRPMetaDataOptionsAllowIdJagBearer` | `0`     | Allow this client to exchange an ID-JAG for an access token. |
+
+Globally (Manager → _OpenID Connect Service_ → _Security_):
+
+| Parameter                     | Default      | Description                                                                                        |
+| ----------------------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| `oidcServiceIdJagAudience`    | _the issuer_ | Identifier remote providers must send as `aud`. Set it when they know this server by another name. |
+| `oidcServiceIdJagAllowedSkew` | `30`         | Clock skew tolerated on `exp` / `iat` / `nbf`, in seconds.                                         |
+| `oidcServiceIdJagChoice`      | _empty_      | `authChoiceModules` entry used to resolve the subject when the server runs `Auth = Choice`.        |
+
+### What is checked
+
+1. `typ` header is `oauth-id-jag+jwt` — a plain JWT is refused, so this grant
+   never becomes a generic JWT bearer path.
+2. The signature algorithm is asymmetric, and the signature verifies against
+   the JWKS of the issuing provider.
+3. `iss` names a provider configured with _Accept ID-JAG_, re-checked on the
+   **verified** payload.
+4. `aud` names this server.
+5. `exp` / `nbf` / `iat` are fresh, within the tolerated skew.
+6. `client_id` matches the authenticated client.
+7. `jti` has not been seen before — **single use is enforced**, recorded until
+   the assertion would have expired anyway.
+
+The asserted subject is then resolved through the local user backends
+(`getUser` → `setSessionInfo` → groups → macros): no interactive
+authentication happens, the provider already vouched for the user. The relying
+party access rule is evaluated last, with `_oidc_grant_type` set to `idjag`.
+
+`authorization_details` carried by the assertion are copied onto the access
+token session, so `oidc-rar` surfaces them on introspection.
+
+`urn:ietf:params:oauth:grant-type:jwt-bearer` is advertised in
+`grant_types_supported` as soon as one provider is trusted.
 
 ## Error responses
 
@@ -166,6 +262,10 @@ When at least one relying party is allowed to request an ID-JAG, the
 - `["urn:ietf:params:oauth:token-type:id-jag"]` as
   `identity_chaining_requested_token_types_supported`
 
+When at least one provider is trusted to issue ID-JAGs, it also advertises:
+
+- `urn:ietf:params:oauth:grant-type:jwt-bearer` in `grant_types_supported`
+
 ## Enriching the assertion — the `oidcGenerateIdJag` hook
 
 Another plugin can add claims to the assertion just before it is signed:
@@ -187,11 +287,15 @@ data. Returning anything but `PE_OK` aborts the exchange with `server_error`.
 
 ## Limitations
 
-- Only the **Identity Provider** role is implemented; consuming an ID-JAG
-  through the JWT Bearer grant (Resource Authorization Server role) is not.
-- `authorization_details` (RAR) is not forwarded.
+- The draft is not stabilized: claim names and behaviour may still change.
 - The `client_id` claim can only be overridden globally per client, not per
   (client, resource) pair.
+- On the issuing side, `authorization_details` forwarded from an **ID Token**
+  `subject_token` requires that ID Token to resolve through a refresh token
+  session — the `sid` index carries the user session, not the grant. Refresh
+  and access tokens as `subject_token` are unaffected.
+- On the consuming side, the subject must exist in the local user backends;
+  there is no just-in-time provisioning.
 
 ## Tests
 
