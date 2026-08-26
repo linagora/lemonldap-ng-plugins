@@ -104,6 +104,16 @@ sub _run {
         return $oidc->sendOIDCError( $req, 'unauthorized_client', 400 );
     }
 
+    # An ID-JAG is a bearer credential: it crosses the client application,
+    # proxies and logs on its way here. checkEndPointAuthenticationCredentials
+    # skips the secret check entirely for public clients, so accepting one
+    # would reduce the client_id binding below to "knows a public identifier".
+    if ( $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
+        $self->logger->error(
+            'JWT Bearer grant cannot be used by public clients');
+        return $oidc->sendOIDCError( $req, 'unauthorized_client', 400 );
+    }
+
     my $assertion = $req->param('assertion');
     unless ($assertion) {
         $self->logger->error('JWT Bearer grant without assertion');
@@ -197,16 +207,11 @@ sub _run {
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
 
-    # 8. Single use
+    # 8. A jti is required; it is consumed at step 11, once every other check
+    #    has passed, so a transient failure elsewhere does not burn a valid
+    #    assertion the client would then have to re-obtain from its provider.
     unless ( $claims->{jti} ) {
         $self->userLogger->error('ID-JAG without jti claim');
-        return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
-    }
-    unless ( $self->_consumeJti( $claims->{iss}, $claims->{jti},
-            $claims->{exp} + $skew - $now ) )
-    {
-        $self->userLogger->error(
-            "ID-JAG $claims->{jti} was already used");
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
 
@@ -245,7 +250,14 @@ sub _run {
         }
     }
 
-    # 11. Mint the local access token
+    # 11. Burn the assertion, then mint the local access token
+    unless ( $self->_consumeJti( $claims->{iss}, $claims->{jti},
+            $claims->{exp} + $skew - $now ) )
+    {
+        $self->userLogger->error("ID-JAG $claims->{jti} was already used");
+        return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+    }
+
     my $session =
       $self->p->getApacheSession( undef, info => $sessionInfo, kind => 'SSO' );
     unless ($session) {
@@ -262,9 +274,11 @@ sub _run {
     };
 
     # Carry RFC 9396 authorization_details of the assertion onto the access
-    # token session, so oidc-rar surfaces them on introspection.
-    $extra->{ &RAR_SESSION_KEY } = $claims->{authorization_details}
-      if ref( $claims->{authorization_details} ) eq 'ARRAY';
+    # token session, so oidc-rar surfaces them on introspection -- but only
+    # what this server's own policy accepts. The remote provider is trusted for
+    # identity, not to hand out fine-grained rights over our APIs.
+    my $details = $self->_acceptedAuthorizationDetails( $claims, $rp );
+    $extra->{ &RAR_SESSION_KEY } = $details if $details;
 
     my $access_token =
       $oidc->newAccessToken( $req, $rp, $scope, $session->data, $extra );
@@ -294,11 +308,7 @@ sub _run {
             token_type   => 'Bearer',
             expires_in   => $expires_in + 0,
             scope        => "$scope",
-            (
-                ref( $claims->{authorization_details} ) eq 'ARRAY'
-                ? ( authorization_details => $claims->{authorization_details} )
-                : ()
-            ),
+            ( $details ? ( authorization_details => $details ) : () ),
         }
     );
 }
@@ -343,7 +353,6 @@ sub _consumeJti {
     my $existing = $self->p->getApacheSession(
         $id,
         kind      => $self->oidc->sessionKind,
-        noInfo    => 1,
         hashStore => 0,
     );
     return 0 if $existing;
@@ -398,21 +407,57 @@ sub _lookupUser {
     return $sessionInfo;
 }
 
+# RFC 9396 authorization_details of the assertion that this server accepts.
+#
+# Fail closed, and on our own terms: the entries were authorized by a remote
+# provider against a remote policy, so they are re-filtered through the local
+# relying party type allowlist. No allowlist means we accept none of them.
+sub _acceptedAuthorizationDetails {
+    my ( $self, $claims, $rp ) = @_;
+
+    my $details = $claims->{authorization_details};
+    return unless ref($details) eq 'ARRAY' and @$details;
+
+    my $allowed = $self->oidc->rpOptions->{$rp}
+      ->{oidcRPMetaDataOptionsAuthorizationDetailsTypes};
+    unless ( defined $allowed and $allowed =~ /\S/ ) {
+        $self->logger->debug( "ID-JAG: $rp declares no accepted "
+              . 'authorization_details type, dropping those of the assertion' );
+        return;
+    }
+
+    my %ok = map { $_ => 1 } grep { length } split /\s*,\s*/, $allowed;
+    my @kept =
+      grep { ref($_) eq 'HASH' and length( $_->{type} // '' ) }
+      grep { ref($_) eq 'HASH' and $ok{ $_->{type} // '' } } @$details;
+
+    unless (@kept) {
+        $self->logger->debug(
+            "ID-JAG: no authorization_details type accepted by $rp");
+        return;
+    }
+    return \@kept;
+}
+
 # The scope of the issued access token: what the client asks for, bounded by
 # what the assertion grants, then by this RP policy.
 sub _grantedScope {
     my ( $self, $req, $rp, $claims ) = @_;
 
-    my $asserted  = $claims->{scope} || '';
-    my $requested = $req->param('scope') || $asserted;
+    # An assertion carrying no scope granted no scope. Treating it as "no
+    # restriction" would let the client name any scope it likes, since
+    # getScope() only filters against declared scopes when
+    # oidcServiceAllowOnlyDeclaredScopes is enabled.
+    my $asserted = $claims->{scope};
+    return unless defined $asserted and $asserted =~ /\S/;
 
-    if ($asserted) {
-        my %granted = map { $_ => 1 } grep { length } split /\s+/, $asserted;
-        my @kept = grep { $granted{$_} } grep { length } split /\s+/,
-          $requested;
-        $requested = join ' ', @kept;
-        return unless $requested;
-    }
+    my $requested = scalar $req->param('scope');
+    $requested = $asserted unless defined $requested and $requested =~ /\S/;
+
+    my %granted = map { $_ => 1 } grep { length } split /\s+/, $asserted;
+    $requested = join ' ',
+      grep { $granted{$_} } grep { length } split /\s+/, $requested;
+    return unless $requested;
 
     return $self->oidc->getScope( $req, $rp, $requested );
 }

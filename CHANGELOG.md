@@ -21,6 +21,17 @@
 - The discovery document advertises the token exchange and jwt-bearer grants
   and `identity_chaining_requested_token_types_supported`; plugins can enrich
   the assertion through the new `oidcGenerateIdJag` hook.
+- **Security** — hardening pass before first release: `resource` is read in
+  scalar context (a repeated parameter could inject or overwrite any claim of
+  the signed assertion, `sub` included) and several occurrences are now
+  refused; the subject ID token's `exp` / `nbf` / `iss` / `aud` are validated,
+  which `Crypt::JWT` skips under `decode_payload => 0`; HS-signed ID tokens,
+  which the client can mint itself, are refused as `subject_token`; the `sid`
+  index is scoped per relying party and re-verified after resolution; scope is
+  bounded by what the subject token was granted, and an assertion without
+  `scope` grants none; `authorization_details` are fail-closed in both
+  directions; public clients cannot redeem an assertion; a duplicated ID-JAG
+  audience is refused rather than resolved arbitrarily.
 - The draft is not stabilized: claim names and behaviour may still change.
 
 ## v0.4.1 - 2026-08-21

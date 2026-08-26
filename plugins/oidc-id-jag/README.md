@@ -151,17 +151,30 @@ When the subject token carries RFC 9396 `authorization_details` (granted by the
 [`oidc-rar`](../oidc-rar) plugin), they travel with the assertion as an
 `authorization_details` claim.
 
-The target relying party is a different trust domain, so the entries are
-narrowed down by **its** `oidcRPMetaDataOptionsAuthorizationDetailsTypes`
-allowlist: an entry whose `type` the target does not accept is dropped rather
-than forwarded. An empty allowlist means no restriction, exactly as in
-`oidc-rar`. The `oidcGenerateIdJag` hook can still amend the list.
+The target relying party is a different trust domain, so forwarding is
+**fail-closed**: the target must declare the types it accepts in
+`oidcRPMetaDataOptionsAuthorizationDetailsTypes`, and an entry whose `type` is
+not on that list is dropped. **No allowlist means nothing is forwarded** — the
+opposite of `oidc-rar`'s own "empty = no restriction" rule, because here the
+details leave the trust domain that granted them. The `oidcGenerateIdJag` hook
+can still amend the list.
+
+The same applies in reverse when consuming an assertion: details carried by an
+incoming ID-JAG are re-filtered through the **local** relying party's
+allowlist before being stored, and dropped entirely when it declares none.
 
 ### Using an ID Token as subject token
 
 This is the flow described by the draft. The ID Token is verified against the
 signature algorithm **declared for the client** — pinned, to avoid algorithm
-substitution — then the user session is resolved through its `sid` claim.
+substitution — and its `iss`, `aud`, `exp` and `nbf` claims are checked, then
+the user session is resolved through its `sid` claim.
+
+> The client's `oidcRPMetaDataOptionsIDTokenSignAlg` must be **asymmetric**.
+> An `HS*` ID Token is verified with the client's own `client_secret`, so the
+> client could mint one with any claims it likes — it is evidence of nothing.
+> Such tokens are refused as `subject_token`; send the refresh or access token
+> instead, or switch the RP to `RS256`/`ES256`.
 
 LemonLDAP::NG only persists `sid` on refresh token sessions, so resolving an
 ID Token would otherwise require the client to be allowed refresh tokens. The
@@ -204,9 +217,9 @@ Manager — the same object LemonLDAP::NG uses when it is an OIDC client, so its
 
 On the client presenting the assertion:
 
-| Parameter                               | Default | Description                                                  |
-| --------------------------------------- | ------- | ------------------------------------------------------------ |
-| `oidcRPMetaDataOptionsAllowIdJagBearer` | `0`     | Allow this client to exchange an ID-JAG for an access token. |
+| Parameter                               | Default | Description                                                                                                                                                                                             |
+| --------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsAllowIdJagBearer` | `0`     | Allow this client to exchange an ID-JAG for an access token. The client must be **confidential**: an ID-JAG is a bearer credential, and a public client authenticates with nothing but its `client_id`. |
 
 Globally (Manager → _OpenID Connect Service_ → _Security_):
 
@@ -228,7 +241,12 @@ Globally (Manager → _OpenID Connect Service_ → _Security_):
 5. `exp` / `nbf` / `iat` are fresh, within the tolerated skew.
 6. `client_id` matches the authenticated client.
 7. `jti` has not been seen before — **single use is enforced**, recorded until
-   the assertion would have expired anyway.
+   the assertion would have expired anyway. The record is written only once
+   every other check has passed, so a transient failure does not burn an
+   otherwise valid assertion.
+
+An assertion carrying no `scope` claim grants no scope: the request is refused
+with `invalid_scope` rather than letting the client name whatever it likes.
 
 The asserted subject is then resolved through the local user backends
 (`getUser` → `setSessionInfo` → groups → macros): no interactive
@@ -296,6 +314,10 @@ data. Returning anything but `PE_OK` aborts the exchange with `server_error`.
   and access tokens as `subject_token` are unaffected.
 - On the consuming side, the subject must exist in the local user backends;
   there is no just-in-time provisioning.
+- Single-use enforcement is a read-then-write against the session store, not
+  an atomic insert: two strictly simultaneous presentations of the same
+  assertion can both succeed. Both then yield equivalent tokens for the same
+  user and scope.
 
 ## Tests
 

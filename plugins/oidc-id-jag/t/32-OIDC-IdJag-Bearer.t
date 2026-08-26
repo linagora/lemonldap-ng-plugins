@@ -67,6 +67,16 @@ sub conf {
                     oidcRPMetaDataOptionsTokenXAuthorizedRP => 'rp',
                 },
 
+                # Allowed to present an ID-JAG, but public
+                rp4 => {
+                    oidcRPMetaDataOptionsDisplayName       => "RP4",
+                    oidcRPMetaDataOptionsClientID          => "rpid4",
+                    oidcRPMetaDataOptionsPublic            => 1,
+                    oidcRPMetaDataOptionsUserIDAttr        => "",
+                    oidcRPMetaDataOptionsRedirectUris      => 'http://test/',
+                    oidcRPMetaDataOptionsAllowIdJagBearer  => 1,
+                },
+
                 # Registered, but not allowed to present an ID-JAG
                 rp3 => {
                     oidcRPMetaDataOptionsDisplayName   => "RP3",
@@ -305,6 +315,71 @@ subtest 'errors' => sub {
     );
     expectError( jwtBearer( $ras2, 'rpid', assertion => $otherAud ),
         'invalid_grant', 'An assertion addressed to another server' );
+};
+
+subtest 'a public client cannot redeem an assertion' => sub {
+
+    # An ID-JAG is a bearer credential; a public client authenticates with
+    # nothing but its client_id.
+    my $a = expectJSON(
+        tokenExchange(
+            $op, 'rpid',
+            requested_token_type => $ID_JAG,
+            audience             => $AUDIENCE,
+            subject_token        => $refresh_token,
+            subject_token_type   =>
+              'urn:ietf:params:oauth:token-type:refresh_token',
+        )
+    )->{access_token};
+    expectError( jwtBearer( $ras, 'rpid4', assertion => $a ),
+        'unauthorized_client', 'A public client' );
+};
+
+subtest 'an assertion without scope grants no scope' => sub {
+
+    # "the provider granted no scope" must not be read as "anything goes".
+    my $noScope = encode_jwt(
+        payload => {
+            iss       => $ISSUER,
+            sub       => 'french',
+            aud       => $AUDIENCE,
+            client_id => 'rpid',
+            jti       => 'no-scope-1',
+            iat       => time,
+            exp       => time + 300,
+        },
+        alg           => 'RS256',
+        key           => \oidc_key_op_private_sig,
+        extra_headers => { typ => 'oauth-id-jag+jwt' },
+    );
+    expectError(
+        jwtBearer( $ras, 'rpid', assertion => $noScope, scope => 'admin' ),
+        'invalid_scope', 'A scope-less assertion' );
+};
+
+subtest 'asserted authorization_details are filtered locally' => sub {
+    my $withRar = encode_jwt(
+        payload => {
+            iss                   => $ISSUER,
+            sub                   => 'french',
+            aud                   => $AUDIENCE,
+            client_id             => 'rpid',
+            jti                   => 'rar-1',
+            iat                   => time,
+            exp                   => time + 300,
+            scope                 => 'openid profile',
+            authorization_details =>
+              [ { type => 'payment_initiation', amount => '1000000' } ],
+        },
+        alg           => 'RS256',
+        key           => \oidc_key_op_private_sig,
+        extra_headers => { typ => 'oauth-id-jag+jwt' },
+    );
+
+    # rp declares no accepted type, so nothing survives
+    my $json = expectJSON( jwtBearer( $ras, 'rpid', assertion => $withRar ) );
+    ok( !$json->{authorization_details},
+        'Details are dropped when the local RP declares no allowlist' );
 };
 
 clean_sessions();

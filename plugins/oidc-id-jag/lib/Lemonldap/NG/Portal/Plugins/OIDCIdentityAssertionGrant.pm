@@ -151,15 +151,32 @@ sub _run {
         }
     }
 
-    # 6. Narrow down requested scopes using the target RP policy
-    my $requestedScope = $req->param('scope') || '';
-    my $scope          = $oidc->getScope( $req, $target, $requestedScope );
+    # 6. Narrow down requested scopes: the client cannot obtain more than the
+    #    subject token itself was granted, and the target RP policy applies on
+    #    top of that.
+    my $scope = $self->_assertedScope( $req, $target, $tokenData );
 
     # 7. Build and sign the assertion
     my $expiration =
          $oidc->rpOptions->{$target}->{oidcRPMetaDataOptionsIdJagExpiration}
       || $self->conf->{oidcServiceIdJagExpiration}
       || 300;
+
+    # Every value below is forced into scalar context and stringified before it
+    # reaches this hash. `$req->param` is list-context aware: interpolating it
+    # straight into a hash literal lets a client repeat the parameter and
+    # inject -- or overwrite -- arbitrary claims, `sub` included.
+    #
+    # The draft defines `resource` as a single value. Rather than silently
+    # keeping one of several, refuse the ambiguity outright.
+    my @resources = $req->param('resource');
+    if ( @resources > 1 ) {
+        $self->userLogger->error(
+            'ID-JAG request with several resource parameters');
+        return $oidc->sendOIDCError( $req, 'invalid_request', 400,
+            'resource must be a single value' );
+    }
+    my $resource = $resources[0];
 
     my $payload = {
         iss       => $oidc->get_issuer($req),
@@ -169,13 +186,9 @@ sub _run {
         jti       => $oidc->generateNonce,
         iat       => time,
         exp       => time + $expiration,
-        ( $scope ? ( scope => "$scope" ) : () ),
-        (
-            $req->param('resource')
-            ? ( resource => $req->param('resource') )
-            : ()
-        ),
     };
+    $payload->{scope}    = "$scope"    if length $scope;
+    $payload->{resource} = "$resource" if defined $resource and length $resource;
 
     # RFC 9396 authorization_details granted to the subject token travel with
     # the assertion, narrowed down by the target RP type allowlist.
@@ -192,6 +205,15 @@ sub _run {
 
     my $alg = $self->_signatureAlg($target);
     unless ($alg) {
+        return $oidc->sendOIDCError( $req, 'server_error', 500 );
+    }
+
+    # createJWT() drops the `typ` header when the partner RP has NoJwtHeader,
+    # which would produce an assertion no Resource Authorization Server can
+    # recognise. Fail loudly instead of shipping a broken one.
+    if ( $oidc->rpOptions->{$target}->{oidcRPMetaDataOptionsNoJwtHeader} ) {
+        $self->logger->error( "Relying party $target has NoJwtHeader set: an "
+              . 'ID-JAG cannot carry its ' . ID_JAG_TYP . ' type header' );
         return $oidc->sendOIDCError( $req, 'server_error', 500 );
     }
 
@@ -222,17 +244,56 @@ sub _run {
     );
 }
 
-# Find the RP declaring $audience as its Authorization Server identifier
+# The scope carried by the assertion.
+#
+# Two bounds, both mandatory: what the subject token itself was granted, and
+# the policy of the target relying party. Without the first one a client
+# holding a token scoped `openid profile` could ask for -- and get -- an
+# assertion carrying `admin`, since getScope() echoes undeclared scopes unless
+# oidcServiceAllowOnlyDeclaredScopes is set.
+sub _assertedScope {
+    my ( $self, $req, $target, $tokenData ) = @_;
+
+    my $requested = scalar $req->param('scope');
+    $requested = '' unless defined $requested;
+
+    my $granted = $tokenData->{scope};
+    if ( defined $granted and $granted =~ /\S/ ) {
+        my %ok = map { $_ => 1 } grep { length } split /\s+/, $granted;
+        $requested = join ' ',
+          grep { $ok{$_} } grep { length } split /\s+/,
+          ( $requested =~ /\S/ ? $requested : $granted );
+    }
+
+    my $scope = $self->oidc->getScope( $req, $target, $requested );
+    return defined $scope ? $scope : '';
+}
+
+# Find the RP declaring $audience as its Authorization Server identifier.
+#
+# The match must be unique: every later decision -- the TokenXAuthorizedRP
+# allowlist, the access rule, the scope policy, the subject computation, the
+# signing algorithm -- is taken from the RP found here, while the remote server
+# only ever sees the audience string. Two RPs sharing an audience would let the
+# laxer one silently govern assertions meant for the other.
 sub _findTargetRp {
     my ( $self, $audience ) = @_;
     my $rpOptions = $self->oidc->rpOptions;
 
-    my ($target) = grep {
+    my @targets = grep {
         ( $rpOptions->{$_}->{oidcRPMetaDataOptionsIdJagAudience} || '' ) eq
           $audience
     } sort keys %$rpOptions;
 
-    return $target;
+    if ( @targets > 1 ) {
+        $self->logger->error( "Relying parties "
+              . join( ', ', @targets )
+              . " all declare $audience as ID-JAG audience; refusing to guess"
+        );
+        return;
+    }
+
+    return $targets[0];
 }
 
 # client_id claim: identifier of the requesting client *at the Resource
@@ -352,11 +413,20 @@ sub _forwardedAuthorizationDetails {
     my $details = $tokenData->{ &RAR_SESSION_KEY };
     return unless $details and ref($details) eq 'ARRAY' and @$details;
 
+    # Fail closed: the target authorization server is a different trust
+    # domain, so it has to declare which types it accepts. No allowlist means
+    # nothing travels, not "everything travels".
     my $allowed = $self->oidc->rpOptions->{$target}
       ->{oidcRPMetaDataOptionsAuthorizationDetailsTypes};
-    return $details unless defined $allowed and $allowed =~ /\S/;
+    unless ( defined $allowed and $allowed =~ /\S/ ) {
+        $self->logger->debug( "ID-JAG: $target declares no accepted "
+              . 'authorization_details type, forwarding none' );
+        return;
+    }
 
-    my %ok = map { $_ => 1 } grep { length } split /[\s,]+/, $allowed;
+    # Same splitting rule as oidc-rar, so one configuration string means the
+    # same thing on both paths.
+    my %ok = map { $_ => 1 } grep { length } split /\s*,\s*/, $allowed;
     my @kept = grep { $ok{ $_->{type} // '' } } @$details;
 
     unless (@kept) {
@@ -388,8 +458,19 @@ sub indexIdTokenSid {
       unless $self->oidc->rpOptions->{$rp}
       ->{oidcRPMetaDataOptionsAllowIdJagGrant};
 
-    my $sid = $payload->{sid}                 or return PE_OK;
-    my $id  = $sessionData->{_session_id}     or return PE_OK;
+    my $sid = $payload->{sid} or return PE_OK;
+
+    # In the offline refresh flow core hands us the *refresh token* session,
+    # not the SSO session, so `_session_id` would be a token session id. That
+    # would overwrite the good entry with one retrieveSession() -- which forces
+    # kind SSO -- can never resolve.
+    my $kind = $sessionData->{_session_kind} || '';
+    unless ( $kind eq 'SSO' ) {
+        $self->logger->debug(
+            "ID-JAG: not indexing sid $sid, session kind is '$kind'");
+        return PE_OK;
+    }
+    my $id = $sessionData->{_session_id} or return PE_OK;
 
     my $ttl =
          $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsIDTokenExpiration}
@@ -397,7 +478,7 @@ sub indexIdTokenSid {
       || 3600;
 
     my $session = $self->p->getApacheSession(
-        $self->_sidIndexId($sid),
+        $self->_sidIndexId( $rp, $sid ),
         kind => $self->oidc->sessionKind,
         info => {
             _type           => 'idjag_sid',
@@ -413,9 +494,14 @@ sub indexIdTokenSid {
     return PE_OK;
 }
 
+# The index key is scoped to the relying party. `sid` alone is not a safe key:
+# once the user authenticated against an upstream OP, getSidFromSession()
+# returns that OP's `_oidc_sid` verbatim, which is the SAME value for every
+# relying party and is chosen by a third party. An unscoped key would let one
+# RP resolve a `sid` it learned elsewhere into another RP's user session.
 sub _sidIndexId {
-    my ( $self, $sid ) = @_;
-    return sha256_hex( SID_INDEX_PREFIX . $sid );
+    my ( $self, $rp, $sid ) = @_;
+    return sha256_hex( SID_INDEX_PREFIX . $rp . '|' . $sid );
 }
 
 # Resolve an ID Token issued by this OP into token session data.
@@ -447,36 +533,55 @@ sub _getDataFromIdToken {
         return;
     }
 
+    # Crypt::JWT skips every registered-claim check when decode_payload is 0,
+    # which _verifySelfIssuedJwt has to use (see #2748), so validate here.
+    unless ( $self->_checkIdTokenClaims( $req, $rp, $payload, $clientId ) ) {
+        return;
+    }
+
     my $sid = $payload->{sid};
     unless ($sid) {
         $self->userLogger->error('ID Token has no sid claim');
         return;
     }
 
-    # 1. Our own reverse index
+    # 1. Our own reverse index, scoped to this relying party
     my $index = $self->p->getApacheSession(
-        $self->_sidIndexId($sid),
+        $self->_sidIndexId( $rp, $sid ),
         kind      => $oidc->sessionKind,
-        noInfo    => 1,
         hashStore => 0,
     );
-    if ( $index and $index->data->{user_session_id} ) {
-
-        # The azp claim was verified above, so the ID Token does belong to
-        # $rp: hand back a token-session shape the caller can check.
-        return {
-            rp              => $rp,
-            client_id       => $clientId,
-            user_session_id => $index->data->{user_session_id},
-        };
+    if (    $index
+        and ( $index->data->{rp} || '' ) eq $rp
+        and $index->data->{user_session_id} )
+    {
+        # Confirm the resolved session really is the one this `sid` names,
+        # rather than trusting the index blindly.
+        my $userData =
+          $self->p->HANDLER->retrieveSession( $req,
+            $index->data->{user_session_id} );
+        if ( $userData
+            and $oidc->getSidFromSession( $rp, $userData ) eq $sid )
+        {
+            return {
+                rp              => $rp,
+                client_id       => $clientId,
+                user_session_id => $index->data->{user_session_id},
+            };
+        }
+        $self->logger->debug(
+            'ID-JAG: stale sid index entry, falling back to session search');
     }
 
     # 2. Refresh token session carrying the same sid
-    my %opts    = $oidc->_storeOpts;
-    my $options = $opts{storageModuleOptions};
-    $options->{backend} = $opts{storageModule};
+    # _storeOpts returns the live configuration hashref, not a copy: mutating
+    # it would permanently add `backend` to the global storage options handed
+    # to every later session. Copy first, like core does.
+    my %opts = $oidc->_storeOpts;
+    my %store = %{ $opts{storageModuleOptions} || {} };
+    $store{backend} = $opts{storageModule};
 
-    my $sessions = Lemonldap::NG::Common::Apache::Session->searchOn( $options,
+    my $sessions = Lemonldap::NG::Common::Apache::Session->searchOn( \%store,
         '_oidc_sid', $sid );
 
     for my $id (
@@ -496,6 +601,48 @@ sub _getDataFromIdToken {
     return;
 }
 
+# Validate the registered claims of a subject ID Token.
+#
+# `decode_jwt(..., decode_payload => 0)` returns the payload as a raw string,
+# which disables all of Crypt::JWT's own verify_exp / verify_nbf / verify_iss /
+# verify_aud handling. Without this an ID Token that expired months ago is
+# still accepted as a subject_token, and route 2 resolves it through a refresh
+# token session that outlives it by far.
+sub _checkIdTokenClaims {
+    my ( $self, $req, $rp, $payload, $clientId ) = @_;
+
+    my $skew = $self->conf->{oidcServiceIdJagAllowedSkew} // 30;
+    my $now  = time;
+
+    unless ( $payload->{exp} and $payload->{exp} + $skew > $now ) {
+        $self->userLogger->error('ID-JAG subject ID Token is expired');
+        return 0;
+    }
+    if ( $payload->{nbf} and $payload->{nbf} - $skew > $now ) {
+        $self->userLogger->error('ID-JAG subject ID Token is not valid yet');
+        return 0;
+    }
+
+    my $issuer = $self->oidc->get_issuer($req);
+    unless ( ( $payload->{iss} || '' ) eq $issuer ) {
+        $self->userLogger->error(
+            'ID-JAG subject ID Token was not issued by ' . $issuer );
+        return 0;
+    }
+
+    my @aud =
+      ref $payload->{aud} eq 'ARRAY'
+      ? @{ $payload->{aud} }
+      : ( $payload->{aud} // () );
+    unless ( grep { $_ eq $clientId } @aud ) {
+        $self->userLogger->error(
+            "ID-JAG subject ID Token is not addressed to $clientId");
+        return 0;
+    }
+
+    return 1;
+}
+
 # Verify a JWT signed by this OP for $rp. The algorithm is pinned to the RP
 # configuration to avoid algorithm substitution.
 sub _verifySelfIssuedJwt {
@@ -506,6 +653,19 @@ sub _verifySelfIssuedJwt {
     if ( !$alg or $alg eq 'none' ) {
         $self->logger->error(
             "Unsigned ID Tokens cannot be used as ID-JAG subject_token");
+        return;
+    }
+
+    # An HS* ID Token is verified with the client's own client_secret, so the
+    # client can mint one with any claims it likes -- it is evidence of
+    # nothing. _signatureAlg() already refuses symmetric algorithms for the
+    # assertions we issue; apply the same rule to the tokens we consume.
+    if ( $alg =~ /^HS/ ) {
+        $self->logger->error(
+                "ID Tokens signed with $alg cannot be used as ID-JAG "
+              . 'subject_token: the client holds the signing key. Configure an '
+              . 'asymmetric oidcRPMetaDataOptionsIDTokenSignAlg, or send the '
+              . 'refresh or access token instead' );
         return;
     }
     my $header = getJWTHeader($jwt);
@@ -640,6 +800,12 @@ per (client, resource) pair.
 =item C<authorization_details> forwarded from an ID Token C<subject_token>
 requires that ID Token to resolve through a refresh token session; the C<sid>
 index alone carries the user session, not the grant.
+
+=item An ID Token can only be used as C<subject_token> when the client is
+configured with an asymmetric C<oidcRPMetaDataOptionsIDTokenSignAlg>: an HS*
+token is signed with a key the client itself holds.
+
+=item C<resource> must be a single value; several occurrences are refused.
 
 =back
 

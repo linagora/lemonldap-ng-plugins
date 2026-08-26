@@ -48,7 +48,7 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsDisplayName     => "RP",
                 oidcRPMetaDataOptionsClientID        => "rpid",
                 oidcRPMetaDataOptionsClientSecret    => "rpid",
-                oidcRPMetaDataOptionsIDTokenSignAlg  => "HS512",
+                oidcRPMetaDataOptionsIDTokenSignAlg  => "RS256",
                 oidcRPMetaDataOptionsBypassConsent   => 1,
                 oidcRPMetaDataOptionsRefreshToken    => 1,
                 oidcRPMetaDataOptionsUserIDAttr      => "",
@@ -85,7 +85,7 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsDisplayName      => "RP5",
                 oidcRPMetaDataOptionsClientID         => "rpid5",
                 oidcRPMetaDataOptionsClientSecret     => "rpid5",
-                oidcRPMetaDataOptionsIDTokenSignAlg   => "HS512",
+                oidcRPMetaDataOptionsIDTokenSignAlg   => "RS256",
                 oidcRPMetaDataOptionsBypassConsent    => 1,
                 oidcRPMetaDataOptionsUserIDAttr       => "",
                 oidcRPMetaDataOptionsRedirectUris     => 'http://test/',
@@ -254,7 +254,7 @@ subtest 'ID token with an asymmetric signature' => sub {
     is( $payload->{sub}, 'french', 'Correct subject' );
     $op = $saved;
     $baseConfig->{ini}->{oidcRPMetaDataOptions}->{rp}
-      ->{oidcRPMetaDataOptionsIDTokenSignAlg} = 'HS512';
+      ->{oidcRPMetaDataOptionsIDTokenSignAlg} = 'RS256';
 };
 
 subtest 'client_id override' => sub {
@@ -308,6 +308,115 @@ subtest 'ID token of a client without refresh tokens' => sub {
     ok( $payload, 'Got an assertion' ) or diag $@;
     is( $payload->{sub},       'french', 'Correct subject' );
     is( $payload->{client_id}, 'rpid5',  'Correct client_id' );
+};
+
+subtest 'repeated `resource` cannot inject claims' => sub {
+
+    # $req->param() is list-context aware. Interpolated straight into the
+    # payload hash literal it let a client repeat the parameter and overwrite
+    # any claim set before it -- `sub` included.
+    my $query = buildForm( {
+            grant_type           =>
+              'urn:ietf:params:oauth:grant-type:token-exchange',
+            requested_token_type => $ID_JAG,
+            audience             => $AUDIENCE,
+            subject_token        => $refresh_token,
+            subject_token_type   =>
+              'urn:ietf:params:oauth:token-type:refresh_token',
+        }
+    );
+    $query .= '&resource=https%3A%2F%2Fx'
+      . '&resource=sub&resource=victim%40evil.example'
+      . '&resource=exp&resource=9999999999';
+
+    my $res = $op->_post(
+        "/oauth2/token",
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+        custom =>
+          { HTTP_AUTHORIZATION => "Basic " . encode_base64("rpid:rpid") },
+    );
+    is( $res->[0], 400, 'Several resource parameters are rejected' );
+    is( eval { JSON::from_json( $res->[2]->[0] ) }->{error},
+        'invalid_request', 'Ambiguous resource returns invalid_request' );
+
+    # And a single one still lands as a plain scalar claim
+    my $payload = decode_jwt(
+        token => expectJSON( getIdJag( resource => 'https://x' ) )->{access_token},
+        key   => \oidc_key_op_public_sig
+    );
+    is( $payload->{sub},      'french',     'sub claim is intact' );
+    is( $payload->{resource}, 'https://x',  'resource is a single scalar' );
+    cmp_ok( $payload->{exp}, '<=', time + 300, 'exp is not attacker-controlled' );
+};
+
+subtest 'scope is bounded by the subject token' => sub {
+
+    # The refresh token was granted "openid profile email"; asking for more
+    # must not widen the assertion.
+    my $json = expectJSON( getIdJag( scope => 'openid profile admin' ) );
+    my %got  = map { $_ => 1 } split /\s+/, ( $json->{scope} || '' );
+    ok( !$got{admin}, 'An unrelated scope is not granted' );
+    ok( $got{openid}, 'Legitimate scopes survive' );
+};
+
+subtest 'an expired ID token is refused' => sub {
+    my $expired = encode_jwt(
+        payload => {
+            iss => 'http://auth.op.com/',
+            aud => 'rpid',
+            azp => 'rpid',
+            sub => 'french',
+            sid => 'whatever',
+            exp => time - 3600,
+        },
+        alg => 'RS256',
+        key => \oidc_key_op_private_sig,
+    );
+    expectError(
+        getIdJag(
+            subject_token      => $expired,
+            subject_token_type => 'urn:ietf:params:oauth:token-type:id_token',
+        ),
+        'invalid_grant',
+        'An expired ID token'
+    );
+};
+
+subtest 'an HS-signed ID token is refused as subject_token' => sub {
+
+    # The client knows the secret those are signed with, so it could mint one
+    # with any sid and pivot to another user's session.
+    $baseConfig->{ini}->{oidcRPMetaDataOptions}->{rp}
+      ->{oidcRPMetaDataOptionsIDTokenSignAlg} = 'HS512';
+    my $op2 = LLNG::Manager::Test->new($baseConfig);
+    my $id  = login( $op2, "french" );
+    my $c   = codeAuthorize(
+        $op2, $id,
+        {
+            response_type => "code",
+            scope         => "openid profile",
+            client_id     => "rpid",
+            state         => "af0ifjsldkj",
+            redirect_uri  => "http://test/"
+        }
+    );
+    my $tokens = expectJSON( codeGrant( $op2, "rpid", $c, "http://test/" ) );
+
+    my $saved = $op;
+    $op = $op2;
+    expectError(
+        getIdJag(
+            subject_token      => $tokens->{id_token},
+            subject_token_type => 'urn:ietf:params:oauth:token-type:id_token',
+        ),
+        'invalid_grant',
+        'A client-forgeable HS512 ID token'
+    );
+    $op = $saved;
+    $baseConfig->{ini}->{oidcRPMetaDataOptions}->{rp}
+      ->{oidcRPMetaDataOptionsIDTokenSignAlg} = 'RS256';
 };
 
 sub expectError {
