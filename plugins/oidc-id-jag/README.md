@@ -58,9 +58,9 @@ into `/etc/lemonldap-ng/manager-plugins.d/`, add
 
 In **Manager → _OIDC Relying Parties_ → `<client>` → _Options_**:
 
-| Parameter                              | Section                    | Default | Description                                                                                                                                                          |
-| -------------------------------------- | -------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsAllowIdJagGrant` | _Security_                 | `0`     | Enables the grant, and triggers the plugin autoload. The client must be **confidential** (`oidcRPMetaDataOptionsPublic` off).                                        |
+| Parameter                              | Section                     | Default | Description                                                                                                                                                                                            |
+| -------------------------------------- | --------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `oidcRPMetaDataOptionsAllowIdJagGrant` | _Security_                  | `0`     | Enables the grant, and triggers the plugin autoload. The client must be **confidential** (`oidcRPMetaDataOptionsPublic` off).                                                                          |
 | `oidcRPMetaDataOptionsIdJagClientId`   | _Cross-App Access (ID-JAG)_ | _empty_ | Value of the `client_id` claim of the assertion. Defaults to the client identifier known by LemonLDAP::NG; set it when the client is registered under another name on the remote authorization server. |
 
 ### Resource Authorization Server
@@ -68,12 +68,12 @@ In **Manager → _OIDC Relying Parties_ → `<client>` → _Options_**:
 The remote authorization server must be declared as a relying party too, since
 it already trusts LemonLDAP::NG for single sign-on. In its options:
 
-| Parameter                                 | Section                     | Default   | Description                                                                                                                                                        |
-| ----------------------------------------- | --------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsIdJagAudience`      | _Cross-App Access (ID-JAG)_ | _empty_   | Its issuer identifier. This is the value clients must send as `audience`, and it is copied into the `aud` claim. Declaring it is what makes this RP reachable as a target. |
-| `oidcRPMetaDataOptionsTokenXAuthorizedRP` | _Advanced_                  | _empty_   | Space (or comma) separated list of relying parties allowed to request an ID-JAG for it. Use the **internal LemonLDAP::NG names**, not the client IDs.               |
+| Parameter                                 | Section                     | Default   | Description                                                                                                                                                                                                               |
+| ----------------------------------------- | --------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsIdJagAudience`      | _Cross-App Access (ID-JAG)_ | _empty_   | Its issuer identifier. This is the value clients must send as `audience`, and it is copied into the `aud` claim. Declaring it is what makes this RP reachable as a target.                                                |
+| `oidcRPMetaDataOptionsTokenXAuthorizedRP` | _Advanced_                  | _empty_   | Space (or comma) separated list of relying parties allowed to request an ID-JAG for it. Use the **internal LemonLDAP::NG names**, not the client IDs.                                                                     |
 | `oidcRPMetaDataOptionsIdJagSignAlg`       | _Cross-App Access (ID-JAG)_ | _default_ | Signature algorithm. Defaults to `RS256` or `ES256` depending on the service key type. Only asymmetric algorithms are offered, since the remote server verifies the assertion against the JWKS document of LemonLDAP::NG. |
-| `oidcRPMetaDataOptionsIdJagExpiration`    | _Cross-App Access (ID-JAG)_ | _empty_   | Assertion lifetime, overriding `oidcServiceIdJagExpiration`.                                                                                                       |
+| `oidcRPMetaDataOptionsIdJagExpiration`    | _Cross-App Access (ID-JAG)_ | _empty_   | Assertion lifetime, overriding `oidcServiceIdJagExpiration`.                                                                                                                                                              |
 
 The `sub` claim is computed with the **User attribute** of the _resource_
 relying party, and **its access rule is enforced**, exactly like for a regular
@@ -85,15 +85,15 @@ The requesting client authenticates on the token endpoint as usual
 (`client_secret_basic`, `private_key_jwt`, …) and posts an RFC 8693 token
 exchange request:
 
-| Parameter              | Value                                                                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `grant_type`           | `urn:ietf:params:oauth:grant-type:token-exchange`                                                                                                                              |
-| `requested_token_type` | `urn:ietf:params:oauth:token-type:id-jag`                                                                                                                                      |
-| `audience`             | identifier of the Resource Authorization Server                                                                                                                                |
-| `subject_token`        | an `id_token`, a `refresh_token` or an `access_token` issued to this client                                                                                                    |
-| `subject_token_type`   | `urn:ietf:params:oauth:token-type:id_token`, `…:refresh_token` or `…:access_token` (default)                                                                                    |
-| `scope`                | _(optional)_ requested scopes, narrowed down by the policy of the resource relying party                                                                                       |
-| `resource`             | _(optional)_ copied verbatim into the assertion                                                                                                                                |
+| Parameter              | Value                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------- |
+| `grant_type`           | `urn:ietf:params:oauth:grant-type:token-exchange`                                            |
+| `requested_token_type` | `urn:ietf:params:oauth:token-type:id-jag`                                                    |
+| `audience`             | identifier of the Resource Authorization Server                                              |
+| `subject_token`        | an `id_token`, a `refresh_token` or an `access_token` issued to this client                  |
+| `subject_token_type`   | `urn:ietf:params:oauth:token-type:id_token`, `…:refresh_token` or `…:access_token` (default) |
+| `scope`                | _(optional)_ requested scopes, narrowed down by the policy of the resource relying party     |
+| `resource`             | _(optional)_ copied verbatim into the assertion                                              |
 
 ```bash
 curl -X POST \

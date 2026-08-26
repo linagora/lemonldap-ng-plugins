@@ -59,9 +59,9 @@ perl -MLemonldap::NG::Common::CustomFunctions \
 ```
 
 Anything else loading the module works as well (a `PerlModule` directive
-under mod_perl, `PERL5OPT=-MLemonldap::NG::Common::CustomFunctions` in the
+under mod*perl, `PERL5OPT=-MLemonldap::NG::Common::CustomFunctions` in the
 service environment, a custom plugin `use`-ing it, …), but `require` is the
-only portable way that covers portals _and_ handlers.
+only portable way that covers portals \_and* handlers.
 
 ### 2. Declare the functions
 

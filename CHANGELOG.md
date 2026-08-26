@@ -74,8 +74,8 @@ upstream.
 
 - **Feature — extra functions for `customFunctions`**, usable in rules,
   macros and headers. For now:
-  * `uuid($value, $namespace)` returns the name-based UUID version 5
-  * `isPrivateIp($ip, @networks)` returns 1 when the IP address is in the
+  - `uuid($value, $namespace)` returns the name-based UUID version 5
+  - `isPrivateIp($ip, @networks)` returns 1 when the IP address is in the
     RFC 1918 private space
 
 ### pam-access, twake, json-file
