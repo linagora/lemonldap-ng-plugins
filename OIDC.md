@@ -115,11 +115,12 @@ The plugins are grouped by use case below. Each is a self-contained `.deb`-insta
 
 ### 2.4 Alternative grants
 
-| Plugin                                                           | Spec                                                                                                            | What it does                                                                  |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [`oidc-ciba`](plugins/oidc-ciba)                                 | [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html) | Client-Initiated Backchannel Authentication (push/poll/ping modes).           |
-| [`oidc-device-authorization`](plugins/oidc-device-authorization) | [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)                                                              | Device Authorization Grant for input-constrained clients (TVs, CLIs).         |
-| [`oidc-device-organization`](plugins/oidc-device-organization)   | _Companion_                                                                                                     | Organization-aware device enrollment (used with `oidc-device-authorization`). |
+| Plugin                                                           | Spec                                                                                                                                    | What it does                                                                                                              |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [`oidc-ciba`](plugins/oidc-ciba)                                 | [OIDC CIBA Core 1.0](https://openid.net/specs/openid-client-initiated-backchannel-authentication-core-1_0.html)                         | Client-Initiated Backchannel Authentication (push/poll/ping modes).                                                       |
+| [`oidc-device-authorization`](plugins/oidc-device-authorization) | [RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)                                                                                      | Device Authorization Grant for input-constrained clients (TVs, CLIs).                                                     |
+| [`oidc-device-organization`](plugins/oidc-device-organization)   | _Companion_                                                                                                                             | Organization-aware device enrollment (used with `oidc-device-authorization`).                                             |
+| [`oidc-id-jag`](plugins/oidc-id-jag)                             | [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/) 🧪 | Cross-App Access: exchanges a client token against a short-lived ID-JAG assertion targeting another authorization server. |
 
 ### 2.5 Federation
 
@@ -226,6 +227,7 @@ Quick lookup if you know what you need.
 | User-facing dashboard "connected apps", PSD2 / PSD3 consent renewal, single-call grant revocation | `oidc-grant-management`.                                                                                                                             |
 | Resource Server needs to enforce step-up / max-age policies                                       | `oidc-acr-claims` (AS side; RS-side challenge logic is on the RS).                                                                                   |
 | Federation between OPs and RPs through trust anchors                                              | `oidc-federation`.                                                                                                                                   |
+| App-to-app / AI agent access to another authorization server, without a second user consent       | `oidc-id-jag`.                                                                                                                                       |
 | FAPI 2.0 Security Profile (PSD2-grade)                                                            | upstream mTLS ([#3442](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3442)) + `oidc-par` + `oidc-resource-indicators` + RP config above. |
 | FAPI 2.0 Message Signing Profile                                                                  | _the above_ + `oidc-jar` + `oidc-jarm`.                                                                                                              |
 

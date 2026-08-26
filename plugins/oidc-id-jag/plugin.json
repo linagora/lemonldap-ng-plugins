@@ -1,0 +1,26 @@
+{
+  "name": "oidc-id-jag",
+  "version": "0.1.0",
+  "summary": "Cross-App Access — Identity Assertion JWT Authorization Grant (ID-JAG)",
+  "description": "Implements the Identity Provider Authorization Server role of draft-ietf-oauth-identity-assertion-authz-grant (Cross-App Access): a confidential client exchanges one of its tokens against a short lived `oauth-id-jag+jwt` assertion targeting another authorization server, which it then presents using the JWT Bearer grant. The plugin answers RFC 8693 token exchange requests asking for `urn:ietf:params:oauth:token-type:id-jag` through the `oidcGotTokenExchange` hook, so the token endpoint is left untouched. It resolves the requested audience into the relying party declaring it, enforces that RP's `TokenXAuthorizedRP` list and access rule, and signs the assertion with an asymmetric key so the remote server can verify it against the published JWKS. `subject_token` accepts an ID token, a refresh token or an access token.",
+  "author": "Xavier Guimard <yadd@debian.org>",
+  "license": "AGPL-3.0",
+  "llng_compat": ">=2.23.0",
+  "perl_requires": {
+    "JSON": "2.0",
+    "Crypt::JWT": "0"
+  },
+  "customPlugins": "::Plugins::OIDCIdentityAssertionGrant",
+  "tags": [
+    "oidc",
+    "oauth2",
+    "security"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "autoload": [
+    {
+      "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsAllowIdJagGrant",
+      "module": "::Plugins::OIDCIdentityAssertionGrant"
+    }
+  ]
+}
