@@ -1,6 +1,6 @@
 {
   "name": "oidc-id-jag",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "summary": "Cross-App Access — Identity Assertion JWT Authorization Grant (ID-JAG)",
   "description": "Implements both ends of draft-ietf-oauth-identity-assertion-authz-grant (Cross-App Access). Issuing side: a confidential client exchanges one of its tokens against a short lived `oauth-id-jag+jwt` assertion targeting another authorization server, answered through the `oidcGotTokenExchange` hook so the token endpoint is left untouched; the requested audience is resolved into the relying party declaring it, whose `TokenXAuthorizedRP` list and access rule are enforced, and the assertion is signed with an asymmetric key so the remote server can verify it against the published JWKS. `subject_token` accepts an ID token, a refresh token or an access token, and RFC 9396 authorization_details travel with the assertion. Consuming side: a client presents an ID-JAG minted by a trusted provider with the RFC 7523 JWT Bearer grant and gets a local access token, after signature, audience, freshness, client and single-use (jti) checks.",
   "author": "Xavier Guimard <yadd@debian.org>",
