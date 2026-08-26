@@ -151,6 +151,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
 | [oidc-federation](plugins/oidc-federation)                     | OpenID Connect Federation (server side)                   | beta   |
 | [oidc-global-scopes](plugins/oidc-global-scopes)               | Global OIDC scopes and claim mapping for all RPs          | beta   |
+| [oidc-id-jag](plugins/oidc-id-jag)                             | Cross-App Access — Identity Assertion JWT (ID-JAG)        | alpha  |
 
 ### Companion Debian packages
 

@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### oidc-id-jag (new)
+
+- **Feature — Cross-App Access (XAA)**, both ends of
+  [draft-ietf-oauth-identity-assertion-authz-grant](https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/),
+  as two separately autoloaded modules. Issuing side
+  (`::Plugins::OIDCIdentityAssertionGrant`): a confidential client exchanges
+  one of its tokens against a short-lived `oauth-id-jag+jwt` assertion for
+  another authorization server, through the `oidcGotTokenExchange` hook.
+  Consuming side (`::Plugins::OIDCIdentityAssertionGrantServer`): a client
+  presents such an assertion with the RFC 7523 JWT Bearer grant and gets a
+  local access token, after signature / audience / freshness / client checks
+  and single-use `jti` enforcement.
+- RFC 9396 `authorization_details` travel with the assertion, narrowed down by
+  the target relying party's own type allowlist.
+- An ID Token used as `subject_token` no longer requires the client to be
+  allowed refresh tokens: the plugin keeps its own short-lived `sid` index.
+- The discovery document advertises the token exchange and jwt-bearer grants
+  and `identity_chaining_requested_token_types_supported`; plugins can enrich
+  the assertion through the new `oidcGenerateIdJag` hook.
+- **Security** — hardening pass before first release: `resource` is read in
+  scalar context (a repeated parameter could inject or overwrite any claim of
+  the signed assertion, `sub` included) and several occurrences are now
+  refused; the subject ID token's `exp` / `nbf` / `iss` / `aud` are validated,
+  which `Crypt::JWT` skips under `decode_payload => 0`; HS-signed ID tokens,
+  which the client can mint itself, are refused as `subject_token`; the `sid`
+  index is scoped per relying party and re-verified after resolution; scope is
+  bounded by what the subject token was granted, and an assertion without
+  `scope` grants none; `authorization_details` are fail-closed in both
+  directions; public clients cannot redeem an assertion; a duplicated ID-JAG
+  audience is refused rather than resolved arbitrarily.
+- The draft is not stabilized: claim names and behaviour may still change.
+
 ## v0.4.1 - 2026-08-21
 
 Touched plugins bumped to **0.4.1** in lockstep: `oidc-acr-claims`,
@@ -38,8 +72,8 @@ upstream.
 
 - **Feature — extra functions for `customFunctions`**, usable in rules,
   macros and headers. For now:
-  * `uuid($value, $namespace)` returns the name-based UUID version 5
-  * `isPrivateIp($ip, @networks)` returns 1 when the IP address is in the
+  - `uuid($value, $namespace)` returns the name-based UUID version 5
+  - `isPrivateIp($ip, @networks)` returns 1 when the IP address is in the
     RFC 1918 private space
 
 ### pam-access, twake, json-file
