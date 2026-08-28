@@ -267,7 +267,39 @@ async function ensureLlng(log, { ref } = {}) {
   return { ref: actualRef, fallback };
 }
 
+// The Makefile MakeMaker generates for lemonldap-ng-common hardcodes the
+// paths of the perl that generated it, and depends on that perl's Config.pm
+// for its own regeneration. After a system perl upgrade the clone is stuck:
+// `make` dies with "No rule to make target .../perl/<old>/Config.pm, needed
+// by Makefile". Drop the stale Makefile (and the blib it built) so the top
+// Makefile runs `perl Makefile.PL` again with the current interpreter.
+async function dropStaleCommonMakefile(log) {
+  const commonDir = path.join(LLNG_DIR, "lemonldap-ng-common");
+  const makefile = path.join(commonDir, "Makefile");
+  let content;
+  try {
+    content = await fs.readFile(makefile, "utf8");
+  } catch {
+    return false; // nothing generated yet
+  }
+
+  const archlib = (
+    await run("perl", ["-MConfig", "-e", "print $Config{archlibexp}"])
+  ).stdout.trim();
+  const declared = content.match(/^PERL_ARCHLIB = (.*)$/m)?.[1].trim();
+  if (!archlib || !declared || declared === archlib) return false;
+
+  log.push(
+    `Stale lemonldap-ng-common/Makefile (built for perl ${declared}, running ${archlib}) — regenerating`,
+  );
+  await fs.rm(makefile, { force: true });
+  await fs.rm(path.join(commonDir, "Makefile.old"), { force: true });
+  await fs.rm(path.join(commonDir, "blib"), { recursive: true, force: true });
+  return true;
+}
+
 async function makeCommon(log) {
+  await dropStaleCommonMakefile(log);
   log.push("Running `make common` ...");
   const r = await run("make", ["common"], { cwd: LLNG_DIR });
   if (r.code !== 0) {

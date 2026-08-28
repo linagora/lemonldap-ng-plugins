@@ -210,6 +210,23 @@ Both the clone and any state files live under `.llng-test/`, which is
 in `.gitignore` — nothing from the test environment ever leaks into a
 commit.
 
+### After a system perl upgrade
+
+The `Makefile` MakeMaker writes in `lemonldap-ng-common/` hardcodes the
+paths of the perl that generated it, and depends on that perl's
+`Config.pm` to regenerate itself. When the system perl moves on (say
+5.40 → 5.42) the clone would be stuck on:
+
+```
+make[1]: *** No rule to make target '/usr/lib/.../perl/5.40/Config.pm',
+         needed by 'Makefile'. Stop.
+```
+
+`prepare` / `test` now detect that (the `PERL_ARCHLIB` recorded in the
+Makefile no longer matches the running interpreter), drop the stale
+`Makefile` and `blib/`, and let `make common` rebuild them. Nothing to
+do by hand — and `clean-all` remains the bigger hammer.
+
 ## Continuous integration
 
 The GitHub Actions workflow in `.github/workflows/test.yml` runs on
