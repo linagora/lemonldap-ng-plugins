@@ -2,7 +2,7 @@
   "name": "oidc-global-scopes",
   "version": "0.4.0",
   "summary": "Global OIDC scope and claim definitions for all relying parties",
-  "description": "Allows defining extra claims on existing scopes (e.g. add 'department' to 'profile') or entirely new scopes with associated claims, applied globally to all OIDC relying parties without per-RP configuration. Supports a fallback claim-to-session-attribute mapping so global scope claims work even when the RP has not declared them in its Exported Attributes.",
+  "description": "Allows defining extra claims on existing scopes (e.g. add 'department' to 'profile') or entirely new scopes with associated claims, applied globally to all OIDC relying parties without per-RP configuration. Supports a fallback claim-to-session-attribute mapping so global scope claims work even when the RP has not declared them in its Exported Attributes. Global scopes and their claims are also advertised in the OIDC discovery document (scopes_supported / claims_supported).",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.0",

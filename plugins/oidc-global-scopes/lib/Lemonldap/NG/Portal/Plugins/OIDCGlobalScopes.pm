@@ -15,6 +15,9 @@ package Lemonldap::NG::Portal::Plugins::OIDCGlobalScopes;
 #     key   = claim name
 #     value = session attribute (optionally ";type;array")
 #
+# Globally-defined scopes and their claims are also advertised in the OIDC
+# discovery document (scopes_supported / claims_supported).
+#
 # Claim resolution order per claim:
 #   1. per-RP oidcRPMetaDataExportedVars (wins if declared)
 #   2. oidcServiceGlobalClaimMapping     (fallback)
@@ -73,6 +76,7 @@ has globalClaimMapping => (
 use constant hook => {
     oidcResolveScope             => 'resolveGlobalScopes',
     oidcGenerateUserInfoResponse => 'addGlobalScopeClaims',
+    oidcGenerateMetadata         => 'advertiseGlobalScopes',
 };
 
 sub init {
@@ -161,6 +165,45 @@ sub addGlobalScopeClaims {
     }
 
     return PE_OK;
+}
+
+# Hook: oidcGenerateMetadata
+# Advertise globally-defined scopes -- and the claims they carry -- in
+# /.well-known/openid-configuration. The core builds scopes_supported and
+# claims_supported from a hardcoded list, so without this an RP has no way
+# to discover a scope declared only in oidcServiceGlobalExtraScopes.
+sub advertiseGlobalScopes {
+    my ( $self, $req, $metadata ) = @_;
+
+    my $scopes = $self->globalScopes;
+    return PE_OK unless %$scopes;
+
+    my %claims;
+    foreach my $scope ( keys %$scopes ) {
+        $claims{$_} = 1 for @{ $scopes->{$scope} };
+    }
+
+    $metadata->{scopes_supported} =
+      _append( $metadata->{scopes_supported}, sort keys %$scopes );
+    $metadata->{claims_supported} =
+      _append( $metadata->{claims_supported}, sort keys %claims );
+
+    $self->logger->debug( 'OIDCGlobalScopes: advertised scopes_supported = '
+          . join( ' ', @{ $metadata->{scopes_supported} } ) );
+
+    return PE_OK;
+}
+
+# Append values to a metadata list, keeping the core order and skipping
+# entries already advertised.
+sub _append {
+    my ( $list, @add ) = @_;
+    my @res  = @{ $list || [] };
+    my %seen = map { $_ => 1 } @res;
+    foreach my $v (@add) {
+        push @res, $v unless $seen{$v}++;
+    }
+    return \@res;
 }
 
 1;

@@ -9,6 +9,9 @@ without requiring per-RP configuration.
   `profile`, `email`, etc.
 - **Define new scopes**: create entirely new scopes with associated claims,
   available for all RPs
+- **Discovery**: global scopes and their claims are published in
+  `/.well-known/openid-configuration` (`scopes_supported`,
+  `claims_supported`)
 - **Manager UI**: configure via the OIDC Service scopes section
 - **Non-intrusive**: standard claims and per-RP `extraClaims` keep working;
   global claims are added on top
@@ -72,15 +75,38 @@ Example global mapping:
 
 ## How it works
 
-The plugin uses two OIDC hooks:
+The plugin uses three OIDC hooks:
 
 1. **`oidcResolveScope`**: ensures globally-defined scopes survive
    filtering when `oidcServiceAllowOnlyDeclaredScopes` is enabled
 2. **`oidcGenerateUserInfoResponse`**: adds the configured claims to the
    userinfo response for each granted global scope
+3. **`oidcGenerateMetadata`**: advertises the global scopes and their
+   claims in the discovery document
 
 Claims already set by the OIDC core or per-RP configuration are not
 overwritten.
+
+### Discovery document
+
+LemonLDAP::NG builds `scopes_supported` and `claims_supported` from a
+fixed list (`openid profile email address phone` /
+`sub iss auth_time acr sid`), so a scope declared only in
+`oidcServiceGlobalExtraScopes` would otherwise be invisible to clients
+that rely on discovery. The plugin appends the configured scope names to
+`scopes_supported` and every claim they carry to `claims_supported`,
+keeping the core entries first and skipping duplicates (enriching
+`profile` does not list it twice). Nothing is changed when no global
+scope is configured.
+
+With the `corporate` example above, discovery returns:
+
+```json
+{
+  "scopes_supported": ["openid", "profile", "email", "address", "phone", "corporate"],
+  "claims_supported": ["sub", "iss", "auth_time", "acr", "sid", "department", "manager", "office_location"]
+}
+```
 
 ## Examples
 
