@@ -27,7 +27,7 @@ This plugin completes LemonLDAP::NG's built-in support of the OIDC Core
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 
 ## Installation
 

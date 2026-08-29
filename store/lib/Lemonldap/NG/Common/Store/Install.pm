@@ -399,9 +399,8 @@ sub rebuildManager {
         if ( eval { require Lemonldap::NG::Manager; 1 } ) {
             return ( 0,
 "llng-build-manager-files not found but the Manager is installed.\n"
-                  . "If you are using LemonLDAP::NG < 2.23.0, install the\n"
-                  . "linagora-llng-build-manager-files package to enable\n"
-                  . "manager rebuild with plugin overrides." );
+                  . "It ships with LemonLDAP::NG >= 2.23.0; on older releases\n"
+                  . "manager overrides cannot be applied." );
         }
         return ( 1,
             'llng-build-manager-files not found, skipping manager rebuild' );
@@ -429,13 +428,24 @@ sub rebuildManager {
     return ( 1, 'Manager files rebuilt successfully' );
 }
 
-# Hardcoded for the Debian backport (upstream LLNG uses __BINDIR__ here)
+# Where LemonLDAP::NG >= 2.23.0 installs llng-build-manager-files (upstream
+# replaces __BINDIR__ with this path in its Debian packaging)
 my $DEFAULT_BINDIR = '/usr/share/lemonldap-ng/bin';
 
 sub _findBuildScript {
     my $name = 'llng-build-manager-files';
 
-    # First, look in the install BINDIR
+    # linagora-llng-build-manager-files ships the current upstream script
+    # under a distinct name, because 2.23.0 to 2.23.3 write the test /
+    # keyTest regexps of manager overrides as plain strings instead of qr//,
+    # which makes every configuration save fail. Prefer it when installed;
+    # the package retires itself once a fixed manager is in place.
+    if ( $DEFAULT_BINDIR !~ /^__/ ) {
+        my $path = "$DEFAULT_BINDIR/$name-linagora";
+        return $path if -x $path;
+    }
+
+    # Then the one shipped by LemonLDAP::NG itself
     if ( $DEFAULT_BINDIR !~ /^__/ ) {
         my $path = "$DEFAULT_BINDIR/$name";
         return $path if -x $path;

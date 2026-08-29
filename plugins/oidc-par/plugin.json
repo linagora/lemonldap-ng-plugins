@@ -1,11 +1,11 @@
 {
   "name": "oidc-par",
-  "version": "0.4.0",
+  "version": "0.5.1",
   "summary": "OAuth 2.0 Pushed Authorization Requests (RFC 9126)",
   "description": "Implements RFC 9126 PAR for both OIDC Provider (accept pushed authorization requests from RPs) and OIDC Client (push authorization parameters to remote OPs before redirecting). Adds PAR configuration options to OIDC service, RP, and OP metadata in the Manager.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.0",
+  "llng_compat": ">=2.23.3",
   "perl_requires": {
     "JSON": "2.0",
     "MIME::Base64": "0"

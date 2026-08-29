@@ -22,7 +22,7 @@ See also:
 
 ## Lemonldap::NG plugins
 
-These plugins target LemonLDAP::NG ≥ 2.23.0 and are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(bundled with LLNG ≥ 2.24.0; for LLNG 2.23.x install the [`linagora-lemonldap-ng-store`](#installation-with-debian-packages) backport built from the [`store/`](store) directory of this repository)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
+These plugins target LemonLDAP::NG ≥ 2.23.3 and are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(bundled with LLNG ≥ 2.24.0; for LLNG 2.23.x install the [`linagora-lemonldap-ng-store`](#installation-with-debian-packages) backport built from the [`store/`](store) directory of this repository)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
 
 ### Installation with `lemonldap-ng-store`
 
@@ -115,7 +115,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 > **LLNG < 2.24.0:** the `linagora-lemonldap-ng-store` package is available in this repository and provides `lemonldap-ng-store` for older LemonLDAP::NG versions. It is pulled automatically when needed.
 
-> **LLNG < 2.23.0:** if you use plugins with manager-overrides, install the `linagora-llng-build-manager-files` package to get `llng-build-manager-files` with `--plugins-dir` support:
+> **LLNG 2.23.0 to 2.23.3:** these releases write the `test` / `keyTest` regexps of manager overrides to `Manager/Attributes.pm` as plain strings instead of `qr//`, which makes every configuration save fail with `Malformed test`. Install `linagora-llng-build-manager-files`, which ships the fixed upstream script; it retires itself once 2.23.4 is installed:
 >
 > ```bash
 > sudo apt install linagora-llng-build-manager-files
@@ -160,7 +160,7 @@ outside the `lemonldap-ng-store` workflow:
 
 | Package                          | Description                                                                                                                                                                                                 |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `linagora-llng-crowdsec-filters` | [CrowdSec-compatible HTTP filters](crowdsec-filters) for `crowdsecFilters` — scanners, admin probes, CVE exploit signatures. Installs to `/var/lib/lemonldap-ng/crowdsec-filters/`. Requires LLNG ≥ 2.23.0. |
+| `linagora-llng-crowdsec-filters` | [CrowdSec-compatible HTTP filters](crowdsec-filters) for `crowdsecFilters` — scanners, admin probes, CVE exploit signatures. Installs to `/var/lib/lemonldap-ng/crowdsec-filters/`. Requires LLNG ≥ 2.23.3. |
 
 ## Lemonldap::NG Long Term Support by LINAGORA (LTS)
 

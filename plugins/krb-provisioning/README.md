@@ -43,7 +43,7 @@ project and a separate reconciliation job.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 - **`Authen::Krb5::Admin`** — Debian: `libauthen-krb5-admin-perl`
   (declared as a dependency; installed automatically with the package).
 - A reachable `kadmind`, a service principal (e.g. `lemonldap/admin@REALM`)

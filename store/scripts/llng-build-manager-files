@@ -56,18 +56,26 @@ my $DEFAULT_LANGDIR          = '/usr/share/lemonldap-ng/manager/htdocs/static/la
 # Command line options
 my @plugins_dirs;
 my (
-    $struct_file,            $conftree_file,
+    $struct_file, $new_struct_file,           $conftree_file,
     $manager_constants_file, $manager_attributes_file,
     $default_values_file,    $conf_constants_file,
     $first_lmconf_file,      $reverse_tree_file,
     $portal_constants_file,  $handler_status_constants_file,
     $doc_constants_file,     $lang_dir,
     $help,                   $verbose,
+    $new_manager_attributes_file, $new_manager_definitions_file,
+    $new_manager_tree_file,        $new_manager_attributes_extra_file,
 );
 
 GetOptions(
     'plugins-dir=s'                   => \@plugins_dirs,
     'struct-file=s'                   => \$struct_file,
+    'new-struct-file=s'               => \$new_struct_file,
+    'new-manager-attributes-file=s'   => \$new_manager_attributes_file,
+    'new-manager-definitions-file=s'  => \$new_manager_definitions_file,
+    'new-manager-tree-file=s'         => \$new_manager_tree_file,
+    'new-manager-attributes-extra-file=s' =>
+      \$new_manager_attributes_extra_file,
     'conftree-file=s'                 => \$conftree_file,
     'manager-constants-file=s'        => \$manager_constants_file,
     'manager-attributes-file=s'       => \$manager_attributes_file,
@@ -89,6 +97,48 @@ sub verbose {
     print @_ if $verbose;
 }
 
+# Recursively turn a generated "struct" node into the React manager tree shape:
+# rename _nodes -> nodes and drop the id field; scalars (attribute names) and
+# other keys (title, help, ...) are kept as-is.
+# True when a value can be represented in JSON: a plain scalar, array or hash
+# (not a CODE ref, qr// Regexp or blessed object).
+sub json_safe {
+    my $r = ref $_[0];
+    return ( $r eq '' or $r eq 'HASH' or $r eq 'ARRAY' ) ? 1 : 0;
+}
+
+# Recursively copy $v keeping only JSON-serializable data, dropping any hash
+# key or array element whose value is not json_safe (at any depth).
+sub clean_json {
+    my ($v) = @_;
+    if ( ref $v eq 'HASH' ) {
+        my %h;
+        for my $k ( keys %$v ) {
+            $h{$k} = clean_json( $v->{$k} ) if json_safe( $v->{$k} );
+        }
+        return \%h;
+    }
+    if ( ref $v eq 'ARRAY' ) {
+        return [ map { clean_json($_) } grep { json_safe($_) } @$v ];
+    }
+    return $v;
+}
+
+# Write $content to $file, skipping (with a note) when undefined, /dev/null or
+# when its parent directory is absent.
+sub write_ui_json {
+    my ( $file, $content ) = @_;
+    return if !defined $file or $file eq '/dev/null';
+    unless ( -d dirname($file) ) {
+        verbose "  Skipping $file (parent directory does not exist)\n";
+        return;
+    }
+    open my $out, '>', $file or die "Cannot write $file: $!";
+    print $out $content;
+    close $out;
+    verbose "  Wrote $file\n";
+}
+
 # plugins-dir is optional - if not specified or doesn't exist, run without extensions
 @plugins_dirs = grep {
     if ( !-d $_ ) {
@@ -101,8 +151,19 @@ sub verbose {
 
 # Set default paths from placeholders (can be overridden via options)
 $struct_file       //= "$DEFAULT_MANAGERSTATICDIR/struct.json";
+$new_struct_file   //= "$DEFAULT_MANAGERSTATICDIR/nstruct.json";
 $conftree_file     //= "$DEFAULT_MANAGERSTATICDIR/js/conftree.js";
 $reverse_tree_file //= "$DEFAULT_MANAGERSTATICDIR/reverseTree.json";
+
+# New (React) manager metadata: served next to the bundles under new/. With
+# these defaults the script also regenerates them when run from an installed
+# tree (e.g. by the server), not only from the development jsongenerator. Each
+# write is skipped when its directory is absent (see write_ui_json).
+$new_manager_attributes_file  //= "$DEFAULT_MANAGERSTATICDIR/new/attributes.json";
+$new_manager_definitions_file //= "$DEFAULT_MANAGERSTATICDIR/new/definitions.json";
+$new_manager_tree_file        //= "$DEFAULT_MANAGERSTATICDIR/new/tree.json";
+$new_manager_attributes_extra_file //=
+  "$DEFAULT_MANAGERSTATICDIR/new/attributes-ui.json";
 $manager_constants_file //=
   "$DEFAULT_PERLLIBDIR/Lemonldap/NG/Common/Conf/ReConstants.pm";
 $manager_attributes_file //=
@@ -129,6 +190,7 @@ verbose "Configuration:\n"
   . "  plugins-dir:                   "
   . ( @plugins_dirs ? join( ', ', @plugins_dirs ) : '(none)' ) . "\n"
   . "  struct-file:                   $struct_file\n"
+  . "  nstruct-file:                  $new_struct_file\n"
   . "  conftree-file:                 $conftree_file\n"
   . "  manager-constants-file:        $manager_constants_file\n"
   . "  manager-attributes-file:       $manager_attributes_file\n"
@@ -383,7 +445,7 @@ if ( $conf_constants_file ne '/dev/null' && -r $conf_constants_file ) {
 # 5b. Redirect output files to /dev/null when their parent directory does not
 #     exist (component not installed locally, e.g. portal or handler absent)
 for my $ref (
-    \$struct_file,            \$conftree_file,
+    \$struct_file,   \$new_struct_file,         \$conftree_file,
     \$manager_constants_file, \$manager_attributes_file,
     \$default_values_file,    \$conf_constants_file,
     \$reverse_tree_file,      \$portal_constants_file,
@@ -400,6 +462,7 @@ for my $ref (
 verbose "Running Build.pm to generate files...\n";
 Lemonldap::NG::Manager::Build->run(
     structFile                 => $struct_file,
+    newStructFile => $new_struct_file,
     confTreeFile               => $conftree_file,
     managerConstantsFile       => $manager_constants_file,
     managerAttributesFile      => $manager_attributes_file,
@@ -411,6 +474,79 @@ Lemonldap::NG::Manager::Build->run(
     handlerStatusConstantsFile => $handler_status_constants_file,
     docConstantsFile           => $doc_constants_file,
 );
+
+# 6c. Generate the new (React) manager metadata files, fetched at runtime by
+# that UI instead of being bundled: the attribute list without documentation,
+# the documentation strings alone, and the configuration tree in the React
+# shape (the generated struct.json with _nodes -> nodes and no id). Each file
+# is skipped when its target directory is absent (e.g. packaging without the
+# ui/manager sources).
+{
+    my $uiEnc = JSON->new->utf8->canonical->indent(1)->space_after(1);
+    if ( $new_manager_attributes_file or $new_manager_definitions_file ) {
+        my $src   = Lemonldap::NG::Manager::Build::Attributes::attributes();
+        my $attrs = {};
+        my $defs  = {};
+        for my $k ( keys %$src ) {
+            my $v = $src->{$k};
+            next unless ref $v eq 'HASH';
+
+            # documentation goes to definitions.json only
+            $defs->{$k} = $v->{documentation}
+              if defined $v->{documentation} && !ref $v->{documentation};
+
+            # attributes.json keeps only the fields the React UI needs (the
+            # same whitelist as the original snapshot): type, default, select
+            # and the validation message keys. This excludes documentation
+            # (-> definitions.json) as well as CODE validators / qr// regexps
+            # that could not be serialized anyway. clean_json guards against a
+            # stray non-serializable value nested in one of the kept fields.
+            my %a;
+            for my $f (qw(type default select msgFail keyMsgFail)) {
+                next unless exists $v->{$f} and json_safe( $v->{$f} );
+                $a{$f} = clean_json( $v->{$f} );
+            }
+            $attrs->{$k} = \%a;
+        }
+
+        # Merge UI-only additions that are not part of the configuration
+        # schema: whole pseudo-attributes (e.g. virtualHostName, the deprecated
+        # u2f* fields) and per-field enrichments the React forms rely on (e.g.
+        # a select list Build.pm does not carry). The merge is field-level and
+        # a real schema value always wins (only missing fields are filled in).
+        if ( $new_manager_attributes_extra_file
+            && -f $new_manager_attributes_extra_file )
+        {
+            open my $efh, '<', $new_manager_attributes_extra_file
+              or die "Cannot read $new_manager_attributes_extra_file: $!";
+            my $extra = JSON->new->utf8->decode( do { local $/; <$efh> } );
+            close $efh;
+            for my $k ( keys %$extra ) {
+                $attrs->{$k} //= {};
+                for my $f ( keys %{ $extra->{$k} } ) {
+                    $attrs->{$k}{$f} = $extra->{$k}{$f}
+                      unless exists $attrs->{$k}{$f};
+                }
+            }
+        }
+
+        write_ui_json( $new_manager_attributes_file, $uiEnc->encode($attrs) );
+        write_ui_json( $new_manager_definitions_file, $uiEnc->encode($defs) );
+    }
+    if ($new_manager_tree_file) {
+
+        # tree.json is the raw configuration tree the React UI walks (nodes /
+        # nodes_cond / nodes_filter with attribute names as leaves), NOT the
+        # id/_nodes "struct" shape. Serialize Build::Tree::tree() directly,
+        # dropping any non-serializable value (e.g. filter code refs).
+        write_ui_json(
+            $new_manager_tree_file,
+            $uiEnc->encode(
+                clean_json( Lemonldap::NG::Manager::Build::Tree::tree() )
+            )
+        );
+    }
+}
 
 # 6a. Restore preserved DEFAULTCONFFILE and dirName in Constants.pm
 if ( $conf_constants_file ne '/dev/null'
@@ -1513,7 +1649,7 @@ L<Lemonldap::NG::Manager::Build>, L<https://lemonldap-ng.org/>
 
 =head1 AUTHORS
 
-=item Xavier Guimard L<yadd@debian.org>
+LemonLDAP::NG team L<http://lemonldap-ng.org/team>
 
 =head1 LICENSE
 

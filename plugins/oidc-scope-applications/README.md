@@ -13,7 +13,7 @@ the user's portal application menu in the userinfo response.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 - OIDC issuer must be enabled
 
 ## Installation

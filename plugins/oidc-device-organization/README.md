@@ -19,7 +19,7 @@ This is useful for:
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 - **oidc-device-authorization** plugin must be installed and active
 
 ## Installation

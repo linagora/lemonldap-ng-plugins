@@ -24,7 +24,7 @@ generate temporary access tokens for SSH and other PAM-enabled services.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 - OIDC issuer must be enabled
 - An OIDC RP configured for PAM access (default name: `pam-access`)
 

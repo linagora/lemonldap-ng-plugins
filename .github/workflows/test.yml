@@ -278,6 +278,8 @@ jobs:
       - name: Run llng-build-manager-files in lint mode
         run: |
           export PERL5LIB="$PWD/.llng-test/lemonldap-ng/lemonldap-ng-manager/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-common/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-handler/lib:$PWD/.llng-test/lemonldap-ng/lemonldap-ng-portal/lib"
+          # Our copy is upstream's script with the install paths substituted;
+          # running it here keeps the artifact we actually ship under test.
           ./store/scripts/llng-build-manager-files \
             --plugins-dir=.llng-overrides-all \
             --struct-file=/dev/null \

@@ -21,7 +21,7 @@ for LemonLDAP::NG.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.0
+- LemonLDAP::NG >= 2.23.3
 
 ## Installation
 

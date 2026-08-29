@@ -8,7 +8,7 @@ Files are installed under `/var/lib/lemonldap-ng/crowdsec-filters/`.
 
 ## Requirements
 
-- **LemonLDAP::NG >= 2.23.0** — the `crowdsecFilters` feature is not available
+- **LemonLDAP::NG >= 2.23.3** — the `crowdsecFilters` feature is not available
   in earlier versions.
 - A reachable CrowdSec LAPI (local or remote) the portal can push alerts to.
 

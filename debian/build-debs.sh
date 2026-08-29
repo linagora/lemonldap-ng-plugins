@@ -94,7 +94,7 @@ Package: linagora-lemonldap-ng-store
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-common-perl (>= 2.23.0~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
+Depends: liblemonldap-ng-common-perl (>= 2.23.3~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
 Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
 Section: web
 Priority: optional
@@ -181,23 +181,31 @@ echo "Building linagora-llng-build-manager-files ${COMMON_VERSION}..."
 BMF_BUILD="${WORKDIR}/build-manager-files"
 install_dir "${BMF_BUILD}/DEBIAN"
 
+# Installed under a distinct name: liblemonldap-ng-manager-perl owns
+# llng-build-manager-files at that same directory since 2.23.0, and dpkg would
+# refuse to unpack two packages shipping the same path. lemonldap-ng-store
+# prefers this one when present (see Store::Install::_findBuildScript).
+# Self-retiring: the Conflicts drops it as soon as a manager carrying the fix
+# is installed.
 cat > "${BMF_BUILD}/DEBIAN/control" <<EOF
 Package: linagora-llng-build-manager-files
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-manager-perl (>= 2.22~)
-Conflicts: liblemonldap-ng-manager-perl (>= 2.23.0~)
+Depends: liblemonldap-ng-manager-perl (>= 2.23.3~)
+Conflicts: liblemonldap-ng-manager-perl (>= 2.23.4~)
 Section: web
 Priority: optional
-Description: llng-build-manager-files with plugin overrides support (backport)
- Provides llng-build-manager-files with --plugins-dir support for
- LemonLDAP::NG Manager versions prior to 2.23.0. Install this package
- if you use plugins with manager-overrides on LLNG < 2.23.0.
+Description: llng-build-manager-files with test/keyTest compilation
+ Ships the current upstream llng-build-manager-files, which compiles the
+ test and keyTest regexps of manager overrides into qr// before handing
+ them to Build.pm. Without it, LemonLDAP::NG 2.23.0 to 2.23.3 write those
+ tests to Manager/Attributes.pm as plain strings and every configuration
+ save fails with "Malformed test". Obsolete once 2.23.4 is out.
 EOF
 
 install -D -m 0755 "${REPO_ROOT}/store/scripts/llng-build-manager-files" \
-  "${BMF_BUILD}/usr/share/lemonldap-ng/bin/llng-build-manager-files"
+  "${BMF_BUILD}/usr/share/lemonldap-ng/bin/llng-build-manager-files-linagora"
 
 dpkg-deb --root-owner-group --build "${BMF_BUILD}" \
   "${OUTPUT_DIR}/linagora-llng-build-manager-files_${COMMON_VERSION}_all.deb"
@@ -217,10 +225,10 @@ Package: linagora-llng-crowdsec-filters
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Recommends: liblemonldap-ng-portal-perl (>= 2.23.0~)
+Recommends: liblemonldap-ng-portal-perl (>= 2.23.3~)
 Section: web
 Priority: optional
-Description: CrowdSec-compatible HTTP filters for LemonLDAP::NG (>= 2.23.0)
+Description: CrowdSec-compatible HTTP filters for LemonLDAP::NG (>= 2.23.3)
  Pattern files consumed by the LemonLDAP::NG built-in CrowdSec agent to
  detect and report suspicious HTTP requests (admin probing, backdoors,
  trending CVE URIs, path traversal, WordPress scans, etc.). Installs under

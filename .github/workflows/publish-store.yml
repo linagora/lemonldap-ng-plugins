@@ -266,7 +266,7 @@ jobs:
           sudo apt install linagora-lemonldap-ng-plugin-&lt;name&gt;</pre>
 
               <div class="note">
-                <strong>LLNG &lt; 2.23.0:</strong> the <code>linagora-lemonldap-ng-store</code>
+                <strong>LLNG &lt; 2.24.0:</strong> the <code>linagora-lemonldap-ng-store</code>
                 package in this repository provides <code>lemonldap-ng-store</code> for
                 older versions. It is pulled automatically when needed.
               </div>

@@ -1,10 +1,10 @@
 {
     "name": "json-file",
-    "version": "0.4.0",
+    "version": "0.5.1",
     "summary": "JSON file-based authentication and user backend for development and testing",
     "author": "Linagora <https://linagora.com>",
     "license": "GPL-2.0",
-    "llng_compat": ">=2.23.0",
+    "llng_compat": ">=2.23.3",
     "perl_requires": {
         "JSON": "2.0"
     },
