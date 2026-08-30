@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.1 - 2026-08-29
+
+### oidc-global-scopes
+
+- **Feature — global scopes are now published in OIDC discovery**.
+
+### store
+
+- **`llng-build-manager-files` re-synced with upstream**
+
+### Compatibility
+
+- **Minimum supported LemonLDAP::NG is now 2.23.3**
+
+### Tooling & docs
+
+- **Fix — `.llng-test` no longer breaks on a system perl upgrade**
+
 ## v0.5.0 - 2026-08-26
 
 Touched plugins bumped to **0.5.0** in lockstep: `oidc-id-jag` (new).
