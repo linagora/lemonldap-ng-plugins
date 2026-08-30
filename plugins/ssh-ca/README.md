@@ -25,7 +25,7 @@ passwordless authentication on servers that trust the CA.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.3
+- LemonLDAP::NG >= 2.23.2
 - `ssh-keygen` available on the system
 - `Crypt::PK::Ed25519` (for Ed25519 CA keys) or `Crypt::PK::RSA` (for RSA CA keys)
 

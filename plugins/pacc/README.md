@@ -16,7 +16,7 @@ standardized JSON endpoint.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.3 (requires `oidcGotRegistrationRequest` and
+- LemonLDAP::NG >= 2.23.2 (requires `oidcGotRegistrationRequest` and
   `oidcGenerateRegistrationResponse` hooks)
 
 ## Installation

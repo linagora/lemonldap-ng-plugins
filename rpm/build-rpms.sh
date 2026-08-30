@@ -65,7 +65,7 @@ BuildArch:      noarch
 
 # Backport scope: LLNG core ships lemonldap-ng-store itself from 2.24.0, so
 # this package targets the 2.23.x window only (mirrors the Debian bounds).
-Requires:       lemonldap-ng-common >= 2.23.3
+Requires:       lemonldap-ng-common >= 2.23.2
 Conflicts:      lemonldap-ng-common >= 2.24.0
 Requires:       perl(JSON)
 Requires:       perl(Config::IniFiles)

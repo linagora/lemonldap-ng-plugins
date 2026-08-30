@@ -12,7 +12,7 @@
 
 ### Compatibility
 
-- **Minimum supported LemonLDAP::NG is now 2.23.3**
+- **Minimum supported LemonLDAP::NG is now 2.23.2**
 
 ### Tooling & docs
 

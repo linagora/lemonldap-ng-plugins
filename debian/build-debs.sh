@@ -94,7 +94,7 @@ Package: linagora-lemonldap-ng-store
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-common-perl (>= 2.23.3~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
+Depends: liblemonldap-ng-common-perl (>= 2.23.2~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
 Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
 Section: web
 Priority: optional
@@ -192,7 +192,7 @@ Package: linagora-llng-build-manager-files
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-manager-perl (>= 2.23.3~)
+Depends: liblemonldap-ng-manager-perl (>= 2.23.2~)
 Conflicts: liblemonldap-ng-manager-perl (>= 2.23.4~)
 Section: web
 Priority: optional
@@ -225,10 +225,10 @@ Package: linagora-llng-crowdsec-filters
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Recommends: liblemonldap-ng-portal-perl (>= 2.23.3~)
+Recommends: liblemonldap-ng-portal-perl (>= 2.23.2~)
 Section: web
 Priority: optional
-Description: CrowdSec-compatible HTTP filters for LemonLDAP::NG (>= 2.23.3)
+Description: CrowdSec-compatible HTTP filters for LemonLDAP::NG (>= 2.23.2)
  Pattern files consumed by the LemonLDAP::NG built-in CrowdSec agent to
  detect and report suspicious HTTP requests (admin probing, backdoors,
  trending CVE URIs, path traversal, WordPress scans, etc.). Installs under

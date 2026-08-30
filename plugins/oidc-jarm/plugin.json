@@ -5,7 +5,7 @@
   "description": "Implements JARM for both OIDC Provider (sign/encrypt authorization responses) and OIDC Client (request and verify JARM responses from remote OPs). Adds JARM configuration options to OIDC RP and OP metadata in the Manager.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.3",
+  "llng_compat": ">=2.23.2",
   "perl_requires": {},
   "customPlugins": "::Plugins::OIDCJarm, ::Plugins::OIDCJarmClient",
   "tags": [

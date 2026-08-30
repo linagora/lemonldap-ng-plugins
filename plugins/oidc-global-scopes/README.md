@@ -18,7 +18,7 @@ without requiring per-RP configuration.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.3
+- LemonLDAP::NG >= 2.23.2
 - OIDC issuer must be enabled
 
 ## Installation
@@ -103,8 +103,24 @@ With the `corporate` example above, discovery returns:
 
 ```json
 {
-  "scopes_supported": ["openid", "profile", "email", "address", "phone", "corporate"],
-  "claims_supported": ["sub", "iss", "auth_time", "acr", "sid", "department", "manager", "office_location"]
+  "scopes_supported": [
+    "openid",
+    "profile",
+    "email",
+    "address",
+    "phone",
+    "corporate"
+  ],
+  "claims_supported": [
+    "sub",
+    "iss",
+    "auth_time",
+    "acr",
+    "sid",
+    "department",
+    "manager",
+    "office_location"
+  ]
 }
 ```
 

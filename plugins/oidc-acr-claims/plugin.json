@@ -5,7 +5,7 @@
   "description": "Adds the `acr` and `auth_time` claims to JWT-formatted access tokens, mirroring what LemonLDAP::NG core already does for ID tokens (uses `oidcServiceMetaDataAuthnContext` when set, falls back to `loa-<level>`). Enables a Resource Server to implement RFC 9470 step-up challenges or any other policy that needs the user's authentication context — audit, FAPI 2.0 conformance, custom RS-side rules. Pure plugin, no core change required.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.3",
+  "llng_compat": ">=2.23.2",
   "customPlugins": "::Plugins::OIDCAcrClaims",
   "tags": [
     "oidc",

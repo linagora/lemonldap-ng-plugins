@@ -22,7 +22,7 @@ See also:
 
 ## Lemonldap::NG plugins
 
-These plugins target LemonLDAP::NG ≥ 2.23.3 and are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(bundled with LLNG ≥ 2.24.0; for LLNG 2.23.x install the [`linagora-lemonldap-ng-store`](#installation-with-debian-packages) backport built from the [`store/`](store) directory of this repository)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
+These plugins target LemonLDAP::NG ≥ 2.23.2 and are packaged for [`lemonldap-ng-store`](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3580) _(bundled with LLNG ≥ 2.24.0; for LLNG 2.23.x install the [`linagora-lemonldap-ng-store`](#installation-with-debian-packages) backport built from the [`store/`](store) directory of this repository)_ and published as a [store](https://linagora.github.io/lemonldap-ng-plugins/). They are also available as [Debian packages](#installation-with-debian-packages).
 
 ### Installation with `lemonldap-ng-store`
 
@@ -160,17 +160,17 @@ outside the `lemonldap-ng-store` workflow:
 
 | Package                          | Description                                                                                                                                                                                                 |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `linagora-llng-crowdsec-filters` | [CrowdSec-compatible HTTP filters](crowdsec-filters) for `crowdsecFilters` — scanners, admin probes, CVE exploit signatures. Installs to `/var/lib/lemonldap-ng/crowdsec-filters/`. Requires LLNG ≥ 2.23.3. |
+| `linagora-llng-crowdsec-filters` | [CrowdSec-compatible HTTP filters](crowdsec-filters) for `crowdsecFilters` — scanners, admin probes, CVE exploit signatures. Installs to `/var/lib/lemonldap-ng/crowdsec-filters/`. Requires LLNG ≥ 2.23.2. |
 
 ## Lemonldap::NG Long Term Support by LINAGORA (LTS)
 
 Here are the Lemonldap::NG "LTS" versions:
 
-|     Version     | Community LTS | [Debian](https://www.debian.org) LTS[^1] |   Limit[^2]   |
+| Version         | Community LTS | [Debian](https://www.debian.org) LTS[^1] | Limit[^2]     |
 | --------------- | ------------- | ---------------------------------------- | ------------- |
-| _<s>2.0.11</s>_ |      ❌[^2]   |                  ❌[^2]                  | _<s>2026</s>_ |
-|      2.16.x     |      ✅       |                  ✅[^3]                  |      2028     |
-|      2.21.x     |      ✅       |                  ✅[^3]                  |      2030     |
+| _<s>2.0.11</s>_ | ❌[^2]        | ❌[^2]                                   | _<s>2026</s>_ |
+| 2.16.x          | ✅            | ✅[^3]                                   | 2028          |
+| 2.21.x          | ✅            | ✅[^3]                                   | 2030          |
 
 - [LTS community files](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/releases) for 2.16.x and 2.21.x
 

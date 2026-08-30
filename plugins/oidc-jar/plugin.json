@@ -5,7 +5,7 @@
   "description": "Completes LLNG's OIDC Core support of the 'request' and 'request_uri' parameters with the full RFC 9101 JAR profile: JWE-wrapped request objects, hardened request_uri fetching (timeout/Content-Type/size), validation of iss/aud/exp/nbf/iat/jti claims with anti-replay cache, RFC 9101 error codes, per-RP 'Require Signed Request Object' enforcement, and discovery advertising of request_object_* metadata.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.3",
+  "llng_compat": ">=2.23.2",
   "perl_requires": {
     "Digest::SHA": "0",
     "JSON": "2.0"

@@ -15,7 +15,7 @@ for LemonLDAP::NG.
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.3
+- LemonLDAP::NG >= 2.23.2
 - OIDC issuer must be enabled
 
 ## Installation

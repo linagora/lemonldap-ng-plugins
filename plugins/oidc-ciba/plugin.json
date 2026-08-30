@@ -5,7 +5,7 @@
   "description": "Implements OIDC CIBA flow for LemonLDAP::NG. Provides backchannel authentication endpoint, poll and ping token delivery modes, external authentication channel integration, and CIBA grant type on the token endpoint. Advertises CIBA support in OIDC discovery via the oidcGenerateMetadata hook.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.3",
+  "llng_compat": ">=2.23.2",
   "perl_requires": {
     "JSON": "2.0"
   },

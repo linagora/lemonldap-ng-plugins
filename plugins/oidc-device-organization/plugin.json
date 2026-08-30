@@ -5,7 +5,7 @@
   "description": "Extension to RFC 8628 Device Authorization Grant. When a RP is configured with organization ownership, tokens issued via Device Authorization Grant identify the client application rather than the approving admin. Useful for enrolling servers, kiosks, and IoT devices that belong to the organization.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
-  "llng_compat": ">=2.23.3",
+  "llng_compat": ">=2.23.2",
   "perl_requires": {},
   "depends": [
     "oidc-device-authorization"
