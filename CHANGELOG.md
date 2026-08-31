@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### pam-access
+
+- **Fix — a bastion could be made to ban itself from its own SSO.**
+  `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token` run `getUser`,
+  which `CrowdSecAgent` wraps to report failures against `$req->address` —
+  the bastion, not the client behind the lookup. As sshd resolves logins
+  through NSS before authenticating, any unknown login tried against a
+  bastion pushed an alert charged to it, up to a ban of its own IP. The
+  plugin now wraps the agent's activation rule at init so its
+  server-to-server lookups never report; the `crowdsecAgent` rule still
+  applies to all other traffic. No portal core change needed.
+
 ## v0.5.1 - 2026-08-29
 
 ### oidc-global-scopes

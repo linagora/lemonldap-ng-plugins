@@ -135,6 +135,53 @@ sub init {
         [ 'GET', 'POST' ]
       );
 
+    $self->_disarmCrowdsecAgent;
+
+    return 1;
+}
+
+# CrowdSecAgent wraps `getUser` and reports every failure against
+# $req->address -- on our machine routes the bastion itself, never the client
+# that triggered the lookup. As sshd resolves an offered login through NSS
+# before authenticating, any unknown login tried against a bastion would make
+# it accumulate alerts about itself until CrowdSec bans its own IP.
+#
+# The agent gates both its entry points on a single rw `rule` attribute, and
+# customPlugins load after it: wrap that rule once here so our server-to-server
+# runs never report, and defer to the administrator's rule for the rest.
+sub _disarmCrowdsecAgent {
+    my ($self) = @_;
+
+    my $csa =
+      $self->p->loadedModules->{
+        'Lemonldap::NG::Portal::Plugins::CrowdSecAgent'};
+    unless ( $csa and $csa->can('rule') ) {
+        $self->logger->debug(
+            'PamAccess: CrowdSecAgent not loaded, nothing to disarm');
+        return 0;
+    }
+
+    # Guard against double wrapping
+    if ( $csa->{_pamAccessCrowdsecDisarmed} ) {
+        $self->logger->debug('PamAccess: CrowdSecAgent already disarmed');
+        return 1;
+    }
+
+    my $inner = $csa->rule;
+    $csa->rule(
+        sub {
+            my ( $req, $sessionInfo ) = @_;
+            return 0
+              if ( ref $req
+                and $req->can('data')
+                and $req->data->{_pamMachineLookup} );
+            return $inner ? $inner->( $req, $sessionInfo ) : 0;
+        }
+    );
+    $csa->{_pamAccessCrowdsecDisarmed} = 1;
+
+    $self->logger->debug(
+        'PamAccess: CrowdSec alerts disabled for /pam machine lookups');
     return 1;
 }
 
@@ -355,6 +402,9 @@ sub authorize {
     # 4. Lookup user (without active session)
     $req->user($user);
     $req->data->{_pamAuthorize} = 1;
+
+    # Server-to-server: no CrowdSec alert (see _disarmCrowdsecAgent)
+    $req->data->{_pamMachineLookup} = 1;
     $req->steps(
         [
             'getUser',              'setSessionInfo',
@@ -1179,6 +1229,9 @@ sub userinfo {
     # 3. Lookup user in backend
     $req->user($user);
     $req->data->{_pamUserinfo} = 1;
+
+    # Server-to-server: no CrowdSec alert (see _disarmCrowdsecAgent)
+    $req->data->{_pamMachineLookup} = 1;
     $req->steps(
         [
             'getUser',              'setSessionInfo',
@@ -1457,6 +1510,9 @@ sub bastionToken {
     # Lookup user groups if available
     $req->user($user);
     $req->data->{_pamBastionToken} = 1;
+
+    # Server-to-server: no CrowdSec alert (see _disarmCrowdsecAgent)
+    $req->data->{_pamMachineLookup} = 1;
     $req->steps(
         [
             'getUser',              'setSessionInfo',
@@ -2525,6 +2581,19 @@ endpoints C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token>.
 Leave empty if Choice is not used.
 
 =back
+
+=head1 CROWDSEC INTERACTION
+
+C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token> run C<getUser>
+on behalf of a remote host. L<Lemonldap::NG::Portal::Plugins::CrowdSecAgent>
+would report their failures against the bastion's own address, letting any
+login tried against it (sshd resolves logins through NSS before
+authenticating) ban the bastion from its own SSO.
+
+This plugin therefore disables CrowdSec reporting for those lookups at init
+time; the administrator's C<crowdsecAgent> rule still applies to every other
+request. Genuine SSH failures are reported by the bastion itself, which knows
+the real client address.
 
 =head1 SEE ALSO
 
