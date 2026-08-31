@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+### pam-access
+
+- **Fix — a bastion could be made to ban itself from its own SSO, and more
+  generally trigger any alerting plugin.** `/pam/authorize`,
+  `/pam/userinfo` and `/pam/bastion-token` resolve a user on behalf of a
+  remote host. These are not authentication events, and the address the
+  portal observes is the calling server's — yet every plugin hooked on the
+  steps they run saw them. `CrowdSecAgent` reported the failures against the
+  bastion's own address; as sshd resolves logins through NSS before
+  authenticating, any unknown login tried against a bastion pushed an alert
+  charged to it, up to a ban of its own IP. `NewLocationWarning` likewise
+  treated that address as a new location for the user. These endpoints now
+  run their steps as coderefs, which `Main::Process` dispatches without
+  consulting `aroundSub` or `afterSub`, so no plugin — core or custom —
+  observes them, and none is modified.
+- The three endpoints now name the enrolled server that asked (per-device
+  `_deviceId`, falling back to `client_id`), and a lookup miss moves to
+  `notice` on `/pam/userinfo` and `/pam/authorize`. Those lookups carry no
+  client address, so this was the only missing link to trace a miss back to
+  a host when several share an egress IP.
+
 ## v0.5.1 - 2026-08-29
 
 ### oidc-global-scopes

@@ -138,6 +138,34 @@ sub init {
     return 1;
 }
 
+# Steps used by the server-to-server endpoints to resolve a user.
+#
+# Those lookups are not authentication events: nobody is authenticating, and
+# $req->address is the calling server, not whoever triggered the lookup.
+# Running them through the *named* step pipeline would expose them to every
+# plugin hooked on those steps -- the CrowdSec agent reporting a failure
+# against the bastion's own address, NewLocationWarning treating that address
+# as a new location for the user, and any custom alerting plugin we know
+# nothing about.
+#
+# Main::Process dispatches a coderef step directly, consulting neither
+# aroundSub nor afterSub (see Main/Process.pm), so wrapping each step in a
+# closure keeps the lookup invisible to all of them at once, without touching
+# any other plugin.
+sub machineLookupSteps {
+    my ($self) = @_;
+    my $p = $self->p;
+    return [
+        map {
+            my $step = $_;
+            sub { return $p->$step( $_[0] ) }
+        } (
+            'getUser', 'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
+        )
+    ];
+}
+
 # ROUTE HANDLERS
 
 # Redirect unauthenticated users to portal (preserving REQUEST_URI)
@@ -355,12 +383,7 @@ sub authorize {
     # 4. Lookup user (without active session)
     $req->user($user);
     $req->data->{_pamAuthorize} = 1;
-    $req->steps(
-        [
-            'getUser',              'setSessionInfo',
-            $self->groupsAndMacros, 'setLocalGroups'
-        ]
-    );
+    $req->steps( $self->machineLookupSteps );
 
     # Tell Lib::Choice which sub-module to use for this server-to-server
     # getUser/setSessionInfo run (no interactive auth flow available here).
@@ -370,8 +393,9 @@ sub authorize {
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
-        $self->logger->info(
-            "PAM authorize: User '$user' not found (error: $error)");
+        $self->logger->notice(
+"PAM authorize: User '$user' not found, asked by server '$server_id' (error: $error)"
+        );
 
         # Audit log for authorization failure (user not found)
         $self->p->auditLog(
@@ -1164,10 +1188,19 @@ sub userinfo {
             'Server not enrolled. Use Device Authorization Grant.' );
     }
 
+    # An NSS lookup carries no client address, so the enrolled server is the
+    # only way to tell which host asked. Same precedence as /pam/authorize.
+    my $server_id = $serverSession->data->{_deviceId}
+      || $serverSession->data->{client_id}
+      || 'unknown';
+    $self->logger->info(
+        "PAM userinfo request from enrolled server: $server_id");
+
     # 2. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
     if ($@) {
-        $self->logger->error("PAM userinfo: Invalid JSON body: $@");
+        $self->logger->error(
+            "PAM userinfo: Invalid JSON body from '$server_id': $@");
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
@@ -1179,12 +1212,7 @@ sub userinfo {
     # 3. Lookup user in backend
     $req->user($user);
     $req->data->{_pamUserinfo} = 1;
-    $req->steps(
-        [
-            'getUser',              'setSessionInfo',
-            $self->groupsAndMacros, 'setLocalGroups'
-        ]
-    );
+    $req->steps( $self->machineLookupSteps );
 
     # Tell Lib::Choice which sub-module to use for this server-to-server
     # getUser/setSessionInfo run (no interactive auth flow available here).
@@ -1194,8 +1222,9 @@ sub userinfo {
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
-        $self->logger->debug(
-            "PAM userinfo: User '$user' not found (error: $error)");
+        $self->logger->notice(
+"PAM userinfo: User '$user' not found, asked by server '$server_id' (error: $error)"
+        );
         return $self->p->sendJSONresponse(
             $req,
             {
@@ -1220,7 +1249,8 @@ sub userinfo {
     my $groups    = $req->sessionInfo->{groups} || '';
     my @groupList = split /[,;\s]+/, $groups;
 
-    $self->logger->debug("PAM userinfo: Found user '$user'");
+    $self->logger->debug(
+        "PAM userinfo: Found user '$user' (server: $server_id)");
 
     return $self->p->sendJSONresponse(
         $req,
@@ -1308,10 +1338,14 @@ sub bastionToken {
       || $tokenSession->data->{client_id}
       || 'unknown';
 
+    $self->logger->info(
+        "PAM bastion-token request from enrolled server: $bastion_id");
+
     # 5. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
     if ($@) {
-        $self->logger->error("PAM bastion-token: Invalid JSON body: $@");
+        $self->logger->error(
+            "PAM bastion-token: Invalid JSON body from '$bastion_id': $@");
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
@@ -1457,12 +1491,7 @@ sub bastionToken {
     # Lookup user groups if available
     $req->user($user);
     $req->data->{_pamBastionToken} = 1;
-    $req->steps(
-        [
-            'getUser',              'setSessionInfo',
-            $self->groupsAndMacros, 'setLocalGroups'
-        ]
-    );
+    $req->steps( $self->machineLookupSteps );
 
     # Tell Lib::Choice which sub-module to use for this server-to-server
     # getUser/setSessionInfo run (no interactive auth flow available here).
@@ -1477,7 +1506,7 @@ sub bastionToken {
     }
     else {
         $self->logger->warn(
-"PAM bastion-token: Failed to retrieve groups for user $user (error=$error), JWT will have no user_groups claim"
+"PAM bastion-token: Failed to retrieve groups for user $user, asked by server '$bastion_id' (error=$error), JWT will have no user_groups claim"
         );
     }
 
@@ -2525,6 +2554,27 @@ endpoints C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token>.
 Leave empty if Choice is not used.
 
 =back
+
+=head1 SERVER-TO-SERVER LOOKUPS AND PLUGIN HOOKS
+
+C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token> resolve a user
+on behalf of a remote host. These are not authentication events: nobody is
+authenticating, and the address the portal observes is the calling server's.
+
+Any plugin hooked on the steps they run would therefore see an
+"authentication" that never happened, attributed to the wrong address. With
+L<Lemonldap::NG::Portal::Plugins::CrowdSecAgent> enabled that is remotely
+exploitable: sshd resolves an offered login through NSS I<before>
+authenticating, so an unknown login tried against a bastion would make it
+report itself until CrowdSec bans its own IP.
+L<Lemonldap::NG::Portal::Plugins::NewLocationWarning> would likewise treat
+the bastion's address as a new location for the user.
+
+These endpoints therefore run their steps as coderefs, which
+L<Lemonldap::NG::Portal::Main::Process> dispatches without consulting
+C<aroundSub> or C<afterSub>. No plugin -- core or custom, present or future --
+observes them, and none is modified. Genuine SSH failures are reported by the
+bastion itself, which knows the real client address.
 
 =head1 SEE ALSO
 
