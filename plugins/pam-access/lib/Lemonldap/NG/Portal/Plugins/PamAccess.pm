@@ -1214,10 +1214,19 @@ sub userinfo {
             'Server not enrolled. Use Device Authorization Grant.' );
     }
 
+    # An NSS lookup carries no client address, so the enrolled server is the
+    # only way to tell which host asked. Same precedence as /pam/authorize.
+    my $server_id = $serverSession->data->{_deviceId}
+      || $serverSession->data->{client_id}
+      || 'unknown';
+    $self->logger->info(
+        "PAM userinfo request from enrolled server: $server_id");
+
     # 2. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
     if ($@) {
-        $self->logger->error("PAM userinfo: Invalid JSON body: $@");
+        $self->logger->error(
+            "PAM userinfo: Invalid JSON body from '$server_id': $@");
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
@@ -1247,8 +1256,9 @@ sub userinfo {
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
-        $self->logger->debug(
-            "PAM userinfo: User '$user' not found (error: $error)");
+        $self->logger->notice(
+"PAM userinfo: User '$user' not found, asked by server '$server_id' (error: $error)"
+        );
         return $self->p->sendJSONresponse(
             $req,
             {
@@ -1273,7 +1283,8 @@ sub userinfo {
     my $groups    = $req->sessionInfo->{groups} || '';
     my @groupList = split /[,;\s]+/, $groups;
 
-    $self->logger->debug("PAM userinfo: Found user '$user'");
+    $self->logger->debug(
+        "PAM userinfo: Found user '$user' (server: $server_id)");
 
     return $self->p->sendJSONresponse(
         $req,

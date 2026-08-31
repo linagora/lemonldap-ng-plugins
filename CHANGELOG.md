@@ -13,6 +13,10 @@
   plugin now wraps the agent's activation rule at init so its
   server-to-server lookups never report; the `crowdsecAgent` rule still
   applies to all other traffic. No portal core change needed.
+- `/pam/userinfo` now logs the enrolled server that asked (per-device
+  `_deviceId`, falling back to `client_id`), and a lookup miss moves from
+  `debug` to `notice`. An NSS lookup carries no client address, so this was
+  the only missing link to trace a miss back to a host.
 
 ## v0.5.1 - 2026-08-29
 
