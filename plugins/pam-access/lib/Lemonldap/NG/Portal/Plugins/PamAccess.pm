@@ -420,8 +420,9 @@ sub authorize {
     my $error = $self->p->process($req);
 
     if ( $error != PE_OK ) {
-        $self->logger->info(
-            "PAM authorize: User '$user' not found (error: $error)");
+        $self->logger->notice(
+"PAM authorize: User '$user' not found, asked by server '$server_id' (error: $error)"
+        );
 
         # Audit log for authorization failure (user not found)
         $self->p->auditLog(
@@ -1372,10 +1373,14 @@ sub bastionToken {
       || $tokenSession->data->{client_id}
       || 'unknown';
 
+    $self->logger->info(
+        "PAM bastion-token request from enrolled server: $bastion_id");
+
     # 5. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
     if ($@) {
-        $self->logger->error("PAM bastion-token: Invalid JSON body: $@");
+        $self->logger->error(
+            "PAM bastion-token: Invalid JSON body from '$bastion_id': $@");
         return $self->_badRequest( $req, 'Invalid JSON' );
     }
 
@@ -1544,7 +1549,7 @@ sub bastionToken {
     }
     else {
         $self->logger->warn(
-"PAM bastion-token: Failed to retrieve groups for user $user (error=$error), JWT will have no user_groups claim"
+"PAM bastion-token: Failed to retrieve groups for user $user, asked by server '$bastion_id' (error=$error), JWT will have no user_groups claim"
         );
     }
 
