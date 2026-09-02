@@ -131,6 +131,8 @@ Used by OIDC and the OAuth 2.0 JWT-based extensions above.
 | [Matrix Client-Server API — federation token validation](https://spec.matrix.org/latest/server-server-api/)                                                                  |      | 🧩 [`matrix`](plugins/matrix)                       |
 | [OpenSSH Certificate Authority](https://man.openbsd.org/ssh-keygen.1) — user certificates signed via SSO                                                                     |      | 🧩 [`ssh-ca`](plugins/ssh-ca)                       |
 | [PAM — Pluggable Authentication Modules](https://www.kernel.org/pub/linux/libs/pam/) — token-based access for SSH/sudo                                                       |      | 🧩 [`pam-access`](plugins/pam-access)               |
+| [ldap-rest](https://github.com/linagora/ldap-rest) — directory writes (password change, account creation) delegated to a REST directory manager                              |      | 🧩 [`ldap-rest`](plugins/ldap-rest)                 |
+| [RFC 3112 — LDAP Authentication Password Schema](https://www.rfc-editor.org/rfc/rfc3112) — client side `{SSHA…}` password values                                              | ✅   | 🧩 [`ldap-rest`](plugins/ldap-rest)                 |
 
 ---
 
