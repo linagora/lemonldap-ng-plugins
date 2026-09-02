@@ -136,6 +136,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [fixed-logout-redirection](plugins/fixed-logout-redirection) | Force redirect to a fixed URL after logout                 | beta   |
 | [external-menu](plugins/external-menu)                       | Redirect authenticated users to an external menu URL       | beta   |
 | [custom-functions](plugins/custom-functions)                 | Extra `customFunctions` for rules, macros and headers      | beta   |
+| [ldap-rest](plugins/ldap-rest)                               | Password change and registration through ldap-rest         | alpha  |
 
 #### OIDC extensions
 

@@ -1,0 +1,159 @@
+{
+    "authPlugin": {
+        "k": "LdapRest",
+        "v": "LDAP (ldap-rest)",
+        "roles": ["passwordDB"]
+    },
+    "attributes": {
+        "registerDB": {
+            "select": [{ "k": "LdapRest", "v": "LDAP (ldap-rest)" }]
+        },
+        "ldapRestUrl": {
+            "type": "url",
+            "documentation": "ldap-rest base URL",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestResource": {
+            "type": "text",
+            "default": "users",
+            "documentation": "ldap-rest flat resource name",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestMainAttribute": {
+            "type": "text",
+            "default": "uid",
+            "documentation": "ldap-rest mainAttribute of the resource",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestIdKey": {
+            "type": "text",
+            "default": "",
+            "documentation": "Session key holding the ldap-rest entry id (empty means DN)",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestPasswordAttribute": {
+            "type": "text",
+            "default": "userPassword",
+            "documentation": "LDAP attribute updated by ldap-rest",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestPasswordHash": {
+            "type": "select",
+            "select": [
+                { "k": "", "v": "noHash" },
+                { "k": "SSHA", "v": "SSHA" },
+                { "k": "SSHA256", "v": "SSHA256" },
+                { "k": "SSHA512", "v": "SSHA512" },
+                { "k": "SHA", "v": "SHA" },
+                { "k": "SHA256", "v": "SHA256" },
+                { "k": "SHA512", "v": "SHA512" }
+            ],
+            "default": "",
+            "documentation": "Client side password hashing scheme",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestAuthMode": {
+            "type": "select",
+            "select": [
+                { "k": "none", "v": "none" },
+                { "k": "token", "v": "Bearer token" },
+                { "k": "hmac", "v": "HMAC-SHA256" }
+            ],
+            "default": "none",
+            "documentation": "ldap-rest authentication mode",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestToken": {
+            "type": "password",
+            "default": "",
+            "documentation": "ldap-rest bearer token",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestHmacId": {
+            "type": "text",
+            "default": "",
+            "documentation": "ldap-rest HMAC service id",
+            "help": "passwordldaprest.html"
+        },
+        "ldapRestHmacSecret": {
+            "type": "password",
+            "default": "",
+            "documentation": "ldap-rest HMAC shared secret",
+            "help": "passwordldaprest.html"
+        }
+    },
+    "tree": [
+        {
+            "insert_into": "generalParameters/plugins",
+            "nodes": [
+                {
+                    "title": "ldapRestParams",
+                    "help": "passwordldaprest.html",
+                    "form": "simpleInputContainer",
+                    "nodes": [
+                        "ldapRestUrl",
+                        "ldapRestResource",
+                        "ldapRestMainAttribute",
+                        "ldapRestIdKey",
+                        "ldapRestPasswordAttribute",
+                        "ldapRestPasswordHash",
+                        "ldapRestAuthMode",
+                        "ldapRestToken",
+                        "ldapRestHmacId",
+                        "ldapRestHmacSecret"
+                    ]
+                }
+            ]
+        }
+    ],
+    "lang": {
+        "ldapRestParams": {
+            "en": "ldap-rest parameters",
+            "fr": "Paramètres ldap-rest"
+        },
+        "ldapRestUrl": {
+            "en": "ldap-rest base URL",
+            "fr": "URL de base ldap-rest"
+        },
+        "ldapRestResource": {
+            "en": "Resource name",
+            "fr": "Nom de la ressource"
+        },
+        "ldapRestMainAttribute": {
+            "en": "Resource main attribute",
+            "fr": "Attribut principal de la ressource"
+        },
+        "ldapRestIdKey": {
+            "en": "Entry id session key",
+            "fr": "Clé de session de l'identifiant d'entrée"
+        },
+        "ldapRestPasswordAttribute": {
+            "en": "Password attribute",
+            "fr": "Attribut de mot de passe"
+        },
+        "ldapRestPasswordHash": {
+            "en": "Password hash scheme",
+            "fr": "Schéma de hachage du mot de passe"
+        },
+        "ldapRestAuthMode": {
+            "en": "ldap-rest authentication",
+            "fr": "Authentification ldap-rest"
+        },
+        "ldapRestToken": {
+            "en": "Bearer token",
+            "fr": "Jeton Bearer"
+        },
+        "ldapRestHmacId": {
+            "en": "HMAC service id",
+            "fr": "Identifiant de service HMAC"
+        },
+        "ldapRestHmacSecret": {
+            "en": "HMAC shared secret",
+            "fr": "Secret partagé HMAC"
+        },
+        "noHash": {
+            "en": "No hashing (server side)",
+            "fr": "Pas de hachage (côté serveur)"
+        }
+    }
+}

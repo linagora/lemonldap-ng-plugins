@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased
+
+### ldap-rest (new)
+
+- **Feature — delegate directory writes to
+  [ldap-rest](https://github.com/linagora/ldap-rest)** instead of writing
+  into LDAP from the portal. Useful when the portal is not allowed to write
+  into the directory, when ldap-rest hooks must fire on password change or
+  account creation (audit, propagation), or when directory writes must be
+  centralized and logged in one place. Port of the upstream LLNG `ldap-rest`
+  branch, which patched the manager attributes, the tree and the language
+  files; everything now lives in the plugin's `manager-overrides`.
+- **`Password::LdapRest`** (password module `LDAP (ldap-rest)`): reads stay
+  on the LDAP connection — ldap-rest has no "verify this password" endpoint,
+  and a simple bind is the canonical way to check the old password — while
+  the modification is a `PUT /api/v1/ldap/<resource>/<id>`. The LDAP account
+  no longer needs write access. `Password policy control` / reset attribute,
+  `Get user before password change` and `Require old password` are honored.
+- **`Register::LdapRest`** (register module `LDAP (ldap-rest)`, new in this
+  port): needs no LDAP connection at all. The uniqueness check is a `GET` on
+  the entry (404 = free) and the account is created with a `POST` on the
+  collection; `objectClass` and default attributes come from the ldap-rest
+  schema. If ldap-rest cannot be questioned the registration is refused
+  rather than risking a duplicate, and the login-suffix loop is bounded.
+- **Authentication against ldap-rest**: `none`, `token` (`core/auth/token`,
+  `Authorization: Bearer`) or `hmac` (`core/auth/hmac`, `HMAC-SHA256
+  <id>:<timestamp>:<signature>` over `METHOD|path|timestamp|sha256(body)`).
+- **Optional client side hashing** (`SSHA`, `SSHA256`, `SSHA512`, `SHA`,
+  `SHA256`, `SHA512`) producing RFC 3112 values, for directories that store
+  what they receive. Off by default: the cleartext password is forwarded so
+  the directory can hash it and apply its own quality checks.
+- **New options**: `ldapRestUrl`, `ldapRestResource`,
+  `ldapRestMainAttribute`, `ldapRestIdKey`, `ldapRestPasswordAttribute`,
+  `ldapRestPasswordHash`, `ldapRestAuthMode`, `ldapRestToken`,
+  `ldapRestHmacId`, `ldapRestHmacSecret`, under
+  `General Parameters` > `Plugins` > `ldap-rest parameters`.
+
 ## v0.5.2 - 2026-08-31
 
 Touched plugins bumped to **0.5.2** in lockstep: `pam-access`.
