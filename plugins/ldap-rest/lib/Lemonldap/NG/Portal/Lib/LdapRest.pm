@@ -219,12 +219,12 @@ sub ldapRestCall {
     return $self->ldapRestDecode($resp);
 }
 
-# Build a one line error message out of a failed response
+# Build a one line error message out of a failed response. The body is
+# deliberately left out: ldap-rest may echo back the submitted entry, which
+# holds the password.
 sub ldapRestError {
     my ( $self, $resp ) = @_;
-    my $detail = eval { $resp->decoded_content } || '';
-    $detail =~ s/\s+/ /g;
-    return $resp->status_line . ( $detail ? " ($detail)" : '' );
+    return $resp->status_line;
 }
 
 # Decode a JSON answer. Dies if the body is not a JSON object.

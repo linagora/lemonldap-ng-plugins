@@ -8,7 +8,11 @@ BEGIN {
     require_ok('Lemonldap::NG::Portal::Register::LdapRest');
 }
 
-use Lemonldap::NG::Portal::Main::Constants;
+use Lemonldap::NG::Portal::Main::Constants qw(
+  PE_ERROR
+  PE_LDAPERROR
+  PE_OK
+);
 
 {
 

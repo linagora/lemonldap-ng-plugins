@@ -15,7 +15,12 @@ package Lemonldap::NG::Portal::Register::LdapRest;
 
 use strict;
 use Mouse;
-use Lemonldap::NG::Portal::Main::Constants;
+use Lemonldap::NG::Portal::Main::Constants qw(
+  PE_ERROR
+  PE_LDAPERROR
+  PE_MALFORMEDUSER
+  PE_OK
+);
 
 extends qw(
   Lemonldap::NG::Portal::Lib::LdapRest
@@ -94,13 +99,13 @@ sub createUser {
       eval { $self->ldapRestCall( 'POST', $self->_collectionPath, $entry ) };
     if ($@) {
         $self->userLogger->error(
-            "Can not create entry for " . $info->{login} );
+            "Cannot create entry for " . $info->{login} );
         $self->logger->error("ldap-rest entry creation failed: $@");
         return PE_LDAPERROR;
     }
     unless ( $self->_isSuccess($res) ) {
         $self->userLogger->error(
-            "Can not create entry for " . $info->{login} );
+            "Cannot create entry for " . $info->{login} );
         $self->logger->error( 'ldap-rest refused the entry creation: '
               . ( $res->{error} || 'unknown error' ) );
         return PE_LDAPERROR;

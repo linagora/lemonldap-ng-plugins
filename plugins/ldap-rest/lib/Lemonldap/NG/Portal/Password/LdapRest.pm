@@ -18,7 +18,13 @@ package Lemonldap::NG::Portal::Password::LdapRest;
 
 use strict;
 use Mouse;
-use Lemonldap::NG::Portal::Main::Constants;
+use Lemonldap::NG::Portal::Main::Constants qw(
+  PE_BADOLDPASSWORD
+  PE_ERROR
+  PE_LDAPERROR
+  PE_MUST_SUPPLY_OLD_PASSWORD
+  PE_PASSWORD_OK
+);
 
 extends qw(
   Lemonldap::NG::Portal::Lib::LDAP

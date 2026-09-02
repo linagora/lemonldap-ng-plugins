@@ -13,7 +13,10 @@ BEGIN {
     require_ok('Lemonldap::NG::Portal::Password::LdapRest');
 }
 
-use Lemonldap::NG::Portal::Main::Constants;
+use Lemonldap::NG::Portal::Main::Constants qw(
+  PE_ERROR
+  PE_PASSWORD_OK
+);
 
 # Minimal fake portal object: the module only needs loggers here
 {
@@ -305,6 +308,15 @@ subtest 'modifyPassword reports ldap-rest failures' => sub {
     is( $obj->modifyPassword( $req, 's3cr3t' ),
         PE_ERROR,
         'HTTP error is reported' );
+};
+
+subtest 'errors never expose the response body' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    my $resp = HTTP::Response->new( 400, 'Bad Request' );
+    $resp->content('{"error":"bad","entry":{"userPassword":"s3cr3t"}}');
+    my $msg = $obj->ldapRestError($resp);
+    is( $msg, '400 Bad Request', 'status line only' );
+    unlike( $msg, qr/s3cr3t/, 'the submitted entry is not echoed in logs' );
 };
 
 done_testing();
