@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+### ssh-ca
+
+- **Security fix — the administration endpoints performed no authorization**
+  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)). Any
+  authenticated SSO user could `GET /ssh/certs` to enumerate every issued
+  certificate, and `POST /ssh/revoke` to revoke anyone's. The only "control"
+  was a comment pointing at portal-vhost `locationRules`, which are not a
+  default deny — a vhost with `default: accept` and no `^/ssh` rule granted
+  full SSH CA administration to everybody.
+- **New `sshCaAdminRule` parameter** (boolOrExpr, Manager > General
+  Parameters > Plugins > SSH CA). `/ssh/admin`, `/ssh/certs` and
+  `/ssh/revoke` now evaluate it against the caller's session and answer 403
+  when it does not match. **It denies while unset**: deployments relying on
+  the previous open behaviour must set it explicitly (e.g.
+  `inGroup('ssh-admins')`). Per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
+  `/ssh/myrevoke`) are unchanged. Denials are audited as
+  `SSH_CA_ADMIN_DENIED`.
+- **Fix — a KRL write could truncate the live file and lock every host out
+  of SSH** (#59). `ssh-keygen -k` opens its target with `O_TRUNC` and the
+  `sshca-rebuild-krl` cron job never took the lock the portal used, so a
+  revocation and a rebuild could interleave on the same file. sshd fails
+  *closed* on an unparsable `RevokedKeys`: reproduced on OpenSSH 10.4p1, a
+  KRL truncated mid-write rejects **every** key with `incomplete message`.
+  KRL writes are now atomic (temp file in the same directory + `rename()`)
+  and every writer — portal workers, broker events, the cron job — shares
+  the same `flock`.
+- **Fix — `/ssh/revoked` served whatever was on disk** (#59, #64). A
+  truncated KRL keeps a valid `SSHKRL` magic, so consumers checking only the
+  magic installed it. The endpoint now validates the KRL framing and answers
+  HTTP 500 rather than handing out a file that would lock hosts out.
+- **Fix — an absent KRL was served as an empty body** (#64). sshd cannot
+  parse that as a KRL and silently falls back to the flat key file format,
+  i.e. revocations were not enforced (fail-open, no outage). A valid empty
+  KRL is now generated at plugin init and served instead.
+- **Fix — the broker revocation handler did not validate its serial** (#65).
+  The serial went verbatim into the `ssh-keygen` KRL spec file, where a
+  newline injects arbitrary directives (`id:`, `key:`, `hash:`). Serials are
+  now checked to be decimal integers in the handler, in `_updateKrl` and in
+  `sshca-rebuild-krl`.
+
 ### ldap-rest (new)
 
 - **Feature — directory writes delegated to
