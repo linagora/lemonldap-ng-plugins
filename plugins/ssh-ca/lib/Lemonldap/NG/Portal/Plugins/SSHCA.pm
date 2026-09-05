@@ -31,6 +31,28 @@ extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'SSHCA';
 
+# Key policy defaults (see sshCaAllowedKeyTypes / sshCaMinKeyBits).
+#
+# `ssh-dss` is deliberately absent: DSA is capped at 1024-bit keys with
+# SHA-1 signatures, has been disabled at compile time in OpenSSH since 9.8
+# and removed outright in OpenSSH 10. Operators who still need it can put
+# `dss` back in sshCaAllowedKeyTypes.
+use constant SSHCA_DEFAULT_KEY_TYPES => 'ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa';
+use constant SSHCA_DEFAULT_MIN_BITS  => 2048;
+
+# Key types whose size is fixed by the algorithm/curve. `family` is the
+# token used in sshCaAllowedKeyTypes, `bits` the effective key size — these
+# are NOT comparable with an RSA modulus size, hence `sized => 0`: the
+# sshCaMinKeyBits floor only applies to variable-size families.
+my %SSHCA_FIXED_KEY_TYPES = (
+    'ssh-ed25519'                        => [ 'ed25519',  256 ],
+    'sk-ssh-ed25519@openssh.com'         => [ 'sk-ed25519', 256 ],
+    'ecdsa-sha2-nistp256'                => [ 'ecdsa',    256 ],
+    'ecdsa-sha2-nistp384'                => [ 'ecdsa',    384 ],
+    'ecdsa-sha2-nistp521'                => [ 'ecdsa',    521 ],
+    'sk-ecdsa-sha2-nistp256@openssh.com' => [ 'sk-ecdsa', 256 ],
+);
+
 has key => (
     is      => 'rw',
     lazy    => 1,
@@ -277,12 +299,36 @@ sub sshCaSign {
     }
 
    # Validate SSH public key format: type, base64, optional comment, single line
-   # Strict validation to prevent injection attacks
-    unless ( $userPubKey =~
-        /\A(ssh-\w+|ecdsa-sha2-\w+)\s+[A-Za-z0-9+\/]+={0,2}(?:\s+[^\r\n]*)?\z/ )
+   # Strict validation to prevent injection attacks. The `sk-*@openssh.com`
+   # families are FIDO2/hardware-backed keys — they must be accepted here,
+   # their `@` and `.` are not matched by \w.
+    unless (
+        $userPubKey =~ m{
+            \A
+            (?:
+                 ssh-[\w-]+                       # ssh-ed25519, ssh-rsa, ...
+               | ecdsa-sha2-\w+                   # ecdsa-sha2-nistp256, ...
+               | sk-ssh-[\w-]+\@openssh\.com      # FIDO2 Ed25519
+               | sk-ecdsa-sha2-\w+\@openssh\.com  # FIDO2 ECDSA
+            )
+            \s+ [A-Za-z0-9+/]+={0,2}
+            (?: \s+ [^\r\n]* )?
+            \z
+        }x
+      )
     {
         return $self->p->sendError( $req, 'Invalid SSH public key format',
             400 );
+    }
+
+    # Enforce the key type / key size policy. The verdict comes from the
+    # DECODED wire-format blob, never from the textual prefix.
+    my $policy = $self->_checkKeyPolicy($userPubKey);
+    unless ( $policy->{ok} ) {
+        $self->logger->warn( "SSH CA sign: rejected key for user "
+              . ( $req->user || 'unknown' ) . ": "
+              . $policy->{error} );
+        return $self->p->sendError( $req, $policy->{error}, 400 );
     }
 
     # Label is mandatory (client-side also required). Fallback: extract from the
@@ -333,8 +379,19 @@ sub sshCaSign {
         );
     }
 
-    # Get validity from request (in days) or default to 30 days
-    my $validityDays = $body->{validity_days} || 30;
+    # Get validity from request (in days) or default to 30 days. It reaches
+    # ssh-keygen as `-V +<n>m`, so a non-numeric value ("abc" -> 0) would
+    # mint a sub-minute certificate and a negative one would make ssh-keygen
+    # fail with a 500: only a positive integer is acceptable.
+    my $validityDays = $body->{validity_days};
+    $validityDays = 30 unless defined $validityDays && $validityDays ne '';
+    unless ( !ref($validityDays)
+        && $validityDays =~ /\A[0-9]+\z/
+        && $validityDays > 0 )
+    {
+        return $self->p->sendError( $req,
+            'validity_days must be a positive integer', 400 );
+    }
 
     # Enforce maximum validity (in days, default 365)
     my $maxValidityDays = $self->conf->{sshCaCertMaxValidity} || 365;
@@ -1028,8 +1085,15 @@ sub sshCertsList {
     my $serialFilter = $req->param('serial') || '';
     my $keyIdFilter  = $req->param('key_id') || '';
     my $statusFilter = $req->param('status') || '';   # active, revoked, expired
-    my $limit        = int( $req->param('limit')  || 100 );
-    my $offset       = int( $req->param('offset') || 0 );
+
+    # Pagination: bound below as well as above. `int()` alone turned a
+    # negative limit into a negative `splice` length (which silently drops
+    # the tail of the list instead of the head) and a non-numeric value into
+    # 0 results, so only a plain non-negative integer is honoured here.
+    my $limit  = $req->param('limit');
+    my $offset = $req->param('offset');
+    $limit  = ( defined $limit  && $limit  =~ /\A[0-9]+\z/ ) ? $limit + 0 : 100;
+    $offset = ( defined $offset && $offset =~ /\A[0-9]+\z/ ) ? $offset + 0 : 0;
 
     $limit = 1000 if $limit > 1000;
 
@@ -1148,11 +1212,21 @@ sub sshCertRevoke {
 
     my $sessionId = $body->{session_id};
     my $serial    = $body->{serial};
-    my $reason    = $body->{reason} || '';
 
     unless ( $sessionId && $serial ) {
         return $self->p->sendError( $req, 'session_id and serial required',
             400 );
+    }
+
+    # The reason is stored in the session, echoed in logger->info and in the
+    # audit log: filter it like `label` is filtered in sshCaSign, so it
+    # cannot forge log lines or smuggle terminal escapes into an operator's
+    # console. Rejecting the whole [:cntrl:] class also covers \r\n\t.
+    my $reason = $body->{reason};
+    $reason = '' unless defined $reason && !ref $reason;
+    $reason =~ s/^\s+|\s+$//g;
+    if ( length($reason) > 256 || $reason =~ /[[:cntrl:]]/ ) {
+        return $self->p->sendError( $req, 'Invalid reason', 400 );
     }
 
     # Get current admin user
@@ -1385,6 +1459,148 @@ sub _sshKeyFingerprint {
     return "SHA256:$b64";
 }
 
+# HELPER: Bit length of an SSH "mpint" (RFC 4251 §5): a big-endian integer
+# carrying a leading 0x00 byte whenever its top bit would otherwise be read
+# as a sign bit. OpenSSH reports the significant bit count (a 2048-bit RSA
+# modulus is 257 bytes on the wire, 2048 bits here).
+sub _mpintBits {
+    my ($mpint) = @_;
+    return 0 unless defined $mpint;
+    $mpint =~ s/\A\x00+//;
+    return 0 unless length $mpint;
+    my $first = ord( substr( $mpint, 0, 1 ) );
+    my $bits  = ( length($mpint) - 1 ) * 8;
+    while ($first) { $bits++; $first >>= 1; }
+    return $bits;
+}
+
+# HELPER: Determine the real type and size of an SSH public key.
+#
+# The textual prefix of a pubkey line is just a label the client chose; it
+# is NOT proof of what the key actually is. The truth is the base64 blob,
+# which is the RFC 4253 wire format: a sequence of fields, each a uint32
+# big-endian length followed by that many bytes. The first field is the key
+# type; the rest depend on it (`ssh-rsa` => e, n ; `ssh-dss` => p, q, g, y ;
+# `ssh-ed25519` => 32-byte point ; `sk-*` => point/curve then application).
+#
+# Returns undef if the blob is malformed, if the type is one we don't know
+# how to size, or if the announced prefix disagrees with the blob.
+# Otherwise a hashref { type, family, bits, sized }, where `family` is the
+# token used in sshCaAllowedKeyTypes and `sized` says whether `bits` is a
+# variable modulus size (RSA/DSA) that sshCaMinKeyBits may be compared to.
+sub _parseSshPubKey {
+    my ( $self, $sshPubKey ) = @_;
+    return undef unless defined $sshPubKey;
+
+    my ( $prefix, $blob_b64 ) = $sshPubKey =~ /^\s*(\S+)\s+(\S+)/;
+    return undef unless defined $blob_b64 && length $blob_b64;
+
+    my $blob = decode_base64($blob_b64);
+    return undef unless length $blob;
+
+    my @fields;
+    my $pos = 0;
+    my $len = length $blob;
+    while ( $pos + 4 <= $len ) {
+        my $flen = unpack( 'N', substr( $blob, $pos, 4 ) );
+        $pos += 4;
+
+        # Truncated or simply not a wire-format key: stop, don't guess.
+        last if $flen > $len - $pos;
+        push @fields, substr( $blob, $pos, $flen );
+        $pos += $flen;
+
+        # No key type we handle needs more than this (DSA has 5).
+        last if @fields >= 5;
+    }
+    return undef unless @fields;
+
+    my $type = $fields[0];
+    return undef unless length $type;
+
+    # A blob whose embedded type contradicts the announced prefix is either
+    # corrupt or an attempt to have the policy check read one type while
+    # ssh-keygen reads another.
+    return undef unless $type eq $prefix;
+
+    if ( my $fixed = $SSHCA_FIXED_KEY_TYPES{$type} ) {
+        return {
+            type   => $type,
+            family => $fixed->[0],
+            bits   => $fixed->[1],
+            sized  => 0,
+        };
+    }
+
+    if ( $type eq 'ssh-rsa' ) {
+
+        # ssh-rsa: type, e, n — the modulus is the size that matters.
+        return undef unless @fields >= 3;
+        return {
+            type   => $type,
+            family => 'rsa',
+            bits   => _mpintBits( $fields[2] ),
+            sized  => 1,
+        };
+    }
+
+    if ( $type eq 'ssh-dss' ) {
+
+        # ssh-dss: type, p, q, g, y — p carries the key size.
+        return undef unless @fields >= 2;
+        return {
+            type   => $type,
+            family => 'dss',
+            bits   => _mpintBits( $fields[1] ),
+            sized  => 1,
+        };
+    }
+
+    return undef;
+}
+
+# HELPER: Apply the configured key policy to a user-supplied public key.
+# Returns { ok => 1, info => {...} } or { ok => 0, error => 'message' }.
+sub _checkKeyPolicy {
+    my ( $self, $sshPubKey ) = @_;
+
+    my $info = $self->_parseSshPubKey($sshPubKey);
+    return { ok => 0, error => 'Unsupported or malformed SSH public key' }
+      unless $info;
+
+    my $allowedConf = $self->conf->{sshCaAllowedKeyTypes};
+    $allowedConf = SSHCA_DEFAULT_KEY_TYPES
+      unless defined $allowedConf && $allowedConf =~ /\S/;
+    my %allowed =
+      map { lc($_) => 1 } grep { length } split /[\s,]+/, $allowedConf;
+
+    unless ( $allowed{ $info->{family} } ) {
+        return {
+            ok    => 0,
+            error => "SSH key type '$info->{type}' is not allowed",
+        };
+    }
+
+    # A minimum bit count is only meaningful inside a variable-size family:
+    # Ed25519 is always 256 bits and is stronger than RSA-3072, so comparing
+    # the two numbers would reject the best keys available. Fixed-size
+    # families are governed by the type allowlist alone.
+    if ( $info->{sized} ) {
+        my $min = $self->conf->{sshCaMinKeyBits};
+        $min = SSHCA_DEFAULT_MIN_BITS
+          unless defined $min && $min =~ /\A[0-9]+\z/;
+        if ( $info->{bits} < $min ) {
+            return {
+                ok => 0,
+                error =>
+                  "SSH key is too small ($info->{bits} bits, minimum $min)",
+            };
+        }
+    }
+
+    return { ok => 1, info => $info };
+}
+
 # HELPER: Update KRL file with revoked serial.
 # Serialized across workers on the same node via flock on a dedicated
 # lockfile: concurrent events (broker-driven + locally-triggered) can reach
@@ -1572,9 +1788,17 @@ Request body (JSON):
 
     {
         "public_key": "ssh-ed25519 AAAA... user@host",
-        "validity_minutes": 30,       # optional
-        "principals": ["user1"]       # optional
+        "label": "laptop-pro",        # optional, falls back to the key comment
+        "validity_days": 30           # optional, positive integer
     }
+
+C<validity_days> must be a positive integer and is clamped to
+C<sshCaCertMaxValidity>. Principals are always derived from the session; a
+C<principals> field in the request is ignored.
+
+The public key must satisfy the configured key policy (see
+C<sshCaAllowedKeyTypes> and C<sshCaMinKeyBits>); the key type and size are
+read from the decoded key blob, not from the textual prefix.
 
 Response:
 
@@ -1608,9 +1832,11 @@ Parameters:
 
 =item * status - Filter by status: active, revoked, expired
 
-=item * limit - Maximum number of results (default: 100, max: 1000)
+=item * limit - Maximum number of results (default: 100, max: 1000). Must be
+a non-negative integer; anything else falls back to the default.
 
-=item * offset - Offset for pagination (default: 0)
+=item * offset - Offset for pagination (default: 0). Must be a non-negative
+integer; anything else falls back to 0.
 
 =back
 
@@ -1624,7 +1850,7 @@ Request body (JSON):
     {
         "session_id": "persistent-session-id",
         "serial": "123",
-        "reason": "Key compromised"     # optional
+        "reason": "Key compromised"     # optional, <= 256 chars, no controls
     }
 
 =head1 CONFIGURATION
@@ -1645,13 +1871,44 @@ allowing them to sign their SSH keys through the web interface.
 
 Reference to the SSH CA key in the LLNG keys store (required)
 
-=item sshCaCertDefaultValidity
-
-Default certificate validity in minutes (default: 30)
-
 =item sshCaCertMaxValidity
 
-Maximum certificate validity in minutes (default: 60)
+Maximum certificate validity in days (default: 365). A request asking for
+more is clamped to this value. Certificates are requested in days; the
+default when C<validity_days> is omitted is 30 days.
+
+=item sshCaAllowedKeyTypes
+
+Comma- or space-separated list of key families users may submit for signing
+(default: C<ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa>). Recognised tokens:
+
+=over
+
+=item * C<ed25519> — C<ssh-ed25519>
+
+=item * C<sk-ed25519> — C<sk-ssh-ed25519@openssh.com> (FIDO2)
+
+=item * C<ecdsa> — C<ecdsa-sha2-nistp256/384/521>
+
+=item * C<sk-ecdsa> — C<sk-ecdsa-sha2-nistp256@openssh.com> (FIDO2)
+
+=item * C<rsa> — C<ssh-rsa>
+
+=item * C<dss> — C<ssh-dss>, B<not allowed by default>: DSA is limited to
+1024-bit keys and SHA-1 signatures, and has been disabled then removed in
+recent OpenSSH releases.
+
+=back
+
+The family is determined by decoding the key blob, so a key cannot slip
+through by mislabelling its textual prefix.
+
+=item sshCaMinKeyBits
+
+Minimum key size in bits (default: 2048). Only applies to families whose
+size varies, i.e. RSA and DSA: an Ed25519 key is always 256 bits and is
+stronger than RSA-3072, so comparing the two counts would be meaningless.
+Fixed-size families are governed by C<sshCaAllowedKeyTypes> alone.
 
 =item sshCaPrincipalSources
 
@@ -1660,10 +1917,6 @@ Expression to derive principals from session, e.g., '$uid' (default: '$uid')
 =item sshCaKrlPath
 
 Path to the Key Revocation List file (optional)
-
-=item sshCaSerialPath
-
-Path to store the serial number counter (default: /var/lib/lemonldap-ng/ssh/serial)
 
 =back
 

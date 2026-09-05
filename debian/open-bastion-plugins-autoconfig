@@ -356,11 +356,9 @@ sub ensure_ssh_ca {
     # re-issue certs frequently via the portal.
     my %defaults = (
         sshCaActivation       => 1,
-        sshCaKeyType          => 'ed25519',
         sshCaKeyRef           => $ref,
         sshCaCertMaxValidity  => 1,
         sshCaPrincipalSources => '$uid',
-        sshCaSerialPath       => "$opt{'ssh-dir'}/serial",
         sshCaKrlPath          => "$opt{'ssh-dir'}/revoked_keys",
     );
     for my $k (sort keys %defaults) {

@@ -78,7 +78,6 @@ my ( $user_pub, $user_fp );
 
 my $tmpdir  = tempdir( CLEANUP => 1 );
 my $krlPath = "$tmpdir/krl";
-my $serialPath = "$tmpdir/serial";
 
 my ( $op, $res );
 ok(
@@ -140,7 +139,6 @@ ok(
                     sshca => { keyPrivate => $ca_priv, keyPublic => $ca_pub },
                 },
                 sshCaKrlPath          => $krlPath,
-                sshCaSerialPath       => $serialPath,
                 sshCaCertMaxValidity  => 30,
                 sshCaPrincipalSources => '$uid',
             }
