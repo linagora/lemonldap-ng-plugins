@@ -107,12 +107,20 @@ both.
 
 ## Logging and audit
 
-The plugin never logs a user code in cleartext, and never stores one: the
-lookup record is keyed on `sha256_hex(user_code)`, and the debug/info lines
-carry that digest. The audit log (`ISSUER_OIDC_DEVICE_AUTH_*`) does record the
-submitted code on approve/deny, which is what ties an enrollment to the admin
-who authorized it; `ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED`, emitted where only
-the device code is known, carries `user_code_hash` instead.
+The plugin never logs a user code in cleartext, and never stores one. The
+lookup record is addressed by `hmac_sha256_hex(user_code, key)` — keyed with
+the portal secret, because a bare digest of an 8-character code over a
+20-character alphabet is invertible in seconds by anyone who can list session
+ids. The same index is what the debug and info lines carry.
+
+With no `key` configured the index degrades to the bare digest, and the plugin
+warns once that it has.
+
+The audit log (`ISSUER_OIDC_DEVICE_AUTH_*`) records the submitted code on
+approve and deny, which is what ties an enrollment to the admin who authorized
+it and where the code is already spent. The records emitted while a code is
+still live — `INITIATED`, `INVALID_CODE`, and `TOKEN_GRANTED` where only the
+device code is known — carry `user_code_hash`, the index, instead.
 
 ## See Also
 
