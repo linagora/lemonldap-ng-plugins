@@ -60,28 +60,38 @@ my ( $user_pub_key, $user_pub_key2 );
 my $tmpdir = tempdir( CLEANUP => 1 );
 my $krlPath = "$tmpdir/krl";
 
+# Shared portal configuration. `sshCaAdminRule` is deliberately NOT part of
+# it: the last part of this file reuses the same base without a rule to check
+# that the administration endpoints default to DENY (issue #58).
+my %baseConf = (
+    logLevel       => $debug,
+    domain         => 'example.com',
+    portal         => 'http://auth.example.com/',
+    authentication => 'Demo',
+    userDB         => 'Same',
+    customPlugins  => '::Plugins::SSHCA',
+    sshCaKeyRef    => 'sshca',
+    keys           => {
+        sshca => {
+            keyPrivate => $ca_private_key,
+            keyPublic  => $ca_public_key,
+        },
+    },
+    sshCaKrlPath          => $krlPath,
+    sshCaCertMaxValidity  => 365,
+    sshCaPrincipalSources => '$uid',
+);
+
 # ============================================
 # Initialization
 # ============================================
 
+# rtyler is the SSH CA administrator here; dwho and french are ordinary
+# users (rtyler owns no certificate, so it never appears in the listings).
 my $portal = LLNG::Manager::Test->new( {
         ini => {
-            logLevel       => $debug,
-            domain         => 'example.com',
-            portal         => 'http://auth.example.com/',
-            authentication => 'Demo',
-            userDB         => 'Same',
-            customPlugins  => '::Plugins::SSHCA',
-            sshCaKeyRef    => 'sshca',
-            keys           => {
-                sshca => {
-                    keyPrivate => $ca_private_key,
-                    keyPublic  => $ca_public_key,
-                },
-            },
-            sshCaKrlPath          => $krlPath,
-            sshCaCertMaxValidity  => 365,
-            sshCaPrincipalSources => '$uid',
+            %baseConf,
+            sshCaAdminRule => q{$uid eq "rtyler"},
         }
     }
 );
@@ -138,19 +148,97 @@ ok(
 my $french_cert = expectJSON($res);
 
 # ============================================
-# PART 2: Admin endpoint - GET /ssh/certs
+# PART 2: A non-admin user is REJECTED by the admin endpoints (issue #58)
+#
+# dwho is authenticated and owns certificates, but does not match
+# sshCaAdminRule. Before the fix, dwho could list every user's certificates
+# and revoke french's.
 # ============================================
 
-# List all certs (no filter)
 ok(
     $res = $portal->_get(
         '/ssh/certs',
         cookie => "lemonldap=$id_dwho",
         accept => 'application/json',
     ),
-    'GET /ssh/certs (all)'
+    'GET /ssh/certs as non-admin dwho'
+);
+expectReject( $res, 403 );
+
+ok(
+    $res = $portal->_get(
+        '/ssh/certs',
+        cookie => "lemonldap=$id_dwho",
+        accept => 'application/json',
+        query  => 'user=french',
+    ),
+    'GET /ssh/certs?user=french as non-admin dwho'
+);
+expectReject( $res, 403 );
+
+# A well-formed revocation of french's certificate must be refused before
+# anything is looked up: the answer is 403, not 404/400.
+$body = to_json( {
+        session_id => 'whatever',
+        serial     => $french_cert->{serial},
+        reason     => 'pwned',
+    }
+);
+ok(
+    $res = $portal->_post(
+        '/ssh/revoke',
+        IO::String->new($body),
+        cookie => "lemonldap=$id_dwho",
+        type   => 'application/json',
+        length => length($body),
+    ),
+    'POST /ssh/revoke as non-admin dwho'
+);
+expectReject( $res, 403 );
+
+ok(
+    $res = $portal->_get(
+        '/ssh/admin',
+        cookie => "lemonldap=$id_dwho",
+        accept => 'text/html',
+    ),
+    'GET /ssh/admin as non-admin dwho'
+);
+is( $res->[0], 403, 'Admin interface refused with 403' );
+unlike( $res->[2]->[0], qr/sshCaAdminTitle/,
+    'Admin interface HTML not rendered' );
+count(2);
+
+# The per-user endpoints keep working for the very same non-admin user
+ok(
+    $res = $portal->_get(
+        '/ssh/mycerts',
+        cookie => "lemonldap=$id_dwho",
+        accept => 'application/json',
+    ),
+    'GET /ssh/mycerts still allowed for non-admin dwho'
 );
 my $payload = expectJSON($res);
+is( scalar @{ $payload->{certificates} },
+    2, 'dwho still sees its own 2 certificates' );
+count(1);
+
+# ============================================
+# PART 3: Admin endpoint - GET /ssh/certs
+# ============================================
+
+my $id_admin = $portal->login('rtyler');
+
+# List all certs (no filter)
+ok(
+    $res = $portal->_get(
+        '/ssh/certs',
+        cookie => "lemonldap=$id_admin",
+        accept => 'application/json',
+    ),
+    'GET /ssh/certs (all) as admin'
+);
+$payload = expectJSON($res);
 ok( exists $payload->{certificates}, 'certificates field exists' );
 ok( exists $payload->{total},        'total field exists' );
 is( $payload->{total}, 3, 'Total is 3 certificates' );
@@ -160,7 +248,7 @@ count(3);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'user=dwho',
     ),
@@ -173,7 +261,7 @@ count(1);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'user=french',
     ),
@@ -187,7 +275,7 @@ count(1);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'status=active',
     ),
@@ -200,7 +288,7 @@ count(1);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'status=revoked',
     ),
@@ -214,7 +302,7 @@ count(1);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => "serial=$french_cert->{serial}",
     ),
@@ -242,7 +330,7 @@ count(8);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'limit=2&offset=0',
     ),
@@ -256,7 +344,7 @@ count(2);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'limit=2&offset=2',
     ),
@@ -267,14 +355,14 @@ is( scalar @{ $payload->{certificates} }, 1, 'Got 1 result with offset=2' );
 count(1);
 
 # ============================================
-# PART 3: Revocation
+# PART 4: Revocation
 # ============================================
 
 # Get session_id for french's cert
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => "serial=$french_cert->{serial}",
     ),
@@ -290,7 +378,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -303,7 +391,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -317,7 +405,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -331,7 +419,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -350,7 +438,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -361,7 +449,7 @@ ok( $payload->{result},      'Revocation successful' );
 is( $payload->{serial}, $revoke_serial, 'Revoked correct serial' );
 is( $payload->{user},   'french',       'Revoked correct user' );
 ok( $payload->{revoked_at},  'revoked_at returned' );
-is( $payload->{revoked_by}, 'dwho', 'revoked_by is dwho' );
+is( $payload->{revoked_by}, 'rtyler', 'revoked_by is the admin rtyler' );
 count(5);
 
 # Revoke - already revoked
@@ -369,7 +457,7 @@ ok(
     $res = $portal->_post(
         '/ssh/revoke',
         IO::String->new($body),
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         type   => 'application/json',
         length => length($body),
     ),
@@ -378,14 +466,14 @@ ok(
 expectReject( $res, 400 );
 
 # ============================================
-# PART 4: Verify revocation is reflected
+# PART 5: Verify revocation is reflected
 # ============================================
 
 # Check certs listing shows revoked status
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => "serial=$revoke_serial",
     ),
@@ -394,8 +482,8 @@ ok(
 $payload = expectJSON($res);
 $cert    = $payload->{certificates}->[0];
 is( $cert->{status}, 'revoked', 'Status is revoked' );
-ok( $cert->{revoked_at},               'revoked_at present' );
-is( $cert->{revoked_by}, 'dwho',       'revoked_by is dwho' );
+ok( $cert->{revoked_at},                 'revoked_at present' );
+is( $cert->{revoked_by}, 'rtyler',       'revoked_by is rtyler' );
 is( $cert->{revoke_reason}, 'Key compromised', 'Revocation reason preserved' );
 count(4);
 
@@ -403,7 +491,7 @@ count(4);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'status=revoked',
     ),
@@ -416,7 +504,7 @@ count(1);
 ok(
     $res = $portal->_get(
         '/ssh/certs',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'application/json',
         query  => 'status=active',
     ),
@@ -447,7 +535,7 @@ is( $payload->{certificates}->[0]->{status}, 'revoked',
 count(2);
 
 # ============================================
-# PART 5: KRL file was updated
+# PART 6: KRL file was updated
 # ============================================
 
 ok( -f $krlPath, 'KRL file was created after revocation' );
@@ -471,20 +559,83 @@ is( length( $res->[2]->[0] ), $krl_size,
 count(1);
 
 # ============================================
-# PART 6: Admin interface
+# PART 7: Admin interface
 # ============================================
 
 ok(
     $res = $portal->_get(
         '/ssh/admin',
-        cookie => "lemonldap=$id_dwho",
+        cookie => "lemonldap=$id_admin",
         accept => 'text/html',
     ),
-    'GET /ssh/admin'
+    'GET /ssh/admin as admin'
 );
 expectOK($res);
 like( $res->[2]->[0], qr/sshCaAdminTitle|SSH Certificate/,
     'Admin interface HTML rendered' );
+count(1);
+
+# ============================================
+# PART 8: default DENY when sshCaAdminRule is unset (issue #58)
+#
+# Same configuration, minus the rule. The endpoints must refuse EVERYONE —
+# including rtyler, who is the administrator as soon as the rule is set.
+# This is the regression guard: the plugin must never fall back to "any
+# authenticated user" just because nothing has been configured.
+# ============================================
+
+my $noRulePortal = LLNG::Manager::Test->new( { ini => {%baseConf} } );
+
+for my $who ( [ 'dwho', $id_dwho ], [ 'rtyler', $id_admin ] ) {
+    my ( $name, $id ) = @$who;
+
+    ok(
+        $res = $noRulePortal->_get(
+            '/ssh/certs',
+            cookie => "lemonldap=$id",
+            accept => 'application/json',
+        ),
+        "GET /ssh/certs as $name, sshCaAdminRule unset"
+    );
+    expectReject( $res, 403 );
+
+    $body = to_json( { session_id => $session_id, serial => $revoke_serial } );
+    ok(
+        $res = $noRulePortal->_post(
+            '/ssh/revoke',
+            IO::String->new($body),
+            cookie => "lemonldap=$id",
+            type   => 'application/json',
+            length => length($body),
+        ),
+        "POST /ssh/revoke as $name, sshCaAdminRule unset"
+    );
+    expectReject( $res, 403 );
+
+    ok(
+        $res = $noRulePortal->_get(
+            '/ssh/admin',
+            cookie => "lemonldap=$id",
+            accept => 'text/html',
+        ),
+        "GET /ssh/admin as $name, sshCaAdminRule unset"
+    );
+    is( $res->[0], 403, "Admin interface refused with 403 for $name" );
+    count(1);
+}
+
+# ...while signing and self-service listing still work without any rule
+ok(
+    $res = $noRulePortal->_get(
+        '/ssh/mycerts',
+        cookie => "lemonldap=$id_dwho",
+        accept => 'application/json',
+    ),
+    'GET /ssh/mycerts unaffected by sshCaAdminRule'
+);
+$payload = expectJSON($res);
+is( scalar @{ $payload->{certificates} },
+    2, 'dwho still sees its own 2 certificates' );
 count(1);
 
 clean_sessions();
