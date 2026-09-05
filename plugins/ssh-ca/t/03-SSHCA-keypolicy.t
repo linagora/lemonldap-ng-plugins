@@ -170,6 +170,11 @@ sub new_portal {
                 sshCaKrlPath          => $krlPath,
                 sshCaCertMaxValidity  => 30,
                 sshCaPrincipalSources => '$uid',
+
+                # /ssh/certs and /ssh/revoke default-deny since the
+                # sshCaAdminRule of PR #76 (issue #58): the admin parts of this
+                # file need a rule that dwho matches.
+                sshCaAdminRule => q{$uid eq "dwho"},
                 %extra,
             }
         }
