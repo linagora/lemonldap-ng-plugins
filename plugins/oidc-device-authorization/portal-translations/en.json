@@ -2,6 +2,7 @@
   "application": "Application",
   "authorize": "Authorize",
   "clientId": "Client ID",
+  "codeAlreadyUsed": "This code has already been used",
   "deny": "Deny",
   "deviceApproved": "Device Approved",
   "deviceApprovedMsg": "The device has been authorized. You can close this window.",
@@ -9,6 +10,8 @@
   "deviceAuthorizationMsg": "Enter the code displayed on your device to authorize it.",
   "deviceDenied": "Device Denied",
   "deviceDeniedMsg": "The device authorization has been denied. You can close this window.",
+  "deviceTooManyAttempts": "Too many invalid codes, please try again later",
+  "invalidUserCode": "Invalid or expired code",
   "requestedScope": "Requested scope",
   "userCode": "Device Code",
   "userCodeHelp": "Enter the 8-character code shown on your device"

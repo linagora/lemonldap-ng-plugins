@@ -33,6 +33,12 @@ use constant hook => {
 # Base-20 without vowels to avoid offensive words, easy to type on mobile
 use constant USER_CODE_CHARS => 'BCDFGHJKLMNPQRSTVWXZ';
 
+# Lower bound for the generated user_code length. RFC 8628 section 6.1 asks
+# for at least 20 bits of entropy; 8 characters of the base-20 alphabet give
+# ~34.6 bits. Anything shorter is both brute-forceable inside the code TTL and
+# unsubmittable (submitVerification rejects codes shorter than 6).
+use constant MIN_USER_CODE_LENGTH => 8;
+
 # Session kind for device authorization storage
 use constant sessionKind => 'DEVA';
 
@@ -201,8 +207,7 @@ sub deviceAuthorizationEndpoint {
     # Store device authorization request
     my $expiration =
       $self->conf->{oidcServiceDeviceAuthorizationExpiration} || 600;
-    my $interval =
-      $self->conf->{oidcServiceDeviceAuthorizationPollingInterval} || 5;
+    my $interval = $self->_pollingInterval;
 
     # Generate user_code with collision detection
     # Retry up to 10 times if collision occurs
@@ -255,10 +260,16 @@ sub deviceAuthorizationEndpoint {
     # Create session with device_code hash as ID (for polling lookup)
     my $device_code_hash = sha256_hex($device_code);
 
+    # NOTE: the plaintext user_code is deliberately NOT persisted. Anyone able
+    # to read the session backend would otherwise list every pending code and
+    # approve (or deny) an enrolment in the device's place. Only its SHA-256 is
+    # kept, which is exactly what the lookup session is already keyed on, so it
+    # discloses nothing new; _deleteDeviceAuth uses it to drop that lookup
+    # session.
     my $session_data = {
         _type          => 'deviceauth',
         _utime         => time() - $self->conf->{timeout} + $expiration,
-        user_code      => $user_code,
+        user_code_hash => $user_code_hash,
         client_id      => $client_id,
         rp             => $rp,
         scope          => $scope,
@@ -291,8 +302,10 @@ sub deviceAuthorizationEndpoint {
             _type            => 'deviceauth_usercode',
             _utime           => time() - $self->conf->{timeout} + $expiration,
             device_code_hash => $device_code_hash,
-            user_code        => $user_code,
-            expires_at       => time() + $expiration,
+
+            # No plaintext user_code here either: this session is *keyed* on
+            # sha256_hex(user_code), so the field was pure duplication.
+            expires_at => time() + $expiration,
         },
         force     => 1,
         hashStore => 0,
@@ -323,8 +336,10 @@ sub deviceAuthorizationEndpoint {
         interval                  => $interval + 0,
     };
 
+    # Log the digest, never the code itself: the debug log is not a place to
+    # publish a live approval credential.
     $self->logger->debug(
-        "Device authorization created: user_code=$user_code, client=$client_id"
+        "Device authorization created: user_code_hash=$user_code_hash, client=$client_id"
     );
     $self->userLogger->info(
         "Device authorization initiated for client $client_id");
@@ -392,15 +407,12 @@ sub deviceCodeGrantHook {
 
         # RFC 8628 section 3.5 - Rate limiting with slow_down
         # Use poll count approach which is more resilient to race conditions
-        my $interval =
-          $self->conf->{oidcServiceDeviceAuthorizationPollingInterval} || 5;
+        my $interval   = $self->_pollingInterval;
         my $created_at = $device_auth->{created_at} || time();
         my $poll_count = ( $device_auth->{poll_count} || 0 ) + 1;
         my $now        = time();
 
-        # Calculate maximum expected polls based on elapsed time
         my $elapsed          = $now - $created_at;
-        my $max_expected     = int( $elapsed / $interval ) + 1;
         my $slow_down_margin = $device_auth->{slow_down_count} || 0;
 
         # If client has polled more than expected, return slow_down
@@ -408,12 +420,18 @@ sub deviceCodeGrantHook {
         my $effective_max =
           int( $elapsed / ( $interval + $slow_down_margin * 5 ) ) + 1;
 
+        # These two writes must NEVER carry `status => 'pending'`: the status
+        # read above is a snapshot, an admin approval or denial can land
+        # between that read and this write, and the session update merges
+        # rather than replaces (Common/Session.pm). Writing `pending` back
+        # would silently revert the decision while keeping the approval fields
+        # it wrote, and a reverted denial would let a second approver grant
+        # what an admin refused. Only the poll bookkeeping is written.
         if ( $poll_count > $effective_max + 1 ) {
 
             # Increment slow_down counter (increases effective interval)
-            $self->_updateDeviceAuthStatus(
+            $self->_updateDeviceAuthFields(
                 $device_auth,
-                'pending',
                 {
                     poll_count      => $poll_count,
                     slow_down_count => $slow_down_margin + 1,
@@ -426,7 +444,7 @@ sub deviceCodeGrantHook {
         }
 
         # Update poll count
-        $self->_updateDeviceAuthStatus( $device_auth, 'pending',
+        $self->_updateDeviceAuthFields( $device_auth,
             { poll_count => $poll_count, } );
 
         # RFC 8628 section 3.5 - authorization_pending
@@ -498,17 +516,42 @@ sub submitVerification {
     $user_code =~ s/[^A-Z0-9]//gi;    # Remove formatting (dashes, spaces)
     $user_code = uc($user_code);
 
+    # Per-session lockout: brute-forcing the user_code space needs many
+    # submissions from an authenticated session, and CrowdSec (IP based, and
+    # optional) is not always there to stop them. Count the failures in the
+    # SSO session itself and refuse once the budget is spent.
+    if ( $self->_userCodeLockout($req) ) {
+        my $user = $req->userData->{ $self->conf->{whatToTrace} };
+        $self->userLogger->warn(
+            "Too many invalid device user_code attempts for $user");
+        $self->auditLog(
+            $req,
+            code    => "ISSUER_OIDC_DEVICE_AUTH_LOCKED",
+            user    => $user,
+            message => "Device verification locked after too many"
+              . " invalid codes submitted by $user",
+        );
+        return $self->_showVerificationError( $req, 'deviceTooManyAttempts' );
+    }
+
     unless ( $user_code && length($user_code) >= 6 ) {
+        $self->_countUserCodeFailure($req);
         return $self->_showVerificationError( $req, 'invalidUserCode' );
     }
 
     # Find the device authorization by user_code
     my $device_auth = $self->_findByUserCode($user_code);
     unless ($device_auth) {
-        $self->logger->info("Invalid or expired user_code: $user_code");
+
+        # Log the digest, not the code: a submitted code may well be a *valid*
+        # one (a typo away, or probed by someone else), and this line is at
+        # info level, i.e. on in production.
+        $self->logger->info(
+            "Invalid or expired user_code: " . sha256_hex($user_code) );
 
         # Report to CrowdSec if available (potential bruteforce)
         $self->_reportInvalidUserCode( $req, $user_code );
+        $self->_countUserCodeFailure($req);
 
         my $user = $req->userData->{ $self->conf->{whatToTrace} };
         $self->auditLog(
@@ -522,9 +565,13 @@ sub submitVerification {
         return $self->_showVerificationError( $req, 'invalidUserCode' );
     }
 
+    # Valid code: clear the failure budget of this session
+    $self->_resetUserCodeFailures($req);
+
     # Check if already processed
     if ( $device_auth->{status} ne 'pending' ) {
-        $self->logger->info("User code already processed: $user_code");
+        $self->logger->info(
+            "User code already processed: " . sha256_hex($user_code) );
         return $self->_showVerificationError( $req, 'codeAlreadyUsed' );
     }
 
@@ -568,7 +615,7 @@ sub submitVerification {
             $req,
             code      => "ISSUER_OIDC_DEVICE_AUTH_DENIED",
             rp        => $device_auth->{rp},
-            user_code => $device_auth->{user_code},
+            user_code => $user_code,
             user      => $user,
             message   =>
               "Device authorization denied by $user for RP $device_auth->{rp}",
@@ -618,7 +665,7 @@ sub submitVerification {
         $req,
         code      => "ISSUER_OIDC_DEVICE_AUTH_APPROVED",
         rp        => $device_auth->{rp},
-        user_code => $device_auth->{user_code},
+        user_code => $user_code,
         user      => $user,
         message   =>
           "Device authorization approved by $user for RP $device_auth->{rp}",
@@ -644,10 +691,30 @@ sub _generateDeviceCode {
     return unpack( 'H*', Crypt::URandom::urandom(32) );
 }
 
+# Configured polling interval, floored at 1 second: the manager now refuses
+# anything below that, but an old or hand-edited configuration must not be able
+# to push a zero or negative value into the slow_down divisor below.
+sub _pollingInterval {
+    my ($self) = @_;
+    my $interval =
+      $self->conf->{oidcServiceDeviceAuthorizationPollingInterval} || 5;
+    return $interval < 1 ? 1 : $interval;
+}
+
 sub _generateUserCode {
     my ($self) = @_;
     my $length =
       $self->conf->{oidcServiceDeviceAuthorizationUserCodeLength} || 8;
+
+    # Never generate a code weaker than RFC 8628 section 6.1 asks for, whatever
+    # the configuration says (see MIN_USER_CODE_LENGTH).
+    if ( $length < MIN_USER_CODE_LENGTH ) {
+        $self->logger->warn( "Configured user_code length $length is below "
+              . MIN_USER_CODE_LENGTH
+              . ", using "
+              . MIN_USER_CODE_LENGTH );
+        $length = MIN_USER_CODE_LENGTH;
+    }
     my $chars     = USER_CODE_CHARS;
     my $chars_len = length($chars);
     my $code      = '';
@@ -694,13 +761,13 @@ sub _findByUserCode {
         hashStore => 0, );
 
     unless ( $user_code_session && $user_code_session->data ) {
-        $self->logger->debug("User code session not found: $user_code");
+        $self->logger->debug("User code session not found: $user_code_hash");
         return undef;
     }
 
     # Check expiration
     if ( time() > ( $user_code_session->data->{expires_at} || 0 ) ) {
-        $self->logger->debug("User code expired: $user_code");
+        $self->logger->debug("User code expired: $user_code_hash");
         $user_code_session->remove;
         return undef;
     }
@@ -743,23 +810,24 @@ sub _getDeviceAuthByHash {
     return $data;
 }
 
+# Write a decision (approved/denied/...) plus its companion fields.
 sub _updateDeviceAuthStatus {
     my ( $self, $device_auth, $status, $extra ) = @_;
 
+    return $self->_updateDeviceAuthFields( $device_auth,
+        { %{ $extra || {} }, status => $status } );
+}
+
+# Write only the given fields into the device authorization session. The
+# session update merges, so keys left out — `status` in particular — keep
+# whatever value another request has stored meanwhile.
+sub _updateDeviceAuthFields {
+    my ( $self, $device_auth, $info ) = @_;
+
     my $session = $device_auth->{_session};
     return unless $session;
+    return unless ( ref $info eq 'HASH' and %$info );
 
-    # Update status
-    my $info = { status => $status };
-
-    # Add extra fields
-    if ($extra) {
-        for my $key ( keys %$extra ) {
-            $info->{$key} = $extra->{$key};
-        }
-    }
-
-    # Update session
     $self->p->getApacheSession(
         $session->id,
         kind      => sessionKind,
@@ -776,9 +844,9 @@ sub _deleteDeviceAuth {
         $session->remove;
     }
 
-    # Also delete the user_code lookup session
-    if ( my $user_code = $device_auth->{user_code} ) {
-        my $user_code_hash = sha256_hex($user_code);
+    # Also delete the user_code lookup session (keyed on the code digest,
+    # which is all the record keeps of the code)
+    if ( my $user_code_hash = $device_auth->{user_code_hash} ) {
         my $user_code_session =
           $self->p->getApacheSession( $user_code_hash, kind => sessionKind,
             hashStore => 0, );
@@ -853,6 +921,20 @@ sub _generateTokens {
         $device_auth, $rp, $session_data );
     if ( $h != PE_OK ) {
         $self->_deleteDeviceAuth($device_auth);
+
+        # PE_ERROR from a grant hook is an internal failure (a hook could not
+        # build the identity it is responsible for), not a policy denial.
+        # Report it as such: a device told `access_denied` would look like a
+        # revoked enrolment, while `server_error` says "retry the enrolment".
+        # Either way the exchange fails closed — it never falls back to the
+        # approving admin's identity.
+        if ( $h == PE_ERROR ) {
+            $self->logger->error(
+                "Device code grant hook failed for RP $rp, refusing to mint"
+                  . " tokens with a fallback identity" );
+            return $self->_sendTokenError( $req, 'server_error',
+                'Device grant hook failed' );
+        }
         return $self->_sendTokenError( $req, 'access_denied' );
     }
 
@@ -968,11 +1050,16 @@ sub _generateTokens {
 
     $self->auditLog(
         $req,
-        code      => "ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED",
-        rp        => $rp,
-        user_code => $device_auth->{user_code},
-        user      => $user,
-        message   => "Device code exchanged for tokens by $user for RP $rp",
+        code => "ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED",
+        rp   => $rp,
+
+        # This path only ever sees the device_code; the plaintext user_code is
+        # no longer persisted, so the audit trail carries its digest here. The
+        # approve/deny records above still log the code itself, which is what
+        # correlates an enrolment with the admin who authorized it.
+        user_code_hash => $device_auth->{user_code_hash},
+        user           => $user,
+        message => "Device code exchanged for tokens by $user for RP $rp",
     );
 
     $req->response( $self->p->sendJSONresponse( $req, $response ) );
@@ -1005,14 +1092,87 @@ sub _sendTokenError {
 sub _showVerificationError {
     my ( $self, $req, $msg ) = @_;
 
+    # Same sanitisation as displayVerification/submitVerification. The template
+    # escapes with ESCAPE="HTML", so this is defence in depth rather than a
+    # live XSS fix — but the reflected value should not be the only thing
+    # standing between a crafted parameter and the page.
+    my $user_code = $req->param('user_code') || '';
+    $user_code =~ s/[^A-Z0-9]//gi;
+
     return $self->p->sendHtml(
         $req, 'device',
         params => {
-            USER_CODE => $req->param('user_code') || '',
+            USER_CODE => $user_code,
             MSG       => $msg,
             ERROR     => 1,
         }
     );
+}
+
+# INVALID user_code BUDGET (per SSO session)
+#
+# CrowdSec, when deployed, rate-limits by IP and needs a bouncer this plugin
+# cannot verify. These three helpers add a lockout the plugin owns: N invalid
+# codes inside the lockout window and the session may not submit any more
+# until the window elapses. Disabled by setting MaxFailures to 0.
+
+sub _maxUserCodeFailures {
+    my ($self) = @_;
+    my $max = $self->conf->{oidcServiceDeviceAuthorizationMaxFailures};
+    $max = 5 unless defined $max and $max =~ /^\d+$/;
+    return $max;
+}
+
+sub _userCodeLockoutDelay {
+    my ($self) = @_;
+    my $delay = $self->conf->{oidcServiceDeviceAuthorizationLockoutDelay};
+    $delay = 300 unless defined $delay and $delay =~ /^\d+$/ and $delay > 0;
+    return $delay;
+}
+
+# True when the current session has spent its budget and the window is still
+# open.
+sub _userCodeLockout {
+    my ( $self, $req ) = @_;
+
+    my $max = $self->_maxUserCodeFailures or return 0;
+    my $failures = $req->userData->{_deviceAuthFailures} || 0;
+    return 0 if $failures < $max;
+
+    my $last = $req->userData->{_deviceAuthLastFailure} || 0;
+    return 1 if ( time() - $last ) < $self->_userCodeLockoutDelay;
+
+    # Window elapsed: forgive and let this attempt through
+    $self->_resetUserCodeFailures($req);
+    return 0;
+}
+
+sub _countUserCodeFailure {
+    my ( $self, $req ) = @_;
+
+    return unless $self->_maxUserCodeFailures;
+    my $failures = ( $req->userData->{_deviceAuthFailures} || 0 ) + 1;
+    $req->userData->{_deviceAuthFailures}    = $failures;
+    $req->userData->{_deviceAuthLastFailure} = time();
+    $self->p->updateSession(
+        $req,
+        {
+            _deviceAuthFailures    => $failures,
+            _deviceAuthLastFailure => time(),
+        }
+    );
+    return $failures;
+}
+
+sub _resetUserCodeFailures {
+    my ( $self, $req ) = @_;
+
+    return unless $req->userData->{_deviceAuthFailures};
+    $req->userData->{_deviceAuthFailures}    = 0;
+    $req->userData->{_deviceAuthLastFailure} = 0;
+    $self->p->updateSession( $req,
+        { _deviceAuthFailures => 0, _deviceAuthLastFailure => 0 } );
+    return;
 }
 
 # CrowdSec integration methods
