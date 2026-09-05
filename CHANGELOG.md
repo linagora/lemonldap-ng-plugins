@@ -2,151 +2,101 @@
 
 ## Unreleased
 
+Theme: the security audit of the open-bastion SSO chain — ssh-ca, pam-access
+and the device grant. **This round changes behaviour operators may rely on:
+read the upgrade notes before deploying.**
+
+### Upgrade notes
+
+1. **SSH CA administration denies until configured.** `/ssh/admin`,
+   `/ssh/certs` and `/ssh/revoke` answer 403 while `sshCaAdminRule` is unset;
+   set it (e.g. `inGroup('ssh-admins')`). Per-user endpoints are unaffected.
+2. **RSA below 2048 bits and `ssh-dss` are no longer signed** (HTTP 400). Add
+   `dss` to `sshCaAllowedKeyTypes` or lower `sshCaMinKeyBits` to keep them.
+   FIDO2 `sk-*` keys, previously refused, now sign.
+3. **The PAM scope is matched exactly** (`pam`, `pam:server`): an RP granted
+   `pam-prod` or `x-pam` loses `/pam/*`. Check `oidcRPMetaDataScopeRules`.
+4. **Malformed ssh-ca inputs answer 400** instead of being coerced:
+   `validity_days`, `limit`/`offset`, revocation `reason`.
+5. **`ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED` carries `user_code_hash`**, not
+   `user_code`. SIEM rules keyed on that field need updating.
+
+Not breaking, but worth knowing: enabling `pamAccessHeartbeatRequired` makes
+`/pam/heartbeat` an operational dependency; the new device-grant bounds are
+Manager validations that only bite on the next save, with runtime floors
+meanwhile.
+
 ### ssh-ca
 
 - **Security fix — the administration endpoints performed no authorization**
-  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)). Any
-  authenticated SSO user could `GET /ssh/certs` to enumerate every issued
-  certificate, and `POST /ssh/revoke` to revoke anyone's. The only "control"
-  was a comment pointing at portal-vhost `locationRules`, which are not a
-  default deny — a vhost with `default: accept` and no `^/ssh` rule granted
-  full SSH CA administration to everybody.
-- **New `sshCaAdminRule` parameter** (boolOrExpr, Manager > General
-  Parameters > Plugins > SSH CA). `/ssh/admin`, `/ssh/certs` and
-  `/ssh/revoke` now evaluate it against the caller's session and answer 403
-  when it does not match. **It denies while unset**: deployments relying on
-  the previous open behaviour must set it explicitly (e.g.
-  `inGroup('ssh-admins')`). Per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
-  `/ssh/myrevoke`) are unchanged. Denials are audited as
-  `SSH_CA_ADMIN_DENIED`.
-- **Fix — a KRL write could truncate the live file and lock every host out
-  of SSH** (#59). `ssh-keygen -k` opens its target with `O_TRUNC` and the
-  `sshca-rebuild-krl` cron job never took the lock the portal used, so a
-  revocation and a rebuild could interleave on the same file. sshd fails
-  *closed* on an unparsable `RevokedKeys`: reproduced on OpenSSH 10.4p1, a
-  KRL truncated mid-write rejects **every** key with `incomplete message`.
-  KRL writes are now atomic (temp file in the same directory + `rename()`)
-  and every writer — portal workers, broker events, the cron job — shares
-  the same `flock`.
-- **Fix — `/ssh/revoked` served whatever was on disk** (#59, #64). A
-  truncated KRL keeps a valid `SSHKRL` magic, so consumers checking only the
-  magic installed it. The endpoint now validates the KRL framing and answers
-  HTTP 500 rather than handing out a file that would lock hosts out.
-- **Fix — an absent KRL was served as an empty body** (#64). sshd cannot
-  parse that as a KRL and silently falls back to the flat key file format,
-  i.e. revocations were not enforced (fail-open, no outage). A valid empty
-  KRL is now generated at plugin init and served instead.
+  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)). Any SSO
+  user could list and revoke everyone's certificates. New `sshCaAdminRule`
+  (boolOrExpr), **denying while unset**, audited as `SSH_CA_ADMIN_DENIED`.
+- **Security fix — the CA private key no longer lingers in `/tmp`** (#60).
+  `tempdir(CLEANUP => 1)` cleans at *program* exit, so every `/ssh/sign` left
+  a copy for the worker's lifetime.
+- **Fix — a KRL write could truncate the live file and lock every host out of
+  SSH** (#59). sshd fails closed on an unparsable `RevokedKeys`. Writes are
+  now atomic (temp file + `rename()`) under an `flock` shared by the portal,
+  the broker handler and `sshca-rebuild-krl`.
+- **Fix — `/ssh/revoked` served whatever was on disk** (#59, #64). The KRL
+  framing is validated before serving (a truncated file keeps a valid magic);
+  an absent or empty KRL is regenerated as a valid empty one.
 - **Fix — the broker revocation handler did not validate its serial** (#65).
-  The serial went verbatim into the `ssh-keygen` KRL spec file, where a
-  newline injects arbitrary directives (`id:`, `key:`, `hash:`). Serials are
-  now checked to be decimal integers in the handler, in `_updateKrl` and in
-  `sshca-rebuild-krl`.
+  A newline injected arbitrary directives into the `ssh-keygen` spec file.
+- **Feature — key type and size policy** (#61), `sshCaAllowedKeyTypes` and
+  `sshCaMinKeyBits`, decided from the decoded key blob rather than the
+  textual prefix.
+- **Fix — input validation and dead parameters** (#67). `validity_days`,
+  `limit`/`offset` and the revocation `reason` are checked; `sshCaKeyType`,
+  `sshCaCertDefaultValidity` and `sshCaSerialPath` are gone; the POD said
+  minutes where the code means days.
+
+### pam-access
+
+- **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
+  caller's scope** (#51). Any device-grant token could enumerate users or
+  burn a one-time token. One gate now fronts the six endpoints, matching the
+  scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
+- **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
+  longer inert** (#52). They were Manager-exposed and read by no code;
+  `/pam/authorize` now refuses a caller that has stopped beating. Defaults
+  unchanged, so deployments that never ticked the box are unaffected.
+
+### oidc-device-authorization
+
+- **Fix — a poll could overwrite an admin approval or denial** (#69). The
+  polling path wrote `status => 'pending'` on every poll, so a clobbered
+  denial let a second approver grant what an admin had refused. Polls now
+  write their bookkeeping only.
+- **Fix — the user code was stored in cleartext and logged** (#73). It is no
+  longer persisted in either session record, and the logs carry its digest.
+- **Feature — bounds and a lockout on the user code** (#70). Manager bounds
+  on length, interval and TTL, plus
+  `oidcServiceDeviceAuthorizationMaxFailures` (5) and
+  `...LockoutDelay` (300 s), independent of CrowdSec.
+- **Robustness and docs** (#74, #75). Dead `$max_expected` removed, the error
+  page sanitises the reflected code, and the README documents the real
+  verification route (`/device`) and the boolOrExpr form of
+  `AllowDeviceAuthorization` — `1` lets *any* authenticated user approve.
+
+### oidc-device-organization
+
+- **Fix — the plugin failed OPEN when the synthetic device session could not
+  be created** (#72). The enrollment completed against the approving admin's
+  session, with no `_deviceId` at all; it now answers `server_error`.
+- **Fix — the synthetic session outlived its refresh token by `timeout`**
+  (#75), and ignored the per-RP offline expiration.
+- **First test suite**, partial answer to #71.
 
 ### ldap-rest (new)
 
 - **Feature — directory writes delegated to
   [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
-  allowed to write into the directory or needing ldap-rest hooks to fire on
-  password change and account creation. Port of the upstream LLNG
-  `ldap-rest` branch.
-- **`Password::LdapRest`** (password module): reads stay on LDAP — ldap-rest
-  has no "verify this password" endpoint — the write is a `PUT`. The LDAP
-  account no longer needs write access.
-- **`Register::LdapRest`** (register module, new in this port): no LDAP
-  connection at all, `GET` for the uniqueness check and `POST` to create.
-- Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
-  optional client side RFC 3112 password hashing.
-
-### ssh-ca
-
-- **Security fix — the CA private key no longer lingers in `/tmp`**. Signing
-  wrote the unencrypted CA key into a `File::Temp::tempdir(CLEANUP => 1)`
-  directory, which is only removed at _program_ exit: in a long-lived portal
-  worker every `/ssh/sign` left one copy behind for the worker's lifetime.
-  The scratch directories are now bound to the enclosing scope (error paths
-  included) and the CA key is unlinked as soon as `ssh-keygen` returns.
-- **Feature — key type and key size policy**, `sshCaAllowedKeyTypes`
-  (default `ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa`) and `sshCaMinKeyBits`
-  (default `2048`, RSA/DSA only). The type and size are read from the
-  decoded key blob, not from the textual prefix. RSA-1024 keys, which used
-  to be signed happily, are now refused; `ssh-dss` is no longer accepted by
-  default.
-- **Fix — FIDO2 keys can be signed.** The `sk-ssh-ed25519@openssh.com` and
-  `sk-ecdsa-sha2-*@openssh.com` families were rejected by the format regexp
-  while `ssh-dss` went through.
-- **Fix — input validation**: `validity_days` must be a positive integer
-  (`"abc"` used to yield a sub-minute certificate, `-5` an HTTP 500),
-  `limit`/`offset` on `/ssh/certs` are bounded below as well as above (a
-  negative `limit` silently dropped rows), and the admin revocation `reason`
-  is filtered like `label` before reaching the logs.
-- **Removed dead configuration parameters** `sshCaKeyType` (declared in the
-  Manager, never read), `sshCaCertDefaultValidity` and `sshCaSerialPath`
-  (documented, never existed). The POD also claimed validity was expressed
-  in minutes; it is days.
-
-### pam-access
-
-- **Fix — `/pam/verify` and `/pam/userinfo` did not check the caller's
-  scope** (#51). Four of the six `/pam/*` endpoints tested it, two stopped at
-  the grant-type test, so any device-grant token — from any RP, with any
-  scope — could enumerate users through `/pam/userinfo` (groups plus every
-  `pamAccessExportedVars` attribute) or burn a stolen one-time token through
-  `/pam/verify`. The gate is now a single helper shared by the six endpoints,
-  and the scope is matched exactly instead of with a loose regex that also
-  accepted `pam-x` and `x-pam`.
-- **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
-  longer inert** (#52). They were documented, exposed in the Manager, and read
-  by no code at all. When enabled, `/pam/authorize` now refuses a caller whose
-  last heartbeat is missing or older than the threshold (default 900s, three
-  missed beats). Both defaults are unchanged, so deployments that never ticked
-  the box behave exactly as before.
-
-### oidc-device-organization
-
-- **Fix — the plugin failed OPEN when the synthetic device session could not
-  be created** (#72). It returned `PE_OK`, so the enrollment completed against
-  the _approving admin's_ session: a token whose `sub` was the admin, dying
-  with the admin's SSO session and carrying no `_deviceId` at all. The client
-  saw a 200 and the failure surfaced hours later as a lost identity. The hook
-  now returns `PE_ERROR` and the token endpoint answers `server_error`.
-- **Fix — the synthetic session outlived its refresh token by `timeout`**
-  (#75). It now uses the core `time + ttl - timeout` pattern and consults the
-  per-RP `oidcRPMetaDataOptionsOfflineSessionExpiration` its own comment
-  referred to.
-- **First test suite** (partial answer to #71): nominal organization
-  enrollment, `_deviceId` derivation and uniqueness, synthetic session
-  lifetime, and the fail-closed path.
-
-### oidc-device-authorization
-
-- **Fix — a poll could overwrite an admin approval or denial** (#69). The
-  polling path wrote `status => 'pending'` on every poll, from a status read
-  at the start of the request; a decision landing in between was reset while
-  its fields survived (the session update merges). A clobbered approval left
-  the device polling until expiry, a clobbered denial let a second approver
-  grant what an admin had refused. Polls now write their bookkeeping only.
-- **Fix — the user code was stored in cleartext and logged** (#73). It is no
-  longer persisted in either session record (the lookup is keyed on
-  `sha256_hex(user_code)`, which is all the plugin needs) and the debug/info
-  lines carry the digest instead of the code. `auditLog` still records the
-  submitted code on approve/deny; `ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED`, on a
-  path where only the device code is known, now carries `user_code_hash`.
-- **Feature — bounds and a lockout on the user code** (#70). The manager now
-  refuses a user code length below 8 (RFC 8628 section 6.1 asks for 20 bits of
-  entropy; 8 base-20 characters give ~34), a polling interval below 1 and an
-  out-of-range code TTL, and the generator enforces the same floor at runtime.
-  New `oidcServiceDeviceAuthorizationMaxFailures` (default 5, 0 disables) and
-  `oidcServiceDeviceAuthorizationLockoutDelay` (default 300 s) lock a session
-  out of the verification page after too many invalid codes, independently of
-  CrowdSec.
-- **Robustness** (#75): dead `$max_expected` removed, the error page
-  sanitises the reflected user code like the other two paths.
-- **Docs** (#74, #75): the verification page is `/device`, not
-  `/oauth2/device/verify`; `AllowDeviceAuthorization = 1` means _any_
-  authenticated user may approve an enrollment, so the README now documents
-  the boolOrExpr form as the recommended configuration and ships a `/device`
-  `locationRules` example — unanchored, because access rules match
-  `REQUEST_URI` including the query string.
+  allowed to write into the directory. `Password::LdapRest` (reads stay on
+  LDAP, the write is a `PUT`) and `Register::LdapRest` (no LDAP connection at
+  all). Authentication `none`, `token` or `hmac`, optional RFC 3112 client
+  side hashing.
 
 ## v0.5.2 - 2026-08-31
 

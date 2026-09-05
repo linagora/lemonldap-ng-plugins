@@ -364,6 +364,19 @@ sub ensure_ssh_ca {
     for my $k (sort keys %defaults) {
         set_if_missing($conf, $k, $defaults{$k}, $k);
     }
+
+    # SSH CA administration: default-deny, admin fills the rule later -- same
+    # convention as pamAccessSshRules below. /ssh/admin, /ssh/certs and
+    # /ssh/revoke list and revoke EVERY user's certificates, so there is no
+    # sensible default here; the plugin denies when the rule is unset, and we
+    # write the 0 explicitly so the deny is visible in the configuration and
+    # in this script's log rather than being an absence nobody notices.
+    # Per-user endpoints (/ssh/sign, /ssh/mycerts, /ssh/myrevoke) are not
+    # affected.
+    if (set_if_missing($conf, 'sshCaAdminRule', 0, 'sshCaAdminRule')) {
+        log_info('sshCaAdminRule denies everyone: set it (e.g. '
+                 . 'inGroup("ssh-admins")) to grant SSH CA administration');
+    }
 }
 
 sub generate_ed25519_key {
