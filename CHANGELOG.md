@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### ssh-ca
+
+- **Fix — a KRL write could truncate the live file and lock every host out
+  of SSH** (#59). `ssh-keygen -k` opens its target with `O_TRUNC` and the
+  `sshca-rebuild-krl` cron job never took the lock the portal used, so a
+  revocation and a rebuild could interleave on the same file. sshd fails
+  *closed* on an unparsable `RevokedKeys`: reproduced on OpenSSH 10.4p1, a
+  KRL truncated mid-write rejects **every** key with `incomplete message`.
+  KRL writes are now atomic (temp file in the same directory + `rename()`)
+  and every writer — portal workers, broker events, the cron job — shares
+  the same `flock`.
+- **Fix — `/ssh/revoked` served whatever was on disk** (#59, #64). A
+  truncated KRL keeps a valid `SSHKRL` magic, so consumers checking only the
+  magic installed it. The endpoint now validates the KRL framing and answers
+  HTTP 500 rather than handing out a file that would lock hosts out.
+- **Fix — an absent KRL was served as an empty body** (#64). sshd cannot
+  parse that as a KRL and silently falls back to the flat key file format,
+  i.e. revocations were not enforced (fail-open, no outage). A valid empty
+  KRL is now generated at plugin init and served instead.
+- **Fix — the broker revocation handler did not validate its serial** (#65).
+  The serial went verbatim into the `ssh-keygen` KRL spec file, where a
+  newline injects arbitrary directives (`id:`, `key:`, `hash:`). Serials are
+  now checked to be decimal integers in the handler, in `_updateKrl` and in
+  `sshca-rebuild-krl`.
+
 ### ldap-rest (new)
 
 - **Feature — directory writes delegated to

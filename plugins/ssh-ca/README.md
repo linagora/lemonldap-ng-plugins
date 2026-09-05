@@ -77,7 +77,7 @@ Examples:
 | Method | Path           | Description                                                                                                        |
 | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------ |
 | GET    | `/ssh/ca`      | Returns the CA public key in SSH format. Servers use this to configure `TrustedUserCAKeys`.                        |
-| GET    | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Returns empty body if no KRL exists yet. |
+| GET    | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Always a valid KRL — an empty one when nothing is revoked yet; HTTP 500 rather than a KRL the portal cannot parse. |
 
 ### User endpoints (authentication required)
 
@@ -217,9 +217,17 @@ This does two things:
 
 ## KRL (Key Revocation List)
 
-The KRL is a binary file managed by `ssh-keygen`. It is updated each time a
-certificate is revoked via `/ssh/revoke`. The first revocation creates the
-KRL; subsequent revocations append to it (`-u` flag).
+The KRL is a binary file managed by `ssh-keygen`. An empty (header-only) KRL
+is generated at plugin init, and it is updated each time a certificate is
+revoked via `/ssh/revoke` (`-u` flag). Every write goes to a temporary file in
+the same directory and is `rename()`d over the live KRL, under an exclusive
+`flock` on `<sshCaKrlPath>.lock` shared by the portal workers and the
+`sshca-rebuild-krl` cron job — so a reader never sees a half-written KRL, and
+concurrent revocations do not overwrite each other.
+
+This matters because sshd fails **closed** on a KRL it cannot parse: a KRL
+truncated mid-write makes `RevokedKeys` unusable and every single key is
+rejected with `incomplete message`, locking the host out entirely.
 
 Servers should periodically fetch the KRL from `/ssh/revoked` and configure:
 
@@ -229,10 +237,18 @@ TrustedUserCAKeys /etc/ssh/ca.pub
 RevokedKeys /etc/ssh/revoked_keys
 ```
 
-A cron job or systemd timer can keep the KRL up to date:
+A cron job or systemd timer can keep the KRL up to date. Download to a
+temporary file and only install it once `ssh-keygen` confirms it parses —
+checking the `SSHKRL` magic is **not** enough, a truncated KRL still has it:
 
 ```bash
-curl -sf https://auth.example.com/ssh/revoked -o /etc/ssh/revoked_keys
+tmp=$(mktemp /etc/ssh/.revoked_keys.XXXXXX)
+if curl -sf https://auth.example.com/ssh/revoked -o "$tmp" &&
+   ssh-keygen -Q -l -f "$tmp" >/dev/null 2>&1; then
+    chmod 644 "$tmp" && mv "$tmp" /etc/ssh/revoked_keys
+else
+    rm -f "$tmp"    # keep the previous KRL
+fi
 ```
 
 ## Storage
