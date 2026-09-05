@@ -4,8 +4,15 @@
 # - /ssh/ca : Public CA key endpoint (no auth required)
 # - /ssh/revoked : Key Revocation List (KRL) endpoint (no auth required)
 # - /ssh/sign : Sign user's SSH public key (auth required)
-# - /ssh/certs : List/search issued certificates (auth required, admin only)
-# - /ssh/revoke : Revoke a certificate (auth required, admin only)
+# - /ssh/mycerts : List the caller's own certificates (auth required)
+# - /ssh/myrevoke : Self-revoke one of the caller's own certificates (auth)
+# - /ssh/admin : Administration interface (auth + sshCaAdminRule)
+# - /ssh/certs : List/search issued certificates (auth + sshCaAdminRule)
+# - /ssh/revoke : Revoke any certificate (auth + sshCaAdminRule)
+#
+# The three administration endpoints are guarded by `sshCaAdminRule`, a
+# boolOrExpr evaluated against the caller's session. It has NO permissive
+# default: when it is unset the endpoints answer 403 (see _forbidNonAdmin).
 #
 # Requires configuration of SSH CA key in LLNG keys store.
 
@@ -43,6 +50,11 @@ has key => (
 
 has sshPubKey  => ( is => 'rw' );
 has sshPrivKey => ( is => 'rw' );
+
+# Compiled `sshCaAdminRule`. Always a code ref after init(): when the
+# parameter is unset or does not compile, it is the constant-false sub, so
+# every code path that consults it fails closed.
+has adminRule => ( is => 'rw' );
 
 # INITIALIZATION
 
@@ -84,6 +96,40 @@ sub init {
     }
     $self->sshPrivKey( $self->sshPrivKey . "\n" )
       unless $self->sshPrivKey =~ /\n$/s;
+
+    # Build the administration rule (issue #58).
+    #
+    # /ssh/admin, /ssh/certs and /ssh/revoke expose EVERY user's certificates
+    # and let the caller revoke any of them. They used to rely solely on
+    # locationRules being set on the portal vhost, which is not a default
+    # deny: a portal whose vhost has `"default": "accept"` and no `^/ssh`
+    # rule (the shape shipped by every open-bastion config) handed full SSH
+    # CA administration to any authenticated user. The plugin now carries its
+    # own rule and denies when it is unset — an unconfigured deployment loses
+    # the admin UI, never the other way round.
+    my $adminRule = $self->conf->{sshCaAdminRule};
+    $adminRule = '' unless defined $adminRule;
+    $adminRule =~ s/^\s+|\s+$//g;
+    if ( $adminRule eq '' or $adminRule eq '0' ) {
+        $self->logger->warn(
+                'SSH CA: sshCaAdminRule is not set, the administration '
+              . 'endpoints (/ssh/admin, /ssh/certs, /ssh/revoke) are denied' );
+        $self->adminRule( sub { 0 } );
+    }
+    else {
+        my $rule = $self->p->buildRule( $adminRule, 'sshCaAdmin' );
+        unless ($rule) {
+
+            # buildRule() already logged the compilation error. Fail closed on
+            # the admin endpoints only: users must still be able to sign their
+            # own keys, so don't abort the whole plugin.
+            $self->logger->error(
+                    'SSH CA: unable to compile sshCaAdminRule, the '
+                  . 'administration endpoints are denied' );
+            $rule = sub { 0 };
+        }
+        $self->adminRule($rule);
+    }
 
     # GET /ssh/ca - Public CA key (no auth required)
     $self->addUnauthRoute(
@@ -992,18 +1038,60 @@ sub sshMyCertRevoke {
 # ADMIN INTERFACE METHODS
 # =============================================================================
 
+# HELPER: default-deny guard shared by the three administration endpoints.
+#
+# Returns a ready-to-return 403 response when the caller is not allowed to
+# administrate the SSH CA, and undef when access is granted. `adminRule` is
+# always a code ref (init() installs a constant-false sub when
+# `sshCaAdminRule` is unset or fails to compile), so an unconfigured or
+# misconfigured portal denies.
+#
+# sendError() already negotiates the representation: JSON for the
+# XHR-driven /ssh/certs and /ssh/revoke, HTML for /ssh/admin.
+sub _forbidNonAdmin {
+    my ( $self, $req ) = @_;
+
+    my $rule = $self->adminRule;
+    return undef if $rule && $rule->( $req, $req->userData );
+
+    my $whatToTrace = $self->conf->{whatToTrace} || 'uid';
+    my $user =
+         $req->userData->{$whatToTrace}
+      || $req->userData->{uid}
+      || $req->user
+      || 'unknown';
+    my $uri = $req->env->{REQUEST_URI} // '';
+
+    $self->userLogger->warn(
+        "SSH CA: user '$user' is not allowed to administrate the SSH CA "
+          . "(denied on $uri)" );
+    $self->p->auditLog(
+        $req,
+        code    => 'SSH_CA_ADMIN_DENIED',
+        user    => $user,
+        message => "SSH CA administration denied for '$user'",
+        uri     => $uri,
+    );
+
+    return $self->p->sendError( $req, 'Forbidden', 403 );
+}
+
 # GET /ssh/admin - Display the revocation interface
-# Access control is handled by locationRules on the portal vhost
+# Restricted by the sshCaAdminRule configuration parameter (default: deny)
 sub sshAdminInterface {
     my ( $self, $req ) = @_;
+
+    if ( my $denied = $self->_forbidNonAdmin($req) ) { return $denied }
 
     return $self->p->sendHtml( $req, 'sshcaadmin' );
 }
 
 # GET /ssh/certs - List/search certificates from persistent sessions
-# Access control is handled by locationRules on the portal vhost
+# Restricted by the sshCaAdminRule configuration parameter (default: deny)
 sub sshCertsList {
     my ( $self, $req ) = @_;
+
+    if ( my $denied = $self->_forbidNonAdmin($req) ) { return $denied }
 
     # Get search parameters
     my $userFilter   = $req->param('user')   || '';
@@ -1117,9 +1205,13 @@ sub sshCertsList {
 }
 
 # POST /ssh/revoke - Revoke a certificate in persistent session
-# Access control is handled by locationRules on the portal vhost
+# Restricted by the sshCaAdminRule configuration parameter (default: deny).
+# Users revoke their OWN certificates through /ssh/myrevoke, which needs no
+# administration right.
 sub sshCertRevoke {
     my ( $self, $req ) = @_;
+
+    if ( my $denied = $self->_forbidNonAdmin($req) ) { return $denied }
 
     # Parse request body
     my $body = eval { from_json( $req->content ) };
@@ -1567,12 +1659,14 @@ Response:
 =head2 GET /ssh/admin
 
 Displays the SSH CA administration interface for searching and revoking
-certificates. Access control is handled by locationRules on the portal vhost.
+certificates. Restricted by C<sshCaAdminRule> (see L</CONFIGURATION>);
+returns 403 when the rule is unset or does not match.
 
 =head2 GET /ssh/certs
 
-Lists/searches issued certificates from persistent sessions.
-Access control is handled by locationRules on the portal vhost.
+Lists/searches issued certificates from persistent sessions, across every
+user. Restricted by C<sshCaAdminRule>; returns 403 when the rule is unset
+or does not match.
 
 Parameters:
 
@@ -1594,8 +1688,10 @@ Parameters:
 
 =head2 POST /ssh/revoke
 
-Revokes a certificate. Access control is handled by locationRules on the
-portal vhost.
+Revokes any user's certificate. Restricted by C<sshCaAdminRule>; returns
+403 when the rule is unset or does not match. Users revoke their B<own>
+certificates through C</ssh/myrevoke>, which requires no administration
+right.
 
 Request body (JSON):
 
@@ -1618,6 +1714,27 @@ Enable/disable the SSH CA plugin (default: 0)
 Display the SSH CA tab in the portal menu (default: 0).
 When enabled, authenticated users will see an "SSH CA" tab in the portal
 allowing them to sign their SSH keys through the web interface.
+
+=item sshCaAdminRule
+
+Rule (boolOrExpr) deciding who may use the administration endpoints
+C</ssh/admin>, C</ssh/certs> and C</ssh/revoke> (default: B<empty, which
+denies everyone>).
+
+The rule is evaluated against the caller's session, like any LLNG rule:
+
+    $uid eq 'admin'
+    inGroup('ssh-admins')
+    1                       # any authenticated user (NOT recommended)
+
+There is deliberately no permissive default: these endpoints list every
+user's certificates and can revoke any of them, so a portal that has not
+been configured must not expose them. Leaving the parameter empty simply
+disables the administration UI; the per-user endpoints (C</ssh/sign>,
+C</ssh/mycerts>, C</ssh/myrevoke>) are unaffected.
+
+Configuring C<locationRules> on the portal vhost on top of this rule is
+still supported and still recommended as defence in depth.
 
 =item sshCaKeyRef
 
