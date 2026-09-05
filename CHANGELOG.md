@@ -2,20 +2,16 @@
 
 ## Unreleased
 
-### ldap-rest (new)
+### pam-access
 
-- **Feature — directory writes delegated to
-  [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
-  allowed to write into the directory or needing ldap-rest hooks to fire on
-  password change and account creation. Port of the upstream LLNG
-  `ldap-rest` branch.
-- **`Password::LdapRest`** (password module): reads stay on LDAP — ldap-rest
-  has no "verify this password" endpoint — the write is a `PUT`. The LDAP
-  account no longer needs write access.
-- **`Register::LdapRest`** (register module, new in this port): no LDAP
-  connection at all, `GET` for the uniqueness check and `POST` to create.
-- Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
-  optional client side RFC 3112 password hashing.
+- **Fix — `/pam/verify` and `/pam/userinfo` did not check the caller's
+  scope** (#51). Four of the six `/pam/*` endpoints tested it, two stopped at
+  the grant-type test, so any device-grant token — from any RP, with any
+  scope — could enumerate users through `/pam/userinfo` (groups plus every
+  `pamAccessExportedVars` attribute) or burn a stolen one-time token through
+  `/pam/verify`. The gate is now a single helper shared by the six endpoints,
+  and the scope is matched exactly instead of with a loose regex that also
+  accepted `pam-x` and `x-pam`.
 
 ## v0.5.2 - 2026-08-31
 

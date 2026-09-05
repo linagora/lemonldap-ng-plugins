@@ -107,7 +107,14 @@ below).
 
 All server-to-server endpoints require a Bearer access token obtained via
 the OIDC Device Authorization Grant (`grant_type=device_code`) with scope
-`pam:server` (or `pam`).
+`pam:server` (or `pam`) — `/pam/heartbeat` authenticates through the
+`refresh_token` of its request body instead of a header, but the same two
+conditions apply to it. The scope is matched **exactly** against the
+whitespace-separated values of the granted scope (RFC 6749 §3.3): `pam-x`,
+`x-pam` and `pam:server:extra` are not `pam`.
+
+A caller with no credential gets `401`; one that is not enrolled, or whose
+token lacks the scope, gets `403`.
 
 ### Optional SSH fingerprint binding (`/pam/verify`, `/pam/authorize`)
 

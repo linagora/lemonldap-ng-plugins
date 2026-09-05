@@ -37,12 +37,27 @@ sub install_plugin_templates {
 
 # Enroll a server via Device Authorization Grant
 # Returns the server access_token
+#
+# %opts:
+#   scope         - scope to request (default 'pam:server')
+#   client_id     - RP client id (default 'pam-access')
+#   client_secret - RP client secret (default 'pamsecret')
+# Enrolling another RP, or asking for another scope, yields a perfectly valid
+# device-grant token that pam-access must nevertheless refuse.
 sub enroll_server {
-    my ( $op, $user_session_id ) = @_;
+    my ( $op, $user_session_id, %opts ) = @_;
+
+    my $scope     = defined $opts{scope} ? $opts{scope} : 'pam:server';
+    my $client_id = $opts{client_id}     || 'pam-access';
+    my $secret    = $opts{client_secret} || 'pamsecret';
 
     # Initiate device authorization
-    my $query =
-      'client_id=pam-access&client_secret=pamsecret&scope=pam:server';
+    my $query = main::buildForm( {
+            client_id     => $client_id,
+            client_secret => $secret,
+            scope         => $scope,
+        }
+    );
     my $res = $op->_post(
         '/oauth2/device',
         IO::String->new($query),
@@ -82,11 +97,13 @@ sub enroll_server {
     );
 
     # Exchange device code for token
-    $query =
-        "grant_type=urn:ietf:params:oauth:grant-type:device_code"
-      . "&device_code=$device_code"
-      . "&client_id=pam-access"
-      . "&client_secret=pamsecret";
+    $query = main::buildForm( {
+            grant_type    => 'urn:ietf:params:oauth:grant-type:device_code',
+            device_code   => $device_code,
+            client_id     => $client_id,
+            client_secret => $secret,
+        }
+    );
     $res = $op->_post(
         '/oauth2/token',
         IO::String->new($query),
