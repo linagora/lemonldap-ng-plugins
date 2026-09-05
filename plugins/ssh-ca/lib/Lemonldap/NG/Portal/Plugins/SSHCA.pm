@@ -551,8 +551,18 @@ sub _signSshKey {
 
     require File::Temp;
 
-    # Create temp directory for key files
-    my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
+    # Create temp directory for key files.
+    #
+    # SECURITY: this directory holds the UNENCRYPTED CA private key, so it
+    # must not outlive the signing operation. `File::Temp::tempdir(CLEANUP
+    # => 1)` would only clean up at *program* exit — in a long-lived portal
+    # worker (FastCGI/mod_perl) every /ssh/sign would then leave a copy of
+    # the CA key in /tmp for the worker's whole lifetime, accumulating
+    # without bound. `File::Temp->newdir` ties the removal to the object's
+    # destruction instead, i.e. to this sub's scope, including every early
+    # `return` and any `die` in between.
+    my $tmpobj = File::Temp->newdir();
+    my $tmpdir = "$tmpobj";
 
     # Write CA private key to temp file (convert PEM to OpenSSH format)
     my $caKeyFile = "$tmpdir/ca_key";
@@ -617,6 +627,12 @@ sub _signSshKey {
     }
 
     my $exitCode = $? >> 8;
+
+    # ssh-keygen is done with the CA key: drop it immediately rather than
+    # waiting for $tmpobj's destructor, so the private key spends the
+    # shortest possible time on disk.
+    unlink $caKeyFile;
+
     if ( $exitCode != 0 ) {
         $self->logger->error(
             "SSH CA: ssh-keygen failed (exit $exitCode): $output");
@@ -815,9 +831,11 @@ sub _pemToSshPublicKey {
             }
             else {
                 # Fallback: use ssh-keygen to convert PEM public key
+                # (`newdir` so the scratch dir dies with this scope, not
+                # with the worker — see _signSshKey)
                 require File::Temp;
-                my $tmpdir  = File::Temp::tempdir( CLEANUP => 1 );
-                my $keyFile = "$tmpdir/key.pub";
+                my $tmpobj  = File::Temp->newdir();
+                my $keyFile = "$tmpobj/key.pub";
                 open my $fh, '>', $keyFile or die "Cannot write: $!";
                 print $fh $pemKey;
                 close $fh;
@@ -1409,8 +1427,12 @@ sub _updateKrl {
         return 0;
     };
 
+    # Scratch dir for the KRL spec files. `newdir` (not `tempdir(CLEANUP
+    # => 1)`) so it is removed when this sub returns — including on the
+    # error paths below — instead of at worker exit.
     require File::Temp;
-    my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
+    my $tmpobj = File::Temp->newdir();
+    my $tmpdir = "$tmpobj";
 
     # Write CA public key
     my $caPubFile = "$tmpdir/ca.pub";
