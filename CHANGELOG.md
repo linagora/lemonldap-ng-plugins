@@ -18,7 +18,9 @@
   the previous open behaviour must set it explicitly (e.g.
   `inGroup('ssh-admins')`). Per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
   `/ssh/myrevoke`) are unchanged. Denials are audited as
-  `SSH_CA_ADMIN_DENIED`.
+  `SSH_CA_ADMIN_DENIED`. `open-bastion-plugins-autoconfig` writes the
+  denying `0` explicitly and tells the operator to fill the rule, so a
+  packaged deployment does not lose its administration UI silently.
 - **Fix — a KRL write could truncate the live file and lock every host out
   of SSH** (#59). `ssh-keygen -k` opens its target with `O_TRUNC` and the
   `sshca-rebuild-krl` cron job never took the lock the portal used, so a
