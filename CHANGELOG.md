@@ -12,6 +12,27 @@
   `/pam/verify`. The gate is now a single helper shared by the six endpoints,
   and the scope is matched exactly instead of with a loose regex that also
   accepted `pam-x` and `x-pam`.
+- **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
+  longer inert** (#52). They were documented, exposed in the Manager, and read
+  by no code at all. When enabled, `/pam/authorize` now refuses a caller whose
+  last heartbeat is missing or older than the threshold (default 900s, three
+  missed beats). Both defaults are unchanged, so deployments that never ticked
+  the box behave exactly as before.
+
+### ldap-rest (new)
+
+- **Feature — directory writes delegated to
+  [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
+  allowed to write into the directory or needing ldap-rest hooks to fire on
+  password change and account creation. Port of the upstream LLNG
+  `ldap-rest` branch.
+- **`Password::LdapRest`** (password module): reads stay on LDAP — ldap-rest
+  has no "verify this password" endpoint — the write is a `PUT`. The LDAP
+  account no longer needs write access.
+- **`Register::LdapRest`** (register module, new in this port): no LDAP
+  connection at all, `GET` for the uniqueness check and `POST` to create.
+- Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
+  optional client side RFC 3112 password hashing.
 
 ## v0.5.2 - 2026-08-31
 

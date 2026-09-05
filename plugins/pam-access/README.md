@@ -59,7 +59,9 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessBastionMaxSeenAge`           | Maximum age (seconds) of the `_pamSeen` marker accepted by `/pam/bastion-token`. Default 1 week. Set to `0` to disable the age check.                                                    | `604800`  |
 | `pamAccessOfflineEnabled`              | Enable offline mode (boolOrExpr)                                                                                                                                                         | `0`       |
 | `pamAccessOfflineTtl`                  | Offline authorization cache TTL (seconds)                                                                                                                                                | `86400`   |
-| `pamAccessHeartbeatRequired`           | Require a recent heartbeat for `/pam/authorize`                                                                                                                                          | `0`       |
+| `pamAccessHeartbeatRequired`           | Require a recent heartbeat from the calling server for `/pam/authorize` (see below)                                                                                                      | `0`       |
+| `pamAccessInactiveThreshold`           | Maximum age (seconds) of that heartbeat, when `pamAccessHeartbeatRequired` is enabled                                                                                                    | `900`     |
+| `pamAccessHeartbeatInterval`           | Heartbeat interval advertised to servers in the `/pam/heartbeat` response                                                                                                                | `300`     |
 | `pamAccessChoice`                      | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token`. Leave empty when Choice auth is not used. | `""`      |
 | `pamAccessBastionCertPinSourceAddress` | Pin the ephemeral cert issued by `/pam/bastion-cert` to the bastion's IP (`source-address` critical option). See the note below.                                                         | `0`       |
 
@@ -76,6 +78,27 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 > not match the bastion's SSH egress address — portal behind a reverse proxy,
 > multi-homed bastion, or NAT/PAT — otherwise legitimate certificates would be
 > rejected by the backend.
+
+### Requiring a live server (`pamAccessHeartbeatRequired`)
+
+By default a server may call `/pam/authorize` for as long as its access token
+is valid, whether or not it still reports for duty. Enable
+`pamAccessHeartbeatRequired` to additionally demand a heartbeat newer than
+`pamAccessInactiveThreshold` (default 900s, three missed beats at the default
+300s interval): a decommissioned, cloned or tampered-with machine then loses
+its authority within the threshold instead of at token expiry.
+
+`/pam/heartbeat` records the liveness marker on the refresh-token session it
+beats against **and** on every access token it mints, so `/pam/authorize` can
+read the _live_ value even when a server reuses one access token for its whole
+lifetime.
+
+Two consequences worth knowing before enabling it:
+
+- a freshly enrolled server must beat once before it can authorize anybody —
+  the plain device-grant token carries no marker;
+- servers must actually run `ob-heartbeat` (or an equivalent) on a timer
+  shorter than `pamAccessInactiveThreshold`.
 
 ## Endpoints
 

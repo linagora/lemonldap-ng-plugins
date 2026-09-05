@@ -296,6 +296,13 @@ sub authorize {
     $self->logger->info(
         "PAM authorize request from enrolled server: $server_id");
 
+    # 3b. Liveness gate (opt-in, pamAccessHeartbeatRequired): the calling
+    #     server must have beaten recently, so a machine whose PAM stack has
+    #     stopped reporting can no longer authorize anybody.
+    my $hb_bail =
+      $self->_checkCallerHeartbeat( $req, $tokenSession, $server_id );
+    return $hb_bail if $hb_bail;
+
     # 4. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
     if ($@) {
@@ -1234,6 +1241,17 @@ sub heartbeat {
     my %at_extra = ( grant_type => 'device_code' );
     $at_extra{_deviceId} = $rtSession->data->{_deviceId}
       if $rtSession->data->{_deviceId};
+
+    # Liveness markers consumed by _checkCallerHeartbeat when
+    # pamAccessHeartbeatRequired is enabled: when this token was minted, plus a
+    # reference to the refresh-token session that holds the live _pamLastSeen
+    # (so a server that keeps beating stays fresh even if its PAM module reuses
+    # the same access token until it expires). The reference is the session
+    # *storage* id — already hashed when hashedSessionStore is on — never the
+    # refresh token itself, so an access-token record can never be replayed as
+    # a credential here.
+    $at_extra{_pamLastSeen} = $now;
+    $at_extra{_pamRtRef}    = $rtSession->storageId || $rtSession->id;
     my $access_token =
       $self->oidc->newAccessToken( $req, $rp, $scope, $rtSession->data,
         \%at_extra );
@@ -1839,6 +1857,100 @@ sub _lastSeenOnPamAccess {
     my $ts = $ps->data->{_pamSeen};
     return undef unless defined $ts && $ts =~ /^\d+$/;
     return $ts;
+}
+
+# HELPER: last heartbeat received from the server presenting $tokenSession,
+# or undef when that server has never beaten.
+#
+# /pam/heartbeat stamps `_pamLastSeen` on the refresh-token session it beats
+# against, and on every access token it mints — together with `_pamRtRef`, the
+# storage id of that refresh-token session. We therefore know both when the
+# presented token was minted and, by following the reference, the *live* value:
+# a server that keeps beating stays fresh even when its PAM module reuses one
+# access token for its whole lifetime. Take the most recent of the two; a token
+# that predates this feature (or comes straight from the device grant, before
+# any heartbeat) carries neither and yields undef.
+sub _callerLastSeen {
+    my ( $self, $tokenSession ) = @_;
+
+    my $lastSeen = $tokenSession->data->{_pamLastSeen};
+    undef $lastSeen unless defined $lastSeen && $lastSeen =~ /\A\d+\z/;
+
+    my $rtRef = $tokenSession->data->{_pamRtRef};
+    if ( defined $rtRef && $rtRef ne '' ) {
+
+        # Fetched raw: `_pamRtRef` is the storage id, already hashed when
+        # hashedSessionStore is enabled, so it must not be hashed again.
+        my $rt = eval { $self->oidc->getRefreshToken( $rtRef, 1 ) };
+        if ( $rt && !$rt->error ) {
+            my $live = $rt->data->{_pamLastSeen};
+            $lastSeen = $live
+              if defined $live
+              && $live =~ /\A\d+\z/
+              && ( !defined $lastSeen || $live > $lastSeen );
+        }
+    }
+
+    return $lastSeen;
+}
+
+# HELPER: enforce pamAccessHeartbeatRequired on /pam/authorize.
+#
+# When enabled, the calling server must have sent a heartbeat within
+# pamAccessInactiveThreshold seconds (default 900, i.e. three missed beats at
+# the default pamAccessHeartbeatInterval of 300s): a machine whose ob-heartbeat
+# has stopped — decommissioned, cloned, or with its PAM stack tampered with —
+# stops being able to authorize anybody, instead of coasting on a still-valid
+# access token.
+#
+# Disabled by default, so existing deployments are unaffected.
+#
+# Returns undef when the caller may proceed, or the 403 response to send.
+sub _checkCallerHeartbeat {
+    my ( $self, $req, $tokenSession, $server_id ) = @_;
+
+    return undef unless $self->conf->{pamAccessHeartbeatRequired};
+
+    my $lastSeen = $self->_callerLastSeen($tokenSession);
+    unless ( defined $lastSeen ) {
+        $self->logger->warn(
+                "PAM authorize: no heartbeat recorded for server '$server_id' "
+              . "(pamAccessHeartbeatRequired is enabled)" );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_AUTHZ_NO_HEARTBEAT',
+            message =>
+              "PAM authorization denied: server '$server_id' has never "
+              . "sent a heartbeat",
+            server_id => $server_id,
+            reason    => 'no_heartbeat',
+        );
+        return $self->_forbiddenResponse( $req,
+            'Server has not sent a heartbeat' );
+    }
+
+    # 3 missed beats at the default 300s pamAccessHeartbeatInterval
+    my $threshold =
+      $self->_confPositiveInt( 'pamAccessInactiveThreshold', 900 );
+    my $age = time() - $lastSeen;
+    if ( $age > $threshold ) {
+        $self->logger->warn(
+                "PAM authorize: last heartbeat from server '$server_id' is "
+              . "${age}s old, max ${threshold}s" );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_AUTHZ_STALE_HEARTBEAT',
+            message => "PAM authorization denied: last heartbeat from server "
+              . "'$server_id' is ${age}s old (max ${threshold}s)",
+            server_id => $server_id,
+            age       => $age,
+            max_age   => $threshold,
+            reason    => 'stale_heartbeat',
+        );
+        return $self->_forbiddenResponse( $req, 'Server heartbeat is stale' );
+    }
+
+    return undef;
 }
 
 # HELPER: Look up the user's persistent session and verify that an SSH CA
@@ -2557,13 +2669,31 @@ Expected interval between server heartbeats in seconds (default: 300)
 
 =item pamAccessInactiveThreshold
 
-Time in seconds after which a server is considered inactive if no heartbeat
-received (default: 900)
+Maximum age, in seconds, of the last heartbeat of a server calling
+C</pam/authorize> when C<pamAccessHeartbeatRequired> is enabled (default: 900,
+i.e. three missed beats at the default C<pamAccessHeartbeatInterval> of 300s).
+Must be a positive integer; invalid values fall back to the default. Ignored
+when C<pamAccessHeartbeatRequired> is off.
 
 =item pamAccessHeartbeatRequired
 
-If enabled, servers must have a recent heartbeat to use /pam/authorize.
-This ensures that the PAM module is still active on the server. (default: 0)
+When enabled, C</pam/authorize> additionally requires the calling server to
+have sent a heartbeat less than C<pamAccessInactiveThreshold> seconds ago; a
+server that has never beaten, or has stopped beating, is answered C<403>
+(C<Server has not sent a heartbeat> / C<Server heartbeat is stale>) instead of
+being allowed to authorize users on the strength of a still-valid access
+token. Enable it to make a decommissioned, cloned or tampered-with machine
+lose its authority within the threshold rather than at token expiry.
+
+Liveness is read from the heartbeat markers C</pam/heartbeat> stamps: on the
+refresh-token session it beats against, and on every access token it mints
+(C<_pamLastSeen>, plus C<_pamRtRef> pointing back at the refresh-token session
+so the I<live> value is used even when a server reuses one access token for
+its whole lifetime). Consequently a server must beat at least once after
+enrollment before it can authorize anybody; the plain device-grant token
+carries no marker.
+
+(default: 0, i.e. no liveness requirement)
 
 =item pamAccessBastionGroups
 
