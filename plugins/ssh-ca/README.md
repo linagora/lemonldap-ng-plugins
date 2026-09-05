@@ -20,7 +20,8 @@ passwordless authentication on servers that trust the CA.
 - **SSH SHA256 fingerprint** computed and stored with each cert, surfaced
   in the responses — the `pam-access` plugin uses it to bind PAM tokens
   to a specific SSH key.
-- **Admin interface** for searching and revoking certificates.
+- **Admin interface** for searching and revoking certificates, guarded by
+  the `sshCaAdminRule` rule — **default deny**, no admin until you say who.
 - **Audit logging** of all signing and revocation operations.
 
 ## Requirements
@@ -49,9 +50,64 @@ In the Manager under **General Parameters** > **Plugins** > **SSH CA**:
 | Parameter               | Description                                                               | Default                                  |
 | ----------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
 | `sshCaKeyRef`           | Reference to the SSH CA key in LLNG keys store                            | _(required)_                             |
+| `sshCaAdminRule`        | Rule granting access to the admin endpoints (boolOrExpr)                  | _(empty — denies everyone)_              |
 | `sshCaKrlPath`          | Path to the KRL file on disk                                              | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
 | `sshCaCertMaxValidity`  | Maximum certificate validity in days                                      | `365`                                    |
+| `sshCaAllowedKeyTypes`  | Key families accepted for signing (comma/space separated)                 | `ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa`  |
+| `sshCaMinKeyBits`       | Minimum key size in bits, RSA/DSA only                                    | `2048`                                   |
 | `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid`                                   |
+
+### Administration rule (`sshCaAdminRule`)
+
+`/ssh/admin`, `/ssh/certs` and `/ssh/revoke` list **every** user's
+certificates and can revoke any of them. They are guarded by
+`sshCaAdminRule`, a standard LLNG rule (boolOrExpr) evaluated against the
+caller's session:
+
+```perl
+$uid eq 'admin'
+inGroup('ssh-admins')
+1                       # any authenticated user — NOT recommended
+```
+
+**The rule has no permissive default: while it is empty (or `0`), the three
+admin endpoints answer HTTP 403 for everyone**, including users the portal
+vhost `locationRules` would let through. This is deliberate — a portal that
+has not been told who its SSH CA admins are must not expose the whole
+certificate estate. The per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
+`/ssh/myrevoke`) are unaffected.
+
+Denials are logged (`userLogger->warn`) and audited under the
+`SSH_CA_ADMIN_DENIED` code.
+### Key policy
+
+Before anything is signed, the submitted public key is checked against
+`sshCaAllowedKeyTypes` and `sshCaMinKeyBits`. The key type and size are read
+from the **decoded key blob** (the SSH wire format), not from the textual
+prefix of the pubkey line, so a key cannot get through by mislabelling
+itself.
+
+| Token        | Key types                                              |
+| ------------ | ------------------------------------------------------ |
+| `ed25519`    | `ssh-ed25519`                                          |
+| `sk-ed25519` | `sk-ssh-ed25519@openssh.com` (FIDO2 / hardware-backed) |
+| `ecdsa`      | `ecdsa-sha2-nistp256`, `-nistp384`, `-nistp521`        |
+| `sk-ecdsa`   | `sk-ecdsa-sha2-nistp256@openssh.com` (FIDO2)           |
+| `rsa`        | `ssh-rsa`                                              |
+| `dss`        | `ssh-dss` — **not allowed by default**                 |
+
+`ssh-dss` is excluded by default: DSA is capped at 1024-bit keys with SHA-1
+signatures, was disabled at compile time in OpenSSH 9.8 and removed in
+OpenSSH 10. Operators who still need it can add `dss` to the list.
+
+`sshCaMinKeyBits` only applies to families whose size varies — RSA and DSA.
+An Ed25519 key is always 256 bits and is stronger than RSA-3072, so
+comparing the two numbers would reject the best keys available; fixed-size
+families are governed by the allowlist alone.
+
+Rejected keys get HTTP 400 with the reason (`SSH key type '<type>' is not
+allowed`, `SSH key is too small (<n> bits, minimum <m>)`).
+
 
 ### CA key setup
 
@@ -77,7 +133,7 @@ Examples:
 | Method | Path           | Description                                                                                                        |
 | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------ |
 | GET    | `/ssh/ca`      | Returns the CA public key in SSH format. Servers use this to configure `TrustedUserCAKeys`.                        |
-| GET    | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Returns empty body if no KRL exists yet. |
+| GET    | `/ssh/revoked` | Returns the binary KRL file. Servers use this to configure `RevokedKeys`. Always a valid KRL — an empty one when nothing is revoked yet; HTTP 500 rather than a KRL the portal cannot parse. |
 
 ### User endpoints (authentication required)
 
@@ -88,7 +144,7 @@ Examples:
 | GET    | `/ssh/mycerts`  | List the current user's certificates (JSON)                                    |
 | POST   | `/ssh/myrevoke` | Self-revoke one of the caller's own certificates; immediately added to the KRL |
 
-### Admin endpoints (authentication + access control required)
+### Admin endpoints (authentication + `sshCaAdminRule`)
 
 | Method | Path          | Description                                             |
 | ------ | ------------- | ------------------------------------------------------- |
@@ -96,9 +152,13 @@ Examples:
 | GET    | `/ssh/certs`  | Search all certificates across all users (JSON)         |
 | POST   | `/ssh/revoke` | Revoke a certificate by session ID and serial           |
 
-**Important:** Admin endpoints have no built-in access control beyond
-authentication. You must configure `locationRules` on the portal vhost to
-restrict access. Example:
+These three endpoints enforce `sshCaAdminRule` themselves and **deny by
+default** (HTTP 403) until you set it — see
+[Administration rule](#administration-rule-sshcaadminrule).
+
+Configuring `locationRules` on the portal vhost on top of the rule is still
+supported and recommended as defence in depth — but it is no longer the only
+thing standing between an ordinary user and everyone's certificates:
 
 ```perl
 # In LLNG Manager > Virtual Hosts > portal vhost > Rules
@@ -140,7 +200,9 @@ Response (JSON):
   key yields HTTP 409. If omitted, the plugin falls back to the SSH public
   key's comment (third token) for back-compat; if that is also empty the
   request is rejected with 400.
-- `validity_days` is clamped to `sshCaCertMaxValidity`.
+- `validity_days` must be a positive integer (anything else is rejected
+  with 400) and is clamped to `sshCaCertMaxValidity`. Omitted means 30 days.
+- The key must pass the [key policy](#key-policy).
 - Principals are derived from the session; any `principals` field in the
   request is ignored (and logged as a warning).
 - `fingerprint` is the SHA256 of the signed key, stored with the cert and
@@ -192,7 +254,8 @@ Status is computed dynamically: `active`, `expired` (past `expires_at`), or
 ### GET /ssh/certs
 
 Query parameters: `user`, `serial`, `key_id`, `status`, `limit` (max 1000),
-`offset`.
+`offset`. `limit` and `offset` must be non-negative integers; anything else
+falls back to the defaults (100 and 0).
 
 Response includes all fields from `/ssh/mycerts` (including `label` and
 `fingerprint`) plus: `session_id`, `user`, `revoked_at`, `revoked_by`,
@@ -215,11 +278,23 @@ This does two things:
 1. Marks the certificate as revoked in the user's persistent session
 2. Updates the KRL file on disk via `ssh-keygen -k [-u] -s ca.pub -f <krlPath>`
 
+`reason` is optional, trimmed, limited to 256 characters and must not
+contain control characters — it ends up in the portal log and in the audit
+log, where a newline or an ANSI escape would let a caller forge log lines.
+
 ## KRL (Key Revocation List)
 
-The KRL is a binary file managed by `ssh-keygen`. It is updated each time a
-certificate is revoked via `/ssh/revoke`. The first revocation creates the
-KRL; subsequent revocations append to it (`-u` flag).
+The KRL is a binary file managed by `ssh-keygen`. An empty (header-only) KRL
+is generated at plugin init, and it is updated each time a certificate is
+revoked via `/ssh/revoke` (`-u` flag). Every write goes to a temporary file in
+the same directory and is `rename()`d over the live KRL, under an exclusive
+`flock` on `<sshCaKrlPath>.lock` shared by the portal workers and the
+`sshca-rebuild-krl` cron job — so a reader never sees a half-written KRL, and
+concurrent revocations do not overwrite each other.
+
+This matters because sshd fails **closed** on a KRL it cannot parse: a KRL
+truncated mid-write makes `RevokedKeys` unusable and every single key is
+rejected with `incomplete message`, locking the host out entirely.
 
 Servers should periodically fetch the KRL from `/ssh/revoked` and configure:
 
@@ -229,10 +304,18 @@ TrustedUserCAKeys /etc/ssh/ca.pub
 RevokedKeys /etc/ssh/revoked_keys
 ```
 
-A cron job or systemd timer can keep the KRL up to date:
+A cron job or systemd timer can keep the KRL up to date. Download to a
+temporary file and only install it once `ssh-keygen` confirms it parses —
+checking the `SSHKRL` magic is **not** enough, a truncated KRL still has it:
 
 ```bash
-curl -sf https://auth.example.com/ssh/revoked -o /etc/ssh/revoked_keys
+tmp=$(mktemp /etc/ssh/.revoked_keys.XXXXXX)
+if curl -sf https://auth.example.com/ssh/revoked -o "$tmp" &&
+   ssh-keygen -Q -l -f "$tmp" >/dev/null 2>&1; then
+    chmod 644 "$tmp" && mv "$tmp" /etc/ssh/revoked_keys
+else
+    rm -f "$tmp"    # keep the previous KRL
+fi
 ```
 
 ## Storage
