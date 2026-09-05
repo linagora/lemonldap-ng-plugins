@@ -86,10 +86,10 @@ ok(
                 # 'default' is deliberately NOT a bastion group. An enrolled
                 # server resolves to 'default' in legacy mode (no per-host
                 # server_group in the device-grant session — the realistic case
-                # with one project-wide client_id), so this proves /pam/bastion-
-                # cert and /pam/bastion-token no longer gate on the caller's
-                # group: the voucher (minted only when the caller authorizes with
-                # a real bastion group) is the sole security control.
+                # with one project-wide client_id), so this proves
+                # /pam/bastion-cert does not gate on the caller's group: the
+                # voucher (minted only when the caller authorizes with a real
+                # bastion group) is the sole security control.
                 pamAccessBastionGroups => 'bastion',
                 pamAccessSshRules      => { default => '1', bastion => '1' },
                 # Pin issued certs to the bastion IP (off by default); the
@@ -151,7 +151,7 @@ ok( $server_token, 'Got bastion server token' );
 
 # Helper: POST a JSON body to a pam endpoint with the bastion Bearer.
 sub bastion_post {
-    my ( $path, $hash ) = @_;
+    my ( $path, $hash, %custom ) = @_;
     my $body = to_json($hash);
     return $op->_post(
         $path,
@@ -159,7 +159,7 @@ sub bastion_post {
         accept => 'application/json',
         type   => 'application/json',
         length => length($body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
+        custom => { HTTP_AUTHORIZATION => "Bearer $server_token", %custom },
     );
 }
 
@@ -171,6 +171,28 @@ my $authz = from_json( $res->[2]->[0] );
 ok( $authz->{authorized}, '  -> authorized' );
 my $voucher = $authz->{bastion_voucher};
 ok( $voucher, '  -> bastion_voucher present' );
+
+# No fingerprint was supplied, so nothing binds this voucher to the user's SSO
+# certificate lifetime. It used to get the full pamAccessBastionVoucherTtl (12h
+# by default), which made "revoking the SSO invalidates the voucher" depend on
+# an optional binding being in play. Unbound vouchers are now capped by
+# pamAccessBastionVoucherUnboundTtl, 15 minutes by default (issue #55).
+cmp_ok( $authz->{bastion_voucher_expires_in},
+    '<=', 900, '  -> unbound voucher capped at the short TTL' );
+cmp_ok( $authz->{bastion_voucher_expires_in},
+    '>', 0, '  -> and is still usable' );
+
+# pamAccessRequireFingerprint refuses the unbound case outright instead
+{
+    my $conf = $op->p->conf;
+    local $conf->{pamAccessRequireFingerprint} = 1;
+    my $r = bastion_post( '/pam/authorize',
+        { user => 'french', server_group => 'bastion', host => 'b1',
+            service => 'ssh' } );
+    is( $r->[0], 400, '  -> requireFingerprint: no fingerprint is a 400' );
+    like( from_json( $r->[2]->[0] )->{error},
+        qr/fingerprint required/i, '  -> and says so' );
+}
 
 # ============================================================================
 # Body-validation cases (with a valid Bearer)
@@ -472,6 +494,49 @@ SKIP: {
     my $L = `ssh-keygen -L -f "$tmpdir/n-cert.pub" 2>&1`;
     unlike( $L, qr/source-address/,
         '  -> no source-address critical option when pin disabled' );
+}
+
+# ============================================================================
+# The pin is requested but cannot be applied -> refuse (issue #56)
+#
+# REMOTE_ADDR can be absent or empty behind some FastCGI and socket
+# front-ends. Minting an unpinned certificate there used to be silent: the
+# cert was indistinguishable from a pinned one and the audit record simply
+# omitted the field. The option is opt-in, so an operator who set it asked for
+# the guarantee.
+# ============================================================================
+{
+    $res = bastion_post(
+        '/pam/bastion-cert',
+        {
+            user        => 'french',
+            target_host => 'backend4.op.com',
+            public_key  => $eph_pubkey,
+            voucher     => $voucher,
+        },
+        REMOTE_ADDR => '',
+    );
+    is( $res->[0], 403, 'unusable source address with the pin on -> 403' );
+    like(
+        from_json( $res->[2]->[0] )->{error},
+        qr/Source address pin/,
+        '  -> and says why'
+    );
+
+    # ... while the same request succeeds when the pin is not requested
+    my $conf = $op->p->conf;
+    local $conf->{pamAccessBastionCertPinSourceAddress} = 0;
+    $res = bastion_post(
+        '/pam/bastion-cert',
+        {
+            user        => 'french',
+            target_host => 'backend4.op.com',
+            public_key  => $eph_pubkey,
+            voucher     => $voucher,
+        },
+        REMOTE_ADDR => '',
+    );
+    is( $res->[0], 200, 'pin off: the same request is served' );
 }
 
 # ============================================================================

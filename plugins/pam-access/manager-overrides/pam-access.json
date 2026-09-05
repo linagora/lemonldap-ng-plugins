@@ -70,16 +70,6 @@
       "default": "bastion",
       "documentation": "Comma-separated list of server groups allowed to call /pam/bastion-token"
     },
-    "pamAccessBastionJwtTtl": {
-      "type": "int",
-      "default": 300,
-      "documentation": "Bastion JWT validity (seconds)"
-    },
-    "pamAccessBastionMaxSeenAge": {
-      "type": "int",
-      "default": 604800,
-      "documentation": "Maximum age (seconds) of the _pamSeen marker on the user's persistent session accepted by /pam/bastion-token. Default 604800 = 7 days. Set to 0 to disable the age check."
-    },
     "pamAccessChoice": {
       "type": "text",
       "default": "",
@@ -89,6 +79,16 @@
       "type": "bool",
       "default": 0,
       "documentation": "Pin the ephemeral certificate issued by /pam/bastion-cert to the bastion's IP (source-address critical option), so a leaked cert is only usable from the bastion that requested it. Recommended when there is no NAT/PAT between the bastion and the portal. Leave disabled when the address LLNG observes differs from the bastion's SSH egress address (reverse proxy, multi-homed bastion, NAT/PAT). Default 0 (disabled)."
+    },
+    "pamAccessRequireFingerprint": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Refuse /pam/verify and /pam/authorize when the caller supplies no SSH fingerprint, instead of falling back to the unbound behaviour"
+    },
+    "pamAccessBastionVoucherUnboundTtl": {
+      "type": "int",
+      "default": 900,
+      "documentation": "Maximum lifetime of a bastion voucher minted without an SSH fingerprint, i.e. one nothing binds to the user's SSO certificate expiry (seconds)"
     }
   },
   "tree": [
@@ -121,8 +121,8 @@
             "pamAccessOfflineTtl",
             "pamAccessServerGroups",
             "pamAccessBastionGroups",
-            "pamAccessBastionJwtTtl",
-            "pamAccessBastionMaxSeenAge",
+            "pamAccessRequireFingerprint",
+            "pamAccessBastionVoucherUnboundTtl",
             "pamAccessChoice",
             "pamAccessBastionCertPinSourceAddress"
           ]
@@ -195,14 +195,6 @@
       "en": "Bastion server groups",
       "fr": "Groupes serveurs bastion"
     },
-    "pamAccessBastionJwtTtl": {
-      "en": "Bastion JWT TTL",
-      "fr": "TTL du JWT bastion"
-    },
-    "pamAccessBastionMaxSeenAge": {
-      "en": "Max age of _pamSeen marker",
-      "fr": "Âge maximal du marqueur _pamSeen"
-    },
     "pamAccessChoice": {
       "en": "Choice sub-module for server-to-server endpoints",
       "fr": "Sous-module Choice pour les endpoints serveur-à-serveur"
@@ -210,6 +202,14 @@
     "pamAccessBastionCertPinSourceAddress": {
       "en": "Pin bastion certificate to source address",
       "fr": "Lier le certificat bastion à l'adresse source"
+    },
+    "pamAccessRequireFingerprint": {
+      "en": "Require an SSH fingerprint",
+      "fr": "Exiger une empreinte SSH"
+    },
+    "pamAccessBastionVoucherUnboundTtl": {
+      "en": "Unbound voucher TTL (s)",
+      "fr": "Durée d'un voucher non lié (s)"
     }
   }
 }
