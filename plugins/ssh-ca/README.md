@@ -53,6 +53,8 @@ In the Manager under **General Parameters** > **Plugins** > **SSH CA**:
 | `sshCaAdminRule`        | Rule granting access to the admin endpoints (boolOrExpr)                  | _(empty — denies everyone)_              |
 | `sshCaKrlPath`          | Path to the KRL file on disk                                              | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
 | `sshCaCertMaxValidity`  | Maximum certificate validity in days                                      | `365`                                    |
+| `sshCaAllowedKeyTypes`  | Key families accepted for signing (comma/space separated)                 | `ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa`  |
+| `sshCaMinKeyBits`       | Minimum key size in bits, RSA/DSA only                                    | `2048`                                   |
 | `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid`                                   |
 
 ### Administration rule (`sshCaAdminRule`)
@@ -77,6 +79,35 @@ certificate estate. The per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
 
 Denials are logged (`userLogger->warn`) and audited under the
 `SSH_CA_ADMIN_DENIED` code.
+### Key policy
+
+Before anything is signed, the submitted public key is checked against
+`sshCaAllowedKeyTypes` and `sshCaMinKeyBits`. The key type and size are read
+from the **decoded key blob** (the SSH wire format), not from the textual
+prefix of the pubkey line, so a key cannot get through by mislabelling
+itself.
+
+| Token        | Key types                                              |
+| ------------ | ------------------------------------------------------ |
+| `ed25519`    | `ssh-ed25519`                                          |
+| `sk-ed25519` | `sk-ssh-ed25519@openssh.com` (FIDO2 / hardware-backed) |
+| `ecdsa`      | `ecdsa-sha2-nistp256`, `-nistp384`, `-nistp521`        |
+| `sk-ecdsa`   | `sk-ecdsa-sha2-nistp256@openssh.com` (FIDO2)           |
+| `rsa`        | `ssh-rsa`                                              |
+| `dss`        | `ssh-dss` — **not allowed by default**                 |
+
+`ssh-dss` is excluded by default: DSA is capped at 1024-bit keys with SHA-1
+signatures, was disabled at compile time in OpenSSH 9.8 and removed in
+OpenSSH 10. Operators who still need it can add `dss` to the list.
+
+`sshCaMinKeyBits` only applies to families whose size varies — RSA and DSA.
+An Ed25519 key is always 256 bits and is stronger than RSA-3072, so
+comparing the two numbers would reject the best keys available; fixed-size
+families are governed by the allowlist alone.
+
+Rejected keys get HTTP 400 with the reason (`SSH key type '<type>' is not
+allowed`, `SSH key is too small (<n> bits, minimum <m>)`).
+
 
 ### CA key setup
 
@@ -169,7 +200,9 @@ Response (JSON):
   key yields HTTP 409. If omitted, the plugin falls back to the SSH public
   key's comment (third token) for back-compat; if that is also empty the
   request is rejected with 400.
-- `validity_days` is clamped to `sshCaCertMaxValidity`.
+- `validity_days` must be a positive integer (anything else is rejected
+  with 400) and is clamped to `sshCaCertMaxValidity`. Omitted means 30 days.
+- The key must pass the [key policy](#key-policy).
 - Principals are derived from the session; any `principals` field in the
   request is ignored (and logged as a warning).
 - `fingerprint` is the SHA256 of the signed key, stored with the cert and
@@ -221,7 +254,8 @@ Status is computed dynamically: `active`, `expired` (past `expires_at`), or
 ### GET /ssh/certs
 
 Query parameters: `user`, `serial`, `key_id`, `status`, `limit` (max 1000),
-`offset`.
+`offset`. `limit` and `offset` must be non-negative integers; anything else
+falls back to the defaults (100 and 0).
 
 Response includes all fields from `/ssh/mycerts` (including `label` and
 `fingerprint`) plus: `session_id`, `user`, `revoked_at`, `revoked_by`,
@@ -243,6 +277,10 @@ This does two things:
 
 1. Marks the certificate as revoked in the user's persistent session
 2. Updates the KRL file on disk via `ssh-keygen -k [-u] -s ca.pub -f <krlPath>`
+
+`reason` is optional, trimmed, limited to 256 characters and must not
+contain control characters — it ends up in the portal log and in the audit
+log, where a newline or an ANSI escape would let a caller forge log lines.
 
 ## KRL (Key Revocation List)
 

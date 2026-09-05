@@ -10,16 +10,6 @@
       "default": 0,
       "documentation": "Rule granting access to the SSH CA administration endpoints (/ssh/admin, /ssh/certs, /ssh/revoke). These endpoints list and revoke every user's certificates, so there is no permissive default: an empty rule (or 0) denies everyone."
     },
-    "sshCaKeyType": {
-      "type": "select",
-      "select": [
-        { "k": "ed25519", "v": "Ed25519" },
-        { "k": "ecdsa", "v": "ECDSA" },
-        { "k": "rsa", "v": "RSA" }
-      ],
-      "default": "ed25519",
-      "documentation": "SSH CA key type"
-    },
     "sshCaKeyRef": {
       "type": "text",
       "documentation": "SSH CA key reference (key ID from LLNG keys)"
@@ -28,6 +18,16 @@
       "type": "int",
       "default": 365,
       "documentation": "SSH certificate max validity (days)"
+    },
+    "sshCaAllowedKeyTypes": {
+      "type": "text",
+      "default": "ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa",
+      "documentation": "Allowed SSH key families for signing (comma-separated: ed25519, sk-ed25519, ecdsa, sk-ecdsa, rsa, dss)"
+    },
+    "sshCaMinKeyBits": {
+      "type": "int",
+      "default": 2048,
+      "documentation": "Minimum SSH key size in bits (RSA/DSA only)"
     },
     "sshCaPrincipalSources": {
       "type": "text",
@@ -52,9 +52,10 @@
           "nodes": [
             "sshCaActivation",
             "sshCaAdminRule",
-            "sshCaKeyType",
             "sshCaKeyRef",
             "sshCaCertMaxValidity",
+            "sshCaAllowedKeyTypes",
+            "sshCaMinKeyBits",
             "sshCaPrincipalSources",
             "sshCaKrlPath"
           ]
@@ -75,10 +76,6 @@
       "en": "Administration rule",
       "fr": "Règle d'administration"
     },
-    "sshCaKeyType": {
-      "en": "CA key type",
-      "fr": "Type de clé CA"
-    },
     "sshCaKeyRef": {
       "en": "CA key reference",
       "fr": "Référence de la clé CA"
@@ -86,6 +83,14 @@
     "sshCaCertMaxValidity": {
       "en": "Maximum validity (days)",
       "fr": "Validité maximale (jours)"
+    },
+    "sshCaAllowedKeyTypes": {
+      "en": "Allowed key types",
+      "fr": "Types de clés autorisés"
+    },
+    "sshCaMinKeyBits": {
+      "en": "Minimum key size (bits, RSA/DSA)",
+      "fr": "Taille de clé minimale (bits, RSA/DSA)"
     },
     "sshCaPrincipalSources": {
       "en": "Principal sources",

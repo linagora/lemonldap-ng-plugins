@@ -57,6 +57,33 @@
 - Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
   optional client side RFC 3112 password hashing.
 
+### ssh-ca
+
+- **Security fix — the CA private key no longer lingers in `/tmp`**. Signing
+  wrote the unencrypted CA key into a `File::Temp::tempdir(CLEANUP => 1)`
+  directory, which is only removed at _program_ exit: in a long-lived portal
+  worker every `/ssh/sign` left one copy behind for the worker's lifetime.
+  The scratch directories are now bound to the enclosing scope (error paths
+  included) and the CA key is unlinked as soon as `ssh-keygen` returns.
+- **Feature — key type and key size policy**, `sshCaAllowedKeyTypes`
+  (default `ed25519,ecdsa,sk-ed25519,sk-ecdsa,rsa`) and `sshCaMinKeyBits`
+  (default `2048`, RSA/DSA only). The type and size are read from the
+  decoded key blob, not from the textual prefix. RSA-1024 keys, which used
+  to be signed happily, are now refused; `ssh-dss` is no longer accepted by
+  default.
+- **Fix — FIDO2 keys can be signed.** The `sk-ssh-ed25519@openssh.com` and
+  `sk-ecdsa-sha2-*@openssh.com` families were rejected by the format regexp
+  while `ssh-dss` went through.
+- **Fix — input validation**: `validity_days` must be a positive integer
+  (`"abc"` used to yield a sub-minute certificate, `-5` an HTTP 500),
+  `limit`/`offset` on `/ssh/certs` are bounded below as well as above (a
+  negative `limit` silently dropped rows), and the admin revocation `reason`
+  is filtered like `label` before reaching the logs.
+- **Removed dead configuration parameters** `sshCaKeyType` (declared in the
+  Manager, never read), `sshCaCertDefaultValidity` and `sshCaSerialPath`
+  (documented, never existed). The POD also claimed validity was expressed
+  in minutes; it is days.
+
 ## v0.5.2 - 2026-08-31
 
 Touched plugins bumped to **0.5.2** in lockstep: `pam-access`.
