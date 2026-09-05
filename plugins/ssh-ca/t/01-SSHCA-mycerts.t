@@ -108,11 +108,16 @@ ok(
         '/ssh/revoked',
         accept => 'application/octet-stream',
     ),
-    'GET /ssh/revoked (no KRL file)'
+    'GET /ssh/revoked (no revocation yet)'
 );
 expectOK($res);
-is( $res->[2]->[0], '', 'KRL is empty when file does not exist' );
-count(1);
+
+# An empty KRL must still be a *valid* KRL (issue #64): sshd cannot parse an
+# empty RevokedKeys file as a KRL and silently falls back to the flat key
+# file format, which means revocations are not enforced.
+like( $res->[2]->[0], qr/\ASSHKRL\n\0/, 'Empty KRL carries the KRL magic' );
+is( length( $res->[2]->[0] ), 44, 'Empty KRL is a bare KRL header' );
+count(2);
 
 # ============================================
 # PART 2: Label validation

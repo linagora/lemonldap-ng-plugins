@@ -38,12 +38,12 @@
     "pamAccessInactiveThreshold": {
       "type": "int",
       "default": 900,
-      "documentation": "Time after which a PAM server is considered inactive (seconds)"
+      "documentation": "Maximum age of the calling server's last heartbeat accepted by /pam/authorize when pamAccessHeartbeatRequired is enabled (seconds, default 900)"
     },
     "pamAccessHeartbeatRequired": {
       "type": "bool",
       "default": 0,
-      "documentation": "Require recent heartbeat for /pam/authorize requests"
+      "documentation": "Refuse /pam/authorize when the calling server has not sent a heartbeat within pamAccessInactiveThreshold seconds"
     },
     "pamAccessExportedVars": {
       "type": "keyTextContainer",

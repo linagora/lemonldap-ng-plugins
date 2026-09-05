@@ -118,7 +118,26 @@ sub rebuild_krl {
 
     unless (%serials) {
         $log->info('SSH CA: no revoked serials found, nothing to rebuild');
-        return 1;
+
+        # Still make sure the local KRL is a file sshd can parse: a missing
+        # (or empty) one is a silent fail-open. No-op if a KRL is in place.
+        return $plugin->_ensureKrl($krlPath);
+    }
+
+    # Reject anything that is not a plain decimal serial before it reaches the
+    # ssh-keygen spec file: session data is authoritative but not necessarily
+    # well-formed, and one bad record must not be able to inject extra KRL
+    # directives for every node running this cron job.
+    my @bad = grep { !$plugin->_validSerial($_) } keys %serials;
+    if (@bad) {
+        $log->error( "SSH CA: ignoring "
+              . scalar(@bad)
+              . " malformed serial(s) found in persistent sessions" );
+        delete @serials{@bad};
+    }
+    unless (%serials) {
+        $log->error('SSH CA: no usable serial left, aborting rebuild');
+        return 0;
     }
 
     my $dir = dirname($krlPath);
@@ -126,43 +145,20 @@ sub rebuild_krl {
 
     my $tmpdir = File::Temp::tempdir( CLEANUP => 1 );
 
-    my $caPubFile = "$tmpdir/ca.pub";
-    open my $fh, '>', $caPubFile or do {
-        $log->error("SSH CA: cannot write CA pub: $!");
-        return 0;
-    };
-    print $fh $plugin->sshPubKey;
-    close $fh;
-
     my $specFile = "$tmpdir/revoke_spec";
-    open $fh, '>', $specFile or do {
+    open my $fh, '>', $specFile or do {
         $log->error("SSH CA: cannot write revoke spec: $!");
         return 0;
     };
     print $fh "serial: $_\n" for sort { $a <=> $b } keys %serials;
     close $fh;
 
-    my @cmd =
-      ( 'ssh-keygen', '-k', '-s', $caPubFile, '-f', $krlPath, $specFile );
-    my $output = '';
-    my $pid    = open my $pipe, '-|';
-    if ( !defined $pid ) {
-        $log->error("SSH CA: cannot fork ssh-keygen: $!");
-        return 0;
-    }
-    elsif ( $pid == 0 ) {
-        open STDERR, '>&', \*STDOUT;
-        exec @cmd;
-        exit 1;
-    }
-    else {
-        local $/;
-        $output = <$pipe>;
-        close $pipe;
-    }
-    my $exitCode = $? >> 8;
-    if ( $exitCode != 0 ) {
-        $log->error("SSH CA: KRL rebuild failed (exit $exitCode): $output");
+    # Delegate the write to the plugin so this cron job shares the portal's
+    # KRL lock and its atomic temp-file+rename install (issue #59). Writing
+    # `ssh-keygen -k -f $krlPath` directly here truncated the live KRL while
+    # sshd and /ssh/revoked were reading it.
+    unless ( $plugin->_writeKrl( $krlPath, spec => $specFile, update => 0 ) ) {
+        $log->error('SSH CA: KRL rebuild failed');
         return 0;
     }
 

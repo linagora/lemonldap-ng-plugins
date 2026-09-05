@@ -285,47 +285,23 @@ sub generateToken {
 sub authorize {
     my ( $self, $req ) = @_;
 
-    # 1. Validate Bearer token from Authorization header
-    my $access_token = $self->oidc->getEndPointAccessToken($req);
-    unless ($access_token) {
-        $self->logger->warn('PAM authorize: No Bearer token provided');
-        return $self->_unauthorizedResponse( $req, 'Bearer token required' );
-    }
+    # 1-3. Caller gate: a valid Bearer token, obtained through the Device
+    #      Authorization Grant, carrying a pam scope (see _checkCaller).
+    my ( $tokenSession, $bail ) = $self->_checkCaller( $req, 'authorize' );
+    return $bail if $bail;
 
-    my $tokenSession = $self->oidc->getAccessToken($access_token);
-    unless ($tokenSession) {
-        $self->logger->warn('PAM authorize: Invalid or expired Bearer token');
-        return $self->_unauthorizedResponse( $req, 'Invalid or expired token' );
-    }
-
-    # 2. Verify token was obtained via Device Authorization Grant
-    my $grant_type = $tokenSession->data->{grant_type} || '';
-    unless ( $grant_type eq 'device_code' ) {
-        $self->logger->warn(
-                "PAM authorize: Token not from Device Authorization Grant "
-              . "(grant_type: '$grant_type'). Server must enroll via /oauth2/device"
-        );
-        return $self->_forbiddenResponse( $req,
-'Server not enrolled. Use Device Authorization Grant to register this server.'
-        );
-    }
-
-    # 3. Verify token has correct scope (pam:server or pam)
-    my $scope = $tokenSession->data->{scope} || '';
-    unless ( $scope =~ /\bpam(?::server)?\b/ ) {
-        $self->logger->warn("PAM authorize: Invalid token scope '$scope'");
-        return $self->_forbiddenResponse( $req, 'Invalid token scope' );
-    }
-
-    # Log server identity from token. Prefer the per-device id (stamped at
-    # enrollment by oidc-device-organization) so the voucher we mint binds to the
-    # individual bastion, matching what /pam/bastion-cert checks; fall back to
-    # client_id for legacy enrollments.
-    my $server_id = $tokenSession->data->{_deviceId}
-      || $tokenSession->data->{client_id}
-      || 'unknown';
+    # Log server identity from token: the voucher we mint binds to the
+    # individual bastion, matching what /pam/bastion-cert checks.
+    my $server_id = $self->_callerId($tokenSession);
     $self->logger->info(
         "PAM authorize request from enrolled server: $server_id");
+
+    # 3b. Liveness gate (opt-in, pamAccessHeartbeatRequired): the calling
+    #     server must have beaten recently, so a machine whose PAM stack has
+    #     stopped reporting can no longer authorize anybody.
+    my $hb_bail =
+      $self->_checkCallerHeartbeat( $req, $tokenSession, $server_id );
+    return $hb_bail if $hb_bail;
 
     # 4. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -757,34 +733,182 @@ sub _badRequest {
         code => 400 );
 }
 
+# Scopes accepted at the /pam/* server-to-server endpoints. They are matched
+# EXACTLY against the whitespace-separated tokens of the granted scope
+# (RFC 6749 §3.3), not with a loose regex: the historical
+# /\bpam(?::server)?\b/ also accepted 'pam-x' and 'x-pam' (a '-' is a word
+# boundary) while rejecting 'pam_server', so an RP granted a scope that merely
+# looked like ours reached these endpoints.
+my %PAM_SCOPES = map { $_ => 1 } qw(pam pam:server);
+
+sub _hasPamScope {
+    my ( $self, $scope ) = @_;
+    return 0 unless defined $scope && $scope ne '';
+    for my $s ( split /\s+/, $scope ) {
+        return 1 if $PAM_SCOPES{$s};
+    }
+    return 0;
+}
+
+# Per-endpoint wording of the shared caller gate below. Each endpoint kept the
+# exact log lines and API error messages it had before the factorisation, so
+# nothing a client parses changes.
+#   no_token / bad_token : [ log line, 401 message ]
+#   bad_grant            : [ log line, 403 message ]
+#   grant_log_extra      : appended to the grant-type log line
+#   scope_log            : wording of the scope log line
+my %CALLER_GATE = (
+    authorize => {
+        label     => 'PAM authorize',
+        no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
+        bad_token =>
+          [ 'Invalid or expired Bearer token', 'Invalid or expired token' ],
+        bad_grant => [
+            'Token not from Device Authorization Grant',
+'Server not enrolled. Use Device Authorization Grant to register this server.',
+        ],
+        grant_log_extra => '. Server must enroll via /oauth2/device',
+    },
+    verify => {
+        label    => 'PAM verify',
+        no_token =>
+          [ 'No server Bearer token provided', 'Server Bearer token required' ],
+        bad_token => [
+            'Invalid or expired server token',
+            'Invalid or expired server token'
+        ],
+        bad_grant => [
+            'Server token not from Device Authorization Grant',
+            'Server not enrolled. Use Device Authorization Grant.',
+        ],
+    },
+    userinfo => {
+        label    => 'PAM userinfo',
+        no_token =>
+          [ 'No server Bearer token provided', 'Server Bearer token required' ],
+        bad_token => [
+            'Invalid or expired server token',
+            'Invalid or expired server token'
+        ],
+        bad_grant => [
+            'Server token not from Device Authorization Grant',
+            'Server not enrolled. Use Device Authorization Grant.',
+        ],
+    },
+    heartbeat => {
+        label     => 'PAM heartbeat',
+        bad_grant => [
+            'Token not from Device Authorization Grant',
+            'Token not from Device Authorization Grant',
+        ],
+        scope_log => 'refresh token has invalid scope',
+    },
+    'bastion-token' => {
+        label     => 'PAM bastion-token',
+        no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
+        bad_token =>
+          [ 'Invalid or expired Bearer token', 'Invalid or expired token' ],
+        bad_grant => [
+            'Token not from Device Authorization Grant',
+            'Server not enrolled. Use Device Authorization Grant.',
+        ],
+    },
+    'bastion-cert' => {
+        label     => 'PAM bastion-cert',
+        no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
+        bad_token =>
+          [ 'Invalid or expired Bearer token', 'Invalid or expired token' ],
+        bad_grant => [
+            'Token not from Device Authorization Grant',
+            'Server not enrolled. Use Device Authorization Grant.',
+        ],
+    },
+);
+
+# HELPER: the caller gate shared by every /pam/* server-to-server endpoint.
+#
+# All six answer the same question -- "is this caller an enrolled PAM server?"
+# -- and used to answer it with six copies of the same code. Two copies had
+# silently lost the scope test: any device-grant token, from any RP with any
+# scope, could enumerate users (and every pamAccessExportedVars attribute)
+# through /pam/userinfo, or burn a stolen one-time token through /pam/verify.
+#
+# The gate is the union of what the six endpoints checked:
+#   1. a caller credential: a Bearer access token (five endpoints) or, for
+#      /pam/heartbeat, the refresh-token session already resolved from the
+#      request body and passed as `session`;
+#   2. that credential comes from the Device Authorization Grant
+#      (grant_type eq 'device_code');
+#   3. it carries a pam scope (exact match, see _hasPamScope).
+#
+# Returns ( $session, undef ) when the caller passes, ( undef, $response )
+# otherwise -- the response already carries that endpoint's own wording, so
+# callers just `return $bail if $bail`.
+sub _checkCaller {
+    my ( $self, $req, $endpoint, %opts ) = @_;
+
+    my $gate = $CALLER_GATE{$endpoint}
+      or die "PamAccess: no caller gate defined for '$endpoint'";
+    my $label = $gate->{label};
+
+    my $session = $opts{session};
+    unless ($session) {
+        my $access_token = $self->oidc->getEndPointAccessToken($req);
+        unless ($access_token) {
+            $self->logger->warn("$label: $gate->{no_token}[0]");
+            return ( undef,
+                $self->_unauthorizedResponse( $req, $gate->{no_token}[1] ) );
+        }
+
+        $session = $self->oidc->getAccessToken($access_token);
+        unless ($session) {
+            $self->logger->warn("$label: $gate->{bad_token}[0]");
+            return ( undef,
+                $self->_unauthorizedResponse( $req, $gate->{bad_token}[1] ) );
+        }
+    }
+
+    my $grant_type = $session->data->{grant_type} || '';
+    unless ( $grant_type eq 'device_code' ) {
+        $self->logger->warn( "$label: $gate->{bad_grant}[0] "
+              . "(grant_type: '$grant_type')"
+              . ( $gate->{grant_log_extra} || '' ) );
+        return ( undef,
+            $self->_forbiddenResponse( $req, $gate->{bad_grant}[1] ) );
+    }
+
+    my $scope = $session->data->{scope} || '';
+    unless ( $self->_hasPamScope($scope) ) {
+        $self->logger->warn( "$label: "
+              . ( $gate->{scope_log} || 'Invalid token scope' )
+              . " '$scope'" );
+        return ( undef,
+            $self->_forbiddenResponse( $req, 'Invalid token scope' ) );
+    }
+
+    return ( $session, undef );
+}
+
+# HELPER: identity of the enrolled caller, for audit logs and voucher binding.
+# Prefer the per-device id (stamped at enrollment by oidc-device-organization)
+# so a project-wide client_id still yields an id unique per machine; fall back
+# to client_id for legacy enrollments.
+sub _callerId {
+    my ( $self, $session ) = @_;
+    my $data = $session->data;
+    return $data->{_deviceId} || $data->{client_id} || 'unknown';
+}
+
 # POST /pam/verify - Verify and consume a one-time PAM token
 sub verifyToken {
     my ( $self, $req ) = @_;
 
-    # 1. Validate server Bearer token from Authorization header
-    my $server_token = $self->oidc->getEndPointAccessToken($req);
-    unless ($server_token) {
-        $self->logger->warn('PAM verify: No server Bearer token provided');
-        return $self->_unauthorizedResponse( $req,
-            'Server Bearer token required' );
-    }
-
-    my $serverSession = $self->oidc->getAccessToken($server_token);
-    unless ($serverSession) {
-        $self->logger->warn('PAM verify: Invalid or expired server token');
-        return $self->_unauthorizedResponse( $req,
-            'Invalid or expired server token' );
-    }
-
-    # Verify server token was obtained via Device Authorization Grant
-    my $grant_type = $serverSession->data->{grant_type} || '';
-    unless ( $grant_type eq 'device_code' ) {
-        $self->logger->warn(
-                "PAM verify: Server token not from Device Authorization Grant "
-              . "(grant_type: '$grant_type')" );
-        return $self->_forbiddenResponse( $req,
-            'Server not enrolled. Use Device Authorization Grant.' );
-    }
+    # 1. Caller gate: a valid Bearer token, obtained through the Device
+    #    Authorization Grant, carrying a pam scope (see _checkCaller). The
+    #    scope test used to be missing here: any device-grant token could burn
+    #    a stolen or guessed one-time token.
+    my ( $serverSession, $bail ) = $self->_checkCaller( $req, 'verify' );
+    return $bail if $bail;
 
     # 2. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -1015,28 +1139,19 @@ sub heartbeat {
         return $self->_unauthorizedResponse( $req, 'Invalid refresh_token' );
     }
 
-    # 4. Verify token was obtained via Device Authorization Grant
-    my $grant_type = $rtSession->data->{grant_type} || '';
-    unless ( $grant_type eq 'device_code' ) {
-        $self->logger->warn(
-                "PAM heartbeat: Token not from Device Authorization Grant "
-              . "(grant_type: '$grant_type')" );
-        return $self->_forbiddenResponse( $req,
-            'Token not from Device Authorization Grant' );
-    }
-
-    # 4b. Verify the refresh token actually carries the bastion server scope.
-    #     This endpoint mints access tokens and slides the refresh token's
-    #     lifetime, so it must only accept tokens meant for pam-access. Without
-    #     this check, any device_code refresh token issued for another RP/scope
-    #     could use /pam/heartbeat to obtain access tokens and keep itself alive
-    #     indefinitely. Same gate as /pam/authorize and /pam/bastion-token.
-    my $rt_scope = $rtSession->data->{scope} || '';
-    unless ( $rt_scope =~ /\bpam(?::server)?\b/ ) {
-        $self->logger->warn(
-            "PAM heartbeat: refresh token has invalid scope '$rt_scope'");
-        return $self->_forbiddenResponse( $req, 'Invalid token scope' );
-    }
+    # 4. Same caller gate as the other /pam/* endpoints, applied to the
+    #    refresh-token session resolved above rather than to a Bearer token:
+    #    the credential must come from the Device Authorization Grant and
+    #    carry a pam scope. This endpoint mints access tokens and slides the
+    #    refresh token's lifetime, so it must only accept tokens meant for
+    #    pam-access; without the scope test any device_code refresh token
+    #    issued for another RP could obtain access tokens here and keep itself
+    #    alive indefinitely.
+    #    (the session it validates is the $rtSession passed in, so only the
+    #    rejection is of interest here)
+    my ( undef, $bail ) =
+      $self->_checkCaller( $req, 'heartbeat', session => $rtSession );
+    return $bail if $bail;
 
     # 5. Resolve the RP (conf key) this refresh token belongs to. The
     #    synthetic session created by oidc-device-organization stamps
@@ -1126,6 +1241,17 @@ sub heartbeat {
     my %at_extra = ( grant_type => 'device_code' );
     $at_extra{_deviceId} = $rtSession->data->{_deviceId}
       if $rtSession->data->{_deviceId};
+
+    # Liveness markers consumed by _checkCallerHeartbeat when
+    # pamAccessHeartbeatRequired is enabled: when this token was minted, plus a
+    # reference to the refresh-token session that holds the live _pamLastSeen
+    # (so a server that keeps beating stays fresh even if its PAM module reuses
+    # the same access token until it expires). The reference is the session
+    # *storage* id — already hashed when hashedSessionStore is on — never the
+    # refresh token itself, so an access-token record can never be replayed as
+    # a credential here.
+    $at_extra{_pamLastSeen} = $now;
+    $at_extra{_pamRtRef}    = $rtSession->storageId || $rtSession->id;
     my $access_token =
       $self->oidc->newAccessToken( $req, $rp, $scope, $rtSession->data,
         \%at_extra );
@@ -1163,36 +1289,17 @@ sub heartbeat {
 sub userinfo {
     my ( $self, $req ) = @_;
 
-    # 1. Validate server Bearer token from Authorization header
-    my $server_token = $self->oidc->getEndPointAccessToken($req);
-    unless ($server_token) {
-        $self->logger->warn('PAM userinfo: No server Bearer token provided');
-        return $self->_unauthorizedResponse( $req,
-            'Server Bearer token required' );
-    }
-
-    my $serverSession = $self->oidc->getAccessToken($server_token);
-    unless ($serverSession) {
-        $self->logger->warn('PAM userinfo: Invalid or expired server token');
-        return $self->_unauthorizedResponse( $req,
-            'Invalid or expired server token' );
-    }
-
-    # Verify server token was obtained via Device Authorization Grant
-    my $grant_type = $serverSession->data->{grant_type} || '';
-    unless ( $grant_type eq 'device_code' ) {
-        $self->logger->warn(
-            "PAM userinfo: Server token not from Device Authorization Grant "
-              . "(grant_type: '$grant_type')" );
-        return $self->_forbiddenResponse( $req,
-            'Server not enrolled. Use Device Authorization Grant.' );
-    }
+    # 1. Caller gate: a valid Bearer token, obtained through the Device
+    #    Authorization Grant, carrying a pam scope (see _checkCaller). The
+    #    scope test used to be missing here: any device-grant token, from any
+    #    RP with any scope, got full NSS enumeration (groups plus every
+    #    pamAccessExportedVars attribute).
+    my ( $serverSession, $bail ) = $self->_checkCaller( $req, 'userinfo' );
+    return $bail if $bail;
 
     # An NSS lookup carries no client address, so the enrolled server is the
     # only way to tell which host asked. Same precedence as /pam/authorize.
-    my $server_id = $serverSession->data->{_deviceId}
-      || $serverSession->data->{client_id}
-      || 'unknown';
+    my $server_id = $self->_callerId($serverSession);
     $self->logger->info(
         "PAM userinfo request from enrolled server: $server_id");
 
@@ -1289,36 +1396,10 @@ sub userinfo {
 sub bastionToken {
     my ( $self, $req ) = @_;
 
-    # 1. Validate Bearer token from Authorization header
-    my $access_token = $self->oidc->getEndPointAccessToken($req);
-    unless ($access_token) {
-        $self->logger->warn('PAM bastion-token: No Bearer token provided');
-        return $self->_unauthorizedResponse( $req, 'Bearer token required' );
-    }
-
-    my $tokenSession = $self->oidc->getAccessToken($access_token);
-    unless ($tokenSession) {
-        $self->logger->warn(
-            'PAM bastion-token: Invalid or expired Bearer token');
-        return $self->_unauthorizedResponse( $req, 'Invalid or expired token' );
-    }
-
-    # 2. Verify token was obtained via Device Authorization Grant
-    my $grant_type = $tokenSession->data->{grant_type} || '';
-    unless ( $grant_type eq 'device_code' ) {
-        $self->logger->warn(
-                "PAM bastion-token: Token not from Device Authorization Grant "
-              . "(grant_type: '$grant_type')" );
-        return $self->_forbiddenResponse( $req,
-            'Server not enrolled. Use Device Authorization Grant.' );
-    }
-
-    # 3. Verify token has correct scope
-    my $scope = $tokenSession->data->{scope} || '';
-    unless ( $scope =~ /\bpam(?::server)?\b/ ) {
-        $self->logger->warn("PAM bastion-token: Invalid token scope '$scope'");
-        return $self->_forbiddenResponse( $req, 'Invalid token scope' );
-    }
+    # 1-3. Caller gate: a valid Bearer token, obtained through the Device
+    #      Authorization Grant, carrying a pam scope (see _checkCaller).
+    my ( $tokenSession, $bail ) = $self->_checkCaller( $req, 'bastion-token' );
+    return $bail if $bail;
 
     # 4. Identify the calling server.
     # bastion_id is taken from the device-grant token session and cannot be
@@ -1334,9 +1415,7 @@ sub bastionToken {
     # which is all that is required to learn its own bastion_id. The
     # bastion-group distinction is enforced where it matters — voucher minting
     # in /pam/authorize — not here.
-    my $bastion_id = $tokenSession->data->{_deviceId}
-      || $tokenSession->data->{client_id}
-      || 'unknown';
+    my $bastion_id = $self->_callerId($tokenSession);
 
     $self->logger->info(
         "PAM bastion-token request from enrolled server: $bastion_id");
@@ -1780,6 +1859,100 @@ sub _lastSeenOnPamAccess {
     return $ts;
 }
 
+# HELPER: last heartbeat received from the server presenting $tokenSession,
+# or undef when that server has never beaten.
+#
+# /pam/heartbeat stamps `_pamLastSeen` on the refresh-token session it beats
+# against, and on every access token it mints — together with `_pamRtRef`, the
+# storage id of that refresh-token session. We therefore know both when the
+# presented token was minted and, by following the reference, the *live* value:
+# a server that keeps beating stays fresh even when its PAM module reuses one
+# access token for its whole lifetime. Take the most recent of the two; a token
+# that predates this feature (or comes straight from the device grant, before
+# any heartbeat) carries neither and yields undef.
+sub _callerLastSeen {
+    my ( $self, $tokenSession ) = @_;
+
+    my $lastSeen = $tokenSession->data->{_pamLastSeen};
+    undef $lastSeen unless defined $lastSeen && $lastSeen =~ /\A\d+\z/;
+
+    my $rtRef = $tokenSession->data->{_pamRtRef};
+    if ( defined $rtRef && $rtRef ne '' ) {
+
+        # Fetched raw: `_pamRtRef` is the storage id, already hashed when
+        # hashedSessionStore is enabled, so it must not be hashed again.
+        my $rt = eval { $self->oidc->getRefreshToken( $rtRef, 1 ) };
+        if ( $rt && !$rt->error ) {
+            my $live = $rt->data->{_pamLastSeen};
+            $lastSeen = $live
+              if defined $live
+              && $live =~ /\A\d+\z/
+              && ( !defined $lastSeen || $live > $lastSeen );
+        }
+    }
+
+    return $lastSeen;
+}
+
+# HELPER: enforce pamAccessHeartbeatRequired on /pam/authorize.
+#
+# When enabled, the calling server must have sent a heartbeat within
+# pamAccessInactiveThreshold seconds (default 900, i.e. three missed beats at
+# the default pamAccessHeartbeatInterval of 300s): a machine whose ob-heartbeat
+# has stopped — decommissioned, cloned, or with its PAM stack tampered with —
+# stops being able to authorize anybody, instead of coasting on a still-valid
+# access token.
+#
+# Disabled by default, so existing deployments are unaffected.
+#
+# Returns undef when the caller may proceed, or the 403 response to send.
+sub _checkCallerHeartbeat {
+    my ( $self, $req, $tokenSession, $server_id ) = @_;
+
+    return undef unless $self->conf->{pamAccessHeartbeatRequired};
+
+    my $lastSeen = $self->_callerLastSeen($tokenSession);
+    unless ( defined $lastSeen ) {
+        $self->logger->warn(
+                "PAM authorize: no heartbeat recorded for server '$server_id' "
+              . "(pamAccessHeartbeatRequired is enabled)" );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_AUTHZ_NO_HEARTBEAT',
+            message =>
+              "PAM authorization denied: server '$server_id' has never "
+              . "sent a heartbeat",
+            server_id => $server_id,
+            reason    => 'no_heartbeat',
+        );
+        return $self->_forbiddenResponse( $req,
+            'Server has not sent a heartbeat' );
+    }
+
+    # 3 missed beats at the default 300s pamAccessHeartbeatInterval
+    my $threshold =
+      $self->_confPositiveInt( 'pamAccessInactiveThreshold', 900 );
+    my $age = time() - $lastSeen;
+    if ( $age > $threshold ) {
+        $self->logger->warn(
+                "PAM authorize: last heartbeat from server '$server_id' is "
+              . "${age}s old, max ${threshold}s" );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_AUTHZ_STALE_HEARTBEAT',
+            message => "PAM authorization denied: last heartbeat from server "
+              . "'$server_id' is ${age}s old (max ${threshold}s)",
+            server_id => $server_id,
+            age       => $age,
+            max_age   => $threshold,
+            reason    => 'stale_heartbeat',
+        );
+        return $self->_forbiddenResponse( $req, 'Server heartbeat is stale' );
+    }
+
+    return undef;
+}
+
 # HELPER: Look up the user's persistent session and verify that an SSH CA
 # certificate with the given fingerprint is registered, active, and not
 # revoked/expired. Returns { ok => 1, serial, label, key_id } on match,
@@ -2024,32 +2197,17 @@ sub _checkBastionVoucher {
 sub bastionCert {
     my ( $self, $req ) = @_;
 
-    # 1-3. Same caller gates as bastionToken: a valid device-grant token with
-    #      the pam scope. We do NOT require any "bastion group" here (see NB
-    #      below); the voucher checked in step 6 is the sole authorization.
-    my $access_token = $self->oidc->getEndPointAccessToken($req);
-    return $self->_unauthorizedResponse( $req, 'Bearer token required' )
-      unless $access_token;
-
-    my $tokenSession = $self->oidc->getAccessToken($access_token);
-    return $self->_unauthorizedResponse( $req, 'Invalid or expired token' )
-      unless $tokenSession;
-
-    my $grant_type = $tokenSession->data->{grant_type} || '';
-    return $self->_forbiddenResponse( $req,
-        'Server not enrolled. Use Device Authorization Grant.' )
-      unless $grant_type eq 'device_code';
-
-    my $scope = $tokenSession->data->{scope} || '';
-    return $self->_forbiddenResponse( $req, 'Invalid token scope' )
-      unless $scope =~ /\bpam(?::server)?\b/;
+    # 1-3. Same caller gate as every other /pam/* endpoint (_checkCaller): a
+    #      valid device-grant token with a pam scope. We do NOT require any
+    #      "bastion group" here (see NB below); the voucher checked in step 6
+    #      is the sole authorization.
+    my ( $tokenSession, $bail ) = $self->_checkCaller( $req, 'bastion-cert' );
+    return $bail if $bail;
 
     # Prefer the per-device identifier (stamped at enrollment by the
     # oidc-device-organization plugin) so a project-wide client_id still yields a
     # unique id per bastion; fall back to client_id for legacy enrollments.
-    my $bastion_id = $tokenSession->data->{_deviceId}
-      || $tokenSession->data->{client_id}
-      || 'unknown';
+    my $bastion_id = $self->_callerId($tokenSession);
 
     # NB: we deliberately do NOT re-derive or require a "bastion group" here.
     # The only security property that matters at this endpoint — a bastion may
@@ -2320,6 +2478,35 @@ immediately upon successful verification, ensuring single-use semantics.
 Servers can check if a user is authorized to access a service, even when
 the user authenticates via SSH key (no token involved).
 
+=head1 CALLER AUTHENTICATION
+
+Every server-to-server endpoint (C</pam/authorize>, C</pam/verify>,
+C</pam/userinfo>, C</pam/heartbeat>, C</pam/bastion-token> and
+C</pam/bastion-cert>) applies the same gate to its caller:
+
+=over
+
+=item *
+
+a caller credential: a Bearer access token, or — for C</pam/heartbeat>, which
+authenticates through the request body — the refresh token it presents;
+
+=item *
+
+that credential must come from the Device Authorization Grant
+(C<grant_type> = C<device_code>), i.e. the server must be enrolled;
+
+=item *
+
+it must carry the C<pam> or C<pam:server> scope. The scope is matched
+B<exactly> against the whitespace-separated values of the granted scope
+(RFC 6749 section 3.3): C<pam-x>, C<x-pam> or C<pam:server:extra> are not
+C<pam>.
+
+=back
+
+Failing the first check yields C<401>, the other two C<403>.
+
 =head1 ENDPOINTS
 
 =head2 GET /pam
@@ -2482,13 +2669,31 @@ Expected interval between server heartbeats in seconds (default: 300)
 
 =item pamAccessInactiveThreshold
 
-Time in seconds after which a server is considered inactive if no heartbeat
-received (default: 900)
+Maximum age, in seconds, of the last heartbeat of a server calling
+C</pam/authorize> when C<pamAccessHeartbeatRequired> is enabled (default: 900,
+i.e. three missed beats at the default C<pamAccessHeartbeatInterval> of 300s).
+Must be a positive integer; invalid values fall back to the default. Ignored
+when C<pamAccessHeartbeatRequired> is off.
 
 =item pamAccessHeartbeatRequired
 
-If enabled, servers must have a recent heartbeat to use /pam/authorize.
-This ensures that the PAM module is still active on the server. (default: 0)
+When enabled, C</pam/authorize> additionally requires the calling server to
+have sent a heartbeat less than C<pamAccessInactiveThreshold> seconds ago; a
+server that has never beaten, or has stopped beating, is answered C<403>
+(C<Server has not sent a heartbeat> / C<Server heartbeat is stale>) instead of
+being allowed to authorize users on the strength of a still-valid access
+token. Enable it to make a decommissioned, cloned or tampered-with machine
+lose its authority within the threshold rather than at token expiry.
+
+Liveness is read from the heartbeat markers C</pam/heartbeat> stamps: on the
+refresh-token session it beats against, and on every access token it mints
+(C<_pamLastSeen>, plus C<_pamRtRef> pointing back at the refresh-token session
+so the I<live> value is used even when a server reuses one access token for
+its whole lifetime). Consequently a server must beat at least once after
+enrollment before it can authorize anybody; the plain device-grant token
+carries no marker.
+
+(default: 0, i.e. no liveness requirement)
 
 =item pamAccessBastionGroups
 
