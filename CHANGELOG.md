@@ -2,6 +2,64 @@
 
 ## Unreleased
 
+### Upgrade notes
+
+This round of security fixes changes behaviour existing deployments may rely
+on. Five points to check before upgrading; the reasoning behind each is in the
+per-plugin sections below.
+
+1. **SSH CA administration denies until it is configured** (ssh-ca).
+   `/ssh/admin`, `/ssh/certs` and `/ssh/revoke` answer 403 while
+   `sshCaAdminRule` is unset — on a portal that administered fine yesterday.
+   Set the rule in Manager > General Parameters > Plugins > SSH CA, e.g.
+   `inGroup('ssh-admins')`; `open-bastion-plugins-autoconfig` writes the
+   denying `0` and logs the same reminder. The per-user endpoints
+   (`/ssh/sign`, `/ssh/mycerts`, `/ssh/myrevoke`) are unaffected, so users
+   keep getting certificates while the rule is missing.
+
+2. **RSA keys below 2048 bits and `ssh-dss` keys are no longer signed**
+   (ssh-ca). `/ssh/sign` answers 400 where it used to issue a certificate,
+   and the refusal only surfaces when a user next asks for one. Operators who
+   still need those keys can add `dss` to `sshCaAllowedKeyTypes` and lower
+   `sshCaMinKeyBits`. In the other direction, FIDO2 `sk-ssh-ed25519@…` and
+   `sk-ecdsa-sha2-*@…` keys, which the old regexp rejected, are now accepted.
+
+3. **The PAM scope is matched exactly** (pam-access). The six `/pam/*`
+   endpoints accept `pam` and `pam:server` as whitespace-separated tokens;
+   the previous regexp also let through anything containing `pam` at a word
+   boundary (`pam-prod`, `x-pam`). An RP granted such a scope loses access —
+   check `oidcRPMetaDataScopeRules` for the RPs your bastions enroll with
+   before upgrading.
+
+4. **Malformed inputs answer 400 instead of being coerced** (ssh-ca). A
+   `validity_days` that is not a positive integer (`"abc"` used to mint a
+   sub-minute certificate, `-5` an HTTP 500), a negative `limit`/`offset` on
+   `/ssh/certs` (which silently returned a different slice), and a
+   revocation `reason` longer than 256 characters or carrying control
+   characters are all rejected now. Well-formed clients see no change.
+
+5. **`ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED` carries `user_code_hash`**
+   (oidc-device-authorization), not `user_code`: the plaintext code is no
+   longer persisted, so the token-exchange path only knows its digest. SIEM
+   rules and enrollment-correlation queries keyed on that field need
+   updating. The approve/deny audit records still carry the submitted code.
+
+Not breaking, but worth knowing:
+
+- `pamAccessHeartbeatRequired` still defaults to 0 — nothing changes unless
+  you enable it. The day you do, an enrolled server that stops beating is
+  refused at `/pam/authorize`, which makes `/pam/heartbeat` an operational
+  dependency.
+- The new device-grant bounds (user code 8-20, polling interval 1-60, code
+  TTL 60-3600) are Manager validations: an out-of-range configuration keeps
+  working until the next save, with runtime floors applied. A portal set to a
+  user code shorter than 8 starts issuing 8-character codes; codes already
+  outstanding stay valid.
+- Device authorizations in flight across the restart keep their lookup
+  session until it expires (one TTL at most) instead of being deleted with
+  the decision, because the record no longer stores the field the deletion
+  used.
+
 ### ssh-ca
 
 - **Security fix — the administration endpoints performed no authorization**
@@ -43,24 +101,6 @@
   newline injects arbitrary directives (`id:`, `key:`, `hash:`). Serials are
   now checked to be decimal integers in the handler, in `_updateKrl` and in
   `sshca-rebuild-krl`.
-
-### ldap-rest (new)
-
-- **Feature — directory writes delegated to
-  [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
-  allowed to write into the directory or needing ldap-rest hooks to fire on
-  password change and account creation. Port of the upstream LLNG
-  `ldap-rest` branch.
-- **`Password::LdapRest`** (password module): reads stay on LDAP — ldap-rest
-  has no "verify this password" endpoint — the write is a `PUT`. The LDAP
-  account no longer needs write access.
-- **`Register::LdapRest`** (register module, new in this port): no LDAP
-  connection at all, `GET` for the uniqueness check and `POST` to create.
-- Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
-  optional client side RFC 3112 password hashing.
-
-### ssh-ca
-
 - **Security fix — the CA private key no longer lingers in `/tmp`**. Signing
   wrote the unencrypted CA key into a `File::Temp::tempdir(CLEANUP => 1)`
   directory, which is only removed at _program_ exit: in a long-lived portal
@@ -103,22 +143,6 @@
   missed beats). Both defaults are unchanged, so deployments that never ticked
   the box behave exactly as before.
 
-### oidc-device-organization
-
-- **Fix — the plugin failed OPEN when the synthetic device session could not
-  be created** (#72). It returned `PE_OK`, so the enrollment completed against
-  the _approving admin's_ session: a token whose `sub` was the admin, dying
-  with the admin's SSO session and carrying no `_deviceId` at all. The client
-  saw a 200 and the failure surfaced hours later as a lost identity. The hook
-  now returns `PE_ERROR` and the token endpoint answers `server_error`.
-- **Fix — the synthetic session outlived its refresh token by `timeout`**
-  (#75). It now uses the core `time + ttl - timeout` pattern and consults the
-  per-RP `oidcRPMetaDataOptionsOfflineSessionExpiration` its own comment
-  referred to.
-- **First test suite** (partial answer to #71): nominal organization
-  enrollment, `_deviceId` derivation and uniqueness, synthetic session
-  lifetime, and the fail-closed path.
-
 ### oidc-device-authorization
 
 - **Fix — a poll could overwrite an admin approval or denial** (#69). The
@@ -149,6 +173,37 @@
   the boolOrExpr form as the recommended configuration and ships a `/device`
   `locationRules` example — unanchored, because access rules match
   `REQUEST_URI` including the query string.
+
+### oidc-device-organization
+
+- **Fix — the plugin failed OPEN when the synthetic device session could not
+  be created** (#72). It returned `PE_OK`, so the enrollment completed against
+  the _approving admin's_ session: a token whose `sub` was the admin, dying
+  with the admin's SSO session and carrying no `_deviceId` at all. The client
+  saw a 200 and the failure surfaced hours later as a lost identity. The hook
+  now returns `PE_ERROR` and the token endpoint answers `server_error`.
+- **Fix — the synthetic session outlived its refresh token by `timeout`**
+  (#75). It now uses the core `time + ttl - timeout` pattern and consults the
+  per-RP `oidcRPMetaDataOptionsOfflineSessionExpiration` its own comment
+  referred to.
+- **First test suite** (partial answer to #71): nominal organization
+  enrollment, `_deviceId` derivation and uniqueness, synthetic session
+  lifetime, and the fail-closed path.
+
+### ldap-rest (new)
+
+- **Feature — directory writes delegated to
+  [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
+  allowed to write into the directory or needing ldap-rest hooks to fire on
+  password change and account creation. Port of the upstream LLNG
+  `ldap-rest` branch.
+- **`Password::LdapRest`** (password module): reads stay on LDAP — ldap-rest
+  has no "verify this password" endpoint — the write is a `PUT`. The LDAP
+  account no longer needs write access.
+- **`Register::LdapRest`** (register module, new in this port): no LDAP
+  connection at all, `GET` for the uniqueness check and `POST` to create.
+- Authentication `none`, `token` (Bearer) or `hmac` (HMAC-SHA256), and
+  optional client side RFC 3112 password hashing.
 
 ## v0.5.2 - 2026-08-31
 
