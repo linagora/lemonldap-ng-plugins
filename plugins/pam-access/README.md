@@ -12,9 +12,6 @@ generate temporary access tokens for SSH and other PAM-enabled services.
   modules, with optional SSH fingerprint binding (see below).
 - **Authorization** (`/pam/authorize`): server-to-server endpoint for SSH /
   sudo rules, with optional SSH fingerprint binding.
-- **Bastion token** (`/pam/bastion-token`): a bastion server can obtain a
-  signed JWT that proves to a downstream backend that the user is connected
-  through a trusted bastion.
 - **Server groups mapping**: the authoritative group of an enrolled server
   can be pinned to its OIDC `client_id`, preventing a server from claiming
   another group's permissions.
@@ -53,17 +50,17 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessSshRules`                    | Per-group SSH authorization rules                                                                                                                                                        | `{}`      |
 | `pamAccessSudoRules`                   | Per-group sudo authorization rules                                                                                                                                                       | `{}`      |
 | `pamAccessExportedVars`                | Session attributes to expose to PAM modules                                                                                                                                              | `{}`      |
-| `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` and `/pam/bastion-token` enforce the mapping and reject mismatches.                                   | `{}`      |
-| `pamAccessBastionGroups`               | Comma-separated list of server groups allowed to call `/pam/bastion-token`                                                                                                               | `bastion` |
-| `pamAccessBastionJwtTtl`               | Bastion JWT validity in seconds                                                                                                                                                          | `300`     |
-| `pamAccessBastionMaxSeenAge`           | Maximum age (seconds) of the `_pamSeen` marker accepted by `/pam/bastion-token`. Default 1 week. Set to `0` to disable the age check.                                                    | `604800`  |
+| `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` enforces the mapping and rejects mismatches.                                                          | `{}`      |
+| `pamAccessBastionGroups`               | Comma-separated list of server groups whose hosts may be vouched for as bastions                                                                                                         | `bastion` |
 | `pamAccessOfflineEnabled`              | Enable offline mode (boolOrExpr)                                                                                                                                                         | `0`       |
 | `pamAccessOfflineTtl`                  | Offline authorization cache TTL (seconds)                                                                                                                                                | `86400`   |
 | `pamAccessHeartbeatRequired`           | Require a recent heartbeat from the calling server for `/pam/authorize` (see below)                                                                                                      | `0`       |
 | `pamAccessInactiveThreshold`           | Maximum age (seconds) of that heartbeat, when `pamAccessHeartbeatRequired` is enabled                                                                                                    | `900`     |
 | `pamAccessHeartbeatInterval`           | Heartbeat interval advertised to servers in the `/pam/heartbeat` response                                                                                                                | `300`     |
-| `pamAccessChoice`                      | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize`, `/pam/userinfo` and `/pam/bastion-token`. Leave empty when Choice auth is not used. | `""`      |
-| `pamAccessBastionCertPinSourceAddress` | Pin the ephemeral cert issued by `/pam/bastion-cert` to the bastion's IP (`source-address` critical option). See the note below.                                                         | `0`       |
+| `pamAccessChoice`                      | Choice sub-module (must match an `authChoiceModules` entry, e.g. `1_LDAP`) used by `/pam/authorize` and `/pam/userinfo`. Leave empty when Choice auth is not used. | `""`      |
+| `pamAccessBastionCertPinSourceAddress` | Pin the ephemeral cert issued by `/pam/bastion-cert` to the bastion's IP (`source-address` critical option). When set and the observed address is unusable, the request is refused rather than served unpinned. See the note below. | `0`       |
+| `pamAccessRequireFingerprint`          | Refuse `/pam/verify` and `/pam/authorize` when the caller supplies no SSH fingerprint, instead of falling back to the unbound behaviour.                                                  | `0`       |
+| `pamAccessBastionVoucherUnboundTtl`    | Maximum lifetime of a voucher minted without a fingerprint, i.e. one nothing binds to the user's SSO certificate expiry (seconds).                                                        | `900`     |
 
 > **Recommendation — `pamAccessBastionCertPinSourceAddress`**
 >
@@ -115,8 +112,9 @@ UI. The requested TTL is passed as `{"duration": <seconds>}` (CLI flag
 `--pam-duration`, default `600`), capped by `pamAccessMaxDuration`.
 
 Each `/pam` POST also stamps a `_pamSeen` marker on the user's persistent
-session. This marker makes the user eligible for `/pam/bastion-token` (see
-below).
+session. Nothing reads it since `/pam/bastion-token` was removed; it is kept
+as the trail a future "require a recent `/pam/verify` before sudo" policy
+would need.
 
 ### Server-to-server endpoints (OIDC Bearer token)
 
@@ -126,7 +124,6 @@ below).
 | POST   | `/pam/authorize`     | Check SSH/sudo rules for a given `user`/`host`/`service` |
 | POST   | `/pam/heartbeat`     | Record a server liveness ping                            |
 | POST   | `/pam/userinfo`      | Look up user info for NSS / PAM caches                   |
-| POST   | `/pam/bastion-token` | Mint a JWT proving a bastion hosts a legitimate user     |
 
 All server-to-server endpoints require a Bearer access token obtained via
 the OIDC Device Authorization Grant (`grant_type=device_code`) with scope
@@ -191,47 +188,13 @@ carries little risk. Revocation is always honored regardless of either value.
 
 ### Server-group enforcement (`pamAccessServerGroups`)
 
-- If the mapping is non-empty, `/pam/authorize` and `/pam/bastion-token`
-  ignore any `server_group` from the request body and use the mapped
-  value. Unknown `client_id`s are rejected. A body `server_group` that
-  contradicts the mapping yields HTTP 403 +
-  `PAM_AUTHZ_SERVER_GROUP_MISMATCH`.
+- If the mapping is non-empty, `/pam/authorize` ignores any `server_group`
+  from the request body and uses the mapped value. Unknown `client_id`s are
+  rejected. A body `server_group` that contradicts the mapping yields
+  HTTP 403 + `PAM_AUTHZ_SERVER_GROUP_MISMATCH`.
 - If the mapping is empty, the plugin falls back to the legacy behaviour
   (group from the body) and emits a warning log — existing deployments
   keep working until they configure the mapping.
-
-### Bastion-token eligibility
-
-`/pam/bastion-token` signs a JWT with `sub = $user` only if **both** hold:
-
-1. The user has a `_pamSeen` marker on this portal (i.e. they have
-   generated a PAM token via `/pam` or consumed one via `/pam/verify`).
-2. The marker is younger than `pamAccessBastionMaxSeenAge` (default
-   1 week). Set it to `0` to disable the TTL check.
-
-Audit codes emitted on refusal: `PAM_BASTION_TOKEN_UNKNOWN_USER`,
-`PAM_BASTION_TOKEN_STALE_MARKER`.
-
-Bastions remain responsible for only calling `/pam/bastion-token` for
-users whose SSH session they are actively proxying; the portal only
-checks the identity is known and fresh on its side.
-
-### Probe mode (`"probe": true`)
-
-A bastion can self-identify the `bastion_id` it would be assigned by
-POSTing `{"probe": true}` (no `user` required). The portal returns the
-`bastion_id` (derived from the token's `client_id`) and `server_group`
-directly, skipping the `_pamSeen` recency gate and **without** minting a
-usable JWT:
-
-```json
-{ "bastion_id": "...", "server_group": "...", "probe": true }
-```
-
-The device-grant token, scope and `pamAccessBastionGroups` membership
-checks still apply, so only a legitimate bastion can learn its own id.
-This is what `ob-bastion-id` uses to identify itself; a probe vouches
-for no real user, so the per-user freshness check does not apply.
 
 ## See Also
 

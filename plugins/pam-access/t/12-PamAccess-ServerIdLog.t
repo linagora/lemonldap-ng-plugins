@@ -130,26 +130,6 @@ is( scalar @amiss, 1, 'authorize miss logged at notice level' );
 like( $amiss[0], qr/\Q$expected\E/, 'authorize miss names the server' );
 count(3);
 
-# /pam/bastion-token logs a request line (probe mode needs no voucher)
-@logs = ();
-my $probe_body = to_json( { probe => JSON::true() } );
-ok(
-    $res = $op->_post(
-        '/pam/bastion-token',
-        IO::String->new($probe_body),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($probe_body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
-    ),
-    'POST /pam/bastion-token (probe)'
-);
-my @breq =
-  grep { /^info\|PAM bastion-token request from enrolled server/ } @logs;
-is( scalar @breq, 1, 'Exactly one bastion-token request log line' );
-like( $breq[0], qr/\Q$expected\E/, 'bastion-token line carries the server id' );
-count(3);
-
 # ---------------------------------------------------------------------------
 # Same, on an organization-owned RP: enrollment stamps a per-device synthetic
 # session, and the log must carry that _deviceId rather than the shared

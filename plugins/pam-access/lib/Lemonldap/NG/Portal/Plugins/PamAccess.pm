@@ -51,7 +51,7 @@ has rpName => (
 
 # One-shot flag for the legacy-mode warning emitted by _resolveServerGroup
 # when pamAccessServerGroups is empty. Without this, every call to
-# /pam/authorize or /pam/bastion-token would log a warning.
+# /pam/authorize would log a warning.
 has _serverGroupLegacyWarned => (
     is      => 'rw',
     default => 0,
@@ -107,13 +107,6 @@ sub init {
       # Route for bastion token generation (bastion -> LLNG)
       # Returns a JWT that proves the bastion has a valid session
       # DEPRECATED: the SendEnv/pam_getenv transport this JWT relied on is
-      # structurally broken (see doc/design/bastion-cert-vouching.md). Kept for
-      # backward-compat; superseded by /pam/bastion-cert below.
-      ->addUnauthRoute(
-        pam => { 'bastion-token' => 'bastionToken' },
-        ['POST']
-      )
-
       # Route for bastion ephemeral-certificate vouching (bastion -> LLNG).
       # The bastion sends an ephemeral public key + the (bastion_id, user)
       # voucher minted by /pam/authorize; LLNG returns a short-lived,
@@ -256,9 +249,11 @@ sub generateToken {
     $self->logger->info(
         "PAM one-time token generated for user $login (TTL: ${duration}s)");
 
-    # Mark this user as known to pam-access on this portal. Used by
-    # /pam/bastion-token to refuse vouching for identities that have never
-    # interacted with the pam-access plugin.
+    # Mark this user as known to pam-access on this portal. Its only reader,
+    # /pam/bastion-token, is gone (issue #57); the marker is kept because it is
+    # the trail issue #10 asks for -- requiring a periodic /pam/verify before
+    # sudo -- and stamping it costs one write on a session already being
+    # written.
     $self->p->updatePersistentSession( $req, { _pamSeen => time() } );
 
     # Audit log for token generation
@@ -803,16 +798,6 @@ my %CALLER_GATE = (
         ],
         scope_log => 'refresh token has invalid scope',
     },
-    'bastion-token' => {
-        label     => 'PAM bastion-token',
-        no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
-        bad_token =>
-          [ 'Invalid or expired Bearer token', 'Invalid or expired token' ],
-        bad_grant => [
-            'Token not from Device Authorization Grant',
-            'Server not enrolled. Use Device Authorization Grant.',
-        ],
-    },
     'bastion-cert' => {
         label     => 'PAM bastion-cert',
         no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
@@ -1075,8 +1060,8 @@ sub verifyToken {
     # 7. CRITICAL: Remove the session (one-time use!)
     $tokenSession->remove;
 
-    # Refresh the user's pam-access persistence marker so /pam/bastion-token
-    # can later vouch for them. Done after the token is consumed so that a
+    # Refresh the user's pam-access persistence marker (see generateToken for
+    # why it is still stamped). Done after the token is consumed so that a
     # failed verify never stamps. When the fingerprint branch ran above it
     # already loaded the persistent session, so reuse it and skip a second
     # read+write via updatePersistentSession's inner getPersistentSession.
@@ -1371,257 +1356,6 @@ sub userinfo {
     );
 }
 
-# POST /pam/bastion-token - Generate JWT for bastion-to-backend authentication
-#
-# This endpoint allows a bastion server to obtain a signed JWT that proves:
-# 1. The bastion has a valid server token (enrolled via Device Authorization Grant)
-# 2. The bastion is in a "bastion" server group
-# 3. The user has been authenticated on this bastion
-#
-# The backend server can verify this JWT to ensure connections only come from
-# authorized bastions, not direct connections bypassing the bastion.
-#
-# Request:
-# {
-#   "user": "dwho",                      # User being proxied
-#   "target_host": "backend.example.com", # Target backend server
-#   "target_group": "production"          # Target server group (optional)
-# }
-#
-# Response:
-# {
-#   "bastion_jwt": "eyJhbGciOiJSUzI1NiI...",  # Signed JWT
-#   "expires_in": 300                          # JWT validity in seconds
-# }
-sub bastionToken {
-    my ( $self, $req ) = @_;
-
-    # 1-3. Caller gate: a valid Bearer token, obtained through the Device
-    #      Authorization Grant, carrying a pam scope (see _checkCaller).
-    my ( $tokenSession, $bail ) = $self->_checkCaller( $req, 'bastion-token' );
-    return $bail if $bail;
-
-    # 4. Identify the calling server.
-    # bastion_id is taken from the device-grant token session and cannot be
-    # forged by the host: we prefer the per-device identifier `_deviceId`
-    # (stamped at enrollment by oidc-device-organization) so that a project-wide
-    # client_id — which enrolls every machine of the project and so identifies
-    # only the *project* — still yields an id unique per bastion; we fall back
-    # to client_id for legacy enrollments that carry no _deviceId.
-    # We do NOT gate this endpoint on a "bastion group": with a project-wide
-    # client_id the device-grant session carries no per-host server_group (it
-    # would resolve to "default" and reject every probe). The caller already
-    # proved it holds a valid device-grant token with the pam scope (steps 1-3),
-    # which is all that is required to learn its own bastion_id. The
-    # bastion-group distinction is enforced where it matters — voucher minting
-    # in /pam/authorize — not here.
-    my $bastion_id = $self->_callerId($tokenSession);
-
-    $self->logger->info(
-        "PAM bastion-token request from enrolled server: $bastion_id");
-
-    # 5. Parse JSON request body
-    my $body = eval { from_json( $req->content ) };
-    if ($@) {
-        $self->logger->error(
-            "PAM bastion-token: Invalid JSON body from '$bastion_id': $@");
-        return $self->_badRequest( $req, 'Invalid JSON' );
-    }
-
-    my $user         = $body->{user};
-    my $target_host  = $body->{target_host}  || '';
-    my $target_group = $body->{target_group} || 'default';
-    # Informational only (audit logs / probe response / JWT claims): not a
-    # security control for *this* endpoint — see step 4. We still resolve it
-    # through pamAccessServerGroups rather than trusting the request body
-    # blindly: when the client_id->group mapping is configured the resolved
-    # group is authoritative (and an unmapped/mismatched caller is rejected,
-    # as in /pam/authorize), so we never sign a caller-forged group into the
-    # JWT; in legacy mode (empty mapping) we fall back to the caller-claimed
-    # value, exactly as /pam/authorize does.
-    # Resolve the group by OIDC client_id, the key of pamAccessServerGroups
-    # (see /pam/authorize): $bastion_id is the per-device _deviceId, which is
-    # never a key in that map, so using it rejected every device-id enrollment.
-    my $group_client_id = $tokenSession->data->{client_id} // $bastion_id;
-    my $server_group =
-      $self->_resolveServerGroup( $req, $group_client_id,
-        $body->{bastion_group} || $tokenSession->data->{server_group},
-        'PAM bastion-token' );
-    if ( ref $server_group eq 'HASH' && $server_group->{rejected} ) {
-        return $self->_forbiddenResponse( $req, $server_group->{message} );
-    }
-
-    # Probe mode (ob-bastion-id): a server self-identifying the bastion_id it
-    # would receive does not vouch for any real user, so the per-user _pamSeen
-    # recency gate below does not apply, and no `user` is required. Steps 1-3
-    # already proved the caller holds a valid device-grant token with the pam
-    # scope — which is all that is required to learn its own bastion_id. We
-    # return the identifier only, never a usable JWT, so probe mode cannot be
-    # abused to mint credentials.
-    if ( $body->{probe} ) {
-        $self->logger->info( "PAM bastion-token: probe request — "
-              . "returning bastion_id '$bastion_id' (group=$server_group)" );
-        return $self->p->sendJSONresponse(
-            $req,
-            {
-                bastion_id   => $bastion_id,
-                server_group => $server_group,
-                probe        => JSON::true(),
-            }
-        );
-    }
-
-    unless ($user) {
-        return $self->_badRequest( $req, 'Missing user parameter' );
-    }
-
-    # 6. Require that the user has recently interacted with pam-access on
-    # this portal. The `_pamSeen` marker is stamped in /pam (generateToken)
-    # and /pam/verify; we reject if it is missing (user never used
-    # pam-access here) or older than pamAccessBastionMaxSeenAge (default:
-    # 7 days). This limits the window during which a bastion can mint JWTs
-    # for a user who has stopped using this portal.
-    my $lastSeen = $self->_lastSeenOnPamAccess($user);
-    unless ( defined $lastSeen ) {
-        $self->logger->info(
-"PAM bastion-token: Rejected — user '$user' has no _pamSeen marker (bastion='$bastion_id')"
-        );
-        $self->p->auditLog(
-            $req,
-            code    => 'PAM_BASTION_TOKEN_UNKNOWN_USER',
-            user    => $user,
-            message =>
-"PAM bastion-token denied: no _pamSeen marker for user '$user' (bastion='$bastion_id')",
-            bastion_id    => $bastion_id,
-            bastion_group => $server_group,
-            target_host   => $target_host,
-            target_group  => $target_group,
-            reason        => 'no_pam_seen_marker',
-        );
-        return $self->_forbiddenResponse( $req,
-            'User has never authenticated on this portal via pam-access' );
-    }
-
-    my $maxAge =
-      defined $self->conf->{pamAccessBastionMaxSeenAge}
-      ? $self->conf->{pamAccessBastionMaxSeenAge}
-      : 604800;    # 7 days
-    if ( $maxAge > 0 ) {
-        my $age = time() - $lastSeen;
-        if ( $age > $maxAge ) {
-            $self->logger->info(
-"PAM bastion-token: Rejected — _pamSeen for user '$user' is ${age}s old, max ${maxAge}s (bastion='$bastion_id')"
-            );
-            $self->p->auditLog(
-                $req,
-                code    => 'PAM_BASTION_TOKEN_STALE_MARKER',
-                user    => $user,
-                message =>
-"PAM bastion-token denied: _pamSeen too old for user '$user' (age=${age}s, max=${maxAge}s)",
-                bastion_id    => $bastion_id,
-                bastion_group => $server_group,
-                target_host   => $target_host,
-                target_group  => $target_group,
-                age           => $age,
-                max_age       => $maxAge,
-                reason        => 'stale_pam_seen_marker',
-            );
-            return $self->_forbiddenResponse( $req,
-"User has not recently interacted with pam-access on this portal"
-            );
-        }
-    }
-
-    $self->logger->info(
-            "PAM bastion-token: Generating JWT for bastion '$bastion_id' "
-          . "proxying user '$user' to '$target_host'" );
-
-    # 7. Generate JWT
-    my $jwt_ttl =
-      $self->conf->{pamAccessBastionJwtTtl} || 300;    # 5 minutes default
-    my $now = time();
-    my $exp = $now + $jwt_ttl;
-
-    # Generate unique JWT ID (must be cryptographically secure)
-    my $jti = $self->_generateUUID();
-    unless ($jti) {
-        return $self->p->sendJSONresponse(
-            $req,
-            { error => 'Failed to generate secure token ID' },
-            code => 500
-        );
-    }
-
-    # Build JWT claims
-    my $claims = {
-        iss           => $self->conf->{portal},    # Issuer: LLNG portal URL
-        sub           => $user,                    # Subject: user being proxied
-        aud           => 'pam:bastion-backend',    # Audience
-        exp           => $exp,                     # Expiration
-        iat           => $now,                     # Issued at
-        jti           => $jti,                     # Unique ID
-        bastion_id    => $bastion_id,              # Bastion server ID
-        bastion_group => $server_group,            # Bastion server group
-        target_host   => $target_host,             # Target backend
-        target_group  => $target_group,            # Target server group
-        bastion_ip    => $req->address,            # Bastion IP address
-    };
-
-    # Lookup user groups if available
-    $req->user($user);
-    $req->data->{_pamBastionToken} = 1;
-    $req->steps( $self->machineLookupSteps );
-
-    # Tell Lib::Choice which sub-module to use for this server-to-server
-    # getUser/setSessionInfo run (no interactive auth flow available here).
-    $req->data->{_authChoice} = $self->conf->{pamAccessChoice}
-      if $self->conf->{pamAccessChoice};
-
-    my $error = $self->p->process($req);
-    if ( $error == PE_OK ) {
-        my $groups    = $req->sessionInfo->{groups} || '';
-        my @groupList = split /[,;\s]+/, $groups;
-        $claims->{user_groups} = \@groupList if @groupList;
-    }
-    else {
-        $self->logger->warn(
-"PAM bastion-token: Failed to retrieve groups for user $user, asked by server '$bastion_id' (error=$error), JWT will have no user_groups claim"
-        );
-    }
-
-    # 8. Sign JWT using OIDC module's key
-    my $jwt = $self->_signBastionJwt($claims);
-    unless ($jwt) {
-        $self->logger->error("PAM bastion-token: Failed to sign JWT");
-        return $self->p->sendJSONresponse(
-            $req,
-            { error => 'Failed to generate token' },
-            code => 500
-        );
-    }
-
-    # 9. Audit log
-    $self->p->auditLog(
-        $req,
-        code    => 'PAM_BASTION_TOKEN_GENERATED',
-        user    => $user,
-        message => "Bastion JWT generated for user '$user' to '$target_host'",
-        bastion_id   => $bastion_id,
-        target_host  => $target_host,
-        target_group => $target_group,
-        ttl          => $jwt_ttl,
-    );
-
-    # 10. Return JWT
-    return $self->p->sendJSONresponse(
-        $req,
-        {
-            bastion_jwt => $jwt,
-            expires_in  => $jwt_ttl,
-        }
-    );
-}
-
 # Generate a UUID v4 using cryptographically secure random bytes
 sub _generateUUID {
     my ($self) = @_;
@@ -1637,7 +1371,7 @@ sub _generateUUID {
         open my $fh, '<:raw', '/dev/urandom'
           or do {
             $self->logger->error(
-'PAM bastion-token: Cannot open /dev/urandom for UUID generation'
+'PAM: Cannot open /dev/urandom for UUID generation'
             );
             return undef;
           };
@@ -1648,7 +1382,7 @@ sub _generateUUID {
     else {
         # No secure random source available
         $self->logger->error(
-'PAM bastion-token: No cryptographically secure random source available '
+'PAM: No cryptographically secure random source available '
               . '(install Crypt::URandom or ensure /dev/urandom is readable)' );
         return undef;
     }
@@ -1663,77 +1397,6 @@ sub _generateUUID {
       sprintf(
         '%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x',
         @bytes );
-}
-
-# Sign a JWT for bastion authentication using RS256
-# Uses the OIDC module's signing key
-sub _signBastionJwt {
-    my ( $self, $claims ) = @_;
-
-    # Try to use OIDC module's JWT signing capability
-    my $oidc = $self->oidc;
-    return undef unless $oidc;
-
-    # Get the signing key from OIDC configuration
-    my $key;
-    my $kid;
-
-    # Check if we have OIDC service private signing key
-    # Note: We intentionally do NOT fallback to encryption key - signing keys
-    # and encryption keys serve different cryptographic purposes and should
-    # not be used interchangeably (per security best practices)
-    if ( $self->conf->{oidcServicePrivateKeySig} ) {
-        $key = $self->conf->{oidcServicePrivateKeySig};
-        $kid = $self->conf->{oidcServiceKeyIdSig} || 'llng-sig';
-    }
-    else {
-        $self->logger->error(
-                'PAM bastion-token: No OIDC private signing key configured '
-              . '(oidcServicePrivateKeySig required for JWT signing)' );
-        return undef;
-    }
-
-    # Build JWT header
-    my $header = {
-        alg => 'RS256',
-        typ => 'JWT',
-        kid => $kid,
-    };
-
-    # Encode header and payload
-    require MIME::Base64;
-    require JSON;
-
-    my $header_b64 =
-      MIME::Base64::encode_base64url( JSON::encode_json($header), '' );
-    my $payload_b64 =
-      MIME::Base64::encode_base64url( JSON::encode_json($claims), '' );
-
-    my $signing_input = "$header_b64.$payload_b64";
-
-    # Sign with RSA-SHA256
-    require Crypt::OpenSSL::RSA;
-
-    my $rsa;
-    eval {
-        $rsa = Crypt::OpenSSL::RSA->new_private_key($key);
-        $rsa->use_sha256_hash();
-    };
-    if ($@) {
-        $self->logger->error("PAM bastion-token: RSA key error: $@");
-        return undef;
-    }
-
-    my $signature;
-    eval { $signature = $rsa->sign($signing_input); };
-    if ($@) {
-        $self->logger->error("PAM bastion-token: Signing error: $@");
-        return undef;
-    }
-
-    my $sig_b64 = MIME::Base64::encode_base64url( $signature, '' );
-
-    return "$signing_input.$sig_b64";
 }
 
 # HELPER: Resolve the authoritative server_group for an enrolled client.
@@ -1818,8 +1481,6 @@ sub _parseFingerprintOrReject {
         $fp =~ s/^\s+|\s+$//g;
         $fp = undef if $fp eq '';
     }
-    return ( undef, undef ) unless defined $fp;
-    return ( $fp,   undef ) if $fp =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z};
 
     my $label        = $opts{label}         || 'PAM';
     my $action       = $opts{action}        || 'rejected';
@@ -1827,6 +1488,33 @@ sub _parseFingerprintOrReject {
     my $audit_fields = $opts{audit_fields}  || {};
     my $body_out     = $opts{response_body}
       || { error => 'Malformed SSH fingerprint' };
+
+    # The fingerprint is optional by contract, and several guarantees quietly
+    # depend on it: the voucher TTL cap, and the binding a backend re-checks.
+    # pamAccessRequireFingerprint (off by default) lets a deployment that has
+    # rolled out the client-side spool refuse the unbound case outright rather
+    # than silently downgrading (issue #55).
+    if ( !defined $fp and $self->conf->{pamAccessRequireFingerprint} ) {
+        $self->logger->info(
+            "$label: no SSH fingerprint supplied for user '$user' and"
+              . " pamAccessRequireFingerprint is set" );
+        $self->p->auditLog(
+            $req,
+            code    => $audit_code,
+            user    => $user,
+            message => "PAM $action: no SSH fingerprint supplied for user"
+              . " '$user' (pamAccessRequireFingerprint)",
+            reason => 'fingerprint_required',
+            %$audit_fields,
+        );
+        $opts{on_reject}->() if $opts{on_reject};
+        return ( undef,
+            $self->p->sendJSONresponse( $req,
+                { error => 'SSH fingerprint required' }, code => 400 ) );
+    }
+
+    return ( undef, undef ) unless defined $fp;
+    return ( $fp,   undef ) if $fp =~ m{\ASHA256:[A-Za-z0-9+/]+={0,2}\z};
 
     $self->logger->info("$label: malformed SSH fingerprint for user '$user'");
     $self->p->auditLog(
@@ -1842,21 +1530,6 @@ sub _parseFingerprintOrReject {
 
     return ( undef,
         $self->p->sendJSONresponse( $req, $body_out, code => 400 ) );
-}
-
-# HELPER: Return the `_pamSeen` timestamp (unix time) from the user's
-# persistent session if they have previously interacted with pam-access on
-# this portal, or undef if no marker is present. The marker is stamped in
-# generateToken and verifyToken; callers decide how to interpret the age.
-sub _lastSeenOnPamAccess {
-    my ( $self, $user ) = @_;
-    return undef unless defined $user && $user ne '';
-
-    my $ps = $self->p->getPersistentSession($user);
-    return undef unless $ps && !$ps->error;
-    my $ts = $ps->data->{_pamSeen};
-    return undef unless defined $ts && $ts =~ /^\d+$/;
-    return $ts;
 }
 
 # HELPER: last heartbeat received from the server presenting $tokenSession,
@@ -2091,15 +1764,26 @@ sub _isVoucherMintingService {
 
 # Ensure a reusable (bastion_id, user) voucher exists in the user's persistent
 # session: reuse the current still-valid nonce when present (only extending its
-# expiry), otherwise generate a fresh one. Validity is capped by the user's SSO
-# cert expiry when known, else by pamAccessBastionVoucherTtl (default 12h).
-# Returns ($nonce, $exp) or ().
+# expiry), otherwise generate a fresh one. Returns ($nonce, $exp) or ().
+#
+# Validity is capped by the user's SSO certificate expiry when the caller
+# supplied a fingerprint we could match. When it did not, the voucher used to
+# get the full pamAccessBastionVoucherTtl (12h by default), so the documented
+# property "revoking the SSO invalidates the voucher with no additional delay"
+# silently depended on an OPTIONAL binding being in play (issue #55). Without
+# that binding the cap is now pamAccessBastionVoucherUnboundTtl (15 min), short
+# enough that the claim holds approximately rather than not at all.
 sub _mintBastionVoucher {
     my ( $self, $req, $user, $bastion_id, $cert_expires_at ) = @_;
 
     my $now    = time();
     my $ttlCap =
       $self->_confPositiveInt( 'pamAccessBastionVoucherTtl', 43200 );    # 12h
+    unless ($cert_expires_at) {
+        my $unbound =
+          $self->_confPositiveInt( 'pamAccessBastionVoucherUnboundTtl', 900 );
+        $ttlCap = $unbound if $unbound < $ttlCap;
+    }
     my $exp    = $now + $ttlCap;
     $exp = $cert_expires_at
       if $cert_expires_at && $cert_expires_at > $now && $cert_expires_at < $exp;
@@ -2334,7 +2018,31 @@ sub bastionCert {
     my $pinSource  = $self->conf->{pamAccessBastionCertPinSourceAddress};
     my $bastion_ip = $req->address;
     my $valid_ip = defined $bastion_ip && $bastion_ip =~ /\A[0-9a-fA-F:.]+\z/;
-    if ( $pinSource && $valid_ip ) {
+    if ($pinSource) {
+
+        # Fail closed (issue #56). The observed address can be absent or empty
+        # behind some FastCGI and socket front-ends; minting an unpinned cert
+        # there produced a certificate indistinguishable from a pinned one, and
+        # nothing in the audit record said which it was. The option is opt-in,
+        # so an operator who turned it on asked for the guarantee, not for a
+        # best effort.
+        unless ($valid_ip) {
+            $self->logger->error(
+                "PAM bastion-cert: source-address pin requested but the"
+                  . " observed address is unusable ("
+                  . ( defined $bastion_ip ? "'$bastion_ip'" : 'undef' )
+                  . "), refusing to mint an unpinned certificate" );
+            $self->p->auditLog(
+                $req,
+                code    => 'PAM_BASTION_CERT_PIN_UNAVAILABLE',
+                user    => $user,
+                message => "Refused to mint an unpinned bastion certificate"
+                  . " for '$user': no usable source address",
+                bastion_id => $bastion_id,
+            );
+            return $self->_forbiddenResponse( $req,
+                'Source address pin required but unavailable' );
+        }
         $signOpts{source_address} = $bastion_ip;
     }
 
@@ -2481,8 +2189,8 @@ the user authenticates via SSH key (no token involved).
 =head1 CALLER AUTHENTICATION
 
 Every server-to-server endpoint (C</pam/authorize>, C</pam/verify>,
-C</pam/userinfo>, C</pam/heartbeat>, C</pam/bastion-token> and
-C</pam/bastion-cert>) applies the same gate to its caller:
+C</pam/userinfo>, C</pam/heartbeat> and C</pam/bastion-cert>) applies the same
+gate to its caller:
 
 =over
 
@@ -2613,12 +2321,6 @@ On voucher rejection, returns 403 with a machine-readable reason
 (C<no_voucher_supplied>, C<voucher_expired>, C<voucher_mismatch>); internal
 failures (session backend error, corrupted voucher map) return 500.
 
-=head2 POST /pam/bastion-token (DEPRECATED)
-
-Legacy JWT-based vouching endpoint, superseded by C</pam/bastion-cert>
-(see F<doc/design/bastion-cert-vouching.md>). Kept for backward
-compatibility only.
-
 =head2 POST /pam/heartbeat
 
 Server heartbeat for monitoring enrolled PAM servers.
@@ -2717,6 +2419,21 @@ Maximum validity of a bastion voucher in seconds (default: 43200, i.e. 12h).
 The voucher is further capped by the user's SSO certificate expiry when
 known. Must be a positive integer; invalid values fall back to the default.
 
+=item pamAccessBastionVoucherUnboundTtl
+
+Maximum validity of a voucher minted when the caller supplied no SSH
+fingerprint, so nothing binds it to the user's SSO certificate expiry
+(default: 900, i.e. 15 minutes). Only ever lowers the cap: a value above
+C<pamAccessBastionVoucherTtl> has no effect.
+
+=item pamAccessRequireFingerprint
+
+Refuse C</pam/verify> and C</pam/authorize> with HTTP 400 when the caller
+supplies no SSH fingerprint (default: 0). Off by default because the
+fingerprint is optional by contract; turn it on once the client-side spool is
+deployed everywhere, to make the binding a requirement rather than a
+best effort.
+
 =item pamAccessBastionCertTtl
 
 Validity of the ephemeral certificates issued by C</pam/bastion-cert>, in
@@ -2755,15 +2472,15 @@ otherwise legitimate certificates would be rejected by the backend.
 
 When LemonLDAP::NG uses Choice authentication, name of the
 authChoiceModules entry (e.g. C<1_LDAP>) to use for the server-to-server
-endpoints C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token>.
+endpoints C</pam/authorize> and C</pam/userinfo>.
 Leave empty if Choice is not used.
 
 =back
 
 =head1 SERVER-TO-SERVER LOOKUPS AND PLUGIN HOOKS
 
-C</pam/authorize>, C</pam/userinfo> and C</pam/bastion-token> resolve a user
-on behalf of a remote host. These are not authentication events: nobody is
+C</pam/authorize> and C</pam/userinfo> resolve a user on behalf of a remote
+host. These are not authentication events: nobody is
 authenticating, and the address the portal observes is the calling server's.
 
 Any plugin hooked on the steps they run would therefore see an

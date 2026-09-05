@@ -3,7 +3,6 @@ use Test::More;
 use strict;
 use IO::String;
 use JSON;
-use MIME::Base64;
 
 BEGIN {
     require 't/test-lib.pm';
@@ -25,13 +24,13 @@ BEGIN {
 #
 # A previous version passed that `_deviceId` to _resolveServerGroup. Since the
 # digest is never a key of pamAccessServerGroups, EVERY enrollment carrying a
-# `_deviceId` was rejected with "Unknown enrolled server" at /pam/authorize and
-# /pam/bastion-token — even though its client_id was correctly mapped.
+# `_deviceId` was rejected with "Unknown enrolled server" at /pam/authorize --
+# even though its client_id was correctly mapped.
 #
 # This test exercises exactly that combination (device-organization stamping a
-# `_deviceId` + pamAccessServerGroups configured) and asserts both endpoints
-# resolve the group by client_id and accept the caller, while still rejecting a
-# caller-forged group that contradicts the mapping.
+# `_deviceId` + pamAccessServerGroups configured) and asserts the endpoint
+# resolves the group by client_id and accepts the caller, while still rejecting
+# a caller-forged group that contradicts the mapping.
 # ============================================================================
 
 my $debug = 'error';
@@ -85,22 +84,13 @@ count(1);
 # _resolveServerGroup, so a 200 here already proves the resolution no longer
 # rejects a device-id enrollment.
 # ----------------------------------------------------------------------------
-my $probe_body =
-  to_json( { probe => JSON::true(), target_group => 'bastion' } );
-ok(
-    $res = $op->_post(
-        '/pam/bastion-token',
-        IO::String->new($probe_body),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($probe_body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
-    ),
-    'POST /pam/bastion-token probe'
-);
-expectOK($res);
-$json = expectJSON($res);
-my $device_id = $json->{bastion_id};
+# The identity the plugin derives for this caller. /pam/bastion-token's probe
+# mode used to report it; the endpoint is gone (issue #57), so read it where
+# the endpoint read it.
+my $plugin =
+  $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::PamAccess'};
+my $device_id =
+  $plugin->_callerId( $plugin->oidc->getAccessToken($server_token) );
 like( $device_id, qr/\A[0-9a-f]{64}\z/,
     'bastion_id is the per-device SHA-256 digest' );
 isnt( $device_id, 'pam-access',
@@ -174,66 +164,5 @@ ok(
 );
 expectReject( $res, 403 );
 
-# ----------------------------------------------------------------------------
-# /pam/bastion-token: same fix on the second call site. We first stamp the
-# pam-access persistence marker for 'french' (as the real /pam flow does), then
-# mint a bastion JWT and check it carries the *mapped* group.
-# ----------------------------------------------------------------------------
-{
-    my $q = 'duration=60';
-    my $r = $op->_post(
-        '/pam',
-        IO::String->new($q),
-        accept => 'application/json',
-        cookie => "lemonldap=$id",
-        length => length($q),
-    );
-    expectOK($r);
-}
-
-my $bt_body = to_json( { user => 'french', target_host => 'backend.op.com' } );
-ok(
-    $res = $op->_post(
-        '/pam/bastion-token',
-        IO::String->new($bt_body),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($bt_body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
-    ),
-    'POST /pam/bastion-token (device-id enrollment) succeeds'
-);
-expectOK($res);
-$json = expectJSON($res);
-my @parts   = split /\./, $json->{bastion_jwt};
-my $payload = from_json( decode_base64url( $parts[1] ) );
-is( $payload->{bastion_group}, 'bastion',
-    'JWT bastion_group is the authoritative mapped value' );
-count(1);
-
-# A forged bastion_group contradicting the mapping is rejected here too.
-my $bt_forged = to_json(
-    { user => 'french', bastion_group => 'evil-forged-group' } );
-ok(
-    $res = $op->_post(
-        '/pam/bastion-token',
-        IO::String->new($bt_forged),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($bt_forged),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
-    ),
-    'POST /pam/bastion-token with a forged bastion_group'
-);
-expectReject( $res, 403 );
-
 clean_sessions();
 done_testing();
-
-sub decode_base64url {
-    my ($str) = @_;
-    $str =~ tr/-_/+\//;
-    my $pad = length($str) % 4;
-    $str .= '=' x ( 4 - $pad ) if $pad;
-    return decode_base64($str);
-}
