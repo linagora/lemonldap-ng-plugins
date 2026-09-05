@@ -5,6 +5,11 @@
       "default": 0,
       "documentation": "SSH CA activation"
     },
+    "sshCaAdminRule": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Rule granting access to the SSH CA administration endpoints (/ssh/admin, /ssh/certs, /ssh/revoke). These endpoints list and revoke every user's certificates, so there is no permissive default: an empty rule (or 0) denies everyone."
+    },
     "sshCaKeyType": {
       "type": "select",
       "select": [
@@ -46,6 +51,7 @@
           "form": "simpleInputContainer",
           "nodes": [
             "sshCaActivation",
+            "sshCaAdminRule",
             "sshCaKeyType",
             "sshCaKeyRef",
             "sshCaCertMaxValidity",
@@ -64,6 +70,10 @@
     "sshCaActivation": {
       "en": "Activation",
       "fr": "Activation"
+    },
+    "sshCaAdminRule": {
+      "en": "Administration rule",
+      "fr": "Règle d'administration"
     },
     "sshCaKeyType": {
       "en": "CA key type",

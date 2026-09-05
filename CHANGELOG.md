@@ -4,6 +4,21 @@
 
 ### ssh-ca
 
+- **Security fix — the administration endpoints performed no authorization**
+  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)). Any
+  authenticated SSO user could `GET /ssh/certs` to enumerate every issued
+  certificate, and `POST /ssh/revoke` to revoke anyone's. The only "control"
+  was a comment pointing at portal-vhost `locationRules`, which are not a
+  default deny — a vhost with `default: accept` and no `^/ssh` rule granted
+  full SSH CA administration to everybody.
+- **New `sshCaAdminRule` parameter** (boolOrExpr, Manager > General
+  Parameters > Plugins > SSH CA). `/ssh/admin`, `/ssh/certs` and
+  `/ssh/revoke` now evaluate it against the caller's session and answer 403
+  when it does not match. **It denies while unset**: deployments relying on
+  the previous open behaviour must set it explicitly (e.g.
+  `inGroup('ssh-admins')`). Per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
+  `/ssh/myrevoke`) are unchanged. Denials are audited as
+  `SSH_CA_ADMIN_DENIED`.
 - **Fix — a KRL write could truncate the live file and lock every host out
   of SSH** (#59). `ssh-keygen -k` opens its target with `O_TRUNC` and the
   `sshca-rebuild-krl` cron job never took the lock the portal used, so a

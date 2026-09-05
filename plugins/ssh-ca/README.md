@@ -20,7 +20,8 @@ passwordless authentication on servers that trust the CA.
 - **SSH SHA256 fingerprint** computed and stored with each cert, surfaced
   in the responses — the `pam-access` plugin uses it to bind PAM tokens
   to a specific SSH key.
-- **Admin interface** for searching and revoking certificates.
+- **Admin interface** for searching and revoking certificates, guarded by
+  the `sshCaAdminRule` rule — **default deny**, no admin until you say who.
 - **Audit logging** of all signing and revocation operations.
 
 ## Requirements
@@ -49,9 +50,33 @@ In the Manager under **General Parameters** > **Plugins** > **SSH CA**:
 | Parameter               | Description                                                               | Default                                  |
 | ----------------------- | ------------------------------------------------------------------------- | ---------------------------------------- |
 | `sshCaKeyRef`           | Reference to the SSH CA key in LLNG keys store                            | _(required)_                             |
+| `sshCaAdminRule`        | Rule granting access to the admin endpoints (boolOrExpr)                  | _(empty — denies everyone)_              |
 | `sshCaKrlPath`          | Path to the KRL file on disk                                              | `/var/lib/lemonldap-ng/ssh/revoked_keys` |
 | `sshCaCertMaxValidity`  | Maximum certificate validity in days                                      | `365`                                    |
 | `sshCaPrincipalSources` | Session attributes to use as principals (space-separated `$var` template) | `$uid`                                   |
+
+### Administration rule (`sshCaAdminRule`)
+
+`/ssh/admin`, `/ssh/certs` and `/ssh/revoke` list **every** user's
+certificates and can revoke any of them. They are guarded by
+`sshCaAdminRule`, a standard LLNG rule (boolOrExpr) evaluated against the
+caller's session:
+
+```perl
+$uid eq 'admin'
+inGroup('ssh-admins')
+1                       # any authenticated user — NOT recommended
+```
+
+**The rule has no permissive default: while it is empty (or `0`), the three
+admin endpoints answer HTTP 403 for everyone**, including users the portal
+vhost `locationRules` would let through. This is deliberate — a portal that
+has not been told who its SSH CA admins are must not expose the whole
+certificate estate. The per-user endpoints (`/ssh/sign`, `/ssh/mycerts`,
+`/ssh/myrevoke`) are unaffected.
+
+Denials are logged (`userLogger->warn`) and audited under the
+`SSH_CA_ADMIN_DENIED` code.
 
 ### CA key setup
 
@@ -88,7 +113,7 @@ Examples:
 | GET    | `/ssh/mycerts`  | List the current user's certificates (JSON)                                    |
 | POST   | `/ssh/myrevoke` | Self-revoke one of the caller's own certificates; immediately added to the KRL |
 
-### Admin endpoints (authentication + access control required)
+### Admin endpoints (authentication + `sshCaAdminRule`)
 
 | Method | Path          | Description                                             |
 | ------ | ------------- | ------------------------------------------------------- |
@@ -96,9 +121,13 @@ Examples:
 | GET    | `/ssh/certs`  | Search all certificates across all users (JSON)         |
 | POST   | `/ssh/revoke` | Revoke a certificate by session ID and serial           |
 
-**Important:** Admin endpoints have no built-in access control beyond
-authentication. You must configure `locationRules` on the portal vhost to
-restrict access. Example:
+These three endpoints enforce `sshCaAdminRule` themselves and **deny by
+default** (HTTP 403) until you set it — see
+[Administration rule](#administration-rule-sshcaadminrule).
+
+Configuring `locationRules` on the portal vhost on top of the rule is still
+supported and recommended as defence in depth — but it is no longer the only
+thing standing between an ordinary user and everyone's certificates:
 
 ```perl
 # In LLNG Manager > Virtual Hosts > portal vhost > Rules
