@@ -48,6 +48,21 @@ When set to `organization`:
 - The resulting token's subject (`sub`) is the `client_id` instead of the admin
 - The token survives the admin leaving the organization
 - Refresh tokens follow RP offline session expiration settings
+  (`oidcRPMetaDataOptionsOfflineSessionExpiration`, else the global
+  `oidcServiceOfflineSessionExpiration`), and the synthetic session behind them
+  is given exactly that lifetime
+- Every token derived from the enrollment carries a `_deviceId`: a stable,
+  unique-per-device digest downstream consumers can pin on, rather than the
+  `client_id` shared by every device of the project
+
+## Failure behaviour
+
+If the synthetic session cannot be created, the enrollment **fails** with an
+OAuth `server_error` on the token endpoint. It does not fall back to the
+approving admin's identity: such a token would carry the admin as its `sub`,
+die with the admin's SSO session and have no `_deviceId` at all — a failure
+that surfaces only hours later. Retry the enrollment once the session backend
+is healthy.
 
 ## See Also
 

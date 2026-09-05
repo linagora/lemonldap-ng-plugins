@@ -17,7 +17,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCDeviceOrganization;
 use strict;
 use Mouse;
 use Digest::SHA qw(sha256_hex);
-use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_ERROR);
 
 our $VERSION = '2.23.0';
 
@@ -62,6 +62,14 @@ sub handleOrganizationDevice {
     my $client_id   = $device_auth->{client_id};
     my $approved_by = $device_auth->{user};
 
+    # Lifetime of the synthetic session = lifetime of the offline refresh
+    # token that will keep pointing at it (see _utime below).
+    my $ttl =
+         $self->oidc->rpOptions->{$rp}
+      ->{oidcRPMetaDataOptionsOfflineSessionExpiration}
+      || $self->conf->{oidcServiceOfflineSessionExpiration}
+      || 365 * 86400;
+
     $self->logger->debug(
         "Organization device enrollment: client=$client_id approved_by=$approved_by"
     );
@@ -77,21 +85,34 @@ sub handleOrganizationDevice {
         _approved_at => $device_auth->{approved_at} || time,
         _deviceOrg                 => 1,
 
-        # Set _utime far enough in the future so this session outlives
-        # normal SSO sessions. The device will use refresh tokens to
-        # get new access tokens, and the refresh points back to this
-        # session. In production, oidcRPMetaDataOptionsOfflineSessionExpiration
-        # on the RP controls the refresh token lifetime.
-        _utime => time + ( $self->conf->{oidcServiceOfflineSessionExpiration}
-              || 365 * 86400 ),
+        # Set _utime far enough in the future so this session outlives normal
+        # SSO sessions. The device will use refresh tokens to get new access
+        # tokens, and the refresh points back to this session, so the session
+        # must live exactly as long as the offline refresh token: the per-RP
+        # oidcRPMetaDataOptionsOfflineSessionExpiration when set, else the
+        # global oidcServiceOfflineSessionExpiration — the same lookup
+        # newRefreshToken() does (Lib/OpenIDConnect.pm).
+        #
+        # `time + ttl - timeout` is the core session pattern
+        # (Lib/OpenIDConnect.pm), because expiry is tested as
+        # `( now - _utime ) > timeout` (Portal/Main/Run.pm). Adding the plain
+        # ttl, as this plugin used to, reaped the session `timeout` too late.
+        _utime => time + $ttl - $self->conf->{timeout},
     };
 
     my $session =
       $self->p->getApacheSession( undef, info => $infos, kind => 'SSO' );
-    unless ($session) {
+    unless ( $session and $session->id ) {
+
+        # Fail CLOSED. Returning PE_OK here would let the enrolment complete
+        # against the *approving admin's* session: the device would get a token
+        # whose sub is the admin (dying with the admin's SSO session) and
+        # carrying no _deviceId at all, silently breaking every downstream
+        # consumer of the device identity. The caller turns PE_ERROR into a
+        # token-endpoint error, so the enrolment fails where it fails.
         $self->logger->error(
             "Failed to create synthetic session for org device");
-        return PE_OK;    # Fall back to normal user-linked behavior
+        return PE_ERROR;
     }
 
     # Point to the new synthetic session instead of the admin's (its real id is

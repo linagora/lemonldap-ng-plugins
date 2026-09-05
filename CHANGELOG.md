@@ -101,6 +101,53 @@
   missed beats). Both defaults are unchanged, so deployments that never ticked
   the box behave exactly as before.
 
+### oidc-device-organization
+
+- **Fix — the plugin failed OPEN when the synthetic device session could not
+  be created** (#72). It returned `PE_OK`, so the enrollment completed against
+  the _approving admin's_ session: a token whose `sub` was the admin, dying
+  with the admin's SSO session and carrying no `_deviceId` at all. The client
+  saw a 200 and the failure surfaced hours later as a lost identity. The hook
+  now returns `PE_ERROR` and the token endpoint answers `server_error`.
+- **Fix — the synthetic session outlived its refresh token by `timeout`**
+  (#75). It now uses the core `time + ttl - timeout` pattern and consults the
+  per-RP `oidcRPMetaDataOptionsOfflineSessionExpiration` its own comment
+  referred to.
+- **First test suite** (partial answer to #71): nominal organization
+  enrollment, `_deviceId` derivation and uniqueness, synthetic session
+  lifetime, and the fail-closed path.
+
+### oidc-device-authorization
+
+- **Fix — a poll could overwrite an admin approval or denial** (#69). The
+  polling path wrote `status => 'pending'` on every poll, from a status read
+  at the start of the request; a decision landing in between was reset while
+  its fields survived (the session update merges). A clobbered approval left
+  the device polling until expiry, a clobbered denial let a second approver
+  grant what an admin had refused. Polls now write their bookkeeping only.
+- **Fix — the user code was stored in cleartext and logged** (#73). It is no
+  longer persisted in either session record (the lookup is keyed on
+  `sha256_hex(user_code)`, which is all the plugin needs) and the debug/info
+  lines carry the digest instead of the code. `auditLog` still records the
+  submitted code on approve/deny; `ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED`, on a
+  path where only the device code is known, now carries `user_code_hash`.
+- **Feature — bounds and a lockout on the user code** (#70). The manager now
+  refuses a user code length below 8 (RFC 8628 section 6.1 asks for 20 bits of
+  entropy; 8 base-20 characters give ~34), a polling interval below 1 and an
+  out-of-range code TTL, and the generator enforces the same floor at runtime.
+  New `oidcServiceDeviceAuthorizationMaxFailures` (default 5, 0 disables) and
+  `oidcServiceDeviceAuthorizationLockoutDelay` (default 300 s) lock a session
+  out of the verification page after too many invalid codes, independently of
+  CrowdSec.
+- **Robustness** (#75): dead `$max_expected` removed, the error page
+  sanitises the reflected user code like the other two paths.
+- **Docs** (#74, #75): the verification page is `/device`, not
+  `/oauth2/device/verify`; `AllowDeviceAuthorization = 1` means _any_
+  authenticated user may approve an enrollment, so the README now documents
+  the boolOrExpr form as the recommended configuration and ships a `/device`
+  `locationRules` example — unanchored, because access rules match
+  `REQUEST_URI` including the query string.
+
 ## v0.5.2 - 2026-08-31
 
 Touched plugins bumped to **0.5.2** in lockstep: `pam-access`.
