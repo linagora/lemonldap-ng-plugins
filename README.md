@@ -18,7 +18,8 @@ This repository contains:
 See also:
 
 - the [list of specifications (RFCs, OIDC, SAML, CAS…) implemented](SPECIFICATIONS.md) by LLNG core and by the plugins published here;
-- the [OpenID Connect & OAuth 2.0 narrative documentation](OIDC.md) — what core LLNG ships, what these plugins add, FAPI 2.0 alignment, deployment guides.
+- the [OpenID Connect & OAuth 2.0 narrative documentation](OIDC.md) — what core LLNG ships, what these plugins add, FAPI 2.0 alignment, deployment guides;
+- the [upgrade notes](UPGRADING.md) — what a release requires you to do or check before deploying it.
 
 ## Lemonldap::NG plugins
 
