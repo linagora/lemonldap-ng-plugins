@@ -6,6 +6,7 @@ use strict;
 use warnings;
 use IO::String;
 use JSON;
+use Lemonldap::NG::Common::Session;
 
 # Install sibling plugin templates into LLNG site/templates/
 sub install_plugin_templates {
@@ -163,6 +164,20 @@ sub base_config {
         pamAccessActivation      => 1,
         pamAccessRp              => 'pam-access',
     );
+}
+
+# The session record holding the (user, bastion_id) bastion voucher, addressed
+# the way the plugin addresses it. Vouchers used to live under a key of the
+# user's persistent session; they now have their own record, so a test that
+# wants to age or corrupt one has to reach it here.
+sub voucher_session {
+    my ( $op, $user, $bastion_id ) = @_;
+
+    my $plugin =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::PamAccess'}
+      or die 'pam-lib: PamAccess plugin not loaded';
+    return Lemonldap::NG::Common::Session->new(
+        { $plugin->_voucherStoreOpts( $user, $bastion_id ) } );
 }
 
 1;

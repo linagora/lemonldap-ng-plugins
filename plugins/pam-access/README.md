@@ -157,6 +157,29 @@ even if the SSH server's KRL is stale.
   surfaced (in `attrs` for `/pam/verify`, at the top level for
   `/pam/authorize`).
 
+#### Where a bastion voucher is stored
+
+A `/pam/authorize` on a bastion group mints a **voucher**: the proof, spent at
+`/pam/bastion-cert`, that this user really connected to *this* bastion. It is
+keyed on `(user, bastion_id)` and shared across the user's concurrent sessions
+on that bastion, so a second login reuses the live nonce instead of rotating
+it — rotating would invalidate the nonce already exported into the other
+sessions' shells.
+
+Each voucher lives in **its own session record** (`kind => PAMVOUCHER`), the
+way the portal core stores an OIDC authorization code: on the global store,
+with its lifetime carried in `_utime` so the regular session purge reclaims
+it. It is deliberately not affected by `tokenUseGlobalStorage` or
+`hashedSessionStore` — a voucher is minted on the node that answered
+`/pam/authorize` and spent on whichever node answers `/pam/bastion-cert`, so a
+node-local or differently-addressed copy would only ever be the wrong one.
+
+Vouchers used to live in the user's persistent session, first as one
+`_pamBastionVouchers` map and then as one key per bastion. Both are still read,
+so nothing breaks on upgrade, and the next `/pam/authorize` carries the nonce
+into a record. Neither is deleted: during a rolling upgrade an older node may
+still be minting into them.
+
 #### Hop-certificate binding window
 
 Two kinds of certificate can match the fingerprint:

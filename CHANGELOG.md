@@ -98,8 +98,30 @@ meanwhile.
   `pamAccessRequireFingerprint` refuses the unbound case outright.
 - **Fix — two concurrent logins could lose a bastion voucher** (#54). The
   vouchers shared one `_pamBastionVouchers` map, rewritten wholesale on every
-  mint; they now live one key per bastion. Pre-upgrade sessions are drained
-  automatically on the next `/pam/authorize`.
+  mint, then one key per bastion in the user's persistent session. Both shapes
+  made minting a read-modify-write on a hash the store rewrites as one blob,
+  which no plugin can make atomic: per-key narrowed the window to
+  `Session->update`'s tie-to-untie without closing it, and the expiry sweep
+  that kept the keyspace bounded decided from a snapshot, so it could delete a
+  nonce another bastion had just refreshed.
+
+  A voucher now has **its own session record** (`kind => PAMVOUCHER`, id
+  derived from user and `bastion_id`), stored the way the core stores an
+  authorization code: on the global store, with the TTL in `_utime`. Nothing
+  is written alongside it, so there is no shared hash to lose a write to and
+  no sweep to get wrong — the store's own purge bounds the keyspace. The
+  record is pinned to the global store and to `hashStore => 0` regardless of
+  `tokenUseGlobalStorage` and `hashedSessionStore`: a voucher is minted on the
+  node that answered `/pam/authorize` and spent on whichever node answers
+  `/pam/bastion-cert`.
+
+  Vouchers written before the upgrade are still honoured, from either previous
+  shape, and are carried into a record by the next `/pam/authorize`. They are
+  **not** deleted: a portal cluster is upgraded node by node, and clearing a
+  key an older node still mints into would hand that node's users a nonce
+  their shell does not have. For the same reason, a voucher minted during the
+  upgrade window may need one reconnection to the bastion; the leftover keys
+  become inert and will be dropped in a later release.
 - **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
   longer inert** (#52). They were Manager-exposed and read by no code;
   `/pam/authorize` now refuses a caller that has stopped beating. Defaults
