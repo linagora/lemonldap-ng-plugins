@@ -27,7 +27,14 @@ read the upgrade notes before deploying.**
 6. **`/pam/bastion-token` is gone** (deprecated, superseded by
    `/pam/bastion-cert`). Any caller still using it gets a 404; its
    `pamAccessBastionJwtTtl` and `pamAccessBastionMaxSeenAge` settings are
-   removed.
+   removed. Its `probe: true` mode — the only way for a server to read its own
+   portal-assigned id — is replaced by `POST /pam/whoami`; `ob-bastion-id`
+   needs its URL changed and nothing else, the `bastion_id` field is kept.
+   Two fields of the probe response do not come back: `probe: true`, and a
+   `server_group` that used to be present unconditionally (`/pam/whoami`
+   returns it only when `pamAccessServerGroups` maps the caller). Neither is
+   read by `ob-bastion-id`, which takes `.bastion_id` alone; they show up only
+   in its `--verbose` dump of the raw body.
 7. **A bastion voucher minted without an SSH fingerprint now lives 15 minutes**
    instead of 12 hours (`pamAccessBastionVoucherUnboundTtl`), and
    `/pam/bastion-cert` refuses to mint when `pamAccessBastionCertPinSourceAddress`
@@ -129,6 +136,16 @@ meanwhile.
   token to a PAM relying party and, once set, refuses a self-declared bastion
   `server_group`. Empty by default: an upgrade changes nothing until the list
   is filled in.
+- **New — `POST /pam/whoami`**: an enrolled server reads back the per-device
+  id the portal assigned it at enrollment. That id is the `bastion=<id>` in
+  every hop certificate's key-id, which the backends match against their
+  allowlist, so an operator has to be able to read it — and nothing served it
+  once `/pam/bastion-token`'s probe mode was removed (`/pam/authorize` and
+  `/pam/heartbeat` return no caller identity, and `/oauth2/introspect` does
+  not export private session keys; t/20 pins all three as tripwires). A pure
+  read behind the standard caller gate: no signing, no session write, no
+  `_pamSeen` stamp, and `pamAccessAllowedRps` plus request signing apply to it
+  unchanged.
 - **Removed the deprecated `/pam/bastion-token`** (#57). Superseded by
   `/pam/bastion-cert`, its transport already purged from open-bastion, and it
   signed a JWT even when the user lookup had failed. Gone with it:

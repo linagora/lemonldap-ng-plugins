@@ -128,6 +128,7 @@ would need.
 | POST   | `/pam/authorize`     | Check SSH/sudo rules for a given `user`/`host`/`service` |
 | POST   | `/pam/heartbeat`     | Record a server liveness ping                            |
 | POST   | `/pam/userinfo`      | Look up user info for NSS / PAM caches                   |
+| POST   | `/pam/whoami`        | Read back the caller's own portal-assigned identity      |
 
 All server-to-server endpoints require a Bearer access token obtained via
 the OIDC Device Authorization Grant (`grant_type=device_code`) with scope
@@ -139,6 +140,44 @@ whitespace-separated values of the granted scope (RFC 6749 §3.3): `pam-x`,
 
 A caller with no credential gets `401`; one that is not enrolled, or whose
 token lacks the scope, gets `403`.
+
+#### Reading a server's own identity (`/pam/whoami`)
+
+The portal assigns each enrolment a stable **per-device id**, and that id — not
+the shared, project-wide `client_id` — is what identifies the machine wherever
+it counts: it is the `bastion=<id>` written into every hop certificate's
+key-id, which a backend's `AuthorizedPrincipalsCommand` matches against
+`/etc/open-bastion/allowed_bastions`. Adding a backend therefore means reading
+a bastion's id, and until now nothing served it: `/pam/authorize` does not
+return the caller's identity, `/pam/heartbeat` does not either, and
+`/oauth2/introspect` does not export private session keys.
+
+`POST /pam/whoami` with the server's own Bearer token, and an empty body:
+
+```json
+{
+  "server_id":    "9f86d081884c7d65...",
+  "bastion_id":   "9f86d081884c7d65...",
+  "client_id":    "pam-access",
+  "server_group": "bastion"
+}
+```
+
+- `server_id` is canonical; `bastion_id` is the **same value** under the name
+  `/pam/bastion-token`'s removed probe mode used, so a client only has to
+  change its URL.
+- `server_group` appears only when `pamAccessServerGroups` maps this
+  `client_id`. The legacy body-declared fallback is deliberately not used
+  here: a server asking who it is must not be told back what it claimed.
+- The per-device id needs `oidcRPMetaDataOptionsDeviceOwnership =
+  organization` on the RP. Without it there is nothing per-device to report
+  and the answer falls back to the `client_id`, which an allowlist must not be
+  keyed on — every machine of the project shares it.
+
+It is a pure read: no signing, no session write, no side effect. In particular
+it does **not** stamp `_pamSeen`, so running it does not look like a heartbeat.
+It sits behind the same caller gate as its siblings, so `pamAccessAllowedRps`
+and request signing apply unchanged.
 
 ### Optional SSH fingerprint binding (`/pam/verify`, `/pam/authorize`)
 
