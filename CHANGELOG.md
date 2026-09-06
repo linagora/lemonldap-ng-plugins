@@ -131,6 +131,10 @@ meanwhile.
   their shell does not have. For the same reason, a voucher minted during the
   upgrade window may need one reconnection to the bastion; the leftover keys
   become inert and will be dropped in a later release.
+- **Fix — concurrent `/pam/verify` calls could both accept one token** (#53).
+  The one-time token was consumed ~145 lines and one store round-trip after it
+  was read. It is now consumed before any check runs, and a verify that did
+  not win the delete answers invalid.
 - **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
   longer inert** (#52). They were Manager-exposed and read by no code;
   `/pam/authorize` now refuses a caller that has stopped beating. Defaults
@@ -144,6 +148,10 @@ meanwhile.
   write their bookkeeping only.
 - **Fix — the user code was stored in cleartext and logged** (#73). It is no
   longer persisted in either session record, and the logs carry its digest.
+- **Fix — a device_code could be exchanged twice** (#68). Consumption is now
+  conditional on winning the delete, and both consumed sessions are evicted
+  from every node's cache (`unlog`) instead of only the writing node's — which
+  had turned a millisecond race into the whole code TTL.
 - **Feature — bounds and a lockout on the user code** (#70). Manager bounds
   on length, interval and TTL, plus
   `oidcServiceDeviceAuthorizationMaxFailures` (5) and
