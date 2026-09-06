@@ -172,6 +172,11 @@ ok( $authz->{authorized}, '  -> authorized' );
 my $voucher = $authz->{bastion_voucher};
 ok( $voucher, '  -> bastion_voucher present' );
 
+# The bastion identifies itself by its device-grant client_id here (no
+# organization ownership is configured), and that is the bastion_id the
+# voucher is keyed on.
+my $BASTION_ID = 'pam-access';
+
 # No fingerprint was supplied, so nothing binds this voucher to the user's SSO
 # certificate lifetime. It used to get the full pamAccessBastionVoucherTtl (12h
 # by default), which made "revoking the SSO invalidates the voucher" depend on
@@ -597,28 +602,29 @@ SKIP: {
     is( from_json( $r->[2]->[0] )->{bastion_voucher},
         $voucher, '  -> the legacy nonce is reused, not rotated' );
 
+    # The mint does NOT touch either pre-upgrade shape. A portal cluster is
+    # upgraded node by node, and clearing a key an older node still mints into
+    # would hand that node's users a nonce their shell does not have.
     my $after = $op->p->getPersistentSession('french');
-    ok( !defined $after->data->{_pamBastionVouchers},
-        '  -> the shared map is drained' );
-    ok( ( grep { index( $_, $pfx ) == 0 } keys %{ $after->data } ),
-        '  -> and the voucher lives under its own key' );
+    ok( defined $after->data->{_pamBastionVouchers},
+        '  -> the pre-upgrade map is read, not rewritten' );
+    ok( !( grep { index( $_, $pfx ) == 0 } keys %{ $after->data } ),
+        '  -> and no per-bastion key is written either' );
+
+    # It landed in its own record instead.
+    my $rec = pam_lib::voucher_session( $op, 'french', $BASTION_ID );
+    is( $rec->data->{nonce}, $voucher,
+        '  -> the voucher now lives in its own session record' );
+    is( $rec->data->{_session_kind}, 'PAMVOUCHER', '  -> kind PAMVOUCHER' );
 }
 
 # ============================================================================
 # Expired voucher -> 403 voucher_expired (client tells user to reconnect)
 # ============================================================================
 {
-    my $ps  = $op->p->getPersistentSession('french');
-    my $pfx = $Lemonldap::NG::Portal::Plugins::PamAccess::VOUCHER_PREFIX;
-    my %upd;
-    for my $k ( keys %{ $ps->data } ) {
-        next unless index( $k, $pfx ) == 0;
-        my $e = from_json( $ps->data->{$k} );
-        $e->{exp} = time - 10;
-        $upd{$k} = to_json($e);
-    }
-    ok( %upd, 'vouchers are stored one per bastion key (issue #54)' );
-    $ps->update( \%upd );
+    my $rec = pam_lib::voucher_session( $op, 'french', $BASTION_ID );
+    ok( $rec->data->{nonce}, 'the voucher has its own record (issue #54)' );
+    $rec->update( { exp => time - 10 } );
 }
 $res = bastion_post(
     '/pam/bastion-cert',
@@ -634,15 +640,16 @@ is( from_json( $res->[2]->[0] )->{reason},
     'voucher_expired', '  -> reason voucher_expired' );
 
 # ============================================================================
-# Corrupted voucher map -> 500 (internal failure, not an authz denial)
+# Corrupted pre-upgrade voucher -> 500 (internal failure, not an authz denial)
 # ============================================================================
 {
+    # Corruption is only reachable through a pre-upgrade value: the record
+    # stores its fields separately, so there is no blob left to mangle. Drop
+    # the record so the legacy read runs, then break what it reads.
+    pam_lib::voucher_session( $op, 'french', $BASTION_ID )->remove;
     my $ps  = $op->p->getPersistentSession('french');
     my $pfx = $Lemonldap::NG::Portal::Plugins::PamAccess::VOUCHER_PREFIX;
-    $ps->update(
-        { map { $_ => 'not-json{' }
-          grep { index( $_, $pfx ) == 0 } keys %{ $ps->data } }
-    );
+    $ps->update( { $pfx . $BASTION_ID => 'not-json{' } );
 }
 $res = bastion_post(
     '/pam/bastion-cert',
@@ -653,7 +660,7 @@ $res = bastion_post(
         voucher     => $voucher,
     }
 );
-is( $res->[0], 500, 'corrupted voucher map -> 500' );
+is( $res->[0], 500, 'corrupted pre-upgrade voucher -> 500' );
 {
     my $err = from_json( $res->[2]->[0] );
     is( $err->{error},  'voucher_check_failed', '  -> voucher_check_failed' );

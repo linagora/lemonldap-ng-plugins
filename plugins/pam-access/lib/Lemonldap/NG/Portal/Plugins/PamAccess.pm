@@ -14,6 +14,8 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 use strict;
 use Mouse;
 use JSON                                   qw(from_json to_json);
+use Digest::SHA                            qw(sha256_hex);
+use Lemonldap::NG::Common::Session;
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -25,19 +27,37 @@ our $VERSION = '2.22.0';
 # Persistent-session key prefix for ephemeral bastion-hop cert fingerprints.
 # One key per fingerprint ($EPH_CERT_PREFIX.<fp>) so concurrent hops don't
 # clobber each other. See /pam/bastion-cert and _checkSshFingerprint, and the
-# concurrency note above _mintBastionVoucher for what per-key does and does
-# not buy under Apache::Session::Lock::Null.
+# note on $VOUCHER_KIND below for what per-key does and does not buy under
+# Apache::Session::Lock::Null -- this keyspace still has the limits vouchers
+# no longer have, because a hop fingerprint is looked up by value and cannot
+# be addressed by a record id the way a (user, bastion_id) voucher can.
 our $EPH_CERT_PREFIX = '_pamEphCert::';
 
-# Persistent-session key prefix for bastion vouchers, one key per bastion
-# ($VOUCHER_PREFIX.<bastion_id>). Vouchers used to share a single
-# `_pamBastionVouchers` JSON map, which made every mint a read-modify-write on
-# a blob the store rewrites wholesale: two logins on different bastions
-# starting from the same snapshot lost one of the two nonces (issue #54). The
-# legacy map is still read (and drained on the next mint) for sessions written
-# before the upgrade.
-our $VOUCHER_PREFIX = '_pamVoucher::';
-our $LEGACY_VOUCHER_KEY = '_pamBastionVouchers';
+# Bastion vouchers live in their own session record, one per (user,
+# bastion_id), the way the core stores an authorization code: a
+# Common::Session on the global store, carrying its TTL in _utime, with
+# kind => 'PAMVOUCHER'.
+#
+# They used to live in the user's persistent session -- first as a single
+# `_pamBastionVouchers` JSON map, then (issue #54) one key per bastion. Both
+# shapes made minting a read-modify-write on a hash the store rewrites
+# wholesale, which no plugin can make atomic: Apache::Session::Lock::Null is
+# installed everywhere and DESTROY serialises the whole data hash. Per-key
+# narrowed the losing window to update()'s tie-to-untie; it could not close
+# it, and the expiry sweep that kept the keyspace bounded had to decide from
+# a snapshot, so it could delete a nonce another bastion had just refreshed.
+#
+# One record per voucher removes the shared hash, and with it both problems:
+# nothing else is written alongside, and the store's own purge bounds the
+# keyspace through _utime, so there is no sweep to get wrong.
+#
+# Both old shapes are still READ, so a voucher minted before the upgrade
+# still works. Neither is written or deleted any more: a portal cluster is
+# upgraded node by node, and deleting a key an older node still mints into
+# would hand that node's users a nonce their shell does not have.
+our $VOUCHER_KIND = 'PAMVOUCHER';
+our $VOUCHER_PREFIX = '_pamVoucher::';           # legacy, read-only
+our $LEGACY_VOUCHER_KEY = '_pamBastionVouchers'; # legacy, read-only
 
 # Persistent-session key prefix under which the ssh-ca plugin stores the
 # user's SSO certificates, one per fingerprint (issue #66). Duplicated here
@@ -1834,36 +1854,20 @@ sub _mintBastionVoucher {
           $self->_confPositiveInt( 'pamAccessBastionVoucherUnboundTtl', 900 );
         $ttlCap = $unbound if $unbound < $ttlCap;
     }
-    my $exp    = $now + $ttlCap;
+    my $exp = $now + $ttlCap;
     $exp = $cert_expires_at
       if $cert_expires_at && $cert_expires_at > $now && $cert_expires_at < $exp;
 
-    my $ps = $self->p->getPersistentSession($user);
-    unless ( $ps && !$ps->error ) {
+    # The voucher already held for this (user, bastion_id), from its own
+    # record or, for a session written before the upgrade, from one of the two
+    # persistent-session shapes.
+    my $entry = $self->_readVoucherRecord( $user, $bastion_id );
+    unless ( defined $entry ) {
         $self->logger->error(
-            "PAM authorize: cannot load persistent session for '$user' "
-              . "to store bastion voucher" );
+            "PAM authorize: bastion voucher store unreachable for '$user'");
         return ();
     }
-
-    # CONCURRENCY. Vouchers live one per key ($VOUCHER_PREFIX.<bastion_id>).
-    #
-    # What per-key does NOT buy: atomicity. Every standard LLNG backend
-    # installs Apache::Session::Lock::Null, and Apache::Session's DESTROY
-    # serialises the WHOLE data hash back as one blob, so writes are
-    # last-writer-wins at the session level, not merged at the store level.
-    #
-    # What it does buy: Common::Session->update re-ties with noCache => 1 and
-    # sets only the named keys before untying, so a concurrent writer is only
-    # lost if its own tie-to-untie window overlaps ours. The shared
-    # _pamBastionVouchers map instead made the read-modify-write span the whole
-    # helper — snapshot at getPersistentSession, nonce generation, then write —
-    # so two logins on two bastions reliably lost one nonce (issue #54).
-    my $legacy = $self->_legacyVoucherMap($ps);
-    my $vkey   = $VOUCHER_PREFIX . $bastion_id;
-    my $entry  = eval { from_json( $ps->data->{$vkey} // '' ) };
-    $entry = undef unless ref $entry eq 'HASH';
-    $entry = $legacy->{$bastion_id} if !$entry and ref $legacy eq 'HASH';
+    $entry = $self->_legacyVoucherEntry( $user, $bastion_id ) unless %$entry;
     $entry = undef
       unless ref $entry eq 'HASH' and ( $entry->{exp} || 0 ) > $now;
 
@@ -1891,87 +1895,188 @@ sub _mintBastionVoucher {
         }
     }
 
-    my %upd = ( $vkey => to_json( { nonce => $nonce, exp => $exp } ) );
-
-    # Opportunistically drop our OWN expired keys so the keyspace stays
-    # bounded. Per-key merge protects the keys we do NOT name: a voucher added
-    # concurrently under a key absent from %upd survives our write.
+    # One record, holding one voucher. Nothing else is stored alongside it, so
+    # a concurrent mint for another bastion cannot lose this one and this one
+    # cannot delete that one -- which is what the shared-hash shapes could not
+    # promise.
     #
-    # It does not protect the keys we DO name. Each undef below is decided
-    # from $ps->data, a snapshot read before update() ties. If a concurrent
-    # /pam/authorize refreshes one of those keys in between and our write
-    # lands last, we delete a live nonce: the other bastion's session then
-    # gets voucher_expired on its next hop, and recovers at its next
-    # authorize. This narrows the window to update()'s tie-to-untie, it does
-    # not close it — there is no read-modify-write inside the tie to be had.
-    for my $k ( keys %{ $ps->data } ) {
-        next unless index( $k, $VOUCHER_PREFIX ) == 0;
-        next if $k eq $vkey;
-        my $r = eval { from_json( $ps->data->{$k} // '' ) };
-        $upd{$k} = undef
-          if $@ || ref $r ne 'HASH' || ( $r->{exp} || 0 ) <= $now;
+    # Two mints for the SAME bastion still race, and the outcome depends on
+    # whether a nonce already exists. Once one does, they agree: both read it,
+    # both write it back, and the loser only fails to extend an expiry the
+    # winner extended too. With no live nonce yet -- a first connection, or an
+    # expired or purged record -- both read nothing, both generate their own,
+    # and the last write wins: the loser has already handed its shell a nonce
+    # that is no longer in the store, so its next hop gets voucher_mismatch
+    # and it recovers at the following authorize, which reuses the survivor.
+    #
+    # That is issue #54's symptom, narrowed from "any two concurrent mints" to
+    # "two concurrent FRESH mints for the same (user, bastion_id)". It is not
+    # gone, and it is not fixable here: the store offers no compare-and-swap,
+    # so there is no way to make "generate only if absent" one operation.
+    # Please do not "fix" it by rotating on every mint -- that reintroduces
+    # the failure this helper's idempotent reuse exists to prevent.
+    unless ( $self->_writeVoucherRecord( $user, $bastion_id, $nonce, $exp ) ) {
+        $self->logger->error(
+            "PAM authorize: cannot store bastion voucher for '$user'");
+        return ();
     }
-
-    # Drain the pre-upgrade shared map, once: every entry it still holds is
-    # re-published under its own key and the map itself is deleted. Doing it
-    # here rather than lazily keeps _checkBastionVoucher's fallback read-only.
-    if ( ref $legacy eq 'HASH' and %$legacy ) {
-        for my $b ( keys %$legacy ) {
-            my $r = $legacy->{$b};
-            next
-              unless ref $r eq 'HASH'
-              and ( $r->{nonce} // '' ) ne ''
-              and ( $r->{exp} || 0 ) > $now;
-            my $k = $VOUCHER_PREFIX . $b;
-            $upd{$k} = to_json($r) unless exists $upd{$k};
-        }
-        $upd{$LEGACY_VOUCHER_KEY} = undef;
-    }
-
-    $ps->update( \%upd );
 
     return ( $nonce, $exp );
 }
 
-# HELPER: decode the pre-upgrade `_pamBastionVouchers` map, or {} when the
-# session has already been migrated (or never carried one).
-sub _legacyVoucherMap {
-    my ( $self, $ps ) = @_;
+# HELPER: the store options for a voucher record.
+#
+# Built here rather than through p->getApacheSession so the record is pinned
+# to the global store with no local cache: a voucher is minted on the node the
+# bastion's /pam/authorize reached and spent on whichever node answers
+# /pam/bastion-cert, so a node-local copy would only ever be a stale one. Same
+# reasoning, and same shape, as the request-nonce cache.
+#
+# hashStore is pinned off because the id is derived, not random: read and
+# write must agree on it whatever hashedSessionStore says globally.
+sub _voucherStoreOpts {
+    my ( $self, $user, $bastion_id ) = @_;
 
-    my $raw = $ps->data->{$LEGACY_VOUCHER_KEY};
-    return {} unless defined $raw and $raw ne '';
-    my $map = eval { from_json($raw) };
-    return {} if $@ or ref $map ne 'HASH';
-    return $map;
+    return (
+        storageModule        => $self->conf->{globalStorage},
+        storageModuleOptions => $self->conf->{globalStorageOptions},
+        hashStore            => 0,
+        kind                 => $VOUCHER_KIND,
+        id                   =>
+          sha256_hex( 'pam-bastion-voucher:' . $user . ':' . $bastion_id ),
+    );
 }
 
-# Validate a (bastion_id, user) voucher presented by a bastion at /pam/bastion-cert.
-# $ps is the user's already-loaded persistent session. Returns { ok => 1 } or
+# HELPER: read the voucher record for (user, bastion_id).
+#
+# Returns the stored entry as { nonce, exp }, an empty hashref when there is
+# no record, or undef when the store could not be reached -- a distinction the
+# callers need: "no voucher" is an answer, "cannot tell" is not.
+sub _readVoucherRecord {
+    my ( $self, $user, $bastion_id ) = @_;
+
+    my $s = Lemonldap::NG::Common::Session->new(
+        { $self->_voucherStoreOpts( $user, $bastion_id ) } );
+
+    # A missing record and an unreachable store both surface as an error here,
+    # and only the second one may refuse a request, so tell them apart by the
+    # message. "Object does not exist [in the] data store" is the idiom every
+    # Apache::Session store backend raises on a miss -- DBI, File, Postgres,
+    # Oracle, and the Browseable ones (Redis, LDAP, ...) which match on that
+    # same string themselves; "Invalid session ID" comes from the SHA256 id
+    # generator. A backend whose miss message matches neither is read as a
+    # store failure: the request is refused rather than silently treated as
+    # "no voucher", which is the safe way round but worth knowing when adding
+    # one.
+    if ( $s->error ) {
+        return {} if $s->error =~ /(?:Object does not exist|Invalid session)/i;
+        $self->logger->error(
+            'PAM: bastion voucher store read failed: ' . $s->error );
+        return undef;
+    }
+    my $data = $s->data;
+    return {} unless ref $data eq 'HASH' and ( $data->{nonce} // '' ) ne '';
+    return { nonce => $data->{nonce}, exp => $data->{exp} || 0 };
+}
+
+# HELPER: write (or refresh) the voucher record. Returns true on success.
+sub _writeVoucherRecord {
+    my ( $self, $user, $bastion_id, $nonce, $exp ) = @_;
+
+    # _utime carries the TTL to the store's purge, the way an authorization
+    # code does it: purgeCentralCache drops a record once _utime + timeout has
+    # passed. It is a sweep, not a clock, so exp is stored and checked too --
+    # the record must stop being valid on time even if nothing has purged yet.
+    my $timeout = $self->conf->{timeout} || 72000;
+    my $s       = Lemonldap::NG::Common::Session->new( {
+            $self->_voucherStoreOpts( $user, $bastion_id ),
+            force => 1,
+            info  => {
+                _type      => 'pam_bastion_voucher',
+                _utime     => $exp - $timeout,
+                nonce      => $nonce,
+                exp        => $exp,
+                user       => $user,
+                bastion_id => $bastion_id,
+            },
+        }
+    );
+    if ( $s->error ) {
+        $self->logger->error(
+            'PAM: bastion voucher store write failed: ' . $s->error );
+        return 0;
+    }
+    return 1;
+}
+
+# HELPER: read a voucher from one of the two pre-upgrade persistent-session
+# shapes -- the per-bastion key first, then the shared map. Read-only: see the
+# note on $VOUCHER_PREFIX for why neither is written or cleaned up here.
+# Returns undef when the session holds neither, or cannot be read.
+sub _legacyVoucherEntry {
+    my ( $self, $user, $bastion_id ) = @_;
+
+    my $ps = $self->p->getPersistentSession($user);
+    unless ( $ps and !$ps->error ) {
+
+        # Only pre-upgrade vouchers live there, so this is no longer fatal to
+        # minting: we lose the chance to carry an old nonce forward and mint a
+        # fresh one instead. Before the move, the same failure refused the
+        # voucher outright.
+        $self->logger->warn(
+                "PAM authorize: cannot read the persistent session of '$user' "
+              . "for a pre-upgrade bastion voucher" );
+        return undef;
+    }
+    my ($entry) = $self->_legacyVoucherEntryFromPs( $ps, $bastion_id );
+    return $entry;
+}
+
+# HELPER: the same lookup against an already-loaded persistent session.
+# Returns ( $entry, $corrupted ). The flag matters to /pam/bastion-cert, which
+# answers 500 rather than 403 when the stored value is unreadable: that is an
+# operator's problem, not a "reconnect to the bastion" for the user.
+sub _legacyVoucherEntryFromPs {
+    my ( $self, $ps, $bastion_id ) = @_;
+
+    my $raw = $ps->data->{ $VOUCHER_PREFIX . $bastion_id };
+    if ( defined $raw and $raw ne '' ) {
+        my $entry = eval { from_json($raw) };
+        return ( undef, 1 ) if $@ or ref $entry ne 'HASH';
+        return ( $entry, 0 );
+    }
+
+    $raw = $ps->data->{$LEGACY_VOUCHER_KEY};
+    return ( undef, 0 ) unless defined $raw and $raw ne '';
+    my $map = eval { from_json($raw) };
+    return ( undef, 1 ) if $@ or ref $map ne 'HASH';
+    my $entry = $map->{$bastion_id};
+    return ( ref $entry eq 'HASH' ? $entry : undef, 0 );
+}
+
+# Validate a (bastion_id, user) voucher presented by a bastion at
+# /pam/bastion-cert. $ps is the user's already-loaded persistent session, kept
+# as an argument because the caller needs it anyway and because a voucher
+# minted before the upgrade still lives in it. Returns { ok => 1 } or
 # { ok => 0, reason => '...' } with a machine-readable reason.
 sub _checkBastionVoucher {
-    my ( $self, $ps, $bastion_id, $voucher ) = @_;
+    my ( $self, $ps, $user, $bastion_id, $voucher ) = @_;
 
     return { ok => 0, reason => 'no_session' } unless $ps;
     return { ok => 0, reason => 'session_error' } if $ps->error;
     return { ok => 0, reason => 'no_voucher_supplied' }
       unless defined $voucher && $voucher ne '';
 
-    # Per-bastion key first (issue #54); fall back to the pre-upgrade shared
-    # map for sessions the next mint has not drained yet.
-    my $entry;
-    my $raw = $ps->data->{ $VOUCHER_PREFIX . $bastion_id };
-    if ( defined $raw and $raw ne '' ) {
-        $entry = eval { from_json($raw) };
-        return { ok => 0, reason => 'voucher_corrupted' }
-          if $@ || ref $entry ne 'HASH';
-    }
-    elsif ( defined( $raw = $ps->data->{$LEGACY_VOUCHER_KEY} )
-        and $raw ne '' )
-    {
-        my $vmap = eval { from_json($raw) };
-        return { ok => 0, reason => 'voucher_corrupted' }
-          if $@ || ref $vmap ne 'HASH';
-        $entry = $vmap->{$bastion_id};
+    # The voucher's own record first; then, for a session written before the
+    # upgrade, the per-bastion key and the shared map it replaced.
+    my $entry = $self->_readVoucherRecord( $user, $bastion_id );
+    return { ok => 0, reason => 'voucher_store_failed' }
+      unless defined $entry;
+    unless (%$entry) {
+        my $corrupted;
+        ( $entry, $corrupted ) =
+          $self->_legacyVoucherEntryFromPs( $ps, $bastion_id );
+        return { ok => 0, reason => 'voucher_corrupted' } if $corrupted;
     }
 
     return { ok => 0, reason => 'voucher_expired' }
@@ -2063,7 +2168,8 @@ sub bastionCert {
 
     # 6. Voucher check: proves this user really connected to THIS bastion.
     my $ps   = $self->p->getPersistentSession($user);
-    my $vres = $self->_checkBastionVoucher( $ps, $bastion_id, $voucher );
+    my $vres =
+      $self->_checkBastionVoucher( $ps, $user, $bastion_id, $voucher );
     unless ( $vres->{ok} ) {
         $self->logger->info(
                 "PAM bastion-cert: voucher rejected for user '$user' "
@@ -2080,11 +2186,12 @@ sub bastionCert {
 
         # Machine-readable reason so ob-ssh-proxy can show a precise message
         # (e.g. 'voucher_expired' -> "reconnect to the bastion"). Internal
-        # conditions (session backend failure, corrupted voucher map) are
-        # server errors, not authorization denials: 5xx keeps clients and
-        # monitoring from treating them as a 403 "reconnect to the bastion".
+        # conditions (session backend failure, voucher store unreachable,
+        # unreadable pre-upgrade value) are server errors, not authorization
+        # denials: 5xx keeps clients and monitoring from treating them as a
+        # 403 "reconnect to the bastion".
         my $internal = $vres->{reason} =~
-          /\A(?:no_session|session_error|voucher_corrupted)\z/;
+          /\A(?:no_session|session_error|voucher_corrupted|voucher_store_failed)\z/;
         return $self->p->sendJSONresponse(
             $req,
             {
@@ -2184,18 +2291,20 @@ sub bastionCert {
     #
     # Stored under a PER-FINGERPRINT key ($EPH_CERT_PREFIX.<fp>), NOT in the
     # shared _sshCerts list, deliberately:
-    #   * Concurrency — see the note above _mintBastionVoucher: per key, two
-    #     hops minted at the same time only collide inside update()'s
+    #   * Concurrency — see the note on $VOUCHER_KIND: per key, two hops
+    #     minted at the same time only collide inside update()'s
     #     tie-to-untie window instead of over the whole helper.
     #   * Separation — _sshCerts holds the user's SSO certs owned by ssh-ca,
     #     which intentionally keeps expired records (revoking via the KRL). We
     #     must not prune those, so ephemeral hop certs live in their own keyspace.
     # Entries self-expire via expires_at (enforced in _checkSshFingerprint); we
-    # opportunistically drop our OWN expired keys in the same update. Same
-    # residual as _mintBastionVoucher's prune, and it costs a little more
-    # here: the undefs come from a snapshot, so a hop registered concurrently
-    # under a key we saw expired can be dropped, and that hop's backend then
-    # denies its fingerprint until the user re-hops.
+    # opportunistically drop our OWN expired keys in the same update. This is
+    # the residual vouchers used to share and no longer do: the undefs come
+    # from a snapshot, so a hop registered concurrently under a key we saw
+    # expired can be dropped, and that hop's backend then denies its
+    # fingerprint until the user re-hops. Moving these to their own records
+    # would need a way to find one by fingerprint, which a session id derived
+    # from (user, bastion_id) gives vouchers and nothing gives these.
     my $eph_fp = $sshca->_sshKeyFingerprint($public_key);
     if ( $eph_fp && $ps && !$ps->error ) {
         my $now  = time();
