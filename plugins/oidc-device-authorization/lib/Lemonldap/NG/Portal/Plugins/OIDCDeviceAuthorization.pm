@@ -17,7 +17,7 @@ use Lemonldap::NG::Portal::Main::Constants qw(
 );
 use JSON qw(from_json to_json);
 use Crypt::URandom;
-use Digest::SHA qw(sha256_hex);
+use Digest::SHA qw(sha256_hex hmac_sha256_hex);
 
 our $VERSION = '2.23.0';
 
@@ -217,7 +217,7 @@ sub deviceAuthorizationEndpoint {
 
     for my $attempt ( 1 .. $max_retries ) {
         $user_code      = $self->_generateUserCode();
-        $user_code_hash = sha256_hex($user_code);
+        $user_code_hash = $self->_userCodeIndex($user_code);
 
         # Check if this user_code already exists
         my $existing = $self->p->getApacheSession(
@@ -346,10 +346,14 @@ sub deviceAuthorizationEndpoint {
 
     $self->auditLog(
         $req,
-        code      => "ISSUER_OIDC_DEVICE_AUTH_INITIATED",
-        rp        => $rp,
-        user_code => $user_code,
-        message   => "Device authorization initiated for RP $rp",
+        code => "ISSUER_OIDC_DEVICE_AUTH_INITIATED",
+        rp   => $rp,
+
+        # The index, not the code: at this point the code is live for the
+        # whole TTL, and the audit trail is usually shipped further than the
+        # session store this plugin already stopped writing it to (issue #84).
+        user_code_hash => $user_code_hash,
+        message        => "Device authorization initiated for RP $rp",
     );
 
     return $self->p->sendJSONresponse( $req, $response );
@@ -547,7 +551,8 @@ sub submitVerification {
         # one (a typo away, or probed by someone else), and this line is at
         # info level, i.e. on in production.
         $self->logger->info(
-            "Invalid or expired user_code: " . sha256_hex($user_code) );
+            "Invalid or expired user_code: "
+              . $self->_userCodeIndex($user_code) );
 
         # Report to CrowdSec if available (potential bruteforce)
         $self->_reportInvalidUserCode( $req, $user_code );
@@ -556,9 +561,13 @@ sub submitVerification {
         my $user = $req->userData->{ $self->conf->{whatToTrace} };
         $self->auditLog(
             $req,
-            code      => "ISSUER_OIDC_DEVICE_AUTH_INVALID_CODE",
-            user_code => $user_code,
-            user      => $user,
+            code => "ISSUER_OIDC_DEVICE_AUTH_INVALID_CODE",
+
+            # A submitted code may well be a *valid* one -- a typo away from
+            # its owner's, or probed by someone else -- so this record gets
+            # the index too (issue #84).
+            user_code_hash => $self->_userCodeIndex($user_code),
+            user           => $user,
             message   => "Invalid or expired user_code submitted by $user",
         );
 
@@ -571,7 +580,8 @@ sub submitVerification {
     # Check if already processed
     if ( $device_auth->{status} ne 'pending' ) {
         $self->logger->info(
-            "User code already processed: " . sha256_hex($user_code) );
+            "User code already processed: "
+              . $self->_userCodeIndex($user_code) );
         return $self->_showVerificationError( $req, 'codeAlreadyUsed' );
     }
 
@@ -750,15 +760,58 @@ sub _formatUserCode {
     return $code;
 }
 
+# Index under which the user_code lookup session is stored, and the only
+# representation of the code this plugin writes to a log or an audit record.
+#
+# A bare sha256_hex(user_code) is invertible by anyone who can list session
+# ids: the code space is 20^8, about 2^34.6, which is seconds on a GPU, and a
+# pending code is a live approval credential (issue #83). Keying the digest
+# with the portal secret leaves the lookup a single direct read while making
+# the id useless to a reader of the session backend.
+#
+# Without `key` configured there is nothing to key with; the bare digest is
+# kept so the plugin still works, and says once that it is doing so.
+sub _userCodeIndex {
+    my ( $self, $user_code ) = @_;
+
+    my $key = $self->conf->{key};
+    unless ( defined $key and length $key ) {
+        $self->logger->warn( "No `key` configured: the device user_code index"
+              . " falls back to an unkeyed digest, enumerable from the session"
+              . " backend (issue #83)" )
+          unless $self->{_unkeyedIndexWarned}++;
+        return sha256_hex($user_code);
+    }
+
+    return hmac_sha256_hex( $user_code, $key );
+}
+
 sub _findByUserCode {
     my ( $self, $user_code ) = @_;
 
     # Look up the user_code session to get the device_code_hash
-    my $user_code_hash = sha256_hex($user_code);
+    my $user_code_hash = $self->_userCodeIndex($user_code);
 
     my $user_code_session =
       $self->p->getApacheSession( $user_code_hash, kind => sessionKind,
         hashStore => 0, );
+
+    # Authorizations created before the index was keyed (issue #83) live under
+    # the bare digest. They expire within one code TTL, so this fallback is
+    # here to carry an upgrade across that window, not forever.
+    unless ( $user_code_session && $user_code_session->data ) {
+        my $legacy = sha256_hex($user_code);
+        if ( $legacy ne $user_code_hash ) {
+            $user_code_session =
+              $self->p->getApacheSession( $legacy, kind => sessionKind,
+                hashStore => 0, );
+            if ( $user_code_session && $user_code_session->data ) {
+                $self->logger->debug(
+                    "User code found under the legacy unkeyed index");
+                $user_code_hash = $legacy;
+            }
+        }
+    }
 
     unless ( $user_code_session && $user_code_session->data ) {
         $self->logger->debug("User code session not found: $user_code_hash");

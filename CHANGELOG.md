@@ -18,12 +18,12 @@ read the upgrade notes before deploying.**
    `pam-prod` or `x-pam` loses `/pam/*`. Check `oidcRPMetaDataScopeRules`.
 4. **Malformed ssh-ca inputs answer 400** instead of being coerced:
    `validity_days`, `limit`/`offset`, revocation `reason`.
-5. **`ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED` carries `user_code_hash`**, not
-   `user_code`. SIEM rules keyed on that field need updating. The
-   `pamAccessRequireFingerprint` refusal also has its own codes now,
-   `PAM_AUTH_SSH_FP_REQUIRED` / `PAM_AUTHZ_SSH_FP_REQUIRED`, instead of
-   sharing the malformed ones.
-
+5. **The device-grant audit records carry `user_code_hash`**, not `user_code`,
+   wherever the code is still live. The value is `hmac_sha256_hex(code, key)`,
+   so it cannot be recomputed from a code without the portal secret. SIEM
+   rules keyed on that field need updating. The `pamAccessRequireFingerprint`
+   refusal also has its own codes now, `PAM_AUTH_SSH_FP_REQUIRED` /
+   `PAM_AUTHZ_SSH_FP_REQUIRED`, instead of sharing the malformed ones.
 6. **`/pam/bastion-token` is gone** (deprecated, superseded by
    `/pam/bastion-cert`). Any caller still using it gets a 404; its
    `pamAccessBastionJwtTtl` and `pamAccessBastionMaxSeenAge` settings are
@@ -108,6 +108,14 @@ meanwhile.
   on length, interval and TTL, plus
   `oidcServiceDeviceAuthorizationMaxFailures` (5) and
   `...LockoutDelay` (300 s), independent of CrowdSec.
+- **Security fix — the user code lookup index is now keyed** (#83). It was
+  `sha256_hex(user_code)`: 20^8 is seconds on a GPU, so a reader of the session
+  backend could recover every pending code. It is now
+  `hmac_sha256_hex(user_code, key)`, with a fallback read on the old index so
+  authorizations in flight across the upgrade still resolve.
+- **Security fix — the audit trail no longer carries a live user code** (#84).
+  `INITIATED` and `INVALID_CODE` record the index; approve and deny keep the
+  code itself, where it is already spent.
 - **Robustness and docs** (#74, #75). Dead `$max_expected` removed, the error
   page sanitises the reflected code, and the README documents the real
   verification route (`/device`) and the boolOrExpr form of

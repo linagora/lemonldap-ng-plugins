@@ -4,7 +4,7 @@ use strict;
 use IO::String;
 use JSON;
 use File::Find;
-use Digest::SHA qw(sha256_hex);
+use Digest::SHA qw(sha256_hex hmac_sha256_hex);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -18,13 +18,34 @@ BEGIN {
 # production logs could approve — or deny — an enrollment in the device's
 # place.
 #
-# It is now never persisted (the lookup session is *keyed* on
-# sha256_hex(user_code), which is all the plugin needs) and never logged in
-# cleartext. This test pins both, plus the per-session lockout that stops a
-# logged-in user from brute-forcing the code space.
+# It is now never persisted and never logged in cleartext. The lookup session
+# is addressed by hmac_sha256_hex(user_code, key) rather than the bare digest:
+# 20^8 is a few GPU-seconds, so an unkeyed digest let a reader of the session
+# backend recover every pending code (issue #83). The audit trail gets the same
+# index, not the code, wherever the code is still live (issue #84).
+#
+# This test pins all of it -- store, logs, audit records -- plus the
+# per-session lockout that stops a logged-in user from brute-forcing the code
+# space.
 
 # Capturing logger, installed on the plugin instance ($self->logger is rw,
-# inherited from Common::Module).
+# inherited from Common::Module), and capturing audit sink, installed on the
+# portal ($p->_auditLogger is rw, Common::PSGI). They are different sinks: the
+# audit trail is usually shipped further than the debug log, so it needs its
+# own assertions.
+{
+
+    package t::CaptureAudit;
+    sub new { return bless { records => $_[1] }, $_[0] }
+
+    sub log {
+        my ( $self, $req, %info ) = @_;
+        push @{ $self->{records} },
+          join( ' ', map { "$_=" . ( $info{$_} // '' ) } sort keys %info );
+        return 1;
+    }
+}
+
 {
 
     package t::CaptureLogger;
@@ -41,10 +62,15 @@ BEGIN {
 
 my $debug = 'error';
 my @logs;
+my @audit;
+
+# The secret the user_code index is keyed with
+my $portalKey = 'a-portal-secret';
 
 my $op = LLNG::Manager::Test->new( {
         ini => {
             logLevel                        => $debug,
+            key                             => $portalKey,
             domain                          => 'op.com',
             portal                          => 'http://auth.op.com/',
             authentication                  => 'Demo',
@@ -82,6 +108,7 @@ my $plugin = $op->p->loadedModules->{
 ok( $plugin, 'Device authorization plugin loaded' );
 count(1);
 $plugin->logger( t::CaptureLogger->new( \@logs ) );
+$op->p->_auditLogger( t::CaptureAudit->new( \@audit ) );
 
 # Every file of the session store that mentions $needle
 sub storeHits {
@@ -109,9 +136,15 @@ sub logsMentioning {
     return grep { /\Q$needle\E/ } @logs;
 }
 
+sub auditMentioning {
+    my ($needle) = @_;
+    return grep { /\Q$needle\E/ } @audit;
+}
+
 # --- 1. creating a device authorization ------------------------------------
 
-@logs = ();
+@logs  = ();
+@audit = ();
 my $query = buildForm( { client_id => 'rpid', scope => 'openid profile' } );
 my $res   = $op->_post(
     "/oauth2/device", IO::String->new($query),
@@ -122,19 +155,33 @@ my $payload = expectJSON($res);
 
 my $device_code = $payload->{device_code};
 my $user_code   = $payload->{user_code} =~ s/-//gr;
-my $hash        = sha256_hex($user_code);
+my $index       = hmac_sha256_hex( $user_code, $portalKey );
+my $bareDigest  = sha256_hex($user_code);
 ok( $user_code, "Got user_code" );
 count(1);
 
+is( $plugin->_userCodeIndex($user_code),
+    $index, "The index is the code keyed with the portal secret" );
+isnt( $index, $bareDigest, "... and not the bare digest" );
+count(2);
+
 is( scalar storeHits($user_code),
     0, "Plaintext user_code is nowhere in the session store" );
-ok( scalar storeHits($hash) >= 1,
-    "The session store keys the lookup on the code digest" );
-count(2);
+ok( scalar storeHits($index) >= 1,
+    "The session store keys the lookup on the keyed index" );
+is( scalar storeHits($bareDigest),
+    0, "The bare digest -- which is invertible -- is nowhere in the store" );
+count(3);
 
 is( scalar logsMentioning($user_code),
     0, "Plaintext user_code was not logged at creation" );
-ok( scalar logsMentioning($hash) >= 1, "Its digest was logged instead" );
+ok( scalar logsMentioning($index) >= 1, "Its index was logged instead" );
+count(2);
+
+is( scalar auditMentioning($user_code),
+    0, "Plaintext user_code did not reach the audit trail at creation" );
+ok( scalar auditMentioning($index) >= 1,
+    "The INITIATED record carries the index" );
 count(2);
 
 # The device_code is a secret too: only its digest may be stored
@@ -173,9 +220,20 @@ expectOK($res);
 like( $res->[2]->[0], qr/invalidUserCode/, "Invalid code rejected" );
 is( scalar logsMentioning($bogus),
     0, "Submitted code was not logged in cleartext" );
-ok( scalar logsMentioning( sha256_hex($bogus) ) >= 1,
-    "Its digest was logged instead" );
-count(3);
+ok(
+    scalar logsMentioning( hmac_sha256_hex( $bogus, $portalKey ) ) >= 1,
+    "Its index was logged instead"
+);
+
+# A submitted code may well be a valid one, probed or mistyped, so the
+# INVALID_CODE record must not carry it either
+is( scalar auditMentioning($bogus),
+    0, "Submitted code did not reach the audit trail" );
+ok(
+    scalar auditMentioning( hmac_sha256_hex( $bogus, $portalKey ) ) >= 1,
+    "The INVALID_CODE record carries the index"
+);
+count(5);
 
 # --- 3. per-session lockout after too many invalid codes -------------------
 
@@ -233,9 +291,61 @@ is( scalar storeHits($user_code),
     0, "Still no plaintext user_code in the store after the exchange" );
 count(2);
 
-# The lookup session keyed on the digest is gone with the enrollment
-is( scalar storeHits($hash), 0, "Lookup session removed with the enrollment" );
+# The lookup session is gone with the enrollment
+is( scalar storeHits($index), 0, "Lookup session removed with the enrollment" );
 count(1);
+
+# --- 5. the index degrades safely, and finds pre-upgrade authorizations ----
+
+# Without `key` there is nothing to key with. The plugin keeps working on the
+# bare digest and says so once, rather than failing every lookup.
+{
+    @logs = ();
+    local $plugin->conf->{key} = undef;
+    is( $plugin->_userCodeIndex($user_code),
+        $bareDigest, "No key configured: the index falls back to the digest" );
+    ok( scalar( grep { /warn\|.*issue #83/ } @logs ),
+        "... and warns about the exposure it falls back to" );
+
+    # once per process, not once per code
+    @logs = ();
+    $plugin->_userCodeIndex($user_code);
+    is( scalar( grep { /warn\|/ } @logs ), 0, "... exactly once" );
+}
+count(3);
+
+# An authorization created by the previous version lives under the bare
+# digest. It must still resolve during the upgrade window.
+$query = buildForm( { client_id => 'rpid', scope => 'openid profile' } );
+$res   = $op->_post(
+    "/oauth2/device", IO::String->new($query),
+    accept => 'application/json',
+    length => length($query)
+);
+$payload = expectJSON($res);
+my $old_code  = $payload->{user_code} =~ s/-//gr;
+my $old_index = hmac_sha256_hex( $old_code, $portalKey );
+my $old_id    = sha256_hex($old_code);
+
+my $lookup =
+  $op->p->getApacheSession( $old_index, kind => 'DEVA', hashStore => 0 );
+ok( $lookup, "Lookup session created under the keyed index" );
+my %copy = %{ $lookup->data };
+$lookup->remove;
+ok(
+    $op->p->getApacheSession(
+        $old_id,
+        kind      => 'DEVA',
+        info      => \%copy,
+        force     => 1,
+        hashStore => 0
+    ),
+    "Moved it to the pre-upgrade, unkeyed id"
+);
+
+ok( $plugin->_findByUserCode($old_code),
+    "The code still resolves through the legacy fallback" );
+count(3);
 
 clean_sessions();
 done_testing();
