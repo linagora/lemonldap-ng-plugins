@@ -95,6 +95,13 @@ has _rpAllowlistWarned => (
     default => 0,
 );
 
+# One-shot flag for the warning emitted by _checkRequestSignature when
+# pamAccessRequestSigningMode holds a value it does not recognise.
+has _signingModeWarned => (
+    is      => 'rw',
+    default => 0,
+);
+
 # One-shot flag for the legacy-mode warning emitted by _resolveServerGroup
 # when pamAccessServerGroups is empty. Without this, every call to
 # /pam/authorize would log a warning.
@@ -919,6 +926,20 @@ sub _checkRequestSignature {
     my $mode = $self->conf->{pamAccessRequestSigningMode} || 'off';
     return undef if $mode eq 'off';
 
+    # An unrecognised value (a typo such as 'optionnal') falls through to the
+    # required branch below. Fail-closed is the right default, but silently
+    # turning a typo into the strictest mode is how a deployment discovers it
+    # in production: say so, once.
+    unless ( $mode eq 'optional' or $mode eq 'required' ) {
+        unless ( $self->_signingModeWarned ) {
+            $self->logger->warn( "PamAccess: pamAccessRequestSigningMode is"
+                  . " '$mode', which is not one of off/optional/required —"
+                  . " treating it as 'required' (this warning is emitted"
+                  . " only once)" );
+            $self->_signingModeWarned(1);
+        }
+    }
+
     my $secret = $self->conf->{pamAccessRequestSigningSecret};
     unless ( defined $secret and $secret ne '' ) {
         $self->logger->error( "$label: pamAccessRequestSigningMode is"
@@ -955,7 +976,7 @@ sub _checkRequestSignature {
     # 1. Timestamp, first: it is the cheapest check, and it bounds both how
     #    long a captured request stays replayable and how big the nonce store
     #    has to be. Doing it before the HMAC also stops an attacker making the
-    #    portal hash for stale requests.
+    #    portal hash for requests it has already lost.
     my $window = $self->_confPositiveInt( 'pamAccessRequestSigningWindow', 300 );
     my $skew   = abs( time() - $ts );
     if ( $skew > $window ) {
@@ -963,14 +984,15 @@ sub _checkRequestSignature {
             'Request timestamp outside the accepted window' );
     }
 
-    # 2. Nonce, second. This is the actual replay protection; the window only
-    #    bounds it.
-    if ( my $reason = $self->_claimNonce( $nonce, $window ) ) {
-        return $self->_signatureRefusal( $req, $label, $reason,
-            'Request nonce refused' );
-    }
-
-    # 3. HMAC, last.
+    # 2. HMAC, second — and it MUST come before the nonce claim. _claimNonce
+    #    WRITES to the shared session backend, so claiming first let any
+    #    unauthenticated caller create one storage record per request with
+    #    nothing but a parseable header set and a fresh timestamp, both of
+    #    which it controls: storage exhaustion against the very store this
+    #    protection leans on. It also burned the nonce, so a request the
+    #    attacker had captured could be invalidated before its legitimate
+    #    retry. One SHA-256 over a short message is in any case cheaper than
+    #    the two storage roundtrips below.
     my $path = $req->uri // '';
     $path =~ s/\?.*\z//s;
     my $message = join '.', $ts, $nonce, uc( $req->method // '' ), $path,
@@ -980,6 +1002,13 @@ sub _checkRequestSignature {
     unless ( _constantTimeEq( $expected, $given ) ) {
         return $self->_signatureRefusal( $req, $label, 'bad_signature',
             'Invalid request signature' );
+    }
+
+    # 3. Nonce, last. This is the actual replay protection — the window only
+    #    bounds it — and only a caller holding the secret ever reaches it.
+    if ( my $reason = $self->_claimNonce( $nonce, $window ) ) {
+        return $self->_signatureRefusal( $req, $label, $reason,
+            'Request nonce refused' );
     }
 
     return undef;

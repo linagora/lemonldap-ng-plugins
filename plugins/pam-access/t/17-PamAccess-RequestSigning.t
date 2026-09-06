@@ -264,5 +264,54 @@ my $conf = $op->p->conf;
     count(2);
 }
 
+# ===========================================================================
+# A bad signature must not burn the nonce
+#
+# _claimNonce WRITES to the shared session store. Claiming before verifying
+# the HMAC meant any unauthenticated caller could create one record per
+# request — the headers and the timestamp are entirely attacker-controlled —
+# and could also invalidate a captured request before its legitimate retry.
+# Order is timestamp -> HMAC -> nonce claim.
+# ===========================================================================
+{
+    local $conf->{pamAccessRequestSigningMode} = 'required';
+
+    my $n = newNonce();
+
+    $res = signedPost( nonce => $n, sig => 'sha256=' . ( 'b' x 64 ) );
+    is( $res->[0], 403, 'A wrong signature is refused' );
+    like( from_json( $res->[2]->[0] )->{error},
+        qr/signature/, '  -> as a signature problem, not a nonce one' );
+    count(2);
+
+    # ...and the legitimate holder of the secret can still use that nonce.
+    is( signedPost( nonce => $n )->[0],
+        200, '  -> and the nonce was not burned by the forgery' );
+    count(1);
+
+    # Same for a request that never gets as far as the HMAC.
+    my $n2 = newNonce();
+    $res = signedPost(
+        nonce   => $n2,
+        headers => { HTTP_X_SIGNATURE_256 => 'not-hex' }
+    );
+    is( $res->[0], 403, 'Malformed headers are refused' );
+    is( signedPost( nonce => $n2 )->[0],
+        200, '  -> without burning the nonce either' );
+    count(2);
+}
+
+# ===========================================================================
+# An unrecognised mode is treated as 'required' (fail closed), loudly
+# ===========================================================================
+{
+    local $conf->{pamAccessRequestSigningMode} = 'optionnal';
+
+    is( signedPost( unsigned => 1 )->[0],
+        403, 'A typo in the mode does not wave unsigned requests through' );
+    is( signedPost()->[0], 200, '  -> and a signed request still works' );
+    count(2);
+}
+
 clean_sessions();
 done_testing();

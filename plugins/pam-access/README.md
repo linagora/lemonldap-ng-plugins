@@ -257,14 +257,21 @@ deploy with `optional`, roll the secret out to every host, then switch to
 `required`. `optional` waives the requirement to *sign* — never the requirement
 to sign *correctly*: a bad signature is refused in every mode but `off`.
 
-Checks run in order of cost: timestamp, then nonce, then HMAC, so a stale
-request never makes the portal hash anything. The nonce cache is one session
-per nonce in the shared backend, expiring with the window, so it works across
-workers and nodes. Every refusal is 403 + `PAM_REQUEST_SIGNATURE_REFUSED` with
-a machine-readable `reason`.
+Checks run **timestamp, then HMAC, then nonce**. The timestamp is first because
+it is the cheapest and bounds both the replay window and the size of the nonce
+store. The nonce claim is *last* because it is the only step that writes: it
+must never run for a request whose signature does not verify, or an
+unauthenticated caller could fill the shared session backend with one record
+per request, and could burn the nonce of a request it had captured before the
+legitimate retry arrived. The nonce cache is one session per nonce in the
+shared backend, expiring with the window, so it works across workers and
+nodes. Every refusal is 403 + `PAM_REQUEST_SIGNATURE_REFUSED` with a
+machine-readable `reason`.
 
 A configured mode with an empty secret refuses every request rather than waving
-them through.
+them through, and a mode value that is not one of `off` / `optional` /
+`required` is treated as `required` with a once-per-worker warning — a typo
+must not open the gate.
 
 This is defence in depth **on top of** TLS, not a substitute for it. Do not
 relax `verify_ssl` because of it.
