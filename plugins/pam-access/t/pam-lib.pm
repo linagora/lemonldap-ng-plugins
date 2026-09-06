@@ -46,6 +46,19 @@ sub install_plugin_templates {
 # Enrolling another RP, or asking for another scope, yields a perfectly valid
 # device-grant token that pam-access must nevertheless refuse.
 sub enroll_server {
+    my $json = _enroll(@_);
+    return $json->{access_token};
+}
+
+# Same flow, returning ($access_token, $refresh_token). The caller must have
+# asked for offline_access (and the RP must allow it), otherwise the refresh
+# token is undef.
+sub enroll_server_tokens {
+    my $json = _enroll(@_);
+    return ( $json->{access_token}, $json->{refresh_token} );
+}
+
+sub _enroll {
     my ( $op, $user_session_id, %opts ) = @_;
 
     my $scope     = defined $opts{scope} ? $opts{scope} : 'pam:server';
@@ -113,8 +126,7 @@ sub enroll_server {
     );
     die "Token exchange failed: $res->[0]" unless $res->[0] == 200;
 
-    $json = JSON::from_json( $res->[2]->[0] );
-    return $json->{access_token};
+    return JSON::from_json( $res->[2]->[0] );
 }
 
 # Common OIDC+PamAccess config for tests

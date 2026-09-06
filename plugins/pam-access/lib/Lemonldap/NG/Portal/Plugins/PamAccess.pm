@@ -959,7 +959,7 @@ sub _checkCallerRp {
         return undef;
     }
 
-    my $rp = $session->data->{rp} // '';
+    my $rp = $self->_resolveRp($session) // '';
     return undef if $rp ne '' and $allowed->{$rp};
 
     my $client_id = $session->data->{client_id} // 'unknown';
@@ -990,6 +990,36 @@ sub _allowedRps {
     }
     return {} if ref $conf;
     return { map { $_ => 1 } grep { $_ ne '' } split /[,;\s]+/, $conf };
+}
+
+# HELPER: the relying party (configuration key) a token session belongs to.
+#
+# There is no single field for this. `rp` is stamped by the core's
+# newAccessToken only, so it is present on Bearer tokens and absent from the
+# refresh tokens the device grant mints; the synthetic session built by
+# oidc-device-organization stamps `_clientConfKey` instead. Hence the three
+# steps, cheapest first, with the client_id scan as the general fallback —
+# this is the resolution /pam/heartbeat already performed inline.
+#
+# Returns undef when the token belongs to no RP this portal still declares,
+# which for _checkCallerRp means "not on the allowlist".
+sub _resolveRp {
+    my ( $self, $session ) = @_;
+
+    my $data    = $session->data;
+    my $options = $self->oidc->rpOptions;
+
+    for my $k ( $data->{rp}, $data->{_clientConfKey} ) {
+        return $k if $k and $options->{$k};
+    }
+
+    my $cid = $data->{client_id} // '';
+    return undef unless $cid ne '';
+    for my $k ( keys %$options ) {
+        return $k
+          if ( $options->{$k}->{oidcRPMetaDataOptionsClientID} // '' ) eq $cid;
+    }
+    return undef;
 }
 
 # HELPER: identity of the enrolled caller, for audit logs and voucher binding.
@@ -1311,22 +1341,11 @@ sub heartbeat {
       $self->_checkCaller( $req, 'heartbeat', session => $rtSession );
     return $bail if $bail;
 
-    # 5. Resolve the RP (conf key) this refresh token belongs to. The
-    #    synthetic session created by oidc-device-organization stamps
-    #    _clientConfKey; fall back to a client_id lookup for safety.
+    # 5. Resolve the RP (conf key) this refresh token belongs to — the same
+    #    resolution the caller gate above ran, see _resolveRp.
     my $now = time();
-    my $rp  = $rtSession->data->{_clientConfKey};
-    unless ( $rp and $self->oidc->rpOptions->{$rp} ) {
-        my $cid = $rtSession->data->{client_id} // '';
-        for my $k ( keys %{ $self->oidc->rpOptions } ) {
-            next
-              unless ( $self->oidc->rpOptions->{$k}
-                ->{oidcRPMetaDataOptionsClientID} // '' ) eq $cid;
-            $rp = $k;
-            last;
-        }
-    }
-    unless ( $rp and $self->oidc->rpOptions->{$rp} ) {
+    my $rp  = $self->_resolveRp($rtSession);
+    unless ($rp) {
         $self->logger->error(
             'PAM heartbeat: cannot resolve RP for refresh token');
         return $self->_unauthorizedResponse( $req, 'Unknown client' );

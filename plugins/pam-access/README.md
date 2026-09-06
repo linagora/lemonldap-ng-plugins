@@ -238,6 +238,13 @@ It is **empty by default**, which keeps the historical behaviour so an upgrade
 is not a rupture; a once-per-worker warning says so. A token from an unlisted
 RP gets HTTP 403 + `PAM_CALLER_RP_REFUSED`, on all six endpoints.
 
+The RP a token belongs to is resolved from `rp`, then `_clientConfKey`, then a
+`client_id` lookup in the RP list. The three steps are not decoration: `rp` is
+stamped on **access tokens only**, so the refresh token `/pam/heartbeat`
+presents carries none, and the synthetic session built by
+`oidc-device-organization` stamps `_clientConfKey` instead. A token whose
+`client_id` matches no declared RP is treated as unlisted.
+
 Setting it also turns on the second half of the fix, below.
 
 ### Server-group enforcement (`pamAccessServerGroups`)

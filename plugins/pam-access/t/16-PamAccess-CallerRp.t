@@ -52,6 +52,12 @@ ok(
                         oidcRPMetaDataOptionsClientSecret => 'pamsecret',
                         oidcRPMetaDataOptionsAccessTokenExpiration    => 600,
                         oidcRPMetaDataOptionsAllowDeviceAuthorization => 1,
+
+                        # /pam/heartbeat runs the same gate on a REFRESH
+                        # token session, which is a different shape — see the
+                        # last part of this file.
+                        oidcRPMetaDataOptionsAllowOffline             => 1,
+                        oidcRPMetaDataOptionsOfflineSessionExpiration => 2592000,
                     },
                     'other-app' => {
                         oidcRPMetaDataOptionsDisplayName  => 'Other App',
@@ -190,6 +196,57 @@ my $conf = $op->p->conf;
     local $conf->{pamAccessAllowedRps} = { 'other-app' => 1 };
     is( authorize($other)->[0], 200, 'A hashref is honoured too' );
     is( authorize($pam)->[0],   403, '  -> and still excludes the rest' );
+    count(2);
+}
+
+# ===========================================================================
+# /pam/heartbeat: the same gate, on a refresh-token session
+#
+# `rp` is stamped by the core's newAccessToken only. The refresh token the
+# device flow mints carries no `rp` at all, and the synthetic session built
+# by oidc-device-organization stamps `_clientConfKey` instead. A gate reading
+# `rp` alone therefore refused EVERY heartbeat as soon as the allowlist was
+# set — every enrolled device would have stopped refreshing at access-token
+# expiry. _resolveRp is what the endpoint's own step 5 already used.
+# ===========================================================================
+
+my ( $pam_at, $pam_rt ) = pam_lib::enroll_server_tokens(
+    $op, $sid,
+    scope => 'pam:server offline_access',
+);
+ok( $pam_rt, 'Enrolled the PAM RP with a refresh token' );
+count(1);
+
+sub heartbeat {
+    my ($rt) = @_;
+    my $body = to_json( { refresh_token => $rt, hostname => 'h1' } );
+    return $op->_post(
+        '/pam/heartbeat',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+    );
+}
+
+is( heartbeat($pam_rt)->[0], 200, 'Heartbeat works with an empty allowlist' );
+count(1);
+
+{
+    local $conf->{pamAccessAllowedRps} = 'pam-access';
+    $res = heartbeat($pam_rt);
+    is( $res->[0], 200, 'Heartbeat still works with the RP listed' );
+    ok( from_json( $res->[2]->[0] )->{access_token},
+        '  -> and returns a fresh access token' );
+    count(2);
+}
+
+{
+    local $conf->{pamAccessAllowedRps} = 'other-app';
+    $res = heartbeat($pam_rt);
+    is( $res->[0], 403, '  -> and is refused when the RP is not listed' );
+    is( from_json( $res->[2]->[0] )->{error},
+        'Token is not a PAM token', '  -> with the caller-gate message' );
     count(2);
 }
 
