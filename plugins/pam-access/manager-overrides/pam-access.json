@@ -94,6 +94,35 @@
       "type": "text",
       "default": "",
       "documentation": "Comma-separated list of OIDC relying-party configuration keys allowed to call /pam/*. Empty (default) accepts any device-grant token carrying a pam scope, which is the historical behaviour. When set, it also forbids a caller from declaring a bastion server_group in the request body: bastion groups must then come from pamAccessServerGroups."
+    },
+    "pamAccessRequestSigningMode": {
+      "type": "select",
+      "select": [
+        {
+          "k": "off",
+          "v": "Off"
+        },
+        {
+          "k": "optional",
+          "v": "Optional (accept unsigned)"
+        },
+        {
+          "k": "required",
+          "v": "Required"
+        }
+      ],
+      "default": "off",
+      "documentation": "Verification of the X-Signature-256 / X-Timestamp / X-Nonce headers sent by the open-bastion PAM client. 'optional' accepts unsigned requests but still refuses a bad signature: use it while rolling the secret out, then switch to 'required'."
+    },
+    "pamAccessRequestSigningSecret": {
+      "type": "password",
+      "default": "",
+      "documentation": "Shared secret used to verify signed PAM requests. Must equal request_signing_secret in the open-bastion client configuration."
+    },
+    "pamAccessRequestSigningWindow": {
+      "type": "int",
+      "default": 300,
+      "documentation": "Accepted clock skew, in seconds, for X-Timestamp. Also the lifetime of the nonce replay cache entries."
     }
   },
   "tree": [
@@ -124,6 +153,9 @@
             "pamAccessExportedVars",
             "pamAccessOfflineEnabled",
             "pamAccessOfflineTtl",
+            "pamAccessRequestSigningMode",
+            "pamAccessRequestSigningSecret",
+            "pamAccessRequestSigningWindow",
             "pamAccessAllowedRps",
             "pamAccessServerGroups",
             "pamAccessBastionGroups",
@@ -220,6 +252,18 @@
     "pamAccessAllowedRps": {
       "en": "Allowed PAM relying parties",
       "fr": "Clients OIDC autorisés pour PAM"
+    },
+    "pamAccessRequestSigningMode": {
+      "en": "Request signature verification",
+      "fr": "Vérification de signature des requêtes"
+    },
+    "pamAccessRequestSigningSecret": {
+      "en": "Request signing secret",
+      "fr": "Secret de signature des requêtes"
+    },
+    "pamAccessRequestSigningWindow": {
+      "en": "Signature time window (s)",
+      "fr": "Fenêtre temporelle de signature (s)"
     }
   }
 }

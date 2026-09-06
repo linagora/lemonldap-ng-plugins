@@ -14,7 +14,7 @@ package Lemonldap::NG::Portal::Plugins::PamAccess;
 use strict;
 use Mouse;
 use JSON                                   qw(from_json to_json);
-use Digest::SHA                            qw(sha256_hex);
+use Digest::SHA                            qw(sha256_hex hmac_sha256_hex);
 use Lemonldap::NG::Common::Session;
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
@@ -91,6 +91,13 @@ has rpName => (
 # One-shot flag for the "no RP allowlist configured" warning emitted by
 # _checkCallerRp. Without this, every /pam/* call would log a warning.
 has _rpAllowlistWarned => (
+    is      => 'rw',
+    default => 0,
+);
+
+# One-shot flag for the warning emitted by _checkRequestSignature when
+# pamAccessRequestSigningMode holds a value it does not recognise.
+has _signingModeWarned => (
     is      => 'rw',
     default => 0,
 );
@@ -876,12 +883,228 @@ my %CALLER_GATE = (
 # Returns ( $session, undef ) when the caller passes, ( undef, $response )
 # otherwise -- the response already carries that endpoint's own wording, so
 # callers just `return $bail if $bail`.
+# ---------------------------------------------------------------------------
+# Request signing (issue #81, linagora/open-bastion#188)
+#
+# open-bastion's PAM/NSS client signs every call to the portal when
+# `request_signing_secret` is configured, and has done for a while — but
+# nothing on this side ever read the headers. The client signed, nothing
+# checked, and the replay-protection chain was a no-op that only cost
+# bandwidth. This is the missing verifier.
+#
+# Wire format, settled by open-bastion#188:
+#
+#   X-Timestamp      unix seconds, decimal
+#   X-Nonce          <unix_ms>-<uuid-v4>
+#   X-Signature-256  sha256=<64 lowercase hex>
+#
+#   message = <timestamp>.<nonce>.<method>.<path>.<body>
+#   HMAC-SHA256, key = the raw bytes of the configured secret.
+#
+# Four literal '.' separators, always present; a bodyless request signs the
+# empty string, so the message still ends with a trailing '.'. <path> carries
+# no scheme, host or query string. <body> is the raw bytes as sent — which is
+# why the HMAC is computed here, before anything decodes and re-encodes the
+# JSON.
+#
+# Rollout. Turning verification on is a breaking change for any fleet where
+# some hosts have the secret and some do not, so there are three modes:
+#
+#   off       (default) headers ignored entirely.
+#   optional  a signed request must verify; an unsigned one passes. This is
+#             the mode to run while the secret is being rolled out.
+#   required  the headers are mandatory. Fail closed.
+#
+# Note that `optional` still fails closed on a BAD signature — it waives the
+# requirement to sign, never the requirement to sign correctly.
+#
+# The signature is defence in depth on top of TLS, not a substitute for it.
+# Do not relax verify_ssl because of it.
+sub _checkRequestSignature {
+    my ( $self, $req, $label ) = @_;
+
+    my $mode = $self->conf->{pamAccessRequestSigningMode} || 'off';
+    return undef if $mode eq 'off';
+
+    # An unrecognised value (a typo such as 'optionnal') falls through to the
+    # required branch below. Fail-closed is the right default, but silently
+    # turning a typo into the strictest mode is how a deployment discovers it
+    # in production: say so, once.
+    unless ( $mode eq 'optional' or $mode eq 'required' ) {
+        unless ( $self->_signingModeWarned ) {
+            $self->logger->warn( "PamAccess: pamAccessRequestSigningMode is"
+                  . " '$mode', which is not one of off/optional/required —"
+                  . " treating it as 'required' (this warning is emitted"
+                  . " only once)" );
+            $self->_signingModeWarned(1);
+        }
+    }
+
+    my $secret = $self->conf->{pamAccessRequestSigningSecret};
+    unless ( defined $secret and $secret ne '' ) {
+        $self->logger->error( "$label: pamAccessRequestSigningMode is"
+              . " '$mode' but pamAccessRequestSigningSecret is empty" );
+        return $self->_forbiddenResponse( $req,
+            'Request signing is misconfigured' );
+    }
+
+    my $ts    = $req->env->{HTTP_X_TIMESTAMP};
+    my $nonce = $req->env->{HTTP_X_NONCE};
+    my $sig   = $req->env->{HTTP_X_SIGNATURE_256};
+
+    my $signed = grep { defined $_ and $_ ne '' } ( $ts, $nonce, $sig );
+    unless ($signed) {
+        return undef if $mode eq 'optional';
+        return $self->_signatureRefusal( $req, $label, 'unsigned',
+            'Request signature required' );
+    }
+
+    # A partially signed request is malformed in either mode: it is not the
+    # "old client that does not sign" case optional exists for.
+    my ($given) =
+      defined $sig ? ( $sig =~ /\Asha256=([0-9a-f]{64})\z/ ) : ();
+    unless ( defined $ts
+        and $ts =~ /\A[0-9]{1,11}\z/
+        and defined $nonce
+        and $nonce =~ m{\A[0-9A-Za-z._:-]{1,128}\z}
+        and defined $given )
+    {
+        return $self->_signatureRefusal( $req, $label, 'malformed_headers',
+            'Malformed request signature' );
+    }
+
+    # 1. Timestamp, first: it is the cheapest check, and it bounds both how
+    #    long a captured request stays replayable and how big the nonce store
+    #    has to be. Doing it before the HMAC also stops an attacker making the
+    #    portal hash for requests it has already lost.
+    my $window = $self->_confPositiveInt( 'pamAccessRequestSigningWindow', 300 );
+    my $skew   = abs( time() - $ts );
+    if ( $skew > $window ) {
+        return $self->_signatureRefusal( $req, $label, 'stale_timestamp',
+            'Request timestamp outside the accepted window' );
+    }
+
+    # 2. HMAC, second — and it MUST come before the nonce claim. _claimNonce
+    #    WRITES to the shared session backend, so claiming first let any
+    #    unauthenticated caller create one storage record per request with
+    #    nothing but a parseable header set and a fresh timestamp, both of
+    #    which it controls: storage exhaustion against the very store this
+    #    protection leans on. It also burned the nonce, so a request the
+    #    attacker had captured could be invalidated before its legitimate
+    #    retry. One SHA-256 over a short message is in any case cheaper than
+    #    the two storage roundtrips below.
+    my $path = $req->uri // '';
+    $path =~ s/\?.*\z//s;
+    my $message = join '.', $ts, $nonce, uc( $req->method // '' ), $path,
+      ( $req->content // '' );
+    my $expected = hmac_sha256_hex( $message, $secret );
+
+    unless ( _constantTimeEq( $expected, $given ) ) {
+        return $self->_signatureRefusal( $req, $label, 'bad_signature',
+            'Invalid request signature' );
+    }
+
+    # 3. Nonce, last. This is the actual replay protection — the window only
+    #    bounds it — and only a caller holding the secret ever reaches it.
+    if ( my $reason = $self->_claimNonce( $nonce, $window ) ) {
+        return $self->_signatureRefusal( $req, $label, $reason,
+            'Request nonce refused' );
+    }
+
+    return undef;
+}
+
+# HELPER: hex-string comparison that does not leak where it differs.
+# Both arguments are 64 lowercase hex characters by construction.
+sub _constantTimeEq {
+    my ( $a, $b ) = @_;
+
+    return 0 unless defined $a and defined $b;
+    return 0 unless length($a) == length($b);
+    my $diff = 0;
+    $diff |= ord( substr $a, $_, 1 ) ^ ord( substr $b, $_, 1 )
+      for ( 0 .. length($a) - 1 );
+    return $diff == 0 ? 1 : 0;
+}
+
+# HELPER: record a nonce as used, or say why it cannot be.
+#
+# One session per nonce, keyed on its digest and expiring with the signing
+# window — the same shape oidc-jar uses for its `jti` replay cache, and stored
+# in the shared session backend so it works across workers and nodes.
+#
+# Read-then-create is not atomic (the LLNG store offers no insert-if-absent),
+# so two replays landing in the same instant can both pass. Replaying a
+# captured request within that window is a far smaller target than replaying
+# it for the whole 300 s the window would otherwise leave open, which is what
+# this closes.
+sub _claimNonce {
+    my ( $self, $nonce, $window ) = @_;
+
+    my $id = sha256_hex( 'pam-request-nonce:' . $nonce );
+    my %opts = (
+        storageModule        => $self->conf->{globalStorage},
+        storageModuleOptions => $self->conf->{globalStorageOptions},
+        hashStore            => 0,
+        id                   => $id,
+        kind                 => 'PAMNONCE',
+    );
+
+    my $existing = Lemonldap::NG::Common::Session->new( {%opts} );
+    if ( !$existing->error and $existing->data and $existing->data->{_type} ) {
+        return 'nonce_replayed';
+    }
+
+    my $now     = time();
+    my $timeout = $self->conf->{timeout} || 72000;
+    my $stored  = Lemonldap::NG::Common::Session->new( {
+            %opts,
+            force => 1,
+            info  => {
+                _type  => 'pam_nonce',
+                _utime => $now + $window - $timeout,
+            },
+        }
+    );
+    if ( $stored->error ) {
+        $self->logger->error(
+            'PAM: nonce replay-cache write failed: ' . $stored->error );
+
+        # Cannot prove the nonce is fresh: refuse rather than accept a
+        # request whose replay protection we know is not in force.
+        return 'nonce_store_failed';
+    }
+
+    return undef;
+}
+
+# HELPER: log, audit and refuse, uniformly for every signature failure.
+sub _signatureRefusal {
+    my ( $self, $req, $label, $reason, $message ) = @_;
+
+    $self->logger->warn("$label: request signature refused ($reason)");
+    $self->p->auditLog(
+        $req,
+        code    => 'PAM_REQUEST_SIGNATURE_REFUSED',
+        message => "PAM call refused: $message",
+        reason  => $reason,
+    );
+    return $self->_forbiddenResponse( $req, $message );
+}
+
 sub _checkCaller {
     my ( $self, $req, $endpoint, %opts ) = @_;
 
     my $gate = $CALLER_GATE{$endpoint}
       or die "PamAccess: no caller gate defined for '$endpoint'";
     my $label = $gate->{label};
+
+    # Before anything else: the request signature, when the deployment has
+    # turned it on. Cheap checks first, and nothing else is worth doing for a
+    # request we are going to refuse (issue #81).
+    if ( my $bail = $self->_checkRequestSignature( $req, $label ) ) {
+        return ( undef, $bail );
+    }
 
     my $session = $opts{session};
     unless ($session) {

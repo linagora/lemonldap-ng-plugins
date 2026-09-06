@@ -50,6 +50,9 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessSshRules`                    | Per-group SSH authorization rules                                                                                                                                                        | `{}`      |
 | `pamAccessSudoRules`                   | Per-group sudo authorization rules                                                                                                                                                       | `{}`      |
 | `pamAccessExportedVars`                | Session attributes to expose to PAM modules                                                                                                                                              | `{}`      |
+| `pamAccessRequestSigningMode`          | Verify the client's `X-Signature-256` / `X-Timestamp` / `X-Nonce` headers: `off`, `optional`, `required`.                                                                                | `off`     |
+| `pamAccessRequestSigningSecret`        | Shared secret, equal to the client's `request_signing_secret`.                                                                                                                          | `''`      |
+| `pamAccessRequestSigningWindow`        | Accepted `X-Timestamp` skew in seconds, and the nonce replay-cache lifetime.                                                                                                            | `300`     |
 | `pamAccessAllowedRps`                  | Comma-separated RP configuration keys allowed to call `/pam/*`. Empty accepts any device-grant token with a pam scope (historical behaviour). Setting it also forbids a self-declared bastion `server_group`. | `''`      |
 | `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` enforces the mapping and rejects mismatches.                                                          | `{}`      |
 | `pamAccessBastionGroups`               | Comma-separated list of server groups whose hosts may be vouched for as bastions                                                                                                         | `bastion` |
@@ -216,6 +219,101 @@ lets `sudo` keep working for the realistic lifetime of an open session. The
 binding window only authorizes a `sudo` that **also** presents a fresh one-time
 token, and it is server-side state (never transmitted), so a long value here
 carries little risk. Revocation is always honored regardless of either value.
+
+### Request signing (`pamAccessRequestSigningMode`)
+
+open-bastion's PAM/NSS client signs every call to the portal when
+`request_signing_secret` is configured. Until now nothing on this side read the
+headers: the client signed, nothing checked, and the replay-protection chain
+was a no-op (issue #81, linagora/open-bastion#188).
+
+Wire format, as the client sends it:
+
+| Header | Value |
+| --- | --- |
+| `X-Timestamp` | Unix seconds, decimal |
+| `X-Nonce` | `<unix_ms>-<uuid-v4>` |
+| `X-Signature-256` | `sha256=<64 lowercase hex>` |
+
+```
+message = <timestamp>.<nonce>.<method>.<path>.<body>
+HMAC-SHA256, key = the raw bytes of the shared secret
+```
+
+Four literal `.` separators, always present; a bodyless request signs the empty
+string. `<path>` carries no scheme, host or query string. `<body>` is the raw
+bytes as sent, which is why the HMAC is computed before anything decodes the
+JSON.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `pamAccessRequestSigningMode` | `off` | `off`, `optional`, `required` |
+| `pamAccessRequestSigningSecret` | `''` | Must equal the client's `request_signing_secret` |
+| `pamAccessRequestSigningWindow` | `300` | Accepted `X-Timestamp` skew, and the nonce cache lifetime |
+
+**What the client signs today.** The gate covers all six `/pam/*` endpoints,
+but the Open Bastion client does **not** sign all six. As of this writing it
+signs exactly two:
+
+| Endpoint | Signed by the client? |
+| --- | --- |
+| `/pam/verify` | yes (`ob_client.c`) |
+| `/pam/authorize` | yes (`ob_client.c`) |
+| `/pam/heartbeat` | **no** — authenticates by the `refresh_token` in its body |
+| `/pam/bastion-cert` | **no** (`ob-cert-daemon.c` sends Bearer only) |
+| `/pam/userinfo` | **no** |
+| `/pam/whoami` | **no** |
+
+**So `required` is not deployable yet, and the failure is a nasty one.** It
+would 403 `/pam/heartbeat`, which is how every enrolled host renews its access
+token. Nothing breaks at the moment you flip the switch: hosts keep working on
+the tokens they already hold, and the fleet goes down hours later, all at once,
+when those expire. `/pam/bastion-cert` would stop minting hop certificates at
+the same time.
+
+**Rollout order.** Turning verification on is a breaking change for a fleet
+where some hosts have the secret and some do not, so:
+
+1. Deploy with `optional`.
+2. Roll the secret out to every host.
+3. **Wait for the client to sign the remaining endpoints** — heartbeat first,
+   since it is the one that takes the fleet down, then bastion-cert. Until
+   that ships, stay on `optional`.
+4. Only then switch to `required`.
+
+`optional` waives the requirement to *sign* — never the requirement to sign
+*correctly*: a bad signature is refused in every mode but `off`. So `optional`
+already protects the two endpoints the client signs, which are the two that
+consume credentials; it is a useful destination in its own right, not merely a
+staging post.
+
+**Sizing.** Every *signed* request costs two round-trips to the global session
+store (a read to detect a replay, a write to claim the nonce), and the store
+holds one record per nonce for the length of the window. Today that is bounded
+by `/pam/verify` and `/pam/authorize` traffic. Once heartbeat is signed it
+becomes the steady-state load, since every host beats on a timer whether or not
+anyone logs in: budget roughly *fleet size × beats per window* records
+resident, and the same number of round-trip pairs per window. The purge bounds
+the storage, not the request rate.
+
+Checks run **timestamp, then HMAC, then nonce**. The timestamp is first because
+it is the cheapest and bounds both the replay window and the size of the nonce
+store. The nonce claim is *last* because it is the only step that writes: it
+must never run for a request whose signature does not verify, or an
+unauthenticated caller could fill the shared session backend with one record
+per request, and could burn the nonce of a request it had captured before the
+legitimate retry arrived. The nonce cache is one session per nonce in the
+shared backend, expiring with the window, so it works across workers and
+nodes. Every refusal is 403 + `PAM_REQUEST_SIGNATURE_REFUSED` with a
+machine-readable `reason`.
+
+A configured mode with an empty secret refuses every request rather than waving
+them through, and a mode value that is not one of `off` / `optional` /
+`required` is treated as `required` with a once-per-worker warning — a typo
+must not open the gate.
+
+This is defence in depth **on top of** TLS, not a substitute for it. Do not
+relax `verify_ssl` because of it.
 
 ### Which callers may reach `/pam/*` (`pamAccessAllowedRps`)
 
