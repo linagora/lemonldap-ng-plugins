@@ -1508,9 +1508,15 @@ sub _parseFingerprintOrReject {
             %$audit_fields,
         );
         $opts{on_reject}->() if $opts{on_reject};
+
+        # Keep the caller's body shape (verify carries `valid => false`) and
+        # only swap the message, so clients always get the expected fields.
         return ( undef,
-            $self->p->sendJSONresponse( $req,
-                { error => 'SSH fingerprint required' }, code => 400 ) );
+            $self->p->sendJSONresponse(
+                $req,
+                { %$body_out, error => 'SSH fingerprint required' },
+                code => 400
+            ) );
     }
 
     return ( undef, undef ) unless defined $fp;

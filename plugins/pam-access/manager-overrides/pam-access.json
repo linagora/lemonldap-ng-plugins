@@ -63,12 +63,12 @@
     "pamAccessServerGroups": {
       "type": "keyTextContainer",
       "default": {},
-      "documentation": "Authoritative mapping of enrolled OIDC client_id to server group. When non-empty, /pam/authorize and /pam/bastion-token enforce the group from this map instead of trusting the request body."
+      "documentation": "Authoritative mapping of enrolled OIDC client_id to server group. When non-empty, /pam/authorize enforces the group from this map instead of trusting the request body."
     },
     "pamAccessBastionGroups": {
       "type": "text",
       "default": "bastion",
-      "documentation": "Comma-separated list of server groups allowed to call /pam/bastion-token"
+      "documentation": "Comma-separated list of server groups whose hosts may be vouched for as bastions"
     },
     "pamAccessChoice": {
       "type": "text",
@@ -88,7 +88,7 @@
     "pamAccessBastionVoucherUnboundTtl": {
       "type": "int",
       "default": 900,
-      "documentation": "Maximum lifetime of a bastion voucher minted without an SSH fingerprint, i.e. one nothing binds to the user's SSO certificate expiry (seconds)"
+      "documentation": "Maximum lifetime of a bastion voucher minted without an SSH fingerprint, i.e. one that nothing binds to the user's SSO certificate expiry (seconds)"
     }
   },
   "tree": [

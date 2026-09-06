@@ -255,6 +255,24 @@ ok( !$json->{valid}, 'Malformed fingerprint response is not valid' );
 like( $json->{error}, qr/fingerprint/i, 'Error mentions fingerprint' );
 count(3);
 
+# ------------------------------------------------------------------
+# Case 2c: pamAccessRequireFingerprint refuses the unbound call, and the
+# refusal keeps /pam/verify's body shape (valid => false), issue #55.
+# ------------------------------------------------------------------
+
+{
+    my $conf = $op->p->conf;
+    local $conf->{pamAccessRequireFingerprint} = 1;
+    $user_token = _new_pam_token();
+    $res        = _verify( $user_token, undef );
+    is( $res->[0], 400, 'verify without fingerprint is a 400 when required' );
+    $json = JSON::from_json( $res->[2]->[0] );
+    ok( exists $json->{valid} && !$json->{valid},
+        'requireFingerprint refusal keeps the verify body shape' );
+    like( $json->{error}, qr/fingerprint required/i, 'Error says so' );
+    count(3);
+}
+
 # Leading/trailing whitespace is tolerated (trimmed)
 $user_token = _new_pam_token();
 $res        = _verify( $user_token, "  $user_fp\n" );
