@@ -133,25 +133,6 @@ is( $around, 0, '  aroundSub not called on /pam/authorize' );
 is( $after,  0, '  afterSub not called on /pam/authorize' );
 count(3);
 
-# /pam/bastion-token: reaching getUser needs a _pamSeen marker
-$op->p->getPersistentSession( 'ghostuser', { _pamSeen => time() } );
-ok(
-    $res = machine_post(
-        '/pam/bastion-token',
-        {
-            user         => 'ghostuser',
-            target_host  => 'backend.example.com',
-            target_group => 'default',
-        }
-    ),
-    'POST /pam/bastion-token'
-);
-is( $res->[0], 200, '  request is served' );
-( $around, $after ) = counters();
-is( $around, 0, '  aroundSub not called on /pam/bastion-token' );
-is( $after,  0, '  afterSub not called on /pam/bastion-token' );
-count(4);
-
 # And the hooks are still armed for regular traffic afterwards
 reset_counters();
 $op->login('rtyler');

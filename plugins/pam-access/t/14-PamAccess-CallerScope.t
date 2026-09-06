@@ -178,15 +178,6 @@ is( from_json( $res->[2]->[0] )->{error},
 count(3);
 
 ok(
-    $res = post_pam( '/pam/bastion-token', { probe => JSON::true() }, $bad ),
-    'POST /pam/bastion-token with a non-pam scoped token'
-);
-is( $res->[0], 403, '  -> HTTP 403' );
-is( from_json( $res->[2]->[0] )->{error},
-    'Invalid token scope', '  -> Invalid token scope' );
-count(3);
-
-ok(
     $res = post_pam(
         '/pam/bastion-cert',
         {

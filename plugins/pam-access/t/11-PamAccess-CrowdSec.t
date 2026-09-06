@@ -181,33 +181,6 @@ ok( !$json->{authorized}, 'Unknown user is not authorized' );
 is( $alerts, $prev, 'No CrowdSec alert for a PAM authorization miss' );
 count(3);
 
-# /pam/bastion-token — the third endpoint running getUser. Reaching it needs a
-# _pamSeen marker, so stamp one for a user the directory does not know: the
-# shape of an account deleted between its token generation and a bastion hop.
-
-$prev = $alerts;
-$op->p->getPersistentSession( 'ghostuser', { _pamSeen => time() } );
-$body = to_json( {
-        user         => 'ghostuser',
-        target_host  => 'backend.example.com',
-        target_group => 'default',
-    }
-);
-ok(
-    $res = $op->_post(
-        '/pam/bastion-token',
-        IO::String->new($body),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
-    ),
-    'POST /pam/bastion-token for a user unknown to the directory'
-);
-is( $res->[0], 200, 'Request is served (group lookup failure is not fatal)' );
-is( $alerts, $prev, 'No CrowdSec alert for a bastion-token lookup miss' );
-count(3);
-
 # A successful machine lookup is untouched too
 
 $prev = $alerts;

@@ -21,7 +21,17 @@ read the upgrade notes before deploying.**
 5. **The device-grant audit records carry `user_code_hash`**, not `user_code`,
    wherever the code is still live. The value is `hmac_sha256_hex(code, key)`,
    so it cannot be recomputed from a code without the portal secret. SIEM
-   rules keyed on that field need updating.
+   rules keyed on that field need updating. The `pamAccessRequireFingerprint`
+   refusal also has its own codes now, `PAM_AUTH_SSH_FP_REQUIRED` /
+   `PAM_AUTHZ_SSH_FP_REQUIRED`, instead of sharing the malformed ones.
+6. **`/pam/bastion-token` is gone** (deprecated, superseded by
+   `/pam/bastion-cert`). Any caller still using it gets a 404; its
+   `pamAccessBastionJwtTtl` and `pamAccessBastionMaxSeenAge` settings are
+   removed.
+7. **A bastion voucher minted without an SSH fingerprint now lives 15 minutes**
+   instead of 12 hours (`pamAccessBastionVoucherUnboundTtl`), and
+   `/pam/bastion-cert` refuses to mint when `pamAccessBastionCertPinSourceAddress`
+   is set but the observed address is unusable.
 
 Not breaking, but worth knowing: enabling `pamAccessHeartbeatRequired` makes
 `/pam/heartbeat` an operational dependency; the new device-grant bounds are
@@ -60,6 +70,19 @@ meanwhile.
   caller's scope** (#51). Any device-grant token could enumerate users or
   burn a one-time token. One gate now fronts the six endpoints, matching the
   scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
+- **Removed the deprecated `/pam/bastion-token`** (#57). Superseded by
+  `/pam/bastion-cert`, its transport already purged from open-bastion, and it
+  signed a JWT even when the user lookup had failed. Gone with it:
+  `pamAccessBastionJwtTtl` and `pamAccessBastionMaxSeenAge`.
+- **Fix — the source-address pin was silently skipped** (#56). When
+  `pamAccessBastionCertPinSourceAddress` was set and the observed address was
+  unusable, `/pam/bastion-cert` minted an unpinned certificate that nothing
+  distinguished from a pinned one. It now refuses.
+- **Fix — a voucher minted without a fingerprint got the full 12h TTL** (#55),
+  so "revoking the SSO invalidates the voucher" depended on an optional
+  binding. Unbound vouchers are capped by the new
+  `pamAccessBastionVoucherUnboundTtl` (15 min), and the new
+  `pamAccessRequireFingerprint` refuses the unbound case outright.
 - **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
   longer inert** (#52). They were Manager-exposed and read by no code;
   `/pam/authorize` now refuses a caller that has stopped beating. Defaults

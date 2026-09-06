@@ -56,21 +56,17 @@ ok(
     'OP with pam-access + device-organization (org-owned RP)'
 );
 
-# Probe /pam/bastion-token (no voucher/ssh-ca needed) → returns bastion_id.
+# The bastion id the plugin derives from a caller token. This used to be read
+# back from /pam/bastion-token's probe mode; that endpoint is gone (issue #57),
+# so ask the plugin for the identity directly -- which is all the probe did.
 sub probe_bastion_id {
     my ( $token, $opx ) = @_;
     $opx ||= $op;
-    my $body = to_json( { probe => JSON::true(), target_group => 'bastion' } );
-    my $r    = $opx->_post(
-        '/pam/bastion-token',
-        IO::String->new($body),
-        accept => 'application/json',
-        type   => 'application/json',
-        length => length($body),
-        custom => { HTTP_AUTHORIZATION => "Bearer $token" },
-    );
-    is( $r->[0], 200, '  -> probe returns 200' ) or diag explain $r;
-    return from_json( $r->[2]->[0] )->{bastion_id};
+    my $plugin =
+      $opx->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::PamAccess'};
+    my $session = $plugin->oidc->getAccessToken($token);
+    ok( $session, '  -> caller token resolves to a session' );
+    return $plugin->_callerId($session);
 }
 
 my $sid = $op->login('french');
