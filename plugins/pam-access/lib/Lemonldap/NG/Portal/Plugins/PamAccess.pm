@@ -88,6 +88,13 @@ has rpName => (
     default => sub { $_[0]->conf->{pamAccessRp} || 'pam-access' },
 );
 
+# One-shot flag for the "no RP allowlist configured" warning emitted by
+# _checkCallerRp. Without this, every /pam/* call would log a warning.
+has _rpAllowlistWarned => (
+    is      => 'rw',
+    default => 0,
+);
+
 # One-shot flag for the legacy-mode warning emitted by _resolveServerGroup
 # when pamAccessServerGroups is empty. Without this, every call to
 # /pam/authorize would log a warning.
@@ -911,7 +918,78 @@ sub _checkCaller {
             $self->_forbiddenResponse( $req, 'Invalid token scope' ) );
     }
 
+    if ( my $bail = $self->_checkCallerRp( $req, $session, $label ) ) {
+        return ( undef, $bail );
+    }
+
     return ( $session, undef );
+}
+
+# HELPER: bind the presented token to a relying party this portal recognises
+# as a PAM caller (issue #50).
+#
+# The gate above tests the grant type and the scope, and nothing else. But
+# `grant_type => device_code` is stamped for EVERY RP using the device flow,
+# not just PAM ones, and the core's getAccessToken performs no audience or RP
+# check at all. So any device-grant token whose scope contains a pam token
+# reached /pam/*. The cheapest attacker is not an unrelated RP: it is a
+# compromise of any ordinary enrolled host in the same project, which already
+# holds exactly such a token.
+#
+# pamAccessAllowedRps is the binding. It lists RP configuration keys — the
+# same vocabulary as pamAccessRp — and is EMPTY by default, which keeps the
+# historical behaviour so an upgrade is not a rupture. Setting it also turns
+# on the second half of the fix, in _resolveServerGroup: a deployment that has
+# named its PAM relying parties is a deployment that can name its bastions,
+# and a self-declared `server_group` is no longer accepted for one.
+sub _checkCallerRp {
+    my ( $self, $req, $session, $label ) = @_;
+
+    my $allowed = $self->_allowedRps;
+    unless ( keys %$allowed ) {
+        unless ( $self->_rpAllowlistWarned ) {
+            $self->logger->warn(
+                    'PamAccess: pamAccessAllowedRps is empty; /pam/* accepts '
+                  . 'ANY device-grant token carrying a pam scope, including '
+                  . 'one issued to an unrelated relying party — set it to the '
+                  . 'RPs that may call PAM (this warning is emitted only once)'
+            );
+            $self->_rpAllowlistWarned(1);
+        }
+        return undef;
+    }
+
+    my $rp = $session->data->{rp} // '';
+    return undef if $rp ne '' and $allowed->{$rp};
+
+    my $client_id = $session->data->{client_id} // 'unknown';
+    $self->logger->warn( "$label: token was issued to RP '"
+          . ( $rp ne '' ? $rp : 'unknown' )
+          . "' (client_id '$client_id'), which is not in pamAccessAllowedRps" );
+    $self->p->auditLog(
+        $req,
+        code      => 'PAM_CALLER_RP_REFUSED',
+        message   => 'PAM call refused: token was not issued to a PAM'
+          . ' relying party',
+        rp        => $rp,
+        server_id => $client_id,
+        reason    => 'rp_not_allowed',
+    );
+    return $self->_forbiddenResponse( $req, 'Token is not a PAM token' );
+}
+
+# HELPER: pamAccessAllowedRps as a lookup hash. Accepts the comma/space
+# separated string the Manager stores, and a hashref for programmatic configs.
+sub _allowedRps {
+    my ($self) = @_;
+
+    my $conf = $self->conf->{pamAccessAllowedRps};
+    return {} unless defined $conf;
+    if ( ref $conf eq 'HASH' ) {
+        return { map { $_ => 1 } grep { $_ ne '' } keys %$conf };
+    }
+    return {} if ref $conf;
+    return { map { $_ => 1 } grep { $_ ne '' } split /[,;\s]+/, $conf };
 }
 
 # HELPER: identity of the enrolled caller, for audit logs and voucher binding.
@@ -1534,9 +1612,34 @@ sub _resolveServerGroup {
         return $mapped;
     }
 
-    # Legacy / back-compat path. Emit the warning only once per process so
-    # the logs don't fill up for deployments that haven't configured the
-    # mapping yet.
+    # Legacy / back-compat path: the group comes from the request body.
+    #
+    # That is what lets any enrolled host declare itself a bastion and collect
+    # (bastion_id, user) vouchers for users it never saw (issue #50). The
+    # voucher binding itself is sound — it is bound to the caller's own device
+    # id — which is precisely the problem: the attacker's device id is what
+    # gets the hop certificates.
+    #
+    # A deployment that has set pamAccessAllowedRps has named its PAM relying
+    # parties, so it can name its bastions too: from then on a bastion group
+    # must come from pamAccessServerGroups and is refused in the body. Left
+    # unset, nothing changes.
+    if (   defined $body_group
+        && $body_group ne ''
+        && $self->_isBastionGroup($body_group)
+        && keys %{ $self->_allowedRps } )
+    {
+        return {
+            rejected => 1,
+            message  =>
+"Server '$client_id' may not declare itself a member of bastion group"
+              . " '$body_group'",
+            reason => 'self_declared_bastion',
+        };
+    }
+
+    # Emit the warning only once per process so the logs don't fill up for
+    # deployments that haven't configured the mapping yet.
     unless ( $self->_serverGroupLegacyWarned ) {
         $self->logger->warn(
 "$log_prefix: pamAccessServerGroups is empty; trusting caller-provided "

@@ -89,6 +89,11 @@
       "type": "int",
       "default": 900,
       "documentation": "Maximum lifetime of a bastion voucher minted without an SSH fingerprint, i.e. one that nothing binds to the user's SSO certificate expiry (seconds)"
+    },
+    "pamAccessAllowedRps": {
+      "type": "text",
+      "default": "",
+      "documentation": "Comma-separated list of OIDC relying-party configuration keys allowed to call /pam/*. Empty (default) accepts any device-grant token carrying a pam scope, which is the historical behaviour. When set, it also forbids a caller from declaring a bastion server_group in the request body: bastion groups must then come from pamAccessServerGroups."
     }
   },
   "tree": [
@@ -119,6 +124,7 @@
             "pamAccessExportedVars",
             "pamAccessOfflineEnabled",
             "pamAccessOfflineTtl",
+            "pamAccessAllowedRps",
             "pamAccessServerGroups",
             "pamAccessBastionGroups",
             "pamAccessRequireFingerprint",
@@ -210,6 +216,10 @@
     "pamAccessBastionVoucherUnboundTtl": {
       "en": "Unbound voucher TTL (s)",
       "fr": "Durée d'un voucher non lié (s)"
+    },
+    "pamAccessAllowedRps": {
+      "en": "Allowed PAM relying parties",
+      "fr": "Clients OIDC autorisés pour PAM"
     }
   }
 }

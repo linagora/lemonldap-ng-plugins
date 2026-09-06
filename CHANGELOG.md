@@ -41,6 +41,10 @@ read the upgrade notes before deploying.**
    refuse a foreign `Origin`. Clients already sending the documented content
    type are unaffected.
 
+Not breaking, but opt-in and worth doing: `pamAccessAllowedRps` binds `/pam/*`
+to your PAM relying parties and stops a host from declaring itself a bastion
+(#50). Empty by default; a warning says so once per worker.
+
 Not breaking, but worth knowing: enabling `pamAccessHeartbeatRequired` makes
 `/pam/heartbeat` an operational dependency; the new device-grant bounds are
 Manager validations that only bite on the next save, with runtime floors
@@ -104,6 +108,11 @@ meanwhile.
   caller's scope** (#51). Any device-grant token could enumerate users or
   burn a one-time token. One gate now fronts the six endpoints, matching the
   scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
+- **Security fix — `/pam/*` accepted any device-grant token, and any host
+  could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
+  token to a PAM relying party and, once set, refuses a self-declared bastion
+  `server_group`. Empty by default: an upgrade changes nothing until the list
+  is filled in.
 - **Removed the deprecated `/pam/bastion-token`** (#57). Superseded by
   `/pam/bastion-cert`, its transport already purged from open-bastion, and it
   signed a JWT even when the user lookup had failed. Gone with it:

@@ -50,6 +50,7 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessSshRules`                    | Per-group SSH authorization rules                                                                                                                                                        | `{}`      |
 | `pamAccessSudoRules`                   | Per-group sudo authorization rules                                                                                                                                                       | `{}`      |
 | `pamAccessExportedVars`                | Session attributes to expose to PAM modules                                                                                                                                              | `{}`      |
+| `pamAccessAllowedRps`                  | Comma-separated RP configuration keys allowed to call `/pam/*`. Empty accepts any device-grant token with a pam scope (historical behaviour). Setting it also forbids a self-declared bastion `server_group`. | `''`      |
 | `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` enforces the mapping and rejects mismatches.                                                          | `{}`      |
 | `pamAccessBastionGroups`               | Comma-separated list of server groups whose hosts may be vouched for as bastions                                                                                                         | `bastion` |
 | `pamAccessOfflineEnabled`              | Enable offline mode (boolOrExpr)                                                                                                                                                         | `0`       |
@@ -216,6 +217,29 @@ binding window only authorizes a `sudo` that **also** presents a fresh one-time
 token, and it is server-side state (never transmitted), so a long value here
 carries little risk. Revocation is always honored regardless of either value.
 
+### Which callers may reach `/pam/*` (`pamAccessAllowedRps`)
+
+The caller gate checks that the presented token came from the device
+authorization grant and carries a `pam` scope — and nothing else. But
+`grant_type = device_code` is stamped for **every** RP using the device flow,
+and the LLNG core performs no audience or RP check on an access token. So by
+default any device-grant token with a `pam` scope reaches `/pam/*`; the cheap
+attacker is not an unrelated application but a compromise of any ordinary
+enrolled host in the same project, which already holds one (issue #50).
+
+`pamAccessAllowedRps` lists the RP configuration keys — the same vocabulary as
+`pamAccessRp` — that may call PAM:
+
+```
+pamAccessAllowedRps = pam-access, pam-bastions
+```
+
+It is **empty by default**, which keeps the historical behaviour so an upgrade
+is not a rupture; a once-per-worker warning says so. A token from an unlisted
+RP gets HTTP 403 + `PAM_CALLER_RP_REFUSED`, on all six endpoints.
+
+Setting it also turns on the second half of the fix, below.
+
 ### Server-group enforcement (`pamAccessServerGroups`)
 
 - If the mapping is non-empty, `/pam/authorize` ignores any `server_group`
@@ -225,6 +249,20 @@ carries little risk. Revocation is always honored regardless of either value.
 - If the mapping is empty, the plugin falls back to the legacy behaviour
   (group from the body) and emits a warning log — existing deployments
   keep working until they configure the mapping.
+- **Except for bastion groups, once `pamAccessAllowedRps` is set.** In the
+  legacy path a host could name itself a member of a `pamAccessBastionGroups`
+  group and collect `(bastion_id, user)` vouchers for users it had never seen.
+  The voucher binding is sound — and that is the problem: it binds to the
+  *caller's own* device id, so the hop certificates go to the attacker. A
+  deployment that has named its PAM relying parties can name its bastions too,
+  so from then on a bastion group must come from `pamAccessServerGroups`;
+  claiming one in the body yields 403 + `self_declared_bastion`. Ordinary
+  groups are still taken from the body as before.
+
+  In practice this means a bastion needs a `client_id` the map can key on. If
+  one `client_id` covers a whole multi-group project, give the bastions their
+  own — a host you trust to vouch for arbitrary users has to be
+  distinguishable at enrollment.
 
 ## See Also
 
