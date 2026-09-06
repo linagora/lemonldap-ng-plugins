@@ -109,11 +109,21 @@ meanwhile.
   burn a one-time token. One gate now fronts the six endpoints, matching the
   scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
 - **Feature — the `X-Signature-256` request verifier** (#81,
-  open-bastion#188). The PAM client has been signing its calls for a while and
-  nothing read the headers. `pamAccessRequestSigningMode` (`off` /
+  open-bastion#188). The PAM client has been signing some of its calls for a
+  while and nothing read the headers. `pamAccessRequestSigningMode` (`off` /
   `optional` / `required`), `...Secret` and `...Window`: timestamp window,
   single-use nonce in shared storage, constant-time HMAC over the raw body.
-  Off by default; roll out via `optional`.
+  Off by default.
+
+  **Do not switch to `required` yet.** The gate covers all six `/pam/*`
+  endpoints; the client signs two of them, `/pam/verify` and `/pam/authorize`.
+  `required` would refuse `/pam/heartbeat`, which is how every enrolled host
+  renews its access token — and that failure is invisible at the moment you
+  flip the switch, then takes the whole fleet down at once when the tokens it
+  is still holding expire. `/pam/bastion-cert` would stop minting hop
+  certificates too. Stay on `optional`, which already refuses a *bad*
+  signature on the two endpoints that consume credentials, until the client
+  signs heartbeat and bastion-cert.
 - **Security fix — `/pam/*` accepted any device-grant token, and any host
   could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
   token to a PAM relying party and, once set, refuses a self-declared bastion

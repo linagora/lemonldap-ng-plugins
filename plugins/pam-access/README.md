@@ -251,11 +251,50 @@ JSON.
 | `pamAccessRequestSigningSecret` | `''` | Must equal the client's `request_signing_secret` |
 | `pamAccessRequestSigningWindow` | `300` | Accepted `X-Timestamp` skew, and the nonce cache lifetime |
 
+**What the client signs today.** The gate covers all six `/pam/*` endpoints,
+but the Open Bastion client does **not** sign all six. As of this writing it
+signs exactly two:
+
+| Endpoint | Signed by the client? |
+| --- | --- |
+| `/pam/verify` | yes (`ob_client.c`) |
+| `/pam/authorize` | yes (`ob_client.c`) |
+| `/pam/heartbeat` | **no** — authenticates by the `refresh_token` in its body |
+| `/pam/bastion-cert` | **no** (`ob-cert-daemon.c` sends Bearer only) |
+| `/pam/userinfo` | **no** |
+| `/pam/whoami` | **no** |
+
+**So `required` is not deployable yet, and the failure is a nasty one.** It
+would 403 `/pam/heartbeat`, which is how every enrolled host renews its access
+token. Nothing breaks at the moment you flip the switch: hosts keep working on
+the tokens they already hold, and the fleet goes down hours later, all at once,
+when those expire. `/pam/bastion-cert` would stop minting hop certificates at
+the same time.
+
 **Rollout order.** Turning verification on is a breaking change for a fleet
-where some hosts have the secret and some do not, so do it in three steps:
-deploy with `optional`, roll the secret out to every host, then switch to
-`required`. `optional` waives the requirement to *sign* — never the requirement
-to sign *correctly*: a bad signature is refused in every mode but `off`.
+where some hosts have the secret and some do not, so:
+
+1. Deploy with `optional`.
+2. Roll the secret out to every host.
+3. **Wait for the client to sign the remaining endpoints** — heartbeat first,
+   since it is the one that takes the fleet down, then bastion-cert. Until
+   that ships, stay on `optional`.
+4. Only then switch to `required`.
+
+`optional` waives the requirement to *sign* — never the requirement to sign
+*correctly*: a bad signature is refused in every mode but `off`. So `optional`
+already protects the two endpoints the client signs, which are the two that
+consume credentials; it is a useful destination in its own right, not merely a
+staging post.
+
+**Sizing.** Every *signed* request costs two round-trips to the global session
+store (a read to detect a replay, a write to claim the nonce), and the store
+holds one record per nonce for the length of the window. Today that is bounded
+by `/pam/verify` and `/pam/authorize` traffic. Once heartbeat is signed it
+becomes the steady-state load, since every host beats on a timer whether or not
+anyone logs in: budget roughly *fleet size × beats per window* records
+resident, and the same number of round-trip pairs per window. The purge bounds
+the storage, not the request rate.
 
 Checks run **timestamp, then HMAC, then nonce**. The timestamp is first because
 it is the cheapest and bounds both the replay window and the size of the nonce
