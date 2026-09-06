@@ -1253,6 +1253,13 @@ sub sshCertsList {
 
     # No field restriction: certificates live one per key
     # ($CERT_PREFIX.<fingerprint>), whose names are not known in advance.
+    #
+    # The core loaded whole sessions for this search anyway (searchOnExpr
+    # falls back to get_key_from_all_sessions); what changes is that the
+    # result now RETAINS them for the length of the scan instead of a few
+    # named fields. Fine at the scale this endpoint serves — an administrator
+    # listing certificates — but it is the line to look at first if a large
+    # fleet makes /ssh/certs heavy.
     my $res =
       Lemonldap::NG::Common::Apache::Session->searchOnExpr( $moduleOptions,
         '_session_kind', 'Persistent' );

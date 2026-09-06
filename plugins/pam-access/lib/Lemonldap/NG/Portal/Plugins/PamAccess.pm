@@ -1894,7 +1894,16 @@ sub _mintBastionVoucher {
     my %upd = ( $vkey => to_json( { nonce => $nonce, exp => $exp } ) );
 
     # Opportunistically drop our OWN expired keys so the keyspace stays
-    # bounded; per-key merge never clobbers a concurrently-added fresh one.
+    # bounded. Per-key merge protects the keys we do NOT name: a voucher added
+    # concurrently under a key absent from %upd survives our write.
+    #
+    # It does not protect the keys we DO name. Each undef below is decided
+    # from $ps->data, a snapshot read before update() ties. If a concurrent
+    # /pam/authorize refreshes one of those keys in between and our write
+    # lands last, we delete a live nonce: the other bastion's session then
+    # gets voucher_expired on its next hop, and recovers at its next
+    # authorize. This narrows the window to update()'s tie-to-untie, it does
+    # not close it — there is no read-modify-write inside the tie to be had.
     for my $k ( keys %{ $ps->data } ) {
         next unless index( $k, $VOUCHER_PREFIX ) == 0;
         next if $k eq $vkey;
@@ -2182,7 +2191,11 @@ sub bastionCert {
     #     which intentionally keeps expired records (revoking via the KRL). We
     #     must not prune those, so ephemeral hop certs live in their own keyspace.
     # Entries self-expire via expires_at (enforced in _checkSshFingerprint); we
-    # opportunistically drop our OWN expired keys in the same update.
+    # opportunistically drop our OWN expired keys in the same update. Same
+    # residual as _mintBastionVoucher's prune, and it costs a little more
+    # here: the undefs come from a snapshot, so a hop registered concurrently
+    # under a key we saw expired can be dropped, and that hop's backend then
+    # denies its fingerprint until the user re-hops.
     my $eph_fp = $sshca->_sshKeyFingerprint($public_key);
     if ( $eph_fp && $ps && !$ps->error ) {
         my $now  = time();

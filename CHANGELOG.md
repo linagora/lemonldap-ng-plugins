@@ -68,6 +68,15 @@ meanwhile.
   now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions
   are drained automatically on the next signature or revocation.
 
+  Two limits, stated rather than implied. The drain republishes the whole
+  legacy array in one update, so **the first write on a pre-upgrade session
+  still rewrites it wholesale**: two concurrent writes on a session not yet
+  drained can lose one of the two, exactly as before the fix. It happens once
+  per session and the result is self-healing. And the fix narrows the
+  collision window to `Session->update`'s tie-to-untie rather than closing
+  it — no compare-and-swap is available to a plugin, and nothing here claims
+  atomicity.
+
 ### pam-access
 
 - **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
