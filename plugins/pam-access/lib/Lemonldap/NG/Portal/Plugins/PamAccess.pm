@@ -1610,7 +1610,11 @@ sub whoami {
         $response->{server_group} = $map->{$client_id};
     }
 
-    $self->logger->debug(
+    # info, not debug: reading a server's identity is a rare operator action
+    # (bringing a backend up, filling an allowed_bastions list), and the probe
+    # mode this replaces logged at info too. Keeping it there means the trail
+    # of "who asked for their id, and when" survives a production log level.
+    $self->logger->info(
         "PAM whoami: '$client_id' identified as '$server_id'");
 
     return $self->p->sendJSONresponse( $req, $response, code => 200 );

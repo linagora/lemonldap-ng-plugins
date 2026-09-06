@@ -30,6 +30,11 @@ read the upgrade notes before deploying.**
    removed. Its `probe: true` mode — the only way for a server to read its own
    portal-assigned id — is replaced by `POST /pam/whoami`; `ob-bastion-id`
    needs its URL changed and nothing else, the `bastion_id` field is kept.
+   Two fields of the probe response do not come back: `probe: true`, and a
+   `server_group` that used to be present unconditionally (`/pam/whoami`
+   returns it only when `pamAccessServerGroups` maps the caller). Neither is
+   read by `ob-bastion-id`, which takes `.bastion_id` alone; they show up only
+   in its `--verbose` dump of the raw body.
 7. **A bastion voucher minted without an SSH fingerprint now lives 15 minutes**
    instead of 12 hours (`pamAccessBastionVoucherUnboundTtl`), and
    `/pam/bastion-cert` refuses to mint when `pamAccessBastionCertPinSourceAddress`
