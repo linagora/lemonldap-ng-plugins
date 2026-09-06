@@ -457,7 +457,7 @@ sub deviceCodeGrantHook {
     elsif ( $status eq 'denied' ) {
 
         # RFC 8628 section 3.5 - access_denied
-        $self->_deleteDeviceAuth($device_auth);
+        $self->_deleteDeviceAuth( $req, $device_auth );
         return $self->_sendTokenError( $req, 'access_denied' );
     }
     elsif ( $status eq 'approved' ) {
@@ -889,12 +889,53 @@ sub _updateDeviceAuthFields {
     );
 }
 
+# Consume a device authorization: drop the device_code session and its
+# user_code lookup session, on every node.
+#
+# Returns true when THIS caller deleted the device_code session, false when it
+# was already gone (a concurrent token request won it) or the store refused.
+# Callers that are about to mint credentials must check it: the device_code is
+# single-use, and without a conditional consumption two token requests holding
+# the same code (and, under PKCE, the same verifier) both minted a full token
+# set, so the theft left the legitimate device's exchange succeeding and
+# nothing to notice (issue #68).
+#
+# `noCache => 1` makes the delete re-read the backend instead of the
+# node-local session cache. And each removal is followed by an `unlog` event,
+# because Common::Apache::Session::Store->remove only evicts the cache of the
+# node performing the write (its `#TODO: remove cache on all LL::NG
+# instances`): without the event, another node kept serving a deleted
+# device_auth from cache for the whole code TTL, turning a millisecond race
+# into a window that needs no timing skill at all.
+# Returns whether THIS call won the device_code delete. Only the token
+# exchange looks at that; the paths that expire or deny a code do not race for
+# anything.
+#
+# As in /pam/verify, the loser is detected by the re-tie inside
+# Common::Session->remove, not by the delete: deleting an absent record is a
+# silent success in the store layer, so it is `noCache => 1` -- forcing that
+# re-tie to go to the backend instead of the node-local cache -- that makes
+# the verdict mean anything. It assumes the backend fails to retrieve a
+# missing id rather than handing back an empty record.
+#
+# Note for later: on the exchange path the grant hook has already run by the
+# time we get here, so a losing exchange has executed its side effects (the
+# synthetic-session work in oidc-device-organization, for one) before being
+# refused. That is idempotent today. Moving this delete ahead of the hook
+# would change what the existing error paths do, so it is left where it is
+# deliberately.
 sub _deleteDeviceAuth {
-    my ( $self, $device_auth ) = @_;
+    my ( $self, $req, $device_auth ) = @_;
+
+    my $won = 0;
 
     # Delete the device_code session
     if ( my $session = $device_auth->{_session} ) {
-        $session->remove;
+        $won = $session->remove( { noCache => 1 } ) ? 1 : 0;
+        $self->logger->info( 'Device authorization already consumed elsewhere: '
+              . ( $session->error // 'unknown' ) )
+          unless $won;
+        $self->_unlogEverywhere( $req, $session );
     }
 
     # Also delete the user_code lookup session (keyed on the code digest,
@@ -903,8 +944,30 @@ sub _deleteDeviceAuth {
         my $user_code_session =
           $self->p->getApacheSession( $user_code_hash, kind => sessionKind,
             hashStore => 0, );
-        $user_code_session->remove if $user_code_session;
+        if ($user_code_session) {
+            $user_code_session->remove( { noCache => 1 } );
+            $self->_unlogEverywhere( $req, $user_code_session );
+        }
     }
+
+    return $won;
+}
+
+# HELPER: evict a just-removed session from every node's local session cache.
+#
+# Portal::Main::Run does this for the sessions it deletes itself
+# (`publishEvent 'unlog'`); the device grant deletes its sessions directly, so
+# it has to publish the event itself. The cache is keyed on the STORAGE id,
+# which is the session id here (device sessions use hashStore => 0).
+sub _unlogEverywhere {
+    my ( $self, $req, $session ) = @_;
+
+    my $id = $session->storageId || $session->id or return;
+    eval {
+        $self->p->HANDLER->publishEvent( $req,
+            { action => 'unlog', id => $id } );
+    };
+    $self->logger->warn("Could not publish the unlog event for $id: $@") if $@;
 }
 
 sub _generateTokens {
@@ -950,7 +1013,7 @@ sub _generateTokens {
 
     unless ($session) {
         $self->logger->error("User session not found for device authorization");
-        $self->_deleteDeviceAuth($device_auth);
+        $self->_deleteDeviceAuth( $req, $device_auth );
         return $self->_sendTokenError( $req, 'access_denied',
             'User session no longer valid' );
     }
@@ -961,7 +1024,7 @@ sub _generateTokens {
 
     if ( time() > $utime + $timeout ) {
         $self->logger->error("User session expired for device authorization");
-        $self->_deleteDeviceAuth($device_auth);
+        $self->_deleteDeviceAuth( $req, $device_auth );
         return $self->_sendTokenError( $req, 'access_denied',
             'User session expired' );
     }
@@ -973,7 +1036,7 @@ sub _generateTokens {
     my $h = $self->p->processHook( $req, 'oidcDeviceCodeGrant',
         $device_auth, $rp, $session_data );
     if ( $h != PE_OK ) {
-        $self->_deleteDeviceAuth($device_auth);
+        $self->_deleteDeviceAuth( $req, $device_auth );
 
         # PE_ERROR from a grant hook is an internal failure (a hook could not
         # build the identity it is responsible for), not a policy denial.
@@ -1001,7 +1064,23 @@ sub _generateTokens {
     # normal RFC 8628 5s cadence — from exchanging the same approved code twice
     # and getting a duplicate token set. The in-memory $device_auth copy is kept
     # for the refresh-token data and audit log below.
-    $self->_deleteDeviceAuth($device_auth);
+    #
+    # The verdict is conditional on having actually won the delete: whoever
+    # loses mints nothing (issue #68).
+    unless ( $self->_deleteDeviceAuth( $req, $device_auth ) ) {
+        $self->logger->error(
+            "Device code already consumed by a concurrent token request"
+              . " (RP $rp), refusing to mint a second token set" );
+        $self->p->auditLog(
+            $req,
+            code    => 'ISSUER_OIDC_DEVICE_AUTH_DOUBLE_EXCHANGE',
+            message => 'Device code exchange refused: already consumed',
+            rp      => $rp,
+            user    => $user,
+        );
+        return $self->_sendTokenError( $req, 'invalid_grant',
+            'Device code already used' );
+    }
 
     # Decide offline-ness BEFORE stripping offline_access, then drop it from the
     # granted scope so it is not advertised in the access token, the response

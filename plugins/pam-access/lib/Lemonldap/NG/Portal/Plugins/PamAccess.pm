@@ -975,6 +975,65 @@ sub verifyToken {
         );
     }
 
+    # 3b. CONSUME IT NOW, before any check runs.
+    #
+    # The token is one-time, and every exit path below discards it anyway, so
+    # burning it here changes no outcome — but it is what makes the single-use
+    # claim mean something. LLNG sessions have no locking, and consumption
+    # used to sit ~145 lines later, past a persistent-session load: two
+    # concurrent /pam/verify calls (a login racing a sudo, or
+    # `scp host1: host2:`) both read the token before either deleted it, and
+    # both answered valid (issue #53). The remaining window is now two
+    # adjacent store round-trips.
+    #
+    # HOW the loser is detected, because it is not obvious and it is easy to
+    # "simplify" wrongly. Common::Session->remove re-ties the session with the
+    # options it is given, then deletes. It is the RE-TIE that fails for the
+    # loser: the record is already gone, so tying dies ("Object does not exist
+    # in the data store") and remove returns false. The delete itself is not
+    # conditional — Store::File's unlink is guarded by `if (-e $file)` with no
+    # else, i.e. deleting an absent record is a silent success. So `noCache
+    # => 1` is not a hardening detail here, it is the part that works: without
+    # it the re-tie would succeed from the node-local cache and both callers
+    # would be told they won.
+    #
+    # This assumes the backend's retrieve-on-missing fails rather than
+    # returning an empty record. True of the File, DBI and REST stores; a
+    # backend that resolved a missing id silently would reopen the full
+    # window.
+    #
+    # A failed remove therefore means we did not win it — or that the store is
+    # unreachable, which for a one-time credential is equally a refusal.
+    # $tokenSession->data is a snapshot taken at load time, so the checks
+    # below still see everything they need.
+    #
+    # Not claimed: atomicity. Two calls whose re-ties both complete before
+    # either delete still both win. That is the "two adjacent store
+    # round-trips" above, and no plugin can close it without a
+    # compare-and-swap the store does not offer.
+    unless ( $tokenSession->remove( { noCache => 1 } ) ) {
+        $self->logger->warn( "PAM verify: could not consume the one-time token"
+              . " (concurrent use, or store failure): "
+              . ( $tokenSession->error // 'unknown' ) );
+        $self->p->auditLog(
+            $req,
+            code    => 'PAM_AUTH_TOKEN_NOT_CONSUMED',
+            user    => $tokenSession->data->{_pamUser} || 'unknown',
+            message => 'PAM authentication failed: the one-time token could'
+              . ' not be consumed',
+            server_id => $server_id,
+            reason    => 'token_not_consumed',
+        );
+        return $self->p->sendJSONresponse(
+            $req,
+            {
+                valid => JSON::false,
+                error => 'Invalid or expired token',
+            },
+            code => 200
+        );
+    }
+
     # 4. Verify token type
     my $type = $tokenSession->data->{_type} || '';
     unless ( $type eq 'pamtoken' ) {
@@ -989,7 +1048,6 @@ sub verifyToken {
             reason    => 'Invalid token type',
         );
 
-        $tokenSession->remove;
         return $self->p->sendJSONresponse(
             $req,
             {
@@ -1017,7 +1075,6 @@ sub verifyToken {
             reason    => 'Token expired',
         );
 
-        $tokenSession->remove;
         return $self->p->sendJSONresponse(
             $req,
             {
@@ -1055,7 +1112,6 @@ sub verifyToken {
         audit_fields  => { server_id => $server_id },
         response_body =>
           { valid => JSON::false, error => 'Malformed SSH fingerprint' },
-        on_reject => sub { $tokenSession->remove },
     );
     return $fp_bail if $fp_bail;
 
@@ -1082,7 +1138,6 @@ sub verifyToken {
                 fingerprint => $fingerprint,
                 reason      => $sshCheck->{reason},
             );
-            $tokenSession->remove;
             return $self->p->sendJSONresponse(
                 $req,
                 {
@@ -1098,11 +1153,10 @@ sub verifyToken {
           if defined $sshCheck->{serial};
     }
 
-    # 7. CRITICAL: Remove the session (one-time use!)
-    $tokenSession->remove;
+    # 7. The token was already consumed in step 3b.
 
     # Refresh the user's pam-access persistence marker (see generateToken for
-    # why it is still stamped). Done after the token is consumed so that a
+    # why it is still stamped). Only reached once every check has passed, so a
     # failed verify never stamps. When the fingerprint branch ran above it
     # already loaded the persistent session, so reuse it and skip a second
     # read+write via updatePersistentSession's inner getPersistentSession.
@@ -1517,9 +1571,6 @@ sub _resolveServerGroup {
 #   response_body    - hashref returned as JSON on malformed (authorize
 #                      uses { error => ... }, verify uses
 #                      { valid => JSON::false, error => ... })
-#   on_reject        - optional coderef invoked just before sending the
-#                      reject response (verify uses this to remove the
-#                      one-time token session)
 sub _parseFingerprintOrReject {
     my ( $self, $req, $body, $user, %opts ) = @_;
 
@@ -1555,8 +1606,6 @@ sub _parseFingerprintOrReject {
             reason => 'fingerprint_required',
             %$audit_fields,
         );
-        $opts{on_reject}->() if $opts{on_reject};
-
         # Keep the caller's body shape (verify carries `valid => false`) and
         # only swap the message, so clients always get the expected fields.
         return ( undef,
@@ -1579,8 +1628,6 @@ sub _parseFingerprintOrReject {
         reason  => 'malformed_fingerprint',
         %$audit_fields,
     );
-
-    $opts{on_reject}->() if $opts{on_reject};
 
     return ( undef,
         $self->p->sendJSONresponse( $req, $body_out, code => 400 ) );
