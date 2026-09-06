@@ -147,6 +147,12 @@ even if the SSH server's KRL is stale.
 - The fingerprint must be `SHA256:<base64>`; leading/trailing whitespace is
   tolerated. Malformed input returns HTTP 400 with
   `PAM_AUTH_SSH_FP_MALFORMED` / `PAM_AUTHZ_SSH_FP_MALFORMED`.
+- With `pamAccessRequireFingerprint`, a request carrying *no* fingerprint is
+  refused with HTTP 400 and its own codes,
+  `PAM_AUTH_SSH_FP_REQUIRED` / `PAM_AUTHZ_SSH_FP_REQUIRED`. They are distinct
+  from the malformed ones on purpose: "a caller sent garbage" and "a caller
+  has not rolled out the fingerprint spool yet" are different operational
+  situations and deserve different SIEM thresholds.
 - On success the matched `ssh_cert_label` and `ssh_cert_serial` are
   surfaced (in `attrs` for `/pam/verify`, at the top level for
   `/pam/authorize`).

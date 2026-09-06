@@ -141,8 +141,8 @@ sub handleOrganizationDevice {
     # bastion vouching) can identify the individual device — not just its shared,
     # project-wide client_id. We derive it as a SHA-256 digest of the synthetic
     # session id rather than exposing the id itself: the value is surfaced in
-    # tokens and API responses (e.g. the /pam/bastion-token probe), and the raw
-    # session id is a live credential — anyone who learned it could replay it as
+    # tokens and in the audit trail (pam-access logs it as `server_id`), and the
+    # raw session id is a live credential — anyone who learned it could replay it as
     # a `lemonldap` cookie and impersonate the synthetic session. The digest is
     # deterministic (stable across refreshes), unique per device, and one-way.
     #

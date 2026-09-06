@@ -19,7 +19,10 @@ read the upgrade notes before deploying.**
 4. **Malformed ssh-ca inputs answer 400** instead of being coerced:
    `validity_days`, `limit`/`offset`, revocation `reason`.
 5. **`ISSUER_OIDC_DEVICE_AUTH_TOKEN_GRANTED` carries `user_code_hash`**, not
-   `user_code`. SIEM rules keyed on that field need updating.
+   `user_code`. SIEM rules keyed on that field need updating. The
+   `pamAccessRequireFingerprint` refusal also has its own codes now,
+   `PAM_AUTH_SSH_FP_REQUIRED` / `PAM_AUTHZ_SSH_FP_REQUIRED`, instead of
+   sharing the malformed ones.
 
 6. **`/pam/bastion-token` is gone** (deprecated, superseded by
    `/pam/bastion-cert`). Any caller still using it gets a 404; its

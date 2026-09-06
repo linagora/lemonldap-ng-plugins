@@ -62,7 +62,6 @@ ok(
 
                 pamAccessSshRules      => { default => '1', bastion => '1' },
                 pamAccessBastionGroups => 'bastion',
-                pamAccessBastionJwtTtl => 300,
 
                 # The enrolled client_id 'pam-access' is authoritatively mapped
                 # to the 'bastion' group.

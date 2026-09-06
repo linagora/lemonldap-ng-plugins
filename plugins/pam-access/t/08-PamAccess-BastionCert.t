@@ -182,16 +182,37 @@ cmp_ok( $authz->{bastion_voucher_expires_in},
 cmp_ok( $authz->{bastion_voucher_expires_in},
     '>', 0, '  -> and is still usable' );
 
-# pamAccessRequireFingerprint refuses the unbound case outright instead
+# pamAccessRequireFingerprint refuses the unbound case outright instead.
+# The refusal carries its OWN audit code, not the malformed one: a SIEM
+# telling "a caller sent garbage" apart from "a caller has not rolled out the
+# fingerprint spool yet" should not have to parse the payload's `reason`.
 {
     my $conf = $op->p->conf;
     local $conf->{pamAccessRequireFingerprint} = 1;
+
+    my @audit;
+    no warnings 'redefine';
+    my $orig = \&Lemonldap::NG::Common::PSGI::auditLog;
+    local *Lemonldap::NG::Common::PSGI::auditLog = sub {
+        my ( $self, $req, %info ) = @_;
+        push @audit, \%info;
+        return $orig->( $self, $req, %info );
+    };
+    use warnings 'redefine';
+
     my $r = bastion_post( '/pam/authorize',
         { user => 'french', server_group => 'bastion', host => 'b1',
             service => 'ssh' } );
     is( $r->[0], 400, '  -> requireFingerprint: no fingerprint is a 400' );
     like( from_json( $r->[2]->[0] )->{error},
         qr/fingerprint required/i, '  -> and says so' );
+
+    my ($ev) =
+      grep { ( $_->{reason} // '' ) eq 'fingerprint_required' } @audit;
+    ok( $ev, '  -> and is audited' );
+    is( $ev && $ev->{code},
+        'PAM_AUTHZ_SSH_FP_REQUIRED',
+        '  -> under its own code, not the malformed one' );
 }
 
 # ============================================================================
