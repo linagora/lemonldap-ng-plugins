@@ -1013,9 +1013,20 @@ sub _resolveRp {
         return $k if $k and $options->{$k};
     }
 
+    # Last resort: find the configuration key whose client_id is the one the
+    # token was issued to. This assumes client_ids are unique across RPs,
+    # which the bastion setup requires anyway -- a host trusted to vouch for
+    # arbitrary users has to be distinguishable at enrollment.
+    #
+    # If two RPs do share a client_id the answer is arbitrary: only one key is
+    # returned, and an allowlist naming the other one refuses a caller it
+    # meant to admit. `sort` is there so that arbitrary at least means stable
+    # -- without it Perl's per-process hash order would let two portal nodes,
+    # or the same node after a restart, disagree about the same token. Do not
+    # build anything on which key comes back.
     my $cid = $data->{client_id} // '';
     return undef unless $cid ne '';
-    for my $k ( keys %$options ) {
+    for my $k ( sort keys %$options ) {
         return $k
           if ( $options->{$k}->{oidcRPMetaDataOptionsClientID} // '' ) eq $cid;
     }
