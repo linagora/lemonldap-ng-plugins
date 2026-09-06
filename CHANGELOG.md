@@ -30,6 +30,14 @@ read the upgrade notes before deploying.**
    `/pam/bastion-cert` refuses to mint when `pamAccessBastionCertPinSourceAddress`
    is set but the observed address is unusable.
 
+8. **`/ssh/sign` is rate-limited and capped** (`sshCaSignMaxPerHour` 20/h,
+   `sshCaMaxCertsPerUser` 20). Deployments that legitimately sign more must
+   raise them or set them to `0`. Re-signing a key you already hold does not
+   count against the certificate quota.
+9. **The ssh-ca POST routes require `Content-Type: application/json`** and
+   refuse a foreign `Origin`. Clients already sending the documented content
+   type are unaffected.
+
 Not breaking, but worth knowing: enabling `pamAccessHeartbeatRequired` makes
 `/pam/heartbeat` an operational dependency; the new device-grant bounds are
 Manager validations that only bite on the next save, with runtime floors
@@ -67,6 +75,12 @@ meanwhile.
   certificate. The content type is now enforced and a foreign `Origin` is
   refused. Reachable only where the SSO cookie is `SameSite=None` (SAML
   deployments); no shipped configuration was affected.
+- **Fix — `/ssh/sign` had no rate limit and nothing capped the KRL** (#63).
+  Each re-signature appends a serial and rewrites the whole KRL, so a loop was
+  a cheap authenticated denial of service against every `sshd` in the fleet.
+  New `sshCaSignMaxPerHour` (20, 429 + `Retry-After`) and
+  `sshCaMaxCertsPerUser` (20, 409); a re-signature replaces a record and is
+  not counted. `0` disables either.
 - **Fix — concurrent signatures and revocations lost records** (#66).
   `_sshCerts` was one JSON array rebuilt in full on every write; certificates
   now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions

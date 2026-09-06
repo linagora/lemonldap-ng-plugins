@@ -38,6 +38,16 @@
       "type": "text",
       "default": "/var/lib/lemonldap-ng/ssh/revoked_keys",
       "documentation": "Path to SSH Key Revocation List file"
+    },
+    "sshCaSignMaxPerHour": {
+      "type": "int",
+      "default": 20,
+      "documentation": "Maximum /ssh/sign calls per user per hour. 0 disables the limit. Bounds KRL growth: each re-signature of the same key revokes the superseded serial."
+    },
+    "sshCaMaxCertsPerUser": {
+      "type": "int",
+      "default": 20,
+      "documentation": "Maximum active (non-revoked, non-expired) certificates per user. 0 disables the limit. Re-signing an existing key replaces its record and is not counted."
     }
   },
   "tree": [
@@ -56,6 +66,8 @@
             "sshCaCertMaxValidity",
             "sshCaAllowedKeyTypes",
             "sshCaMinKeyBits",
+            "sshCaSignMaxPerHour",
+            "sshCaMaxCertsPerUser",
             "sshCaPrincipalSources",
             "sshCaKrlPath"
           ]
@@ -99,6 +111,14 @@
     "sshCaKrlPath": {
       "en": "KRL file path",
       "fr": "Chemin du fichier KRL"
+    },
+    "sshCaSignMaxPerHour": {
+      "en": "Signatures per user per hour",
+      "fr": "Signatures par utilisateur et par heure"
+    },
+    "sshCaMaxCertsPerUser": {
+      "en": "Active certificates per user",
+      "fr": "Certificats actifs par utilisateur"
     }
   }
 }

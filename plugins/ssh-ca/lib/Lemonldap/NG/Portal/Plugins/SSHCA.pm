@@ -467,11 +467,106 @@ sub _isSelfOrigin {
           and $o->host_port eq $p->host_port ) ? 1 : 0;
 }
 
+# HELPER: a configuration value that must be a non-negative integer.
+# Anything else (unset, empty, "twenty", -1) falls back to $default, so a
+# typo in the Manager cannot silently disable a limit.
+sub _positiveIntConf {
+    my ( $self, $key, $default ) = @_;
+
+    my $v = $self->conf->{$key};
+    return $default unless defined $v and $v =~ /\A[0-9]+\z/;
+    return $v + 0;
+}
+
+# HELPER: per-user rate limit on /ssh/sign (issue #63).
+#
+# Why it matters here specifically: every signature forks ssh-keygen twice and
+# rewrites the WHOLE KRL as a read-modify-write, and re-signing the same key
+# appends the superseded serial — which /ssh/sign explicitly allows, so a loop
+# grows the KRL without bound. The cost per call therefore grows with the KRL,
+# and every appended serial is then loaded by every sshd on every backend. An
+# authenticated user could turn that into a fleet-wide denial of service for
+# the price of a shell loop.
+#
+# A fixed window (sshCaSignMaxPerHour, 20/hour, 0 = unlimited) counted in the
+# user's own persistent session: the session store is already shared across
+# nodes, so the count is cluster-wide with no new dependency. Two signatures
+# racing can under-count by one — the store has no atomic increment — which is
+# irrelevant for a limit whose purpose is to bound a loop, not to be exact.
+#
+# Returns a response when the caller is over the limit, undef otherwise.
+sub _rateLimitSign {
+    my ( $self, $req ) = @_;
+
+    my $max = $self->_positiveIntConf( 'sshCaSignMaxPerHour', 20 );
+    return undef unless $max;
+
+    my $user = $req->user;
+    unless ( defined $user and $user ne '' ) {
+
+        # No identity to count against: /ssh/sign is an authenticated route,
+        # so this should not happen. Refuse rather than hand out a free pass.
+        $self->logger->error(
+            'SSH CA sign: no user in session, refusing to sign unmetered');
+        return $self->p->sendError( $req, 'Unauthorized', 403 );
+    }
+
+    my $now    = time();
+    my $window = 3600;
+    my $raw    = $req->userData->{_sshCaSignRate};
+    my $state  = $raw ? eval { from_json($raw) } : undef;
+    $state = undef unless ref $state eq 'HASH';
+
+    my $start = $state->{start} || 0;
+    my $count = $state->{count} || 0;
+    if ( $now - $start >= $window ) {
+        ( $start, $count ) = ( $now, 0 );
+    }
+
+    if ( $count >= $max ) {
+        my $retry = $start + $window - $now;
+        $retry = 1 if $retry < 1;
+        $self->logger->warn( "SSH CA sign: rate limit reached for '$user' "
+              . "($count/$max in the current hour)" );
+        $self->p->auditLog(
+            $req,
+            code    => 'SSH_CA_SIGN_RATE_LIMITED',
+            user    => $user,
+            message => "SSH CA: /ssh/sign rate limit reached for '$user'",
+            count   => $count,
+            limit   => $max,
+        );
+        push @{ $req->respHeaders }, 'Retry-After' => $retry;
+        return $self->p->sendJSONresponse(
+            $req,
+            {
+                error       => 'Rate limit exceeded',
+                limit       => $max,
+                retry_after => $retry,
+            },
+            code => 429
+        );
+    }
+
+    $self->p->updatePersistentSession( $req,
+        { _sshCaSignRate => to_json( { start => $start, count => $count + 1 } ) }
+    );
+
+    return undef;
+}
+
 sub sshCaSign {
     my ( $self, $req ) = @_;
 
     my ( $body, $bail ) = $self->_jsonBodyOrReject( $req, 'SSH CA sign' );
     return $bail if $bail;
+
+    # Rate limit FIRST, before any parsing, policy check or fork: the point of
+    # the limit is that an abusive caller must not be able to make the portal
+    # do the expensive work (issue #63).
+    if ( my $limited = $self->_rateLimitSign($req) ) {
+        return $limited;
+    }
 
     my $userPubKey = $body->{public_key};
     unless ($userPubKey) {
@@ -540,15 +635,46 @@ sub sshCaSign {
     # certificates — except when the same label is reused for the SAME key
     # (re-signing): in that case the old record is going to be replaced.
     my $existingCerts = $self->_certsFromData( $req->userData );
-    my $now = time();
+    my $now    = time();
+    my $active = 0;
+    my $resign = 0;
     for my $c (@$existingCerts) {
         next if $c->{revoked_at};
         next if $c->{expires_at} && $c->{expires_at} < $now;
+        $active++;
+        $resign = 1 if ( $c->{fingerprint} || '' ) eq $fingerprint;
         next unless ( $c->{label} || '' ) eq $label;
         next if ( $c->{fingerprint} || '' ) eq $fingerprint;
         return $self->p->sendJSONresponse(
             $req,
             { error => 'Label already used for another key' },
+            code => 409
+        );
+    }
+
+    # Cap the number of live certificates a user may hold (issue #63). A
+    # re-signature replaces an existing record, so it never grows the set and
+    # is not counted. Users clear room with /ssh/myrevoke.
+    my $maxCerts = $self->_positiveIntConf( 'sshCaMaxCertsPerUser', 20 );
+    if ( $maxCerts and !$resign and $active >= $maxCerts ) {
+        my $user = $req->user || 'unknown';
+        $self->logger->warn(
+            "SSH CA sign: '$user' already holds $active active certificates"
+              . " (sshCaMaxCertsPerUser=$maxCerts)" );
+        $self->p->auditLog(
+            $req,
+            code    => 'SSH_CA_CERT_QUOTA_EXCEEDED',
+            user    => $user,
+            message => "SSH CA: certificate quota reached for '$user'",
+            active  => $active,
+            limit   => $maxCerts,
+        );
+        return $self->p->sendJSONresponse(
+            $req,
+            {
+                error => 'Certificate quota reached',
+                limit => $maxCerts,
+            },
             code => 409
         );
     }
