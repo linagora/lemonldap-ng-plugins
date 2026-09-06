@@ -256,13 +256,23 @@ like( $res->[2]->[0], qr/deviceTooManyAttempts/,
     "The lockout also covers the valid code" );
 count(1);
 
-# ... until the lockout window elapses
-Time::Fake->offset("+10m");
+# ... until the lockout window elapses.
+#
+# +6m, not +10m. The lockout is oidcServiceDeviceAuthorizationLockoutDelay
+# (300s) but the device code itself only lives
+# oidcServiceDeviceAuthorizationExpiration (600s), counted from a request made
+# in real time at the top of this file. Jumping +10m therefore landed exactly
+# on the code's own expiry, with a margin equal to the real seconds this file
+# had spent getting here: zero on a fast machine, negative on a loaded CI
+# runner, where the "approval" below was in fact an expired-code refusal.
+Time::Fake->offset("+6m");
 $res = submit($user_code);
 expectOK($res);
-like( $res->[2]->[0], qr/deviceApproved|success/,
+like( $res->[2]->[0], qr/deviceApproved/,
     "Approval works again once the lockout window elapsed" );
-count(1);
+unlike( $res->[2]->[0], qr/invalidUserCode|deviceTooManyAttempts/,
+    "  -> and it really is an approval, not a refusal" );
+count(2);
 
 # and a successful submission clears the budget
 my $ssoSession = getSession($id)->data;
