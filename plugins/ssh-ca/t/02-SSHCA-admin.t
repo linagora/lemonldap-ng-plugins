@@ -576,6 +576,64 @@ like( $res->[2]->[0], qr/sshCaAdminTitle|SSH Certificate/,
 count(1);
 
 # ============================================
+# PART 7b: /ssh/revoke is behind the same cross-site gate (issue #62)
+#
+# The two self-service routes are covered in 01-SSHCA-mycerts.t; this one
+# needs an administrator, so it is pinned here. The point is that the
+# refusals below come from the CSRF gate and not from _forbidNonAdmin:
+# rtyler IS the administrator in this portal.
+# ============================================
+
+{
+    my $raw = to_json( { session_id => 'nosuchsession', serial => '404404' } );
+
+    # A cross-site HTML form cannot send application/json, and from_json used
+    # to swallow the three content types a form can send.
+    ok(
+        $res = $portal->_post(
+            '/ssh/revoke',
+            IO::String->new($raw),
+            cookie => "lemonldap=$id_admin",
+            type   => 'text/plain',
+            length => length($raw),
+        ),
+        'POST /ssh/revoke with a form content type'
+    );
+    is( $res->[0], 400, ' ...is refused' );
+    count(1);
+
+    # A fetch() from an attacker page, which does set the content type.
+    ok(
+        $res = $portal->_post(
+            '/ssh/revoke',
+            IO::String->new($raw),
+            cookie => "lemonldap=$id_admin",
+            type   => 'application/json',
+            length => length($raw),
+            custom => { HTTP_ORIGIN => 'https://evil.example.net' },
+        ),
+        'POST /ssh/revoke from a foreign Origin'
+    );
+    expectReject( $res, 403, 'Cross-origin request refused' );
+
+    # The portal's own origin passes the gate and reaches the handler, which
+    # then fails on the unknown session — a 404, not a 403.
+    ok(
+        $res = $portal->_post(
+            '/ssh/revoke',
+            IO::String->new($raw),
+            cookie => "lemonldap=$id_admin",
+            type   => 'application/json',
+            length => length($raw),
+            custom => { HTTP_ORIGIN => 'http://auth.example.com' },
+        ),
+        'POST /ssh/revoke from the portal origin'
+    );
+    isnt( $res->[0], 403, ' ...passes the cross-site gate' );
+    count(1);
+}
+
+# ============================================
 # PART 8: default DENY when sshCaAdminRule is unset (issue #58)
 #
 # Same configuration, minus the rule. The endpoints must refuse EVERYONE —
