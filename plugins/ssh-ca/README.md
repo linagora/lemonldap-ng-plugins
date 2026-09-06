@@ -169,6 +169,13 @@ thing standing between an ordinary user and everyone's certificates:
 
 ## API details
 
+All three POST routes (`/ssh/sign`, `/ssh/myrevoke`, `/ssh/revoke`) require
+`Content-Type: application/json` and answer **400** otherwise. If the request
+carries an `Origin` header it must be the portal's own, else **403**. Together
+these refuse the cross-site form POST that could otherwise re-sign a victim's
+key and revoke their live certificate (issue #62). Non-browser callers send no
+`Origin` and are unaffected.
+
 ### POST /ssh/sign
 
 Request (JSON):

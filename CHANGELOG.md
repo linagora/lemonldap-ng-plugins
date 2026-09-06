@@ -60,6 +60,13 @@ meanwhile.
   `limit`/`offset` and the revocation `reason` are checked; `sshCaKeyType`,
   `sshCaCertDefaultValidity` and `sshCaSerialPath` are gone; the POD said
   minutes where the code means days.
+- **Security fix — the POST routes accepted a cross-site form body** (#62).
+  `/ssh/sign`, `/ssh/myrevoke` and `/ssh/revoke` parsed the body themselves,
+  bypassing the core's `application/json` requirement, so a page on another
+  origin could re-sign a victim's public key and KRL-revoke their live
+  certificate. The content type is now enforced and a foreign `Origin` is
+  refused. Reachable only where the SSO cookie is `SameSite=None` (SAML
+  deployments); no shipped configuration was affected.
 - **Fix — concurrent signatures and revocations lost records** (#66).
   `_sshCerts` was one JSON array rebuilt in full on every write; certificates
   now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions

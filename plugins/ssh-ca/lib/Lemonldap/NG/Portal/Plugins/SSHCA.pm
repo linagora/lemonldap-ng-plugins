@@ -24,6 +24,7 @@ use JSON qw(from_json to_json);
 use Time::HiRes qw(gettimeofday);
 use Digest::SHA qw(sha256);
 use MIME::Base64 qw(decode_base64 encode_base64);
+use URI;
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Handler::Main::MsgActions;
 use Lemonldap::NG::Portal::Main::Constants qw(
@@ -393,15 +394,84 @@ sub sshCaKrl {
 }
 
 # POST /ssh/sign - Sign user's SSH public key
+# HELPER: decode the JSON body of a POST route, refusing what a cross-site
+# form could produce (issue #62).
+#
+# The three POST routes used to call from_json on $req->content directly,
+# bypassing the core's jsonBodyToObj and therefore its `Content-Type:
+# application/json` requirement. That matters because an HTML form can only
+# send application/x-www-form-urlencoded, multipart/form-data or text/plain —
+# and a text/plain body containing JSON parsed cleanly. So a page on another
+# origin could POST to /ssh/sign, /ssh/myrevoke and /ssh/revoke with the
+# victim's cookie, whenever the SSO cookie is SameSite=None (which LLNG sets
+# for SAML deployments).
+#
+# Nothing is disclosed that way: the certificate is only in a response body
+# the attacker's page cannot read. The damage is a forced state change —
+# re-signing a victim's (public) public key supersedes their live certificate
+# and KRL-revokes the old serial, locking them out of SSH; a forced
+# /ssh/myrevoke does the same in one step.
+#
+# The Origin check is the other half. Browsers attach Origin to every
+# cross-origin POST, so a present-but-foreign Origin is refused outright.
+# Non-browser callers — the ssh-ca CLI, curl, ob-* tooling — send none and are
+# unaffected.
+#
+# Returns ($body, undef) or (undef, $response).
+sub _jsonBodyOrReject {
+    my ( $self, $req, $label ) = @_;
+
+    if ( my $origin = $req->origin ) {
+        unless ( $self->_isSelfOrigin( $req, $origin ) ) {
+            $self->logger->warn(
+                "$label: refused a cross-origin request from '$origin'");
+            $self->p->auditLog(
+                $req,
+                code    => 'SSH_CA_CROSS_ORIGIN_REFUSED',
+                message => "SSH CA: cross-origin $label refused",
+                origin  => $origin,
+            );
+            return ( undef,
+                $self->p->sendError( $req, 'Cross-origin request refused',
+                    403 ) );
+        }
+    }
+
+    my $body = $req->jsonBodyToObj;
+    unless ( ref $body eq 'HASH' ) {
+        my $err = $req->error || 'Invalid JSON';
+        $self->logger->error("$label: $err");
+
+        # $req->error is sticky (the setter ignores undef), and a leftover
+        # "Data is not JSON" would surface in an unrelated later message.
+        delete $req->{error};
+        return ( undef, $self->p->sendError( $req, 'Invalid JSON', 400 ) );
+    }
+
+    return ( $body, undef );
+}
+
+# HELPER: does $origin designate this very portal?
+# Same rule as the core's _checkSelfCors: scheme and host:port must match.
+sub _isSelfOrigin {
+    my ( $self, $req, $origin ) = @_;
+
+    my $o = URI->new($origin);
+    my $p = URI->new( $req->portal || $self->conf->{portal} || '' );
+    return (  $o->scheme
+          and $p->scheme
+          and $o->scheme eq $p->scheme
+          and $o->can('host_port')
+          and $o->host_port
+          and $p->can('host_port')
+          and $o->host_port eq $p->host_port ) ? 1 : 0;
+}
+
 sub sshCaSign {
     my ( $self, $req ) = @_;
 
-    # Parse JSON request body
-    my $body = eval { from_json( $req->content ) };
-    if ($@) {
-        $self->logger->error("SSH CA sign: Invalid JSON body: $@");
-        return $self->p->sendError( $req, 'Invalid JSON', 400 );
-    }
+    my ( $body, $bail ) = $self->_jsonBodyOrReject( $req, 'SSH CA sign' );
+    return $bail if $bail;
 
     my $userPubKey = $body->{public_key};
     unless ($userPubKey) {
@@ -1076,11 +1146,8 @@ sub sshMyCerts {
 sub sshMyCertRevoke {
     my ( $self, $req ) = @_;
 
-    my $body = eval { from_json( $req->content ) };
-    if ($@) {
-        $self->logger->error("SSH myrevoke: Invalid JSON body: $@");
-        return $self->p->sendError( $req, 'Invalid JSON', 400 );
-    }
+    my ( $body, $bail ) = $self->_jsonBodyOrReject( $req, 'SSH myrevoke' );
+    return $bail if $bail;
     my $serial = $body->{serial};
     unless ( defined $serial && $serial ne '' ) {
         return $self->p->sendError( $req, 'serial required', 400 );
@@ -1348,12 +1415,8 @@ sub sshCertRevoke {
 
     if ( my $denied = $self->_forbidNonAdmin($req) ) { return $denied }
 
-    # Parse request body
-    my $body = eval { from_json( $req->content ) };
-    if ($@) {
-        $self->logger->error("SSH revoke: Invalid JSON body: $@");
-        return $self->p->sendError( $req, 'Invalid JSON', 400 );
-    }
+    my ( $body, $bail ) = $self->_jsonBodyOrReject( $req, 'SSH revoke' );
+    return $bail if $bail;
 
     my $sessionId = $body->{session_id};
     my $serial    = $body->{serial};
