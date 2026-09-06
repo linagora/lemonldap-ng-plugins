@@ -64,6 +64,33 @@ die with the admin's SSO session and have no `_deviceId` at all — a failure
 that surfaces only hours later. Retry the enrollment once the session backend
 is healthy.
 
+## Refreshing an organization device token
+
+The core `/oauth2/token` `refresh_token` grant **does not serve these tokens**:
+it re-resolves the subject in the UserDB, and the synthetic identity is a
+`client_id`, not a user. Open Bastion refreshes through pam-access's
+`/pam/heartbeat`, which mints a fresh access token directly from the refresh
+token's stored (synthetic) session data, so the UserDB is never queried.
+
+`_deviceId` is derived from the synthetic session id and is therefore stable
+across every refresh — which matters, because `PamAccess::_callerId` uses it as
+the bastion identity, and a device whose id changed at refresh would silently
+lose its vouchers.
+
+With `oidcRPMetaDataOptionsAllowOffline = 0` and no online refresh token, the
+device gets an access token and nothing to renew it with; the identity swap
+still happens and `_deviceId` is still stamped.
+
+## Testing
+
+```
+node mcp/cli.js test oidc-device-organization
+```
+
+The suite pulls in pam-access as a test-only dependency (`test_depends` in
+`plugin.json`) so the `/pam/heartbeat` refresh path can be exercised
+end to end.
+
 ## See Also
 
 - [oidc-device-authorization plugin](../oidc-device-authorization) (required)

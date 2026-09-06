@@ -192,6 +192,13 @@ meanwhile.
 
 ### oidc-device-organization
 
+- **Tests — the identity-critical paths are now pinned** (#71). `_deviceId`
+  stability across a `/pam/heartbeat` refresh, the `AllowOffline=0` +
+  `ownership=organization` combination (access token, no refresh token), the
+  identity swap itself (no admin attribute survives the session copy, the
+  device outlives the admin's SSO session), and the fact that the core
+  `refresh_token` grant does *not* serve these tokens — a constraint the
+  plugin's design leans on. 52 → 125 assertions.
 - **Fix — the plugin failed OPEN when the synthetic device session could not
   be created** (#72). The enrollment completed against the approving admin's
   session, with no `_deviceId` at all; it now answers `server_error`.
