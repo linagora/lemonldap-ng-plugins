@@ -24,9 +24,28 @@ our $VERSION = '2.22.0';
 
 # Persistent-session key prefix for ephemeral bastion-hop cert fingerprints.
 # One key per fingerprint ($EPH_CERT_PREFIX.<fp>) so concurrent hops don't
-# clobber each other (Session->update merges per key). See /pam/bastion-cert
-# and _checkSshFingerprint.
+# clobber each other. See /pam/bastion-cert and _checkSshFingerprint, and the
+# concurrency note above _mintBastionVoucher for what per-key does and does
+# not buy under Apache::Session::Lock::Null.
 our $EPH_CERT_PREFIX = '_pamEphCert::';
+
+# Persistent-session key prefix for bastion vouchers, one key per bastion
+# ($VOUCHER_PREFIX.<bastion_id>). Vouchers used to share a single
+# `_pamBastionVouchers` JSON map, which made every mint a read-modify-write on
+# a blob the store rewrites wholesale: two logins on different bastions
+# starting from the same snapshot lost one of the two nonces (issue #54). The
+# legacy map is still read (and drained on the next mint) for sessions written
+# before the upgrade.
+our $VOUCHER_PREFIX = '_pamVoucher::';
+our $LEGACY_VOUCHER_KEY = '_pamBastionVouchers';
+
+# Persistent-session key prefix under which the ssh-ca plugin stores the
+# user's SSO certificates, one per fingerprint (issue #66). Duplicated here
+# rather than read from $Lemonldap::NG::Portal::Plugins::SSHCA::CERT_PREFIX
+# because pam-access must resolve fingerprints on portals where ssh-ca is not
+# loaded (the certificates are still in the session). Keep in sync with
+# SSHCA.pm. `_sshCerts` is the pre-upgrade array, still read as a fallback.
+our $SSO_CERT_PREFIX = '_sshCert::';
 
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
@@ -1696,16 +1715,32 @@ sub _checkSshFingerprint {
         }
     }
 
-    my $raw = $ps->data->{_sshCerts};
-    return { ok => 0, reason => 'no-certs' } unless $raw;
-
-    my $certs = eval { from_json($raw) };
-    if ( $@ || ref($certs) ne 'ARRAY' ) {
-        $self->logger->error("PAM verify: corrupted _sshCerts for $user: $@");
-        return { ok => 0, reason => 'corrupted' };
+    # ssh-ca stores SSO certificates one per fingerprint too, so the common
+    # case is a second direct key lookup. Sessions written before that change
+    # still carry the `_sshCerts` array; scan it as a fallback.
+    my @certs;
+    my $ssoRaw = $ps->data->{ $SSO_CERT_PREFIX . $fingerprint };
+    if ( defined $ssoRaw and $ssoRaw ne '' ) {
+        my $rec = eval { from_json($ssoRaw) };
+        if ( $@ || ref($rec) ne 'HASH' ) {
+            $self->logger->error(
+                "PAM verify: corrupted SSO cert record for $user: $@");
+            return { ok => 0, reason => 'corrupted' };
+        }
+        push @certs, $rec;
     }
+    elsif ( my $raw = $ps->data->{_sshCerts} ) {
+        my $legacy = eval { from_json($raw) };
+        if ( $@ || ref($legacy) ne 'ARRAY' ) {
+            $self->logger->error(
+                "PAM verify: corrupted _sshCerts for $user: $@");
+            return { ok => 0, reason => 'corrupted' };
+        }
+        @certs = @$legacy;
+    }
+    return { ok => 0, reason => 'no-certs' } unless @certs;
 
-    for my $cert (@$certs) {
+    for my $cert (@certs) {
         next unless ( $cert->{fingerprint} || '' ) eq $fingerprint;
         if ( $cert->{revoked_at} ) {
             return { ok => 0, reason => 'revoked' };
@@ -1802,15 +1837,26 @@ sub _mintBastionVoucher {
         return ();
     }
 
-    my $raw  = $ps->data->{_pamBastionVouchers};
-    my $vmap = $raw ? eval { from_json($raw) } : {};
-    $vmap = {} unless ref $vmap eq 'HASH';
-
-    # Prune expired/invalid entries so the map stays bounded.
-    for my $k ( keys %$vmap ) {
-        delete $vmap->{$k}
-          if ref $vmap->{$k} ne 'HASH' || ( $vmap->{$k}{exp} || 0 ) <= $now;
-    }
+    # CONCURRENCY. Vouchers live one per key ($VOUCHER_PREFIX.<bastion_id>).
+    #
+    # What per-key does NOT buy: atomicity. Every standard LLNG backend
+    # installs Apache::Session::Lock::Null, and Apache::Session's DESTROY
+    # serialises the WHOLE data hash back as one blob, so writes are
+    # last-writer-wins at the session level, not merged at the store level.
+    #
+    # What it does buy: Common::Session->update re-ties with noCache => 1 and
+    # sets only the named keys before untying, so a concurrent writer is only
+    # lost if its own tie-to-untie window overlaps ours. The shared
+    # _pamBastionVouchers map instead made the read-modify-write span the whole
+    # helper — snapshot at getPersistentSession, nonce generation, then write —
+    # so two logins on two bastions reliably lost one nonce (issue #54).
+    my $legacy = $self->_legacyVoucherMap($ps);
+    my $vkey   = $VOUCHER_PREFIX . $bastion_id;
+    my $entry  = eval { from_json( $ps->data->{$vkey} // '' ) };
+    $entry = undef unless ref $entry eq 'HASH';
+    $entry = $legacy->{$bastion_id} if !$entry and ref $legacy eq 'HASH';
+    $entry = undef
+      unless ref $entry eq 'HASH' and ( $entry->{exp} || 0 ) > $now;
 
     # Idempotent reuse. A user routinely holds several concurrent sessions on
     # the same bastion, and the (bastion_id, user) voucher is shared across all
@@ -1819,14 +1865,13 @@ sub _mintBastionVoucher {
     # the other live sessions' shells, which then fail at /pam/bastion-cert with
     # voucher_mismatch (symptom: "works only from the most recent login"). So
     # keep an existing still-valid nonce and only extend its expiry; generate a
-    # new nonce solely when none is usable (the prune above already dropped any
+    # new nonce solely when none is usable (the read above already discarded an
     # expired entry for this bastion_id).
-    my $existing = $vmap->{$bastion_id};
     my $nonce;
-    if ( $existing && ( $existing->{nonce} // '' ) ne '' ) {
-        $nonce = $existing->{nonce};
-        $exp   = $existing->{exp}
-          if ( $existing->{exp} || 0 ) > $exp;    # never shorten a live voucher
+    if ( $entry && ( $entry->{nonce} // '' ) ne '' ) {
+        $nonce = $entry->{nonce};
+        $exp   = $entry->{exp}
+          if ( $entry->{exp} || 0 ) > $exp;    # never shorten a live voucher
     }
     else {
         $nonce = $self->_generateUUID();
@@ -1837,10 +1882,49 @@ sub _mintBastionVoucher {
         }
     }
 
-    $vmap->{$bastion_id} = { nonce => $nonce, exp => $exp };
-    $ps->update( { _pamBastionVouchers => to_json($vmap) } );
+    my %upd = ( $vkey => to_json( { nonce => $nonce, exp => $exp } ) );
+
+    # Opportunistically drop our OWN expired keys so the keyspace stays
+    # bounded; per-key merge never clobbers a concurrently-added fresh one.
+    for my $k ( keys %{ $ps->data } ) {
+        next unless index( $k, $VOUCHER_PREFIX ) == 0;
+        next if $k eq $vkey;
+        my $r = eval { from_json( $ps->data->{$k} // '' ) };
+        $upd{$k} = undef
+          if $@ || ref $r ne 'HASH' || ( $r->{exp} || 0 ) <= $now;
+    }
+
+    # Drain the pre-upgrade shared map, once: every entry it still holds is
+    # re-published under its own key and the map itself is deleted. Doing it
+    # here rather than lazily keeps _checkBastionVoucher's fallback read-only.
+    if ( ref $legacy eq 'HASH' and %$legacy ) {
+        for my $b ( keys %$legacy ) {
+            my $r = $legacy->{$b};
+            next
+              unless ref $r eq 'HASH'
+              and ( $r->{nonce} // '' ) ne ''
+              and ( $r->{exp} || 0 ) > $now;
+            my $k = $VOUCHER_PREFIX . $b;
+            $upd{$k} = to_json($r) unless exists $upd{$k};
+        }
+        $upd{$LEGACY_VOUCHER_KEY} = undef;
+    }
+
+    $ps->update( \%upd );
 
     return ( $nonce, $exp );
+}
+
+# HELPER: decode the pre-upgrade `_pamBastionVouchers` map, or {} when the
+# session has already been migrated (or never carried one).
+sub _legacyVoucherMap {
+    my ( $self, $ps ) = @_;
+
+    my $raw = $ps->data->{$LEGACY_VOUCHER_KEY};
+    return {} unless defined $raw and $raw ne '';
+    my $map = eval { from_json($raw) };
+    return {} if $@ or ref $map ne 'HASH';
+    return $map;
 }
 
 # Validate a (bastion_id, user) voucher presented by a bastion at /pam/bastion-cert.
@@ -1854,14 +1938,24 @@ sub _checkBastionVoucher {
     return { ok => 0, reason => 'no_voucher_supplied' }
       unless defined $voucher && $voucher ne '';
 
-    my $raw = $ps->data->{_pamBastionVouchers};
-    return { ok => 0, reason => 'voucher_expired' } unless $raw;
+    # Per-bastion key first (issue #54); fall back to the pre-upgrade shared
+    # map for sessions the next mint has not drained yet.
+    my $entry;
+    my $raw = $ps->data->{ $VOUCHER_PREFIX . $bastion_id };
+    if ( defined $raw and $raw ne '' ) {
+        $entry = eval { from_json($raw) };
+        return { ok => 0, reason => 'voucher_corrupted' }
+          if $@ || ref $entry ne 'HASH';
+    }
+    elsif ( defined( $raw = $ps->data->{$LEGACY_VOUCHER_KEY} )
+        and $raw ne '' )
+    {
+        my $vmap = eval { from_json($raw) };
+        return { ok => 0, reason => 'voucher_corrupted' }
+          if $@ || ref $vmap ne 'HASH';
+        $entry = $vmap->{$bastion_id};
+    }
 
-    my $vmap = eval { from_json($raw) };
-    return { ok => 0, reason => 'voucher_corrupted' }
-      if $@ || ref $vmap ne 'HASH';
-
-    my $entry = $vmap->{$bastion_id};
     return { ok => 0, reason => 'voucher_expired' }
       unless $entry && ref $entry eq 'HASH';
     return { ok => 0, reason => 'voucher_expired' }
@@ -2072,15 +2166,14 @@ sub bastionCert {
     #
     # Stored under a PER-FINGERPRINT key ($EPH_CERT_PREFIX.<fp>), NOT in the
     # shared _sshCerts list, deliberately:
-    #   * Concurrency — Lemonldap::NG::Common::Session->update re-reads the store
-    #     and merges per key, so two hops minted at the same time each keep their
-    #     own entry; a read-modify-write of one shared list/array would lose one.
+    #   * Concurrency — see the note above _mintBastionVoucher: per key, two
+    #     hops minted at the same time only collide inside update()'s
+    #     tie-to-untie window instead of over the whole helper.
     #   * Separation — _sshCerts holds the user's SSO certs owned by ssh-ca,
     #     which intentionally keeps expired records (revoking via the KRL). We
     #     must not prune those, so ephemeral hop certs live in their own keyspace.
     # Entries self-expire via expires_at (enforced in _checkSshFingerprint); we
-    # opportunistically drop our OWN expired keys in the same update — safe
-    # because per-key merge never clobbers a concurrently-added fresh key.
+    # opportunistically drop our OWN expired keys in the same update.
     my $eph_fp = $sshca->_sshKeyFingerprint($public_key);
     if ( $eph_fp && $ps && !$ps->error ) {
         my $now  = time();

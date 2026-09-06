@@ -491,5 +491,83 @@ ok(
 ok( $res->[0] != 200, 'Unauthenticated sign request is rejected' );
 count(1);
 
+# ============================================
+# PART 9: certificates are stored one per key (issue #66)
+# ============================================
+
+my $CP = $Lemonldap::NG::Portal::Plugins::SSHCA::CERT_PREFIX;
+
+# Both the SSO session (what /ssh/* reads through $req->userData) and the
+# persistent session (what the admin endpoints and pam-access read) hold the
+# records; patch them together when simulating a pre-upgrade session.
+sub dwho_sessions {
+    return (
+        $portal->p->getApacheSession( $id, kind => 'SSO' ),
+        $portal->p->getPersistentSession('dwho'),
+    );
+}
+
+{
+    my ( $sso, $ps ) = dwho_sessions();
+    my @keys = grep { index( $_, $CP ) == 0 } keys %{ $ps->data };
+    ok( @keys >= 2, 'certificates live one per key, not in a shared array' );
+    ok( !defined $ps->data->{_sshCerts},
+        'no _sshCerts array is written any more' );
+    ok( ( grep { index( $_, $CP ) == 0 } keys %{ $sso->data } ),
+        'the SSO session carries the same per-key records' );
+    count(3);
+}
+
+# A session written before the upgrade still lists and still revokes, and the
+# first write drains its array into per-certificate keys.
+{
+    my ( $sso, $ps ) = dwho_sessions();
+
+    my ( @legacy, %upd );
+    for my $k ( keys %{ $ps->data } ) {
+        next unless index( $k, $CP ) == 0;
+        push @legacy, from_json( $ps->data->{$k} );
+        $upd{$k} = undef;
+    }
+    my %downgrade = ( %upd, _sshCerts => to_json( \@legacy ) );
+    $_->update( {%downgrade} ) for ( $sso, $ps );
+
+    ok(
+        $res = $portal->_get(
+            '/ssh/mycerts',
+            cookie => "lemonldap=$id",
+            accept => 'application/json',
+        ),
+        'GET /ssh/mycerts on a pre-upgrade session'
+    );
+    my $legacyPayload = expectJSON($res);
+    is( scalar @{ $legacyPayload->{certificates} },
+        scalar @legacy, '  -> the legacy array is still listed in full' );
+    count(1);
+
+    # Any write drains it.
+    my ($victim) =
+      grep { ( $_->{status} || '' ) eq 'active' }
+      @{ $legacyPayload->{certificates} };
+    ok( $victim, '  -> found an active certificate to self-revoke' );
+    $res = myrevoke_req( { serial => $victim->{serial} } );
+    is( $res->[0], 200, '  -> self-revoke on a pre-upgrade session works' );
+    count(2);
+
+    my ( undef, $after ) = dwho_sessions();
+    ok( !defined $after->data->{_sshCerts},
+        '  -> and the legacy array is drained' );
+    is(
+        scalar( grep { index( $_, $CP ) == 0 } keys %{ $after->data } ),
+        scalar @legacy,
+        '  -> every record was republished under its own key'
+    );
+    count(2);
+
+    my $rec = from_json( $after->data->{ $CP . $victim->{fingerprint} } );
+    ok( $rec->{revoked_at}, '  -> the revocation was recorded per key' );
+    count(1);
+}
+
 clean_sessions();
 done_testing();

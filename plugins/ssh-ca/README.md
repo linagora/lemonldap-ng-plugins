@@ -320,10 +320,22 @@ fi
 
 ## Storage
 
-Certificates are stored in each user's **persistent session** under the
-`_sshCerts` key (JSON array). This means certificates survive across SSO
-sessions. The admin search endpoint (`/ssh/certs`) scans all persistent
-sessions to find certificates.
+Certificates are stored in each user's **persistent session**, one key per
+certificate: `_sshCert::<fingerprint>`, holding a JSON record. This means
+certificates survive across SSO sessions. The admin search endpoint
+(`/ssh/certs`) scans all persistent sessions to find certificates.
+
+One key per certificate rather than one shared array, because LLNG sessions
+have no locking (`Apache::Session::Lock::Null`) and every save rewrites the
+whole session blob: a shared array made two concurrent `/ssh/sign` calls — or
+a revocation racing a signature — lose one of the two records (issue #66).
+Writing only the affected key narrows the collision window to a single store
+round-trip.
+
+Sessions written before this layout keep their `_sshCerts` JSON array. It is
+still read, and the next signature or revocation on that session republishes
+every record under its own key and removes the array. Nothing needs to be
+migrated by hand.
 
 Serial numbers are stateless: they are derived from the current
 microsecond-precision wall clock plus a small random tail, so two portals

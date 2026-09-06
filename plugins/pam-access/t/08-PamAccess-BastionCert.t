@@ -540,13 +540,64 @@ SKIP: {
 }
 
 # ============================================================================
+# Pre-upgrade sessions still carry the shared _pamBastionVouchers map (#54):
+# it must keep working, and the next mint must drain it into per-bastion keys.
+# ============================================================================
+{
+    my $pfx = $Lemonldap::NG::Portal::Plugins::PamAccess::VOUCHER_PREFIX;
+    my $ps  = $op->p->getPersistentSession('french');
+
+    # Move every per-key voucher back into the legacy map.
+    my ( %legacy, %upd );
+    for my $k ( keys %{ $ps->data } ) {
+        next unless index( $k, $pfx ) == 0;
+        $legacy{ substr( $k, length $pfx ) } =
+          from_json( $ps->data->{$k} );
+        $upd{$k} = undef;
+    }
+    $ps->update( { %upd, _pamBastionVouchers => to_json( \%legacy ) } );
+
+    my $r = bastion_post(
+        '/pam/bastion-cert',
+        {
+            user        => 'french',
+            target_host => 'legacy.op.com',
+            public_key  => $eph_pubkey,
+            voucher     => $voucher,
+        }
+    );
+    is( $r->[0], 200, 'legacy voucher map is still honoured' );
+
+    # A fresh /pam/authorize republishes it per key and drops the map.
+    $r = bastion_post( '/pam/authorize',
+        { user => 'french', server_group => 'bastion', host => 'b1',
+            service => 'ssh' } );
+    is( $r->[0], 200, '  -> re-authorize 200' );
+    is( from_json( $r->[2]->[0] )->{bastion_voucher},
+        $voucher, '  -> the legacy nonce is reused, not rotated' );
+
+    my $after = $op->p->getPersistentSession('french');
+    ok( !defined $after->data->{_pamBastionVouchers},
+        '  -> the shared map is drained' );
+    ok( ( grep { index( $_, $pfx ) == 0 } keys %{ $after->data } ),
+        '  -> and the voucher lives under its own key' );
+}
+
+# ============================================================================
 # Expired voucher -> 403 voucher_expired (client tells user to reconnect)
 # ============================================================================
 {
-    my $ps   = $op->p->getPersistentSession('french');
-    my $vmap = from_json( $ps->data->{_pamBastionVouchers} );
-    $_->{exp} = time - 10 for values %$vmap;
-    $ps->update( { _pamBastionVouchers => to_json($vmap) } );
+    my $ps  = $op->p->getPersistentSession('french');
+    my $pfx = $Lemonldap::NG::Portal::Plugins::PamAccess::VOUCHER_PREFIX;
+    my %upd;
+    for my $k ( keys %{ $ps->data } ) {
+        next unless index( $k, $pfx ) == 0;
+        my $e = from_json( $ps->data->{$k} );
+        $e->{exp} = time - 10;
+        $upd{$k} = to_json($e);
+    }
+    ok( %upd, 'vouchers are stored one per bastion key (issue #54)' );
+    $ps->update( \%upd );
 }
 $res = bastion_post(
     '/pam/bastion-cert',
@@ -565,8 +616,12 @@ is( from_json( $res->[2]->[0] )->{reason},
 # Corrupted voucher map -> 500 (internal failure, not an authz denial)
 # ============================================================================
 {
-    my $ps = $op->p->getPersistentSession('french');
-    $ps->update( { _pamBastionVouchers => 'not-json{' } );
+    my $ps  = $op->p->getPersistentSession('french');
+    my $pfx = $Lemonldap::NG::Portal::Plugins::PamAccess::VOUCHER_PREFIX;
+    $ps->update(
+        { map { $_ => 'not-json{' }
+          grep { index( $_, $pfx ) == 0 } keys %{ $ps->data } }
+    );
 }
 $res = bastion_post(
     '/pam/bastion-cert',

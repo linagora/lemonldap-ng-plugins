@@ -60,6 +60,10 @@ meanwhile.
   `limit`/`offset` and the revocation `reason` are checked; `sshCaKeyType`,
   `sshCaCertDefaultValidity` and `sshCaSerialPath` are gone; the POD said
   minutes where the code means days.
+- **Fix — concurrent signatures and revocations lost records** (#66).
+  `_sshCerts` was one JSON array rebuilt in full on every write; certificates
+  now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions
+  are drained automatically on the next signature or revocation.
 
 ### pam-access
 
@@ -80,6 +84,10 @@ meanwhile.
   binding. Unbound vouchers are capped by the new
   `pamAccessBastionVoucherUnboundTtl` (15 min), and the new
   `pamAccessRequireFingerprint` refuses the unbound case outright.
+- **Fix — two concurrent logins could lose a bastion voucher** (#54). The
+  vouchers shared one `_pamBastionVouchers` map, rewritten wholesale on every
+  mint; they now live one key per bastion. Pre-upgrade sessions are drained
+  automatically on the next `/pam/authorize`.
 - **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
   longer inert** (#52). They were Manager-exposed and read by no code;
   `/pam/authorize` now refuses a caller that has stopped beating. Defaults
