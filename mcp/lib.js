@@ -77,28 +77,49 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Returns the last `run` result, plus refNotFound so the caller can tell
 // "this ref does not exist" (fall back) from "the network broke" (fail).
-async function cloneWithRetry(args, cwd, log, attempts = 3) {
+// 5 attempts, 3s/6s/12s/24s apart: ~45s of patience. The first version tried
+// 3 times over 6s and still lost a job to a 403 that outlasted it, so the
+// window is sized for an outage measured in tens of seconds rather than a
+// single dropped packet.
+async function cloneWithRetry(args, cwd, log, attempts = 5) {
   let last = null;
+  const tried = [];
+
   for (let attempt = 1; attempt <= attempts; attempt++) {
     last = await run("git", args, { cwd });
-    if (last.code === 0) return { ...last, refNotFound: false };
+    if (last.code === 0) {
+      if (tried.length) {
+        log.push(`  clone succeeded on attempt ${attempt}/${attempts}`);
+      }
+      return { ...last, refNotFound: false, tried };
+    }
 
     const out = `${last.stderr || ""}\n${last.stdout || ""}`;
-    if (CLONE_REF_NOT_FOUND.test(out)) return { ...last, refNotFound: true };
+    if (CLONE_REF_NOT_FOUND.test(out)) return { ...last, refNotFound: true, tried };
     if (!CLONE_TRANSIENT.test(out)) break;
 
+    const why = (out.match(/^.*(?:fatal|error):.*$/im) || [out.trim()])[0]
+      .trim()
+      .slice(0, 160);
+    tried.push(`attempt ${attempt}: ${why}`);
+
     if (attempt < attempts) {
-      const wait = 2000 * attempt;
-      const why = (out.match(/^.*(?:fatal|error):.*$/im) || [out.trim()])[0]
-        .trim()
-        .slice(0, 160);
+      const wait = 3000 * 2 ** (attempt - 1);
       log.push(
         `  clone attempt ${attempt}/${attempts} failed (${why}) — retrying in ${wait}ms`,
       );
       await sleep(wait);
     }
   }
-  return { ...last, refNotFound: false };
+  return { ...last, refNotFound: false, tried };
+}
+
+// The `log` array is only rendered when prepare succeeds, so on the failing
+// path the retry history would vanish -- and an operator reading the job would
+// conclude, wrongly, that no retry happened. Fold it into the error instead.
+function cloneFailureDetail(r) {
+  if (!r.tried || r.tried.length < 2) return "";
+  return `\n\nRetried ${r.tried.length} times:\n  ${r.tried.join("\n  ")}`;
 }
 
 async function exists(p) {
@@ -287,7 +308,7 @@ async function ensureLlng(log, { ref } = {}) {
       // "@ v2.23.2" that had actually run against master.
       if (!r.refNotFound) {
         throw new Error(
-          `git clone of ref '${wantedRef}' failed (exit ${r.code}) and it is not a missing ref:\n${r.stderr || r.stdout}`,
+          `git clone of ref '${wantedRef}' failed (exit ${r.code}) and it is not a missing ref:\n${r.stderr || r.stdout}${cloneFailureDetail(r)}`,
         );
       }
       log.push(
@@ -307,7 +328,7 @@ async function ensureLlng(log, { ref } = {}) {
     );
     if (r.code !== 0) {
       throw new Error(
-        `git clone failed (exit ${r.code}):\n${r.stderr || r.stdout}`,
+        `git clone failed (exit ${r.code}):\n${r.stderr || r.stdout}${cloneFailureDetail(r)}`,
       );
     }
   }
