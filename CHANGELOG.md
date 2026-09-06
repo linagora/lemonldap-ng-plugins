@@ -47,6 +47,12 @@ read the upgrade notes before deploying.**
 9. **The ssh-ca POST routes require `Content-Type: application/json`** and
    refuse a foreign `Origin`. Clients already sending the documented content
    type are unaffected.
+10. **Do not set `pamAccessRequestSigningMode` to `required` yet.** The gate
+    covers all six `/pam/*` endpoints; the open-bastion client signs two of
+    them. `required` would refuse `/pam/heartbeat`, which is how every
+    enrolled host renews its access token — invisible when you flip the
+    switch, then the whole fleet at once when those tokens expire. Stay on
+    `optional` until the client signs heartbeat and bastion-cert.
 
 Not breaking, but opt-in and worth doing: `pamAccessAllowedRps` binds `/pam/*`
 to your PAM relying parties and stops a host from declaring itself a bastion
@@ -100,14 +106,11 @@ meanwhile.
   now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions
   are drained automatically on the next signature or revocation.
 
-  Two limits, stated rather than implied. The drain republishes the whole
-  legacy array in one update, so **the first write on a pre-upgrade session
-  still rewrites it wholesale**: two concurrent writes on a session not yet
-  drained can lose one of the two, exactly as before the fix. It happens once
-  per session and the result is self-healing. And the fix narrows the
-  collision window to `Session->update`'s tie-to-untie rather than closing
-  it — no compare-and-swap is available to a plugin, and nothing here claims
-  atomicity.
+  Two limits, stated rather than implied: the first write on a pre-upgrade
+  session still rewrites the array wholesale, so two concurrent writes there
+  can lose one (once per session, self-healing); and the fix narrows the
+  collision window rather than closing it — no plugin has a compare-and-swap,
+  and nothing here claims atomicity.
 
 ### pam-access
 
@@ -120,17 +123,10 @@ meanwhile.
   while and nothing read the headers. `pamAccessRequestSigningMode` (`off` /
   `optional` / `required`), `...Secret` and `...Window`: timestamp window,
   single-use nonce in shared storage, constant-time HMAC over the raw body.
-  Off by default.
-
-  **Do not switch to `required` yet.** The gate covers all six `/pam/*`
-  endpoints; the client signs two of them, `/pam/verify` and `/pam/authorize`.
-  `required` would refuse `/pam/heartbeat`, which is how every enrolled host
-  renews its access token — and that failure is invisible at the moment you
-  flip the switch, then takes the whole fleet down at once when the tokens it
-  is still holding expire. `/pam/bastion-cert` would stop minting hop
-  certificates too. Stay on `optional`, which already refuses a *bad*
-  signature on the two endpoints that consume credentials, until the client
-  signs heartbeat and bastion-cert.
+  Checked in that order so an unauthenticated caller never reaches the step
+  that writes. Off by default, and see upgrade note 10 before considering
+  `required`: `optional` already refuses a *bad* signature on the two
+  endpoints the client actually signs.
 - **Security fix — `/pam/*` accepted any device-grant token, and any host
   could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
   token to a PAM relying party and, once set, refuses a self-declared bastion
@@ -140,12 +136,10 @@ meanwhile.
   id the portal assigned it at enrollment. That id is the `bastion=<id>` in
   every hop certificate's key-id, which the backends match against their
   allowlist, so an operator has to be able to read it — and nothing served it
-  once `/pam/bastion-token`'s probe mode was removed (`/pam/authorize` and
-  `/pam/heartbeat` return no caller identity, and `/oauth2/introspect` does
-  not export private session keys; t/20 pins all three as tripwires). A pure
-  read behind the standard caller gate: no signing, no session write, no
-  `_pamSeen` stamp, and `pamAccessAllowedRps` plus request signing apply to it
-  unchanged.
+  once `/pam/bastion-token`'s probe mode was removed: no other endpoint
+  exposes the caller's identity, which the tests pin as tripwires. A pure read
+  behind the standard caller gate: no session write, no `_pamSeen` stamp, and
+  `pamAccessAllowedRps` plus request signing apply to it unchanged.
 - **Removed the deprecated `/pam/bastion-token`** (#57). Superseded by
   `/pam/bastion-cert`, its transport already purged from open-bastion, and it
   signed a JWT even when the user lookup had failed. Gone with it:
@@ -160,40 +154,22 @@ meanwhile.
   `pamAccessBastionVoucherUnboundTtl` (15 min), and the new
   `pamAccessRequireFingerprint` refuses the unbound case outright.
 - **Fix — two concurrent logins could lose a bastion voucher** (#54). The
-  vouchers shared one `_pamBastionVouchers` map, rewritten wholesale on every
-  mint, then one key per bastion in the user's persistent session. Both shapes
-  made minting a read-modify-write on a hash the store rewrites as one blob,
-  which no plugin can make atomic: per-key narrowed the window to
-  `Session->update`'s tie-to-untie without closing it, and the expiry sweep
-  that kept the keyspace bounded decided from a snapshot, so it could delete a
-  nonce another bastion had just refreshed.
+  vouchers shared one `_pamBastionVouchers` map in the user's persistent
+  session, rewritten wholesale on every mint. Each voucher now has **its own
+  session record** (`kind => PAMVOUCHER`, id derived from user and
+  `bastion_id`), stored the way the core stores an authorization code: on the
+  global store with its TTL in `_utime`, pinned there and to `hashStore => 0`
+  regardless of `tokenUseGlobalStorage` and `hashedSessionStore` — a voucher
+  is minted on the node that answered `/pam/authorize` and spent on whichever
+  node answers `/pam/bastion-cert`.
 
-  A voucher now has **its own session record** (`kind => PAMVOUCHER`, id
-  derived from user and `bastion_id`), stored the way the core stores an
-  authorization code: on the global store, with the TTL in `_utime`. Nothing
-  is written alongside it, so there is no shared hash to lose a write to and
-  no sweep to get wrong — the store's own purge bounds the keyspace. The
-  record is pinned to the global store and to `hashStore => 0` regardless of
-  `tokenUseGlobalStorage` and `hashedSessionStore`: a voucher is minted on the
-  node that answered `/pam/authorize` and spent on whichever node answers
-  `/pam/bastion-cert`.
-
-  One limit, stated rather than implied: two concurrent `/pam/authorize` for
-  the same `(user, bastion_id)` still race **when no live nonce exists yet**
-  (a first connection, or an expired record). Both mint their own and the last
-  write wins; the loser's shell gets `voucher_mismatch` on its next hop and
-  recovers at the following `/pam/authorize`. Once a nonce exists the two
-  agree on it. This is #54's symptom narrowed from any two concurrent mints to
-  two concurrent *fresh* ones, not removed — the store offers no
-  compare-and-swap, so "generate only if absent" cannot be one operation.
-
-  Vouchers written before the upgrade are still honoured, from either previous
-  shape, and are carried into a record by the next `/pam/authorize`. They are
-  **not** deleted: a portal cluster is upgraded node by node, and clearing a
-  key an older node still mints into would hand that node's users a nonce
-  their shell does not have. For the same reason, a voucher minted during the
-  upgrade window may need one reconnection to the bastion; the leftover keys
-  become inert and will be dropped in a later release.
+  Both previous shapes are still read and are carried into a record by the
+  next `/pam/authorize`; neither is deleted, so a cluster can be upgraded node
+  by node — at the cost of a voucher minted during that window possibly
+  needing one reconnection to the bastion. One limit remains: two concurrent
+  `/pam/authorize` for the same `(user, bastion_id)` with no live nonce yet
+  both mint, and the loser's shell gets `voucher_mismatch` on its next hop,
+  recovering at the following `/pam/authorize`.
 - **Fix — concurrent `/pam/verify` calls could both accept one token** (#53).
   The one-time token was consumed ~145 lines and one store round-trip after it
   was read. It is now consumed before any check runs, and a verify that did
@@ -256,6 +232,15 @@ meanwhile.
   LDAP, the write is a `PUT`) and `Register::LdapRest` (no LDAP connection at
   all). Authentication `none`, `token` or `hmac`, optional RFC 3112 client
   side hashing.
+
+### Tooling
+
+- **The LLNG clone is retried** (5 attempts over ~45 s) when `gitlab.ow2.org`
+  answers 403 or the transport fails — a recurring cause of red jobs on
+  plugins unrelated to the change under test. A `--ref` clone that fails for a
+  transport reason now raises instead of silently falling back to the default
+  branch, which had let jobs pinned to a release report green after testing
+  `master`.
 
 ## v0.5.2 - 2026-08-31
 
