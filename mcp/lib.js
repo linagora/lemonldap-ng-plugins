@@ -59,6 +59,48 @@ function run(cmd, args, opts = {}) {
   });
 }
 
+// gitlab.ow2.org intermittently answers 403 to an anonymous clone. When it
+// does, a runner fails a job that has nothing to do with the change under
+// test, and the only cure so far has been re-running it by hand -- four times
+// in one afternoon during the 2026-09 audit series.
+//
+// Retry the transport, never the verdict: a ref that does not exist fails the
+// same way every time, and retrying it would only turn a fast, clear error
+// into a slow one.
+const CLONE_TRANSIENT =
+  /returned error: (?:40[0-9]|5[0-9][0-9])|unable to access|could not resolve host|connection (?:timed out|reset|refused)|tls connect error|ssl_error|early eof|rpc failed|remote end hung up|operation timed out/i;
+
+const CLONE_REF_NOT_FOUND =
+  /remote branch .* not found in upstream|could not find remote branch/i;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Returns the last `run` result, plus refNotFound so the caller can tell
+// "this ref does not exist" (fall back) from "the network broke" (fail).
+async function cloneWithRetry(args, cwd, log, attempts = 3) {
+  let last = null;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    last = await run("git", args, { cwd });
+    if (last.code === 0) return { ...last, refNotFound: false };
+
+    const out = `${last.stderr || ""}\n${last.stdout || ""}`;
+    if (CLONE_REF_NOT_FOUND.test(out)) return { ...last, refNotFound: true };
+    if (!CLONE_TRANSIENT.test(out)) break;
+
+    if (attempt < attempts) {
+      const wait = 2000 * attempt;
+      const why = (out.match(/^.*(?:fatal|error):.*$/im) || [out.trim()])[0]
+        .trim()
+        .slice(0, 160);
+      log.push(
+        `  clone attempt ${attempt}/${attempts} failed (${why}) — retrying in ${wait}ms`,
+      );
+      await sleep(wait);
+    }
+  }
+  return { ...last, refNotFound: false };
+}
+
 async function exists(p) {
   try {
     await fs.access(p);
@@ -231,16 +273,26 @@ async function ensureLlng(log, { ref } = {}) {
 
   if (wantedRef) {
     log.push(`Cloning ${LLNG_REPO} at ref '${wantedRef}' (shallow) ...`);
-    const r = await run(
-      "git",
+    const r = await cloneWithRetry(
       ["clone", "--depth", "1", "--branch", wantedRef, LLNG_REPO, LLNG_DIR],
-      { cwd: LLNG_ROOT },
+      LLNG_ROOT,
+      log,
     );
     if (r.code !== 0) {
-      log.push(
-        `  ref '${wantedRef}' not reachable — falling back to default branch`,
-      );
       await fs.rm(LLNG_DIR, { recursive: true, force: true });
+
+      // Only a ref that is really not there may fall back. A transport
+      // failure used to land here too, and the job then silently tested the
+      // default branch instead of the ref it was asked for -- a green
+      // "@ v2.23.2" that had actually run against master.
+      if (!r.refNotFound) {
+        throw new Error(
+          `git clone of ref '${wantedRef}' failed (exit ${r.code}) and it is not a missing ref:\n${r.stderr || r.stdout}`,
+        );
+      }
+      log.push(
+        `  ref '${wantedRef}' does not exist upstream — falling back to default branch`,
+      );
       actualRef = "";
       fallback = true;
     }
@@ -248,10 +300,10 @@ async function ensureLlng(log, { ref } = {}) {
 
   if (!actualRef && !(await exists(gitDir))) {
     log.push(`Cloning ${LLNG_REPO} (default branch, shallow) ...`);
-    const r = await run(
-      "git",
+    const r = await cloneWithRetry(
       ["clone", "--depth", "1", LLNG_REPO, LLNG_DIR],
-      { cwd: LLNG_ROOT },
+      LLNG_ROOT,
+      log,
     );
     if (r.code !== 0) {
       throw new Error(
