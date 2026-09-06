@@ -309,6 +309,49 @@ $json = expectJSON($res);
 ok( !$json->{valid}, 'Token no longer valid (one-time use)' );
 count(1);
 
+# Losing the race for the token is a refusal, not a second success (#53).
+# The token is consumed before any check runs; when that consumption fails —
+# because a concurrent /pam/verify already deleted the session, or because the
+# store is unreachable — nothing is validated.
+{
+    my $q = 'duration=300';
+    my $fresh = expectJSON(
+        $op->_post(
+            '/pam',
+            IO::String->new($q),
+            accept => 'application/json',
+            cookie => "lemonldap=$id",
+            length => length($q),
+        )
+    )->{token};
+    ok( $fresh, 'Generated a fresh one-time token' );
+
+    my $orig = \&Lemonldap::NG::Common::Session::remove;
+    my $lost = 0;
+    no warnings 'redefine';
+    local *Lemonldap::NG::Common::Session::remove = sub {
+        my $self = shift;
+        if ( ( $self->data->{_type} // '' ) eq 'pamtoken' and !$lost++ ) {
+            $self->error('Object does not exist');
+            return 0;
+        }
+        return $orig->( $self, @_ );
+    };
+
+    my $b = to_json( { token => $fresh } );
+    $res = $op->_post(
+        '/pam/verify',
+        IO::String->new($b),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($b),
+        custom => { HTTP_AUTHORIZATION => "Bearer $server_token" },
+    );
+    $json = expectJSON($res);
+    ok( !$json->{valid}, '  -> a token we did not win is refused' );
+    count(2);
+}
+
 # ============================================
 # PART 4: Authorization checks
 # ============================================

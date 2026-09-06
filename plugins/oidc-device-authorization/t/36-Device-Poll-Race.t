@@ -207,5 +207,71 @@ $payload = expectJSON($res);
 ok( $payload->{access_token}, "Device still gets its tokens" );
 count(1);
 
+# --- 4. two token requests racing for the same approved device_code --------
+#
+# The device_code is single-use, but consumption used to be an unconditional
+# delete: two requests reading `approved` before either deleted both minted a
+# full token set, and the theft left the legitimate device's exchange
+# succeeding, so nothing looked wrong (issue #68). The consumption is now
+# conditional — whoever does not win the delete mints nothing.
+
+{
+    $payload     = newDeviceAuth();
+    $device_code = $payload->{device_code};
+    $user_code   = $payload->{user_code} =~ s/-//gr;
+    expectOK( decide( $user_code, 'approve' ) );
+
+    # Simulate losing the delete: the first removal of the deviceauth session
+    # reports that it is already gone, exactly as it would for the request
+    # that arrives second on the backend.
+    my $orig = \&Lemonldap::NG::Common::Session::remove;
+    my $lost = 0;
+    no warnings 'redefine';
+    local *Lemonldap::NG::Common::Session::remove = sub {
+        my $self = shift;
+        if ( ( $self->data->{_type} // '' ) eq 'deviceauth' and !$lost++ ) {
+            $self->error('Object does not exist');
+            return 0;
+        }
+        return $orig->( $self, @_ );
+    };
+
+    $res = poll($device_code);
+    is( $res->[0], 400, 'The loser of the consumption race gets a 400' );
+    my $err = from_json( $res->[2]->[0] );
+    is( $err->{error}, 'invalid_grant', '  -> invalid_grant' );
+    ok( !$err->{access_token}, '  -> and no token set is minted' );
+    count(3);
+}
+
+# --- 5. consuming a device_code evicts it from every node's cache ----------
+#
+# Common::Apache::Session::Store->remove only drops the local cache of the
+# node doing the write, so without an `unlog` event another node kept serving
+# a deleted device_auth from cache for the whole code TTL (issue #68).
+
+{
+    my @unlogged;
+    my $orig = \&Lemonldap::NG::Handler::Main::publishEvent;
+    no warnings 'redefine';
+    local *Lemonldap::NG::Handler::Main::publishEvent = sub {
+        my ( $class, $req, $msg ) = @_;
+        push @unlogged, $msg->{id}
+          if ref $msg eq 'HASH' and ( $msg->{action} // '' ) eq 'unlog';
+        return $orig->( $class, $req, $msg );
+    };
+
+    $payload     = newDeviceAuth();
+    $device_code = $payload->{device_code};
+    $user_code   = $payload->{user_code} =~ s/-//gr;
+    expectOK( decide( $user_code, 'approve' ) );
+
+    $res = poll($device_code);
+    ok( expectJSON($res)->{access_token}, 'A normal exchange still succeeds' );
+    is( scalar @unlogged, 2,
+        '  -> both the device_code and user_code sessions are unlogged' );
+    count(2);
+}
+
 clean_sessions();
 done_testing();
