@@ -569,5 +569,68 @@ sub dwho_sessions {
     count(1);
 }
 
+# ============================================
+# PART 10: cross-site POSTs are refused (issue #62)
+# ============================================
+
+# What a cross-site HTML form can actually send. A form cannot set
+# Content-Type: application/json — only urlencoded, multipart or text/plain —
+# and from_json used to swallow all three, so a page on another origin could
+# re-sign a victim's public key and KRL-revoke their live certificate.
+{
+    my $raw = to_json(
+        { public_key => $user_pubkeys[0], label => 'csrf', validity_days => 1 }
+    );
+
+    for my $ct ( 'text/plain', 'application/x-www-form-urlencoded' ) {
+        $res = $portal->_post(
+            '/ssh/sign',
+            IO::String->new($raw),
+            cookie => "lemonldap=$id",
+            type   => $ct,
+            length => length($raw),
+        );
+        is( $res->[0], 400, "POST /ssh/sign with Content-Type $ct is refused" );
+        count(1);
+    }
+
+    # And a JSON body from a foreign Origin, which is what a fetch() from an
+    # attacker page looks like once it sets the content type.
+    $res = $portal->_post(
+        '/ssh/sign',
+        IO::String->new($raw),
+        cookie => "lemonldap=$id",
+        type   => 'application/json',
+        length => length($raw),
+        custom => { HTTP_ORIGIN => 'https://evil.example.net' },
+    );
+    is( $res->[0], 403, 'POST /ssh/sign from a foreign Origin is refused' );
+    count(1);
+
+    # The portal's own origin still works (the /ssh page posts from there).
+    $res = $portal->_post(
+        '/ssh/sign',
+        IO::String->new($raw),
+        cookie => "lemonldap=$id",
+        type   => 'application/json',
+        length => length($raw),
+        custom => { HTTP_ORIGIN => 'http://auth.example.com' },
+    );
+    is( $res->[0], 200, 'POST /ssh/sign from the portal origin still works' );
+    count(1);
+
+    # Same gate on the two revocation routes.
+    my $rev = to_json( { serial => '404404' } );
+    $res = $portal->_post(
+        '/ssh/myrevoke',
+        IO::String->new($rev),
+        cookie => "lemonldap=$id",
+        type   => 'text/plain',
+        length => length($rev),
+    );
+    is( $res->[0], 400, 'POST /ssh/myrevoke with a form content type is refused' );
+    count(1);
+}
+
 clean_sessions();
 done_testing();
