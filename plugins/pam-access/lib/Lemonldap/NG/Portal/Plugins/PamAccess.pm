@@ -401,6 +401,7 @@ sub authorize {
         label        => 'PAM authorize',
         action       => 'authorization rejected',
         audit_code   => 'PAM_AUTHZ_SSH_FP_MALFORMED',
+        audit_code_required => 'PAM_AUTHZ_SSH_FP_REQUIRED',
         audit_fields => {
             host         => $host,
             service      => $service,
@@ -1011,6 +1012,7 @@ sub verifyToken {
         label         => 'PAM verify',
         action        => 'authentication rejected',
         audit_code    => 'PAM_AUTH_SSH_FP_MALFORMED',
+        audit_code_required => 'PAM_AUTH_SSH_FP_REQUIRED',
         audit_fields  => { server_id => $server_id },
         response_body =>
           { valid => JSON::false, error => 'Malformed SSH fingerprint' },
@@ -1466,6 +1468,12 @@ sub _resolveServerGroup {
 #   label            - log prefix ("PAM authorize" / "PAM verify")
 #   action           - audit message action phrase
 #   audit_code       - audit code for the malformed event
+#   audit_code_required - audit code for the pamAccessRequireFingerprint
+#                      refusal. Distinct from audit_code: a SIEM rule for
+#                      "a caller sent us garbage" and one for "a caller has
+#                      not rolled out the fingerprint spool yet" want
+#                      different thresholds, and telling them apart on the
+#                      `reason` field alone means parsing the payload.
 #   audit_fields     - hashref of extra audit fields (host, server_id, ...)
 #   response_body    - hashref returned as JSON on malformed (authorize
 #                      uses { error => ... }, verify uses
@@ -1485,6 +1493,7 @@ sub _parseFingerprintOrReject {
     my $label        = $opts{label}         || 'PAM';
     my $action       = $opts{action}        || 'rejected';
     my $audit_code   = $opts{audit_code};
+    my $audit_req    = $opts{audit_code_required} || $audit_code;
     my $audit_fields = $opts{audit_fields}  || {};
     my $body_out     = $opts{response_body}
       || { error => 'Malformed SSH fingerprint' };
@@ -1500,7 +1509,7 @@ sub _parseFingerprintOrReject {
               . " pamAccessRequireFingerprint is set" );
         $self->p->auditLog(
             $req,
-            code    => $audit_code,
+            code    => $audit_req,
             user    => $user,
             message => "PAM $action: no SSH fingerprint supplied for user"
               . " '$user' (pamAccessRequireFingerprint)",

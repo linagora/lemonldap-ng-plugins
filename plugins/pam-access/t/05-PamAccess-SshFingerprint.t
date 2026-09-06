@@ -263,6 +263,17 @@ count(3);
 {
     my $conf = $op->p->conf;
     local $conf->{pamAccessRequireFingerprint} = 1;
+
+    my @audit;
+    no warnings 'redefine';
+    my $orig = \&Lemonldap::NG::Common::PSGI::auditLog;
+    local *Lemonldap::NG::Common::PSGI::auditLog = sub {
+        my ( $self, $req, %info ) = @_;
+        push @audit, \%info;
+        return $orig->( $self, $req, %info );
+    };
+    use warnings 'redefine';
+
     $user_token = _new_pam_token();
     $res        = _verify( $user_token, undef );
     is( $res->[0], 400, 'verify without fingerprint is a 400 when required' );
@@ -270,7 +281,14 @@ count(3);
     ok( exists $json->{valid} && !$json->{valid},
         'requireFingerprint refusal keeps the verify body shape' );
     like( $json->{error}, qr/fingerprint required/i, 'Error says so' );
-    count(3);
+
+    # Its own audit code, distinct from the malformed one (see t/08 for the
+    # /pam/authorize twin).
+    my ($ev) =
+      grep { ( $_->{reason} // '' ) eq 'fingerprint_required' } @audit;
+    is( $ev && $ev->{code},
+        'PAM_AUTH_SSH_FP_REQUIRED', 'and its own audit code' );
+    count(4);
 }
 
 # Leading/trailing whitespace is tolerated (trimmed)
