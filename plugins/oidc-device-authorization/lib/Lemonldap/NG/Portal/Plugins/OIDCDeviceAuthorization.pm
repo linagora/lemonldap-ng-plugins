@@ -907,6 +907,23 @@ sub _updateDeviceAuthFields {
 # instances`): without the event, another node kept serving a deleted
 # device_auth from cache for the whole code TTL, turning a millisecond race
 # into a window that needs no timing skill at all.
+# Returns whether THIS call won the device_code delete. Only the token
+# exchange looks at that; the paths that expire or deny a code do not race for
+# anything.
+#
+# As in /pam/verify, the loser is detected by the re-tie inside
+# Common::Session->remove, not by the delete: deleting an absent record is a
+# silent success in the store layer, so it is `noCache => 1` -- forcing that
+# re-tie to go to the backend instead of the node-local cache -- that makes
+# the verdict mean anything. It assumes the backend fails to retrieve a
+# missing id rather than handing back an empty record.
+#
+# Note for later: on the exchange path the grant hook has already run by the
+# time we get here, so a losing exchange has executed its side effects (the
+# synthetic-session work in oidc-device-organization, for one) before being
+# refused. That is idempotent today. Moving this delete ahead of the hook
+# would change what the existing error paths do, so it is left where it is
+# deliberately.
 sub _deleteDeviceAuth {
     my ( $self, $req, $device_auth ) = @_;
 

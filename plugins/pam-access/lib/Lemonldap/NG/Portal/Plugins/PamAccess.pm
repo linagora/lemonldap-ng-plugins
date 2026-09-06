@@ -986,12 +986,31 @@ sub verifyToken {
     # both answered valid (issue #53). The remaining window is now two
     # adjacent store round-trips.
     #
-    # `noCache => 1` forces the delete to re-read the backend rather than the
-    # node-local session cache, so a token another node already consumed is
-    # seen as gone. A failed delete means we did not win it — or that the
-    # store is unreachable, which for a one-time credential is equally a
-    # refusal. $tokenSession->data is a snapshot taken at load time, so the
-    # checks below still see everything they need.
+    # HOW the loser is detected, because it is not obvious and it is easy to
+    # "simplify" wrongly. Common::Session->remove re-ties the session with the
+    # options it is given, then deletes. It is the RE-TIE that fails for the
+    # loser: the record is already gone, so tying dies ("Object does not exist
+    # in the data store") and remove returns false. The delete itself is not
+    # conditional — Store::File's unlink is guarded by `if (-e $file)` with no
+    # else, i.e. deleting an absent record is a silent success. So `noCache
+    # => 1` is not a hardening detail here, it is the part that works: without
+    # it the re-tie would succeed from the node-local cache and both callers
+    # would be told they won.
+    #
+    # This assumes the backend's retrieve-on-missing fails rather than
+    # returning an empty record. True of the File, DBI and REST stores; a
+    # backend that resolved a missing id silently would reopen the full
+    # window.
+    #
+    # A failed remove therefore means we did not win it — or that the store is
+    # unreachable, which for a one-time credential is equally a refusal.
+    # $tokenSession->data is a snapshot taken at load time, so the checks
+    # below still see everything they need.
+    #
+    # Not claimed: atomicity. Two calls whose re-ties both complete before
+    # either delete still both win. That is the "two adjacent store
+    # round-trips" above, and no plugin can close it without a
+    # compare-and-swap the store does not offer.
     unless ( $tokenSession->remove( { noCache => 1 } ) ) {
         $self->logger->warn( "PAM verify: could not consume the one-time token"
               . " (concurrent use, or store failure): "
