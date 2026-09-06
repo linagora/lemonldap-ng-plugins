@@ -131,10 +131,21 @@ under-count by one, which does not matter for bounding a loop.
 Over the certificate quota, `/ssh/sign` answers **409**, audited as
 `SSH_CA_CERT_QUOTA_EXCEEDED`. A **re-signature of a key you already hold
 replaces its record and is never counted**, so a user sitting at the quota can
-still rotate; a new key needs a `/ssh/myrevoke` first.
+still rotate; a new key needs a `/ssh/myrevoke` first. Only *active* records
+grant that exemption: at the quota, re-signing a key whose certificate has
+already expired is refused like a new one, even though it would replace the
+expired record rather than grow the set. Revoke or wait for the counter to
+reflect reality — the conservative direction.
 
 Together these bound KRL growth. The KRL itself is never capped: refusing to
 record a revocation would be a silent fail-open.
+
+> **`disablePersistentStorage`.** Both limits live in the user's session, so
+> with persistent storage disabled the counter is never written and *neither
+> limit applies*. This matches the rest of the plugin — certificates are not
+> persisted either, so `/ssh/mycerts` is empty and the quota has nothing to
+> count — but it means a deployment relying on the rate limit must keep
+> persistent sessions enabled.
 
 ### CA key setup
 
