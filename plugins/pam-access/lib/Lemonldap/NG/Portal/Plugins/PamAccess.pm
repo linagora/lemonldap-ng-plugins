@@ -1898,9 +1898,23 @@ sub _mintBastionVoucher {
     # One record, holding one voucher. Nothing else is stored alongside it, so
     # a concurrent mint for another bastion cannot lose this one and this one
     # cannot delete that one -- which is what the shared-hash shapes could not
-    # promise. Two mints for the SAME bastion still race, but they now agree:
-    # both carry the nonce already in the store, and the loser only fails to
-    # extend an expiry the winner extended too.
+    # promise.
+    #
+    # Two mints for the SAME bastion still race, and the outcome depends on
+    # whether a nonce already exists. Once one does, they agree: both read it,
+    # both write it back, and the loser only fails to extend an expiry the
+    # winner extended too. With no live nonce yet -- a first connection, or an
+    # expired or purged record -- both read nothing, both generate their own,
+    # and the last write wins: the loser has already handed its shell a nonce
+    # that is no longer in the store, so its next hop gets voucher_mismatch
+    # and it recovers at the following authorize, which reuses the survivor.
+    #
+    # That is issue #54's symptom, narrowed from "any two concurrent mints" to
+    # "two concurrent FRESH mints for the same (user, bastion_id)". It is not
+    # gone, and it is not fixable here: the store offers no compare-and-swap,
+    # so there is no way to make "generate only if absent" one operation.
+    # Please do not "fix" it by rotating on every mint -- that reintroduces
+    # the failure this helper's idempotent reuse exists to prevent.
     unless ( $self->_writeVoucherRecord( $user, $bastion_id, $nonce, $exp ) ) {
         $self->logger->error(
             "PAM authorize: cannot store bastion voucher for '$user'");
@@ -1944,8 +1958,16 @@ sub _readVoucherRecord {
     my $s = Lemonldap::NG::Common::Session->new(
         { $self->_voucherStoreOpts( $user, $bastion_id ) } );
 
-    # A missing record and an unreachable store both surface as an error here.
-    # Only the second one may refuse a request, so tell them apart.
+    # A missing record and an unreachable store both surface as an error here,
+    # and only the second one may refuse a request, so tell them apart by the
+    # message. "Object does not exist [in the] data store" is the idiom every
+    # Apache::Session store backend raises on a miss -- DBI, File, Postgres,
+    # Oracle, and the Browseable ones (Redis, LDAP, ...) which match on that
+    # same string themselves; "Invalid session ID" comes from the SHA256 id
+    # generator. A backend whose miss message matches neither is read as a
+    # store failure: the request is refused rather than silently treated as
+    # "no voucher", which is the safe way round but worth knowing when adding
+    # one.
     if ( $s->error ) {
         return {} if $s->error =~ /(?:Object does not exist|Invalid session)/i;
         $self->logger->error(

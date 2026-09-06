@@ -115,6 +115,15 @@ meanwhile.
   node that answered `/pam/authorize` and spent on whichever node answers
   `/pam/bastion-cert`.
 
+  One limit, stated rather than implied: two concurrent `/pam/authorize` for
+  the same `(user, bastion_id)` still race **when no live nonce exists yet**
+  (a first connection, or an expired record). Both mint their own and the last
+  write wins; the loser's shell gets `voucher_mismatch` on its next hop and
+  recovers at the following `/pam/authorize`. Once a nonce exists the two
+  agree on it. This is #54's symptom narrowed from any two concurrent mints to
+  two concurrent *fresh* ones, not removed — the store offers no
+  compare-and-swap, so "generate only if absent" cannot be one operation.
+
   Vouchers written before the upgrade are still honoured, from either previous
   shape, and are carried into a record by the next `/pam/authorize`. They are
   **not** deleted: a portal cluster is upgraded node by node, and clearing a
