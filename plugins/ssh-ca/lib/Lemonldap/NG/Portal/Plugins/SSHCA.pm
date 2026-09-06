@@ -34,6 +34,25 @@ use Lemonldap::NG::Portal::Main::Constants qw(
 
 our $VERSION = '2.23.0';
 
+# Persistent-session key prefix for issued certificate records, one key per
+# certificate ($CERT_PREFIX.<fingerprint>).
+#
+# Certificates used to share a single `_sshCerts` JSON array, so every sign
+# and every revocation was a read-modify-write over a blob the store rewrites
+# wholesale: two concurrent /ssh/sign calls, or a revoke racing a sign, lost
+# one of the two records (issue #66). Per key, Common::Session->update re-ties
+# with noCache => 1 and sets only the named keys, so writers now collide only
+# when their tie-to-untie windows overlap — there is still no locking
+# (Apache::Session::Lock::Null), but the window is a store round-trip instead
+# of a whole request.
+#
+# The fingerprint is the key because it is what every reader looks up
+# (pam-access binds PAM tokens to it) and because re-signing the same key is
+# meant to REPLACE its record — which per key is a plain overwrite. Sessions
+# written before the upgrade keep their `_sshCerts` array; it is still read,
+# and drained into per-key records on the next write.
+our $CERT_PREFIX = '_sshCert::';
+
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'SSHCA';
@@ -450,14 +469,7 @@ sub sshCaSign {
     # Enforce label uniqueness within the user's (non-revoked, non-expired)
     # certificates — except when the same label is reused for the SAME key
     # (re-signing): in that case the old record is going to be replaced.
-    my $existingCerts = [];
-    if ( $req->userData->{_sshCerts} ) {
-        $existingCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-        if ( $@ || ref($existingCerts) ne 'ARRAY' ) {
-            $self->logger->warn("SSH CA: Corrupted _sshCerts, resetting: $@");
-            $existingCerts = [];
-        }
-    }
+    my $existingCerts = $self->_certsFromData( $req->userData );
     my $now = time();
     for my $c (@$existingCerts) {
         next if $c->{revoked_at};
@@ -1024,13 +1036,7 @@ sub _pemToSshPublicKey {
 sub sshMyCerts {
     my ( $self, $req ) = @_;
 
-    my $sshCerts = [];
-    if ( $req->userData->{_sshCerts} ) {
-        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-        if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
-            $sshCerts = [];
-        }
-    }
+    my $sshCerts = $self->_certsFromData( $req->userData );
 
     my $now = time();
     my @certs;
@@ -1080,18 +1086,17 @@ sub sshMyCertRevoke {
         return $self->p->sendError( $req, 'serial required', 400 );
     }
 
-    my $sshCerts = [];
-    if ( $req->userData->{_sshCerts} ) {
-        $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-        if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
-            $self->logger->error("SSH myrevoke: Corrupted _sshCerts: $@");
-            return $self->p->sendJSONresponse(
-                $req,
-                { error => 'Corrupted certificate data' },
-                code => 500
-            );
-        }
+    # A corrupted legacy array would give us a partial view of the user's
+    # certificates, and answering "not found" on it would look like a
+    # successful no-op — refuse instead.
+    unless ( defined $self->_legacyCerts( $req->userData ) ) {
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Corrupted certificate data' },
+            code => 500
+        );
     }
+    my $sshCerts = $self->_certsFromData( $req->userData );
 
     my $user =
          $req->userData->{ $self->conf->{whatToTrace} || 'uid' }
@@ -1124,8 +1129,12 @@ sub sshMyCertRevoke {
         );
     }
 
-    $self->p->updatePersistentSession( $req,
-        { _sshCerts => to_json($sshCerts) } );
+    my %upd;
+    $self->_drainLegacyCerts( $req->userData, \%upd );
+    if ( my $k = $self->_certKey($target) ) {
+        $upd{$k} = to_json($target);
+    }
+    $self->p->updatePersistentSession( $req, \%upd );
     my $krlOk = $self->_updateKrl($serial);
     $self->_publishRevoke( $req, $serial );
 
@@ -1242,12 +1251,18 @@ sub sshCertsList {
         },
     };
 
-    my @fields = qw( _session_kind _session_uid _sshCerts );
-
-    # Search for all persistent sessions that have _sshCerts
+    # No field restriction: certificates live one per key
+    # ($CERT_PREFIX.<fingerprint>), whose names are not known in advance.
+    #
+    # The core loaded whole sessions for this search anyway (searchOnExpr
+    # falls back to get_key_from_all_sessions); what changes is that the
+    # result now RETAINS them for the length of the scan instead of a few
+    # named fields. Fine at the scale this endpoint serves — an administrator
+    # listing certificates — but it is the line to look at first if a large
+    # fleet makes /ssh/certs heavy.
     my $res =
       Lemonldap::NG::Common::Apache::Session->searchOnExpr( $moduleOptions,
-        '_session_kind', 'Persistent', @fields );
+        '_session_kind', 'Persistent' );
 
     my @certs;
     my $now = time();
@@ -1255,12 +1270,11 @@ sub sshCertsList {
     for my $sessionId ( keys %{ $res || {} } ) {
         my $session = $res->{$sessionId};
 
-        # Skip if no SSH certs
-        next unless $session->{_sshCerts};
-
         my $user     = $session->{_session_uid} || '';
-        my $sshCerts = eval { from_json( $session->{_sshCerts} ) };
-        next if $@ || ref($sshCerts) ne 'ARRAY';
+        my $sshCerts = $self->_certsFromData($session);
+
+        # Skip sessions holding no certificate at all
+        next unless @$sshCerts;
 
         # Apply user filter at session level
         if ( $userFilter && $user !~ /\Q$userFilter\E/i ) {
@@ -1414,27 +1428,25 @@ sub sshCertRevoke {
         );
     }
 
-    # Get SSH certs from session
-    my $sshCerts = [];
-    if ( $psession->data->{_sshCerts} ) {
-        $sshCerts = eval { from_json( $psession->data->{_sshCerts} ) };
-        if ($@) {
-            $self->logger->error("SSH revoke: Corrupted _sshCerts: $@");
-            return $self->p->sendJSONresponse(
-                $req,
-                { error => 'Corrupted certificate data' },
-                code => 500
-            );
-        }
+    # Get SSH certs from session. As in sshMyCertRevoke, a corrupted legacy
+    # array means we cannot honestly say a serial is absent.
+    unless ( defined $self->_legacyCerts( $psession->data ) ) {
+        return $self->p->sendJSONresponse(
+            $req,
+            { error => 'Corrupted certificate data' },
+            code => 500
+        );
     }
+    my $sshCerts = $self->_certsFromData( $psession->data );
 
     # Find and update the certificate
     my $found = 0;
     my $user  = $psession->data->{_session_uid} || '';
     my $keyId;
+    my $target;
 
     for my $cert (@$sshCerts) {
-        if ( $cert->{serial} eq $serial ) {
+        if ( ( $cert->{serial} // '' ) eq $serial ) {
             if ( $cert->{revoked_at} ) {
                 return $self->p->sendJSONresponse(
                     $req,
@@ -1446,6 +1458,7 @@ sub sshCertRevoke {
             $cert->{revoked_by}    = $adminUser;
             $cert->{revoke_reason} = $reason;
             $keyId                 = $cert->{key_id};
+            $target                = $cert;
             $found                 = 1;
             last;
         }
@@ -1459,8 +1472,13 @@ sub sshCertRevoke {
         );
     }
 
-    # Update session
-    $psession->update( { _sshCerts => to_json($sshCerts) } );
+    # Update session, one key for the revoked certificate only
+    my %upd;
+    $self->_drainLegacyCerts( $psession->data, \%upd );
+    if ( my $k = $self->_certKey($target) ) {
+        $upd{$k} = to_json($target);
+    }
+    $psession->update( \%upd );
 
     # Update the KRL file
     my $krlUpdated = $self->_updateKrl($serial);
@@ -1500,6 +1518,80 @@ sub sshCertRevoke {
 # If a record with the same fingerprint already exists, it is dropped and its
 # serial revoked in the KRL: a given SSH key is represented by a single
 # certificate record at a time (the most recent signature).
+# HELPER: the per-certificate session key holding $cert.
+#
+# Keyed by fingerprint (see $CERT_PREFIX). Very old records may predate the
+# fingerprint field; those fall back to the serial so they still migrate
+# instead of being stranded in the legacy array.
+sub _certKey {
+    my ( $self, $cert ) = @_;
+
+    return undef unless ref $cert eq 'HASH';
+    return $CERT_PREFIX . $cert->{fingerprint}
+      if ( $cert->{fingerprint} // '' ) ne '';
+    return $CERT_PREFIX . 'serial:' . $cert->{serial}
+      if ( $cert->{serial} // '' ) ne '';
+    return undef;
+}
+
+# HELPER: decode the pre-upgrade `_sshCerts` array of a session hash.
+# Returns [] when the session has none (already migrated, or never had one)
+# and undef when it holds something that is not a JSON array — callers that
+# must not silently act on a partial view check for that.
+sub _legacyCerts {
+    my ( $self, $data ) = @_;
+
+    my $raw = $data->{_sshCerts};
+    return [] unless defined $raw and $raw ne '';
+    my $list = eval { from_json($raw) };
+    if ( $@ or ref $list ne 'ARRAY' ) {
+        $self->logger->error("SSH CA: Corrupted _sshCerts: $@");
+        return undef;
+    }
+    return $list;
+}
+
+# HELPER: every certificate record a session hash holds — per-key records
+# first, then whatever a not-yet-drained `_sshCerts` array still carries.
+sub _certsFromData {
+    my ( $self, $data ) = @_;
+
+    my ( @certs, %seen );
+    for my $k ( sort keys %$data ) {
+        next unless index( $k, $CERT_PREFIX ) == 0;
+        my $rec = eval { from_json( $data->{$k} // '' ) };
+        if ( $@ or ref $rec ne 'HASH' ) {
+            $self->logger->warn("SSH CA: Corrupted certificate record $k");
+            next;
+        }
+        $seen{$k} = 1;
+        push @certs, $rec;
+    }
+    for my $rec ( @{ $self->_legacyCerts($data) || [] } ) {
+        next unless ref $rec eq 'HASH';
+        my $k = $self->_certKey($rec);
+        next if defined $k and $seen{$k};
+        push @certs, $rec;
+    }
+
+    return \@certs;
+}
+
+# HELPER: schedule the migration of a session's `_sshCerts` array into the
+# per-certificate keyspace. Every write path calls this, so the array drains
+# on the first sign or revocation that touches the session.
+sub _drainLegacyCerts {
+    my ( $self, $data, $upd ) = @_;
+
+    my $raw = $data->{_sshCerts};
+    return unless defined $raw and $raw ne '';
+    for my $rec ( @{ $self->_legacyCerts($data) || [] } ) {
+        my $k = $self->_certKey($rec) or next;
+        $upd->{$k} = to_json($rec) unless exists $upd->{$k};
+    }
+    $upd->{_sshCerts} = undef;
+}
+
 sub _storeCertificate {
     my ( $self, $req, %args ) = @_;
 
@@ -1514,53 +1606,53 @@ sub _storeCertificate {
     };
 
     # Reuse the decoded list from sshCaSign when it was passed in. Fall back
-    # to re-reading (and decoding) $req->userData->{_sshCerts} so other
-    # internal callers don't have to pre-parse.
-    my $sshCerts;
-    if ( ref $args{existing} eq 'ARRAY' ) {
-        $sshCerts = $args{existing};
-    }
-    else {
-        $sshCerts = [];
-        if ( $req->userData->{_sshCerts} ) {
-            $sshCerts = eval { from_json( $req->userData->{_sshCerts} ) };
-            if ( $@ || ref($sshCerts) ne 'ARRAY' ) {
-                $self->logger->warn(
-                    "SSH CA: Corrupted _sshCerts, resetting: $@");
-                $sshCerts = [];
-            }
-        }
-    }
+    # to re-reading the session so other internal callers don't have to
+    # pre-parse.
+    my $sshCerts =
+      ref $args{existing} eq 'ARRAY'
+      ? $args{existing}
+      : $self->_certsFromData( $req->userData );
 
-    # Drop any prior record for the same key (fingerprint). Revoke the
-    # superseded serial in the KRL so the old certificate cannot be used even
-    # if it is still within its validity window.
+    # Only two keys are touched: this certificate's, and (when the same SSH
+    # key is being re-signed under a record that predates the per-key layout)
+    # the superseded record's. Everything else the user holds is left alone,
+    # so a concurrent sign or revocation of another key cannot be lost.
     my $now = time();
-    my @kept;
-    for my $c (@$sshCerts) {
-        if (   $args{fingerprint}
-            && ( $c->{fingerprint} || '' ) eq $args{fingerprint} )
-        {
-            unless ( $c->{revoked_at}
-                || ( $c->{expires_at} && $c->{expires_at} < $now ) )
-            {
-                if ( $c->{serial} ) {
-                    my $ok = $self->_updateKrl( $c->{serial} );
-                    $self->_publishRevoke( $req, $c->{serial} );
-                    $self->logger->info(
-                        "SSH CA: Replaced certificate serial=$c->{serial} "
-                          . "(superseded by $args{serial}); KRL update "
-                          . ( $ok ? 'ok' : 'FAILED' ) );
-                }
-            }
-            next;    # drop superseded record
-        }
-        push @kept, $c;
-    }
-    push @kept, $certRecord;
+    my %upd;
+    $self->_drainLegacyCerts( $req->userData, \%upd );
 
-    $self->p->updatePersistentSession( $req,
-        { _sshCerts => to_json( \@kept ) } );
+    # Revoke the superseded serial in the KRL so the old certificate cannot be
+    # used even if it is still within its validity window.
+    for my $c (@$sshCerts) {
+        next
+          unless $args{fingerprint}
+          && ( $c->{fingerprint} || '' ) eq $args{fingerprint};
+        unless ( $c->{revoked_at}
+            || ( $c->{expires_at} && $c->{expires_at} < $now ) )
+        {
+            if ( $c->{serial} ) {
+                my $ok = $self->_updateKrl( $c->{serial} );
+                $self->_publishRevoke( $req, $c->{serial} );
+                $self->logger->info(
+                    "SSH CA: Replaced certificate serial=$c->{serial} "
+                      . "(superseded by $args{serial}); KRL update "
+                      . ( $ok ? 'ok' : 'FAILED' ) );
+            }
+        }
+        if ( my $k = $self->_certKey($c) ) { $upd{$k} = undef }
+    }
+
+    # Last, so it wins over the `undef` a superseded record with the same
+    # fingerprint just scheduled on the very same key.
+    my $key = $self->_certKey($certRecord);
+    unless ($key) {
+        $self->logger->error(
+            'SSH CA: certificate record has neither fingerprint nor serial');
+        return 0;
+    }
+    $upd{$key} = to_json($certRecord);
+
+    $self->p->updatePersistentSession( $req, \%upd );
 
     $self->logger->debug(
         "SSH CA: Stored certificate serial=$args{serial} fp=$args{fingerprint} in persistent session"

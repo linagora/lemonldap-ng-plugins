@@ -161,7 +161,8 @@ even if the SSH server's KRL is stale.
 
 Two kinds of certificate can match the fingerprint:
 
-- **User SSO certificates** (`/ssh/sign`, stored in `_sshCerts`) — used when a
+- **User SSO certificates** (`/ssh/sign`, stored per fingerprint under
+  `_sshCert::<fp>`) — used when a
   user connects directly to a host (e.g. a standalone server). They are
   long-lived (default 30 days) and the binding accepts them until they expire
   or are revoked.
