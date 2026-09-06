@@ -160,6 +160,13 @@ sub init {
       # Route for bastion token generation (bastion -> LLNG)
       # Returns a JWT that proves the bastion has a valid session
       # DEPRECATED: the SendEnv/pam_getenv transport this JWT relied on is
+      # Route for an enrolled server to read back its own identity, i.e. the
+      # id the portal assigned it at enrollment (server -> LLNG).
+      ->addUnauthRoute(
+        pam => { whoami => 'whoami' },
+        ['POST']
+      )
+
       # Route for bastion ephemeral-certificate vouching (bastion -> LLNG).
       # The bastion sends an ephemeral public key + the (bastion_id, user)
       # voucher minted by /pam/authorize; LLNG returns a short-lived,
@@ -852,6 +859,19 @@ my %CALLER_GATE = (
         ],
         scope_log => 'refresh token has invalid scope',
     },
+    whoami => {
+        label    => 'PAM whoami',
+        no_token =>
+          [ 'No server Bearer token provided', 'Server Bearer token required' ],
+        bad_token => [
+            'Invalid or expired server token',
+            'Invalid or expired server token'
+        ],
+        bad_grant => [
+            'Server token not from Device Authorization Grant',
+            'Server not enrolled. Use Device Authorization Grant.',
+        ],
+    },
     'bastion-cert' => {
         label     => 'PAM bastion-cert',
         no_token  => [ 'No Bearer token provided', 'Bearer token required' ],
@@ -1535,6 +1555,65 @@ sub verifyToken {
         },
         code => 200
     );
+}
+
+# POST /pam/whoami - An enrolled server reads back its own identity.
+#
+# The portal assigns each enrolment a stable per-device id (_deviceId, stamped
+# by oidc-device-organization) and that id — not the shared, project-wide
+# client_id — is what identifies the machine everywhere it matters: it is the
+# `bastion=<id>` written into the key-id of every hop certificate, which the
+# backends' AuthorizedPrincipalsCommand matches against
+# /etc/open-bastion/allowed_bastions. An operator adding a backend therefore
+# has to be able to read a bastion's id, and there was no way to: the value is
+# a digest computed portal-side, /pam/authorize does not return the caller's
+# identity, /pam/heartbeat does not either, and /oauth2/introspect does not
+# export private session keys (verified: it answers active/aud/exp/client_id/
+# scope/nbf/iat/sub/iss/token_type and nothing more).
+#
+# /pam/bastion-token's `probe: true` mode used to answer this question. That
+# endpoint is gone (#57) — it minted a JWT even when the user lookup had
+# failed — so this replaces the one part of it that was worth keeping, and
+# nothing else: no signing, no session writes, no side effect of any kind.
+# It is a pure read behind the standard caller gate, which means it inherits
+# the RP allowlist (#50) and request signing (#81) for free.
+#
+# POST rather than GET for two reasons: every other /pam/* server-to-server
+# endpoint is POST, and GET /pam/* is already claimed by the catch-all that
+# redirects browsers to the portal.
+sub whoami {
+    my ( $self, $req ) = @_;
+
+    my ( $session, $bail ) = $self->_checkCaller( $req, 'whoami' );
+    return $bail if $bail;
+
+    my $client_id = $session->data->{client_id} // '';
+    my $server_id = $self->_callerId($session);
+
+    my $response = {
+        server_id => $server_id,
+
+        # Compatibility alias. The removed probe answered `bastion_id`, and
+        # ob-bastion-id reads exactly that field, so shipping both means the
+        # client only has to change its URL. `server_id` is the canonical
+        # name — it matches the audit trail's vocabulary, and this endpoint
+        # serves every enrolled server, not only bastions.
+        bastion_id => $server_id,
+        client_id  => $client_id,
+    };
+
+    # The authoritative group, when the portal has one. Deliberately NOT the
+    # body-declared fallback of the legacy path: a server asking "who am I"
+    # must not be told back what it just claimed about itself.
+    my $map = $self->conf->{pamAccessServerGroups} || {};
+    if ( ref $map eq 'HASH' and defined $map->{$client_id} ) {
+        $response->{server_group} = $map->{$client_id};
+    }
+
+    $self->logger->debug(
+        "PAM whoami: '$client_id' identified as '$server_id'");
+
+    return $self->p->sendJSONresponse( $req, $response, code => 200 );
 }
 
 # POST /pam/heartbeat - Server heartbeat for monitoring
