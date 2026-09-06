@@ -108,6 +108,12 @@ meanwhile.
   caller's scope** (#51). Any device-grant token could enumerate users or
   burn a one-time token. One gate now fronts the six endpoints, matching the
   scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
+- **Feature — the `X-Signature-256` request verifier** (#81,
+  open-bastion#188). The PAM client has been signing its calls for a while and
+  nothing read the headers. `pamAccessRequestSigningMode` (`off` /
+  `optional` / `required`), `...Secret` and `...Window`: timestamp window,
+  single-use nonce in shared storage, constant-time HMAC over the raw body.
+  Off by default; roll out via `optional`.
 - **Security fix — `/pam/*` accepted any device-grant token, and any host
   could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
   token to a PAM relying party and, once set, refuses a self-declared bastion
