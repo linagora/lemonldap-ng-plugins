@@ -561,9 +561,15 @@ sub sshCaSign {
     my ( $body, $bail ) = $self->_jsonBodyOrReject( $req, 'SSH CA sign' );
     return $bail if $bail;
 
-    # Rate limit FIRST, before any parsing, policy check or fork: the point of
-    # the limit is that an abusive caller must not be able to make the portal
-    # do the expensive work (issue #63).
+    # Rate limit before anything expensive: key validation, the policy check,
+    # the ssh-keygen fork and the KRL rewrite all sit below this line, and the
+    # point of the limit is that an abusive caller must not be able to make
+    # the portal do that work (issue #63).
+    #
+    # The JSON body has already been decoded just above -- a refused caller
+    # still pays that, deliberately: a malformed body must answer 400 whether
+    # or not the caller is over its quota, otherwise the limit would turn a
+    # client bug into a misleading 429.
     if ( my $limited = $self->_rateLimitSign($req) ) {
         return $limited;
     }
