@@ -109,6 +109,44 @@ Rejected keys get HTTP 400 with the reason (`SSH key type '<type>' is not
 allowed`, `SSH key is too small (<n> bits, minimum <m>)`).
 
 
+### Limits (`sshCaSignMaxPerHour`, `sshCaMaxCertsPerUser`)
+
+Every `/ssh/sign` forks `ssh-keygen` twice and rewrites the **whole** KRL, and
+re-signing a key you already hold appends the superseded serial — which is
+allowed on purpose, so nothing stopped a shell loop from growing the KRL
+without bound. The cost per call grows with the KRL, and every appended serial
+is then loaded by every `sshd` on every backend (issue #63).
+
+| Setting                | Default | Effect                                                            |
+| ---------------------- | ------- | ----------------------------------------------------------------- |
+| `sshCaSignMaxPerHour`  | `20`    | `/ssh/sign` calls per user per hour. `0` disables the limit.       |
+| `sshCaMaxCertsPerUser` | `20`    | Active (non-revoked, non-expired) certificates. `0` disables it.   |
+
+Over the rate limit, `/ssh/sign` answers **429** with a `Retry-After` header
+and `retry_after` in the body, audited as `SSH_CA_SIGN_RATE_LIMITED`. The
+counter is a fixed hourly window kept in the user's own session, so it is
+shared across portal nodes with no extra storage; two racing signatures can
+under-count by one, which does not matter for bounding a loop.
+
+Over the certificate quota, `/ssh/sign` answers **409**, audited as
+`SSH_CA_CERT_QUOTA_EXCEEDED`. A **re-signature of a key you already hold
+replaces its record and is never counted**, so a user sitting at the quota can
+still rotate; a new key needs a `/ssh/myrevoke` first. Only *active* records
+grant that exemption: at the quota, re-signing a key whose certificate has
+already expired is refused like a new one, even though it would replace the
+expired record rather than grow the set. Revoke or wait for the counter to
+reflect reality — the conservative direction.
+
+Together these bound KRL growth. The KRL itself is never capped: refusing to
+record a revocation would be a silent fail-open.
+
+> **`disablePersistentStorage`.** Both limits live in the user's session, so
+> with persistent storage disabled the counter is never written and *neither
+> limit applies*. This matches the rest of the plugin — certificates are not
+> persisted either, so `/ssh/mycerts` is empty and the quota has nothing to
+> count — but it means a deployment relying on the rate limit must keep
+> persistent sessions enabled.
+
 ### CA key setup
 
 The CA key must be configured in the LLNG keys store (Manager > Keys). Both

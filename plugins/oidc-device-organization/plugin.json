@@ -10,6 +10,9 @@
   "depends": [
     "oidc-device-authorization"
   ],
+  "test_depends": [
+    "pam-access"
+  ],
   "customPlugins": "::Plugins::OIDCDeviceOrganization",
   "tags": [
     "oidc",
