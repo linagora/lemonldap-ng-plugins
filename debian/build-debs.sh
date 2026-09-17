@@ -381,6 +381,16 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     done < <(find "${plugin_dir}/lib" -name "*.pm")
   fi
 
+  # Ship debian/NEWS as NEWS.Debian.gz so apt-listchanges shows it on upgrade.
+  # This is where a plugin warns about something the administrator has to act
+  # on -- an incompatibility with a client version, a setting that must not be
+  # turned on yet. Debian requires it gzipped with maximum compression.
+  if [ -f "${plugin_dir}/debian/NEWS" ]; then
+    install_file "${plugin_dir}/debian/NEWS" \
+      "${PKG_BUILD}/usr/share/doc/${pkg_name}/NEWS.Debian"
+    gzip -9n "${PKG_BUILD}/usr/share/doc/${pkg_name}/NEWS.Debian"
+  fi
+
   # Install manager-overrides/*.json -> /etc/lemonldap-ng/manager-overrides.d/
   if [ -d "${plugin_dir}/manager-overrides" ]; then
     install_dir "${PKG_BUILD}/etc/lemonldap-ng/manager-overrides.d"

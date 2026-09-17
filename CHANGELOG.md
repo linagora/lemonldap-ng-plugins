@@ -1,10 +1,17 @@
 # Changelog
 
-## Unreleased
+## Unreleased (v0.6.0)
 
+Touched plugins bumped to **0.6.0** in lockstep: `ldap-rest` (new),
+`oidc-device-authorization`, `oidc-device-organization`, `pam-access`,
+`ssh-ca`.
 Theme: the security audit of the open-bastion SSO chain — ssh-ca, pam-access
 and the device grant. **This round changes behaviour operators may rely on:
-read the upgrade notes before deploying.**
+read [UPGRADING.md](UPGRADING.md) before deploying.**
+
+`pam-access` 0.6.0 requires **open-bastion 0.7.0 or later**: `/pam/bastion-token`
+is gone, so `ob-bastion-id` from an older client answers 404 and a new bastion
+cannot be brought into service. See upgrade note 6.
 
 ### Upgrade notes
 

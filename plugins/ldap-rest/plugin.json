@@ -1,6 +1,6 @@
 {
   "name": "ldap-rest",
-  "version": "0.1.0",
+  "version": "0.6.0",
   "summary": "Password change and account registration through ldap-rest",
   "description": "Delegates directory writes to an ldap-rest service (https://github.com/linagora/ldap-rest) instead of writing into LDAP directly. Provides two backends: a password backend (Password::LdapRest) that keeps the regular LDAP connection for reads and old-password verification but sends the modification as a PUT on the ldap-rest flat resource, and a register backend (Register::LdapRest) that needs no LDAP connection at all and creates accounts with a POST. Supports the ldap-rest core/auth/token (Bearer) and core/auth/hmac (HMAC-SHA256) authentication plugins, and optional client side RFC 3112 password hashing.",
   "author": "Xavier Guimard <yadd@debian.org>",

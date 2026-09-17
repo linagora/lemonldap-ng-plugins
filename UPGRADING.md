@@ -7,10 +7,12 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
-## Unreleased
+## v0.6.0
 
 The security audit of the open-bastion SSO chain (ssh-ca, pam-access, the
 device grant). **This round changes behaviour operators may rely on.**
+
+> **`pam-access` 0.6.0 requires open-bastion 0.7.0 or later** — note 6.
 
 > **Start here.** Note 10 is the only change in this release that can take a
 > fleet down, and it does so silently, hours after the switch is flipped.
