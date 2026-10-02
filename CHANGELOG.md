@@ -189,6 +189,13 @@ fleet down.
   all). Authentication `none`, `token` or `hmac`, optional RFC 3112 client
   side hashing.
 
+### oidc-jarm
+
+- **Fix — the manager rejected RPs without JARM encryption**:
+  `oidcRPMetaDataOptionsJarmEncKeyMgtAlg: Invalid value '' for this select`.
+  The select now offers `None` (`''`), like the core `*EncKeyMgtAlg` options;
+  the portal already treated an empty value as "do not encrypt".
+
 ### Tooling
 
 - **The LLNG clone is retried** (5 attempts over ~45 s) when `gitlab.ow2.org`
