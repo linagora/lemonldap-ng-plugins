@@ -39,6 +39,7 @@
     "oidcRPMetaDataOptionsJarmEncKeyMgtAlg": {
       "type": "select",
       "select": [
+        { "k": "", "v": "None" },
         { "k": "RSA-OAEP", "v": "RSA-OAEP" }, { "k": "RSA-OAEP-256", "v": "RSA-OAEP-256" },
         { "k": "RSA1_5", "v": "RSA1_5" }, { "k": "ECDH-ES", "v": "ECDH-ES" },
         { "k": "ECDH-ES+A128KW", "v": "ECDH-ES+A128KW" }, { "k": "ECDH-ES+A192KW", "v": "ECDH-ES+A192KW" },
