@@ -16,6 +16,12 @@
 # there is no cleartext password (SSO cookie reuse, SAML/OIDC/SPNEGO
 # federation) it is a silent no-op.
 #
+# It also hooks `passwordAfterChange`, so that a password changed on the
+# portal -- in the password tab, or when the directory forces a change after a
+# reset -- reaches Kerberos at once. Without it the key would only follow at
+# the next password login, which never comes for a user who signs in by
+# Kerberos SSO: such a sign-in carries no password.
+#
 # kadmind is reached through Authen::Krb5::Admin (libkadm5 bindings): the key is
 # set in memory, no shell, no password on any command line. The module is a hard
 # requirement (Debian: libauthen-krb5-admin-perl) -- init() refuses to load the
@@ -41,6 +47,10 @@ use constant name => 'KrbProvisioning';
 # the login is available as $req->{user}. See the file header for why this is
 # preferred over endAuth (MFA compatibility).
 use constant betweenAuthAndData => 'provision';
+
+# Hook: executed after a password change on the portal succeeded, with the
+# login and the new cleartext password.
+use constant hook => { passwordAfterChange => 'provisionAfterChange' };
 
 # INITIALIZATION
 
@@ -77,8 +87,9 @@ sub init {
     return 1;
 }
 
-# RUNNING METHOD (betweenAuthAndData hook)
+# RUNNING METHODS
 
+# betweenAuthAndData hook
 sub provision {
     my ( $self, $req ) = @_;
 
@@ -97,21 +108,54 @@ sub provision {
     my $pwd = $req->data->{password};
     return PE_OK unless defined $pwd && length $pwd;
 
+    $self->_provisionLogin( $login, $pwd );
+    return PE_OK;    # ALWAYS non-blocking
+}
+
+# passwordAfterChange hook: ($req, $user, $newPassword, $oldPassword)
+sub provisionAfterChange {
+    my ( $self, $req, $user, $pwd ) = @_;
+    return PE_OK unless defined $pwd && length $pwd;
+
+    # In the password tab the user is signed in: krbPrincipalAttribute comes
+    # from the session. In the change forced after a reset, which happens
+    # during authentication, it may come from what the UserDB has read so
+    # far; otherwise the login.
+    my $attr = $self->conf->{krbPrincipalAttribute};
+    my $login = $user;
+    if ( defined $attr && length $attr ) {
+        my $userData = eval { $req->userData } || {};
+        for my $info ( $userData, $req->{sessionInfo} || {} ) {
+            if ( defined $info->{$attr} && length $info->{$attr} ) {
+                $login = $info->{$attr};
+                last;
+            }
+        }
+    }
+
+    $self->_provisionLogin( $login, $pwd );
+    return PE_OK;    # ALWAYS non-blocking: the password has changed already
+}
+
+# Set the key of the principal derived from $login to $pwd. Errors are logged
+# (never the password) and swallowed: a provisioning failure must NEVER break
+# the SSO authentication or the password change.
+sub _provisionLogin {
+    my ( $self, $login, $pwd ) = @_;
+
     unless ( defined $login && length $login ) {
         $self->logger->debug(
             'KrbProvisioning: no login available, skipping provisioning');
-        return PE_OK;
+        return;
     }
 
     my $princ = $self->_principalFor($login);
     unless ( defined $princ ) {
         $self->logger->debug( "KrbProvisioning: cannot build a valid Kerberos "
               . "principal from login '$login', skipping" );
-        return PE_OK;
+        return;
     }
 
-    # Provision the key. Errors are logged (never the password) and swallowed:
-    # a provisioning failure must NEVER break the SSO authentication.
     eval {
         $self->_setKerberosPassword( $princ, $pwd );
         1;
@@ -121,8 +165,7 @@ sub provision {
         $self->logger->error(
             "KrbProvisioning: failed to provision principal $princ: $err");
     };
-
-    return PE_OK;    # ALWAYS non-blocking
+    return;
 }
 
 # IDENTITY -> PRINCIPAL MAPPING
@@ -155,7 +198,7 @@ sub _principalFor {
 # backend is an XS call into libkadm5; Perl safe-signals cannot interrupt a
 # blocking C syscall, so alarm() alone would not unblock a hung RPC. SIGKILL on
 # a separate process does. Any failure (timeout, fork error, backend error) is
-# thrown and caught by provision(), which always returns PE_OK.
+# thrown and caught by _provisionLogin(), whose callers always return PE_OK.
 sub _setKerberosPassword {
     my ( $self, $princ, $pwd ) = @_;
 

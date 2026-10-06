@@ -196,6 +196,13 @@ fleet down.
   The select now offers `None` (`''`), like the core `*EncKeyMgtAlg` options;
   the portal already treated an empty value as "do not encrypt".
 
+### krb-provisioning
+
+- **Feature — a password changed on the portal reaches Kerberos at once.**
+  The plugin also hooks `passwordAfterChange`, in the password tab as in the
+  change forced after a reset. The key used to follow only at the next
+  password login, which never comes for users who sign in by Kerberos SSO.
+
 ### Tooling
 
 - **The LLNG clone is retried** (5 attempts over ~45 s) when `gitlab.ow2.org`

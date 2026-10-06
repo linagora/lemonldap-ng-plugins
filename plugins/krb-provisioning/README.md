@@ -1,8 +1,8 @@
 # Kerberos provisioning - on-the-fly KDC principal sync
 
 This plugin provisions and resynchronizes a user's Kerberos principal **at
-each real login**, using the cleartext password that LemonLDAP::NG already
-holds while validating the user against the general directory.
+each real login and at each password change on the portal**, using the
+cleartext password that LemonLDAP::NG already holds at those moments.
 
 ## Why
 
@@ -10,7 +10,8 @@ A dedicated MIT KDC keeps its principals in a separate, autonomous OpenLDAP
 base. Kerberos cannot delegate authentication to the general identity
 directory at `kinit` time: the KDC needs the **key derived from the password**
 already present in its base. That key can only be built when someone sees the
-cleartext password — and the SSO login is exactly that moment.
+cleartext password — and the SSO login, or a password change on the portal,
+is exactly that moment.
 
 On every password-based login, this plugin sets (or resets) the user's
 Kerberos key equal to their current password, so they can then obtain tickets
@@ -23,11 +24,17 @@ project and a separate reconciliation job.
 - **`betweenAuthAndData` hook** — runs right after the password is validated
   and **before** the second-factor gate, while the cleartext password is still
   on the request. This is deliberately _not_ `endAuth`: see [MFA](#mfa) below.
+- **`passwordAfterChange` hook** — a password changed on the portal, in the
+  password tab or in the change the directory forces after a reset, reaches
+  Kerberos at once. Without it, the key would only follow at the next
+  password login, which never comes for users who sign in by Kerberos SSO:
+  such a sign-in carries no password.
 - **Idempotent** — creates the principal on first login (`addprinc`), and
   resets its key on every subsequent login (`cpw`) to absorb password drift
   in the general directory.
 - **Strictly non-blocking, with a hard timeout** — any kadmind error is logged
-  and swallowed; the SSO authentication always returns `PE_OK`. The whole
+  and swallowed; the SSO authentication and the password change always go
+  on. The whole
   kadmind operation runs in a forked child bounded by `krbConnectTimeout`
   (default **5 s**): an unresponsive kadmind — or the Kerberos LDAP behind it —
   is SIGKILLed after that delay and can never delay, let alone block, the login.
@@ -133,6 +140,8 @@ is used.
    logged, non-blocking).
 5. Cookie SSO (no re-entry) → no kadmin call.
 6. The password appears in no log and in no `/proc` entry.
+7. Password changed on the portal, in the password tab or after a reset →
+   `kinit` succeeds with the **new** password at once, without another login.
 
 ## Testing
 
