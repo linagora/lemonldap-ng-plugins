@@ -48,8 +48,19 @@ project and a separate reconciliation job.
   (declared as a dependency; installed automatically with the package).
 - A reachable `kadmind`, a service principal (e.g. `lemonldap/admin@REALM`)
   and its keytab, readable only by the portal process.
-- The KDC's `kadm5.acl` must grant the service principal **only** `add`,
-  `changepw` and `modify` (no `delete`, no `*`).
+- The KDC's `kadm5.acl` must grant the service principal **only** `inquire`,
+  `add`, `changepw` and `modify` (no `delete`, no `*`):
+
+  ```
+  lemonldap/admin@REALM acmi
+  ```
+
+  `inquire` is required: each login first looks the principal up to choose
+  between creating it and resetting its key. Without it kadmind answers
+  `Unauthorized request: kadm5_get_principal`, the plugin then tries to create
+  a principal that already exists, and the key is never resynchronized.
+  Kerberos uses the first matching line, so put this one before any wildcard
+  such as `*/admin@REALM *`.
 
 ## Installation
 
