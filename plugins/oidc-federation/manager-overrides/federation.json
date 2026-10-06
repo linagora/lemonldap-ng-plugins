@@ -71,56 +71,48 @@
       "en": "Federation",
       "fr": "Fédération",
       "es": "Federación",
-      "de": "Föderation",
       "it": "Federazione"
     },
     "oidcFederationEnabled": {
       "en": "Enable OpenID Federation",
       "fr": "Activer OpenID Federation",
       "es": "Activar OpenID Federation",
-      "de": "OpenID Federation aktivieren",
       "it": "Attiva OpenID Federation"
     },
     "oidcFederationEntityId": {
       "en": "Entity identifier",
       "fr": "Identifiant d'entité",
       "es": "Identificador de entidad",
-      "de": "Entitätskennung",
       "it": "Identificatore dell'entità"
     },
     "oidcFederationAuthorityHints": {
       "en": "Authority hints (space-separated)",
       "fr": "Authority hints (séparés par des espaces)",
       "es": "Authority hints (separados por espacios)",
-      "de": "Authority hints (durch Leerzeichen getrennt)",
       "it": "Authority hints (separati da spazi)"
     },
     "oidcFederationSigningKey": {
       "en": "Signing key ID",
       "fr": "ID de la clé de signature",
       "es": "ID de la clave de firma",
-      "de": "ID des Signaturschlüssels",
       "it": "ID della chiave di firma"
     },
     "oidcFederationSigningAlg": {
       "en": "Signing algorithm",
       "fr": "Algorithme de signature",
       "es": "Algoritmo de firma",
-      "de": "Signaturalgorithmus",
       "it": "Algoritmo di firma"
     },
     "oidcFederationTrustAnchors": {
       "en": "Trust anchors",
       "fr": "Ancres de confiance",
       "es": "Anclas de confianza",
-      "de": "Vertrauensanker",
       "it": "Trust anchor"
     },
     "oidcRPMetaDataOptionsFederationEntityId": {
       "en": "Federation entity ID",
       "fr": "ID d'entité de fédération",
       "es": "ID de entidad de federación",
-      "de": "Föderations-Entitäts-ID",
       "it": "ID dell'entità di federazione"
     }
   }

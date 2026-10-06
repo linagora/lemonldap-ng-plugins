@@ -173,168 +173,144 @@
       "en": "PAM Access",
       "fr": "Accès PAM",
       "es": "Acceso PAM",
-      "de": "PAM-Zugang",
       "it": "Accesso PAM"
     },
     "pamAccessActivation": {
       "en": "Activation",
       "fr": "Activation",
       "es": "Activación",
-      "de": "Aktivierung",
       "it": "Attivazione"
     },
     "pamAccessTokenDuration": {
       "en": "Default token duration",
       "fr": "Durée par défaut du token",
       "es": "Duración predeterminada del token",
-      "de": "Standardgültigkeit des Tokens",
       "it": "Durata predefinita del token"
     },
     "pamAccessMaxDuration": {
       "en": "Maximum token duration",
       "fr": "Durée maximale du token",
       "es": "Duración máxima del token",
-      "de": "Maximale Gültigkeit des Tokens",
       "it": "Durata massima del token"
     },
     "pamAccessAuthzRules": {
       "en": "Authorization rules",
       "fr": "Règles d'autorisation",
       "es": "Reglas de autorización",
-      "de": "Autorisierungsregeln",
       "it": "Regole di autorizzazione"
     },
     "pamAccessSshRules": {
       "en": "SSH rules",
       "fr": "Règles SSH",
       "es": "Reglas SSH",
-      "de": "SSH-Regeln",
       "it": "Regole SSH"
     },
     "pamAccessSudoRules": {
       "en": "Sudo rules",
       "fr": "Règles sudo",
       "es": "Reglas sudo",
-      "de": "sudo-Regeln",
       "it": "Regole sudo"
     },
     "pamAccessRp": {
       "en": "OIDC Relying Party",
       "fr": "Fournisseur de service OIDC",
       "es": "Relying Party OIDC",
-      "de": "OIDC Relying Party",
       "it": "Relying Party OIDC"
     },
     "pamAccessHeartbeatInterval": {
       "en": "Heartbeat interval",
       "fr": "Intervalle de heartbeat",
       "es": "Intervalo de heartbeat",
-      "de": "Heartbeat-Intervall",
       "it": "Intervallo di heartbeat"
     },
     "pamAccessInactiveThreshold": {
       "en": "Inactive threshold",
       "fr": "Seuil d'inactivité",
       "es": "Umbral de inactividad",
-      "de": "Inaktivitätsschwelle",
       "it": "Soglia di inattività"
     },
     "pamAccessHeartbeatRequired": {
       "en": "Require heartbeat",
       "fr": "Exiger le heartbeat",
       "es": "Exigir heartbeat",
-      "de": "Heartbeat verlangen",
       "it": "Richiedi l'heartbeat"
     },
     "pamAccessExportedVars": {
       "en": "Exported variables",
       "fr": "Variables exportées",
       "es": "Variables exportadas",
-      "de": "Exportierte Variablen",
       "it": "Variabili esportate"
     },
     "pamAccessOfflineEnabled": {
       "en": "Enable offline mode",
       "fr": "Activer le mode hors ligne",
       "es": "Activar el modo sin conexión",
-      "de": "Offline-Modus aktivieren",
       "it": "Attiva la modalità offline"
     },
     "pamAccessOfflineTtl": {
       "en": "Offline cache TTL",
       "fr": "TTL du cache hors ligne",
       "es": "TTL de la caché sin conexión",
-      "de": "TTL des Offline-Caches",
       "it": "TTL della cache offline"
     },
     "pamAccessServerGroups": {
       "en": "Server groups (client_id → group)",
       "fr": "Groupes de serveurs (client_id → groupe)",
       "es": "Grupos de servidores (client_id → grupo)",
-      "de": "Servergruppen (client_id → Gruppe)",
       "it": "Gruppi di server (client_id → gruppo)"
     },
     "pamAccessBastionGroups": {
       "en": "Bastion server groups",
       "fr": "Groupes serveurs bastion",
       "es": "Grupos de servidores bastión",
-      "de": "Bastion-Servergruppen",
       "it": "Gruppi di server bastion"
     },
     "pamAccessChoice": {
       "en": "Choice sub-module for server-to-server endpoints",
       "fr": "Sous-module Choice pour les endpoints serveur-à-serveur",
       "es": "Submódulo Choice para los endpoints servidor a servidor",
-      "de": "Choice-Untermodul für Server-zu-Server-Endpunkte",
       "it": "Sottomodulo Choice per gli endpoint server-to-server"
     },
     "pamAccessBastionCertPinSourceAddress": {
       "en": "Pin bastion certificate to source address",
       "fr": "Lier le certificat bastion à l'adresse source",
       "es": "Vincular el certificado del bastión a la dirección de origen",
-      "de": "Bastion-Zertifikat an die Quelladresse binden",
       "it": "Vincola il certificato del bastion all'indirizzo di origine"
     },
     "pamAccessRequireFingerprint": {
       "en": "Require an SSH fingerprint",
       "fr": "Exiger une empreinte SSH",
       "es": "Exigir una huella SSH",
-      "de": "SSH-Fingerabdruck verlangen",
       "it": "Richiedi un'impronta SSH"
     },
     "pamAccessBastionVoucherUnboundTtl": {
       "en": "Unbound voucher TTL (s)",
       "fr": "Durée d'un voucher non lié (s)",
       "es": "TTL de un voucher no vinculado (s)",
-      "de": "TTL eines ungebundenen Vouchers (s)",
       "it": "TTL di un voucher non vincolato (s)"
     },
     "pamAccessAllowedRps": {
       "en": "Allowed PAM relying parties",
       "fr": "Clients OIDC autorisés pour PAM",
       "es": "Clientes OIDC autorizados para PAM",
-      "de": "Für PAM zugelassene OIDC-Clients",
       "it": "Client OIDC autorizzati per PAM"
     },
     "pamAccessRequestSigningMode": {
       "en": "Request signature verification",
       "fr": "Vérification de signature des requêtes",
       "es": "Verificación de la firma de las solicitudes",
-      "de": "Prüfung der Anfragesignatur",
       "it": "Verifica della firma delle richieste"
     },
     "pamAccessRequestSigningSecret": {
       "en": "Request signing secret",
       "fr": "Secret de signature des requêtes",
       "es": "Secreto de firma de las solicitudes",
-      "de": "Geheimnis für die Anfragesignatur",
       "it": "Segreto di firma delle richieste"
     },
     "pamAccessRequestSigningWindow": {
       "en": "Signature time window (s)",
       "fr": "Fenêtre temporelle de signature (s)",
       "es": "Ventana temporal de la firma (s)",
-      "de": "Zeitfenster der Signatur (s)",
       "it": "Finestra temporale della firma (s)"
     }
   }

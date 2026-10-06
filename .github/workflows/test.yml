@@ -310,7 +310,7 @@ jobs:
         shell: python3 {0}
         run: |
           import glob, json, os, sys
-          LANGS = ["en", "fr", "es", "de", "it"]
+          LANGS = ["en", "fr", "es", "it"]
           errors = []
           for d in sorted(glob.glob("plugins/*/portal-translations")):
               src = json.load(open(f"{d}/en.json", encoding="utf-8"))

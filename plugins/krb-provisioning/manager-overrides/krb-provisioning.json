@@ -75,70 +75,60 @@
       "en": "Kerberos provisioning",
       "fr": "Provisioning Kerberos",
       "es": "Aprovisionamiento Kerberos",
-      "de": "Kerberos-Provisionierung",
       "it": "Provisioning Kerberos"
     },
     "krbProvisioningActivation": {
       "en": "Activation",
       "fr": "Activation",
       "es": "Activación",
-      "de": "Aktivierung",
       "it": "Attivazione"
     },
     "krbRealm": {
       "en": "Realm",
       "fr": "Royaume (realm)",
       "es": "Reino (realm)",
-      "de": "Realm",
       "it": "Realm"
     },
     "krbAdminServer": {
       "en": "Admin server (kadmind)",
       "fr": "Serveur d'administration (kadmind)",
       "es": "Servidor de administración (kadmind)",
-      "de": "Administrationsserver (kadmind)",
       "it": "Server di amministrazione (kadmind)"
     },
     "krbServicePrincipal": {
       "en": "Service principal",
       "fr": "Principal de service",
       "es": "Principal de servicio",
-      "de": "Dienst-Principal",
       "it": "Principal di servizio"
     },
     "krbKeytab": {
       "en": "Keytab path",
       "fr": "Chemin du keytab",
       "es": "Ruta del keytab",
-      "de": "Keytab-Pfad",
       "it": "Percorso del keytab"
     },
     "krbPrincipalAttribute": {
       "en": "Principal session attribute",
       "fr": "Attribut de session du principal",
       "es": "Atributo de sesión del principal",
-      "de": "Sitzungsattribut des Principals",
       "it": "Attributo di sessione del principal"
     },
     "krbPrincipalFormat": {
       "en": "Principal format",
       "fr": "Gabarit du principal",
       "es": "Formato del principal",
-      "de": "Principal-Format",
       "it": "Formato del principal"
     },
     "krbDefaultPolicy": {
       "en": "Default policy",
       "fr": "Politique par défaut",
       "es": "Política predeterminada",
-      "de": "Standardrichtlinie",
       "it": "Policy predefinita"
     },
     "krbConnectTimeout": {
       "en": "Connection timeout (s)",
       "fr": "Délai de connexion (s)",
       "es": "Tiempo de espera de conexión (s)",
-      "de": "Verbindungs-Timeout (s)",
       "it": "Timeout di connessione (s)"
     }
   }

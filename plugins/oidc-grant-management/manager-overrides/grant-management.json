@@ -48,21 +48,18 @@
       "en": "Grant management endpoint URI",
       "fr": "URI de l'endpoint Grant Management",
       "es": "URI del endpoint de Grant Management",
-      "de": "URI des Grant-Management-Endpunkts",
       "it": "URI dell'endpoint Grant Management"
     },
     "oidcServiceGrantExpiration": {
       "en": "Grant TTL (seconds)",
       "fr": "Durée de vie d'un grant (secondes)",
       "es": "Duración de un grant (segundos)",
-      "de": "Gültigkeitsdauer eines Grants (Sekunden)",
       "it": "Durata di un grant (secondi)"
     },
     "oidcRPMetaDataOptionsGrantManagement": {
       "en": "Grant Management mode",
       "fr": "Mode Grant Management",
       "es": "Modo de Grant Management",
-      "de": "Grant-Management-Modus",
       "it": "Modalità Grant Management"
     }
   }

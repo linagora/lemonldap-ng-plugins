@@ -170,98 +170,84 @@
       "en": "Identity Assertions (ID-JAG)",
       "fr": "Assertions d'identité (ID-JAG)",
       "es": "Aserciones de identidad (ID-JAG)",
-      "de": "Identitätszusicherungen (ID-JAG)",
       "it": "Asserzioni di identità (ID-JAG)"
     },
     "oidcRPMetaDataOptionsAllowIdJagGrant": {
       "en": "Allow Identity Assertion Grant (ID-JAG)",
       "fr": "Autoriser l'Identity Assertion Grant (ID-JAG)",
       "es": "Permitir Identity Assertion Grant (ID-JAG)",
-      "de": "Identity Assertion Grant erlauben (ID-JAG)",
       "it": "Consenti l'Identity Assertion Grant (ID-JAG)"
     },
     "oidcRPMetaDataOptionsIdJag": {
       "en": "Cross-App Access (ID-JAG)",
       "fr": "Cross-App Access (ID-JAG)",
       "es": "Cross-App Access (ID-JAG)",
-      "de": "Cross-App Access (ID-JAG)",
       "it": "Cross-App Access (ID-JAG)"
     },
     "oidcRPMetaDataOptionsIdJagAudience": {
       "en": "Authorization Server identifier (audience)",
       "fr": "Identifiant du serveur d'autorisation (audience)",
       "es": "Identificador del servidor de autorización (audience)",
-      "de": "Kennung des Autorisierungsservers (Audience)",
       "it": "Identificatore del server di autorizzazione (audience)"
     },
     "oidcRPMetaDataOptionsIdJagClientId": {
       "en": "Client ID on the Resource Authorization Server",
       "fr": "Client ID sur le serveur d'autorisation distant",
       "es": "Client ID en el servidor de autorización remoto",
-      "de": "Client-ID auf dem entfernten Autorisierungsserver",
       "it": "Client ID sul server di autorizzazione remoto"
     },
     "oidcRPMetaDataOptionsIdJagSignAlg": {
       "en": "ID-JAG signature algorithm",
       "fr": "Algorithme de signature des ID-JAG",
       "es": "Algoritmo de firma de los ID-JAG",
-      "de": "Signaturalgorithmus der ID-JAG",
       "it": "Algoritmo di firma degli ID-JAG"
     },
     "oidcRPMetaDataOptionsIdJagExpiration": {
       "en": "ID-JAG lifetime",
       "fr": "Durée de vie des ID-JAG",
       "es": "Duración de los ID-JAG",
-      "de": "Gültigkeitsdauer der ID-JAG",
       "it": "Durata degli ID-JAG"
     },
     "oidcServiceIdJagAudience": {
       "en": "ID-JAG — audience of this server",
       "fr": "ID-JAG — audience de ce serveur",
       "es": "ID-JAG — audience de este servidor",
-      "de": "ID-JAG — Audience dieses Servers",
       "it": "ID-JAG — audience di questo server"
     },
     "oidcServiceIdJagAllowedSkew": {
       "en": "ID-JAG — tolerated clock skew (s)",
       "fr": "ID-JAG — décalage d'horloge toléré (s)",
       "es": "ID-JAG — desfase de reloj tolerado (s)",
-      "de": "ID-JAG — tolerierte Uhrabweichung (s)",
       "it": "ID-JAG — scostamento dell'orologio tollerato (s)"
     },
     "oidcServiceIdJagChoice": {
       "en": "ID-JAG — authentication choice used for subject lookup",
       "fr": "ID-JAG — choix d'authentification pour la recherche du sujet",
       "es": "ID-JAG — opción de autenticación para buscar el sujeto",
-      "de": "ID-JAG — Authentifizierungsauswahl für die Suche nach dem Subjekt",
       "it": "ID-JAG — scelta di autenticazione per la ricerca del soggetto"
     },
     "oidcRPMetaDataOptionsAllowIdJagBearer": {
       "en": "Allow presenting an ID-JAG (JWT Bearer grant)",
       "fr": "Autoriser la présentation d'un ID-JAG (grant JWT Bearer)",
       "es": "Permitir presentar un ID-JAG (grant JWT Bearer)",
-      "de": "Vorlage eines ID-JAG erlauben (JWT-Bearer-Grant)",
       "it": "Consenti la presentazione di un ID-JAG (grant JWT Bearer)"
     },
     "oidcOPMetaDataOptionsIdJag": {
       "en": "Cross-App Access (ID-JAG)",
       "fr": "Cross-App Access (ID-JAG)",
       "es": "Cross-App Access (ID-JAG)",
-      "de": "Cross-App Access (ID-JAG)",
       "it": "Cross-App Access (ID-JAG)"
     },
     "oidcOPMetaDataOptionsAllowIdJagGrant": {
       "en": "Accept ID-JAG issued by this provider",
       "fr": "Accepter les ID-JAG émis par ce fournisseur",
       "es": "Aceptar los ID-JAG emitidos por este proveedor",
-      "de": "Von diesem Anbieter ausgestellte ID-JAG akzeptieren",
       "it": "Accetta gli ID-JAG emessi da questo provider"
     },
     "oidcOPMetaDataOptionsIdJagUserAttribute": {
       "en": "ID-JAG claim carrying the user identifier",
       "fr": "Claim ID-JAG portant l'identifiant utilisateur",
       "es": "Claim ID-JAG que contiene el identificador de usuario",
-      "de": "ID-JAG-Claim mit der Benutzerkennung",
       "it": "Claim ID-JAG che contiene l'identificatore utente"
     }
   }
