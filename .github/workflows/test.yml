@@ -294,3 +294,42 @@ jobs:
             --doc-constants-file=/dev/null \
             --first-lmconf-file=/dev/null \
             --lang-dir=/nonexistent
+
+  # Every plugin that ships portal-translations/ must cover the same keys, in
+  # the same order, in each language LLNG's portal ships and we translate to;
+  # every manager-overrides "lang" entry must carry all of those languages.
+  # A missing key does not fail at install time: the portal just shows the
+  # key name, so this is the only place a gap gets caught.
+  check-translations:
+    runs-on: ubuntu-latest
+    name: check translations
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check key parity across languages
+        shell: python3 {0}
+        run: |
+          import glob, json, os, sys
+          LANGS = ["en", "fr", "es", "de", "it"]
+          errors = []
+          for d in sorted(glob.glob("plugins/*/portal-translations")):
+              src = json.load(open(f"{d}/en.json", encoding="utf-8"))
+              for lang in LANGS[1:]:
+                  path = f"{d}/{lang}.json"
+                  if not os.path.exists(path):
+                      errors.append(f"{path}: missing")
+                      continue
+                  tr = json.load(open(path, encoding="utf-8"))
+                  if list(tr) != list(src):
+                      diff = sorted(set(src) ^ set(tr))
+                      errors.append(f"{path}: keys differ from en.json {diff or '(order)'}")
+                  errors += [f"{path}: {k} is empty" for k, v in tr.items()
+                             if not isinstance(v, str) or not v.strip()]
+          for path in sorted(glob.glob("plugins/*/manager-overrides/*.json")):
+              for key, tr in json.load(open(path, encoding="utf-8")).get("lang", {}).items():
+                  missing = [l for l in LANGS if not str(tr.get(l, "")).strip()]
+                  if missing:
+                      errors.append(f"{path}: lang.{key} lacks {', '.join(missing)}")
+          for e in errors:
+              print(f"::error::{e}")
+          sys.exit(1 if errors else 0)
