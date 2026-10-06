@@ -80,23 +80,38 @@
   "lang": {
     "oidcOPMetaDataOptionsResponseMode": {
       "en": "Response mode",
-      "fr": "Mode de réponse"
+      "fr": "Mode de réponse",
+      "es": "Modo de respuesta",
+      "de": "Antwortmodus",
+      "it": "Modalità di risposta"
     },
     "oidcRPMetaDataOptionsJarm": {
       "en": "JARM",
-      "fr": "JARM"
+      "fr": "JARM",
+      "es": "JARM",
+      "de": "JARM",
+      "it": "JARM"
     },
     "oidcRPMetaDataOptionsJarmSignAlg": {
       "en": "JARM signing algorithm",
-      "fr": "Algorithme de signature JARM"
+      "fr": "Algorithme de signature JARM",
+      "es": "Algoritmo de firma JARM",
+      "de": "JARM-Signaturalgorithmus",
+      "it": "Algoritmo di firma JARM"
     },
     "oidcRPMetaDataOptionsJarmEncKeyMgtAlg": {
       "en": "JARM key management algorithm",
-      "fr": "Algorithme de gestion de clé JARM"
+      "fr": "Algorithme de gestion de clé JARM",
+      "es": "Algoritmo de gestión de claves JARM",
+      "de": "JARM-Algorithmus für die Schlüsselverwaltung",
+      "it": "Algoritmo di gestione della chiave JARM"
     },
     "oidcRPMetaDataOptionsJarmEncContentEncAlg": {
       "en": "JARM content encryption algorithm",
-      "fr": "Algorithme de chiffrement de contenu JARM"
+      "fr": "Algorithme de chiffrement de contenu JARM",
+      "es": "Algoritmo de cifrado del contenido JARM",
+      "de": "JARM-Algorithmus für die Inhaltsverschlüsselung",
+      "it": "Algoritmo di cifratura del contenuto JARM"
     }
   }
 }

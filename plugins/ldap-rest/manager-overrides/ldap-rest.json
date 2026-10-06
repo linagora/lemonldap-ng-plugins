@@ -109,51 +109,87 @@
     "lang": {
         "ldapRestParams": {
             "en": "ldap-rest parameters",
-            "fr": "Paramètres ldap-rest"
+            "fr": "Paramètres ldap-rest",
+            "es": "Parámetros de ldap-rest",
+            "de": "ldap-rest-Parameter",
+            "it": "Parametri ldap-rest"
         },
         "ldapRestUrl": {
             "en": "ldap-rest base URL",
-            "fr": "URL de base ldap-rest"
+            "fr": "URL de base ldap-rest",
+            "es": "URL base de ldap-rest",
+            "de": "Basis-URL von ldap-rest",
+            "it": "URL di base di ldap-rest"
         },
         "ldapRestResource": {
             "en": "Resource name",
-            "fr": "Nom de la ressource"
+            "fr": "Nom de la ressource",
+            "es": "Nombre del recurso",
+            "de": "Name der Ressource",
+            "it": "Nome della risorsa"
         },
         "ldapRestMainAttribute": {
             "en": "Resource main attribute",
-            "fr": "Attribut principal de la ressource"
+            "fr": "Attribut principal de la ressource",
+            "es": "Atributo principal del recurso",
+            "de": "Hauptattribut der Ressource",
+            "it": "Attributo principale della risorsa"
         },
         "ldapRestIdKey": {
             "en": "Entry id session key",
-            "fr": "Clé de session de l'identifiant d'entrée"
+            "fr": "Clé de session de l'identifiant d'entrée",
+            "es": "Clave de sesión del identificador de entrada",
+            "de": "Sitzungsschlüssel der Eintrags-ID",
+            "it": "Chiave di sessione dell'ID della voce"
         },
         "ldapRestPasswordAttribute": {
             "en": "Password attribute",
-            "fr": "Attribut de mot de passe"
+            "fr": "Attribut de mot de passe",
+            "es": "Atributo de contraseña",
+            "de": "Passwortattribut",
+            "it": "Attributo della password"
         },
         "ldapRestPasswordHash": {
             "en": "Password hash scheme",
-            "fr": "Schéma de hachage du mot de passe"
+            "fr": "Schéma de hachage du mot de passe",
+            "es": "Esquema de hash de la contraseña",
+            "de": "Passwort-Hash-Verfahren",
+            "it": "Schema di hash della password"
         },
         "ldapRestAuthMode": {
             "en": "ldap-rest authentication",
-            "fr": "Authentification ldap-rest"
+            "fr": "Authentification ldap-rest",
+            "es": "Autenticación de ldap-rest",
+            "de": "ldap-rest-Authentifizierung",
+            "it": "Autenticazione ldap-rest"
         },
         "ldapRestToken": {
             "en": "Bearer token",
-            "fr": "Jeton Bearer"
+            "fr": "Jeton Bearer",
+            "es": "Token Bearer",
+            "de": "Bearer-Token",
+            "it": "Token Bearer"
         },
         "ldapRestHmacId": {
             "en": "HMAC service id",
-            "fr": "Identifiant de service HMAC"
+            "fr": "Identifiant de service HMAC",
+            "es": "ID de servicio HMAC",
+            "de": "HMAC-Dienst-ID",
+            "it": "ID del servizio HMAC"
         },
         "ldapRestHmacSecret": {
             "en": "HMAC shared secret",
-            "fr": "Secret partagé HMAC"
+            "fr": "Secret partagé HMAC",
+            "es": "Secreto compartido HMAC",
+            "de": "Gemeinsames HMAC-Geheimnis",
+            "it": "Segreto condiviso HMAC"
         },
         "noHash": {
             "en": "No hashing (server side)",
-            "fr": "Pas de hachage (côté serveur)"
+            "fr": "Pas de hachage (côté serveur)",
+            "es": "Sin hash (lado del servidor)",
+            "de": "Kein Hashing (serverseitig)",
+            "it": "Nessun hash (lato server)"
         }
     }
 }

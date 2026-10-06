@@ -112,55 +112,94 @@
   "lang": {
     "oidcServiceCiba": {
       "en": "CIBA (Backchannel Authentication)",
-      "fr": "CIBA (Authentification Backchannel)"
+      "fr": "CIBA (Authentification Backchannel)",
+      "es": "CIBA (autenticación por canal secundario)",
+      "de": "CIBA (Backchannel-Authentifizierung)",
+      "it": "CIBA (autenticazione backchannel)"
     },
     "oidcServiceMetaDataCibaURI": {
       "en": "CIBA endpoint URI",
-      "fr": "URI du endpoint CIBA"
+      "fr": "URI du endpoint CIBA",
+      "es": "URI del endpoint CIBA",
+      "de": "URI des CIBA-Endpunkts",
+      "it": "URI dell'endpoint CIBA"
     },
     "oidcServiceMetaDataCibaCallbackURI": {
       "en": "CIBA callback endpoint URI",
-      "fr": "URI du point de terminaison callback CIBA"
+      "fr": "URI du point de terminaison callback CIBA",
+      "es": "URI del endpoint de callback CIBA",
+      "de": "URI des CIBA-Callback-Endpunkts",
+      "it": "URI dell'endpoint di callback CIBA"
     },
     "oidcServiceCibaExpiration": {
       "en": "CIBA default expiration (seconds)",
-      "fr": "Expiration CIBA par défaut (secondes)"
+      "fr": "Expiration CIBA par défaut (secondes)",
+      "es": "Caducidad CIBA predeterminada (segundos)",
+      "de": "Standardablaufzeit für CIBA (Sekunden)",
+      "it": "Scadenza CIBA predefinita (secondi)"
     },
     "oidcServiceCibaMaxExpiration": {
       "en": "CIBA maximum expiration (seconds)",
-      "fr": "Expiration CIBA maximale (secondes)"
+      "fr": "Expiration CIBA maximale (secondes)",
+      "es": "Caducidad CIBA máxima (segundos)",
+      "de": "Maximale Ablaufzeit für CIBA (Sekunden)",
+      "it": "Scadenza CIBA massima (secondi)"
     },
     "oidcServiceCibaInterval": {
       "en": "CIBA polling interval (seconds)",
-      "fr": "Intervalle de polling CIBA (secondes)"
+      "fr": "Intervalle de polling CIBA (secondes)",
+      "es": "Intervalo de sondeo CIBA (segundos)",
+      "de": "CIBA-Polling-Intervall (Sekunden)",
+      "it": "Intervallo di polling CIBA (secondi)"
     },
     "oidcServiceCibaAuthenticationChannelUrl": {
       "en": "External authentication channel URL",
-      "fr": "URL du canal d'authentification externe"
+      "fr": "URL du canal d'authentification externe",
+      "es": "URL del canal de autenticación externo",
+      "de": "URL des externen Authentifizierungskanals",
+      "it": "URL del canale di autenticazione esterno"
     },
     "oidcServiceCibaAuthenticationChannelSecret": {
       "en": "Authentication channel secret",
-      "fr": "Secret du canal d'authentification"
+      "fr": "Secret du canal d'authentification",
+      "es": "Secreto del canal de autenticación",
+      "de": "Geheimnis des Authentifizierungskanals",
+      "it": "Segreto del canale di autenticazione"
     },
     "oidcServiceCibaCallbackSecret": {
       "en": "Callback secret",
-      "fr": "Secret de callback"
+      "fr": "Secret de callback",
+      "es": "Secreto de callback",
+      "de": "Callback-Geheimnis",
+      "it": "Segreto di callback"
     },
     "oidcRPMetaDataOptionsAllowCIBA": {
       "en": "Allow CIBA",
-      "fr": "Autoriser CIBA"
+      "fr": "Autoriser CIBA",
+      "es": "Permitir CIBA",
+      "de": "CIBA erlauben",
+      "it": "Consenti CIBA"
     },
     "ciba": {
       "en": "CIBA",
-      "fr": "CIBA"
+      "fr": "CIBA",
+      "es": "CIBA",
+      "de": "CIBA",
+      "it": "CIBA"
     },
     "oidcRPMetaDataOptionsCIBAMode": {
       "en": "CIBA delivery mode",
-      "fr": "Mode de livraison CIBA"
+      "fr": "Mode de livraison CIBA",
+      "es": "Modo de entrega CIBA",
+      "de": "CIBA-Zustellmodus",
+      "it": "Modalità di consegna CIBA"
     },
     "oidcRPMetaDataOptionsCIBANotificationEndpoint": {
       "en": "CIBA notification endpoint",
-      "fr": "Endpoint de notification CIBA"
+      "fr": "Endpoint de notification CIBA",
+      "es": "Endpoint de notificación CIBA",
+      "de": "CIBA-Benachrichtigungsendpunkt",
+      "it": "Endpoint di notifica CIBA"
     }
   }
 }

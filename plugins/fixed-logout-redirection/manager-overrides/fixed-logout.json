@@ -15,7 +15,10 @@
   "lang": {
     "fixedLogoutRedirection": {
       "en": "Fixed logout redirection",
-      "fr": "Redirection fixe après déconnexion"
+      "fr": "Redirection fixe après déconnexion",
+      "es": "Redirección fija tras cerrar sesión",
+      "de": "Feste Weiterleitung nach dem Abmelden",
+      "it": "Reindirizzamento fisso dopo la disconnessione"
     }
   }
 }

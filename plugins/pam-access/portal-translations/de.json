@@ -1,0 +1,12 @@
+{
+  "generatePamToken": "Token erzeugen",
+  "pamAccessInfo": "Erzeugen Sie ein temporäres Token, das Sie als Passwort für SSH oder andere PAM-fähige Dienste verwenden können.",
+  "pamAccessTitle": "PAM-Zugangstoken",
+  "pamExpiresIn": "Läuft ab in",
+  "pamInstructions": "Anleitung",
+  "pamInstructionsText": "Verwenden Sie dieses Token als Passwort, wenn Sie sich per SSH oder über andere PAM-fähige Dienste verbinden.",
+  "pamLogin": "Benutzername",
+  "pamTokenDuration": "Gültigkeitsdauer des Tokens",
+  "pamTokenError": "Das Token konnte nicht erzeugt werden",
+  "pamTokenGenerated": "Ihr temporäres Token"
+}
