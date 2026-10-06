@@ -43,19 +43,31 @@
   "lang": {
     "oidcServiceAuthorizationDetailsTypes": {
       "en": "RAR — global allowed types",
-      "fr": "RAR — types autorisés (global)"
+      "fr": "RAR — types autorisés (global)",
+      "es": "RAR — tipos permitidos (global)",
+      "de": "RAR — erlaubte Typen (global)",
+      "it": "RAR — tipi consentiti (globale)"
     },
     "oidcRPMetaDataOptionsAuthorizationDetailsEnabled": {
       "en": "RAR — Rich Authorization Requests enabled",
-      "fr": "RAR — Activer les requêtes d'autorisation enrichies"
+      "fr": "RAR — Activer les requêtes d'autorisation enrichies",
+      "es": "RAR — activar las solicitudes de autorización enriquecidas",
+      "de": "RAR — Rich Authorization Requests aktivieren",
+      "it": "RAR — attiva le richieste di autorizzazione arricchite"
     },
     "oidcRPMetaDataOptionsAuthorizationDetailsTypes": {
       "en": "RAR — allowed types for this RP",
-      "fr": "RAR — types autorisés pour ce RP"
+      "fr": "RAR — types autorisés pour ce RP",
+      "es": "RAR — tipos permitidos para este RP",
+      "de": "RAR — erlaubte Typen für diesen RP",
+      "it": "RAR — tipi consentiti per questo RP"
     },
     "oidcRPMetaDataOptionsAuthorizationDetailsRules": {
       "en": "RAR — Authorization details rules (JSON: type → Perl expr)",
-      "fr": "RAR — Règles des détails d'autorisation (JSON : type → expr. Perl)"
+      "fr": "RAR — Règles des détails d'autorisation (JSON : type → expr. Perl)",
+      "es": "RAR — reglas de los detalles de autorización (JSON: tipo → expr. Perl)",
+      "de": "RAR — Regeln für Autorisierungsdetails (JSON: Typ → Perl-Ausdruck)",
+      "it": "RAR — regole dei dettagli di autorizzazione (JSON: tipo → espr. Perl)"
     }
   }
 }

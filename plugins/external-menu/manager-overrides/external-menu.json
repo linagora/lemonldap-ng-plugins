@@ -16,7 +16,10 @@
   "lang": {
     "externalMenu": {
       "en": "External menu URL",
-      "fr": "URL du menu externe"
+      "fr": "URL du menu externe",
+      "es": "URL del menú externo",
+      "de": "URL des externen Menüs",
+      "it": "URL del menu esterno"
     }
   }
 }

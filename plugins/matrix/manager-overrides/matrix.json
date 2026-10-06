@@ -17,7 +17,10 @@
   "lang": {
     "oidcRPMetaDataOptionsTokenXAuthorizedMatrix": {
       "en": "Matrix servers allowed to exchange access_token",
-      "fr": "Serveurs Matrix autorisés à échanger un access_token"
+      "fr": "Serveurs Matrix autorisés à échanger un access_token",
+      "es": "Servidores Matrix autorizados a intercambiar el access_token",
+      "de": "Matrix-Server, die das access_token austauschen dürfen",
+      "it": "Server Matrix autorizzati a scambiare l'access_token"
     }
   }
 }

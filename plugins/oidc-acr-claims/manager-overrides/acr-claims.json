@@ -18,7 +18,10 @@
   "lang": {
     "oidcRPMetaDataOptionsAcrClaims": {
       "en": "Emit acr + auth_time claims in access token",
-      "fr": "Émettre les claims acr + auth_time dans l'access token"
+      "fr": "Émettre les claims acr + auth_time dans l'access token",
+      "es": "Emitir los claims acr + auth_time en el access token",
+      "de": "Claims acr + auth_time im Access Token ausgeben",
+      "it": "Emetti i claim acr + auth_time nell'access token"
     }
   }
 }
