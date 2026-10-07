@@ -767,5 +767,48 @@ sub pamToken {
     count(1);
 }
 
+# ===========================================================================
+# CORS: the signed answer carries the CORS headers of the plain one, both in
+# the configured-policy case and in the portal's own cross-vhost AJAX case
+# ===========================================================================
+{
+    my $cors = sub {
+        my ($res) = @_;
+        my @h = @{ $res->[1] };
+        my %c;
+        while ( my ( $k, $v ) = splice @h, 0, 2 ) {
+            push @{ $c{ lc $k } }, $v if $k =~ /^Access-Control-/i;
+        }
+        return \%c;
+    };
+    for my $case (
+        [ 'configured policy', {} ],
+        [ 'same-origin AJAX',  { HTTP_ORIGIN => 'http://auth.op.com' } ],
+      )
+    {
+        my ( $label, $hdr ) = @$case;
+        my $plain  = call( '/pam/whoami', '{}', plain => 1, headers => $hdr );
+        my $signed = call( '/pam/whoami', '{}', headers => $hdr );
+        is( header( $signed, 'Content-Type' ),
+            $ACCEPT, "CORS ($label): signed" );
+        ok( scalar keys %{ $cors->($plain) },
+            "CORS ($label): the plain answer has CORS headers" );
+        is_deeply( $cors->($signed), $cors->($plain),
+            "CORS ($label): the signed answer has the same ones" );
+        count(3);
+    }
+    is(
+        $cors->(
+            call(
+                '/pam/whoami', '{}',
+                headers => { HTTP_ORIGIN => 'http://auth.op.com' }
+            )
+        )->{'access-control-allow-origin'}[0],
+        'http://auth.op.com',
+        '  -> self-CORS echoes the portal origin'
+    );
+    count(1);
+}
+
 clean_sessions();
 done_testing();

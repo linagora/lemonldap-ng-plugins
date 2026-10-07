@@ -955,7 +955,7 @@ sub _respond {
         'createJWT failed' . ( $@ ? ": $@" : '' ) )
       unless $jwt;
 
-    return $self->p->sendBinaryResponse(
+    my $res = $self->p->sendBinaryResponse(
         $req, $jwt,
         type    => $SIGNED_RESPONSE_TYPE,
         code    => $code,
@@ -967,6 +967,19 @@ sub _respond {
             'Expires'       => '0',
         ],
     );
+
+    # CORS, as Main::Run::sendJSONresponse applies it to the plain answer, so
+    # that both variants carry the same headers.
+    if ( $self->p->_checkSelfCors($req) ) {
+        push @{ $res->[1] },
+          'Access-Control-Allow-Origin'      => $req->origin,
+          'Access-Control-Allow-Methods'     => '*',
+          'Access-Control-Allow-Credentials' => 'true';
+    }
+    else {
+        $self->p->setCorsHeaderFromConfig($res);
+    }
+    return $res;
 }
 
 # Algorithms a pam answer may be signed with: asymmetric only. `none` would
