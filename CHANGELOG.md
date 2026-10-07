@@ -70,6 +70,19 @@ fleet down.
 
 ### pam-access
 
+- **Feature — signed answers of the `/pam/*` endpoints** (#100,
+  open-bastion#339). Nothing but TLS vouched for `valid: true` or a sudo
+  grant: a host accepting a too-broad CA, or running with `verify_ssl` off,
+  could be told anything. With `Accept: application/ob-pam-response+jwt`,
+  `authorize`, `verify`, `userinfo`, `whoami` and `heartbeat` answer a JWS
+  (`typ: ob-pam-response+jwt`) signed with the key published at
+  `/oauth2/jwks?client_id=`, refusals included. `req_nonce` and `req_sha256`
+  bind it to one request, so an `X-Nonce` is required (`400
+  nonce_required`); the heartbeat also carries the current `jwks` so hosts
+  can follow a key rotation (procedure in the README). Never `none` nor
+  `HS*`; an answer that cannot be signed is an unsigned `500
+  response_signing_unavailable`. Optional `pamAccessResponseSigningAlg`.
+  Nothing changes without the header.
 - **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
   caller's scope** (#51). Any device-grant token could enumerate users or
   burn a one-time token. One gate now fronts the six endpoints, matching the

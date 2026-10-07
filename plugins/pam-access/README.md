@@ -53,6 +53,7 @@ In the Manager under **General Parameters** > **Plugins** > **PAM Access**:
 | `pamAccessRequestSigningMode`          | Verify the client's `X-Signature-256` / `X-Timestamp` / `X-Nonce` headers: `off`, `optional`, `required`.                                                                                | `off`     |
 | `pamAccessRequestSigningSecret`        | Shared secret, equal to the client's `request_signing_secret`.                                                                                                                          | `''`      |
 | `pamAccessRequestSigningWindow`        | Accepted `X-Timestamp` skew in seconds, and the nonce replay-cache lifetime.                                                                                                            | `300`     |
+| `pamAccessResponseSigningAlg`          | Algorithm of the [signed responses](#signed-responses-accept-applicationob-pam-responsejwt). Empty: the RP's ID token algorithm when asymmetric, else `RS256`. `HS*` and `none` are never used. | `''`      |
 | `pamAccessAllowedRps`                  | Comma-separated RP configuration keys allowed to call `/pam/*`. Empty accepts any device-grant token with a pam scope (historical behaviour). Setting it also forbids a self-declared bastion `server_group`. | `''`      |
 | `pamAccessServerGroups`                | Authoritative mapping `client_id → server_group`. When non-empty, `/pam/authorize` enforces the mapping and rejects mismatches.                                                          | `{}`      |
 | `pamAccessBastionGroups`               | Comma-separated list of server groups whose hosts may be vouched for as bastions                                                                                                         | `bastion` |
@@ -174,7 +175,7 @@ return the caller's identity, `/pam/heartbeat` does not either, and
   and the answer falls back to the `client_id`, which an allowlist must not be
   keyed on — every machine of the project shares it.
 
-It is a pure read: no signing, no session write, no side effect. In particular
+It is a pure read: nothing minted, no session write, no side effect. In particular
 it does **not** stamp `_pamSeen`, so running it does not look like a heartbeat.
 It sits behind the same caller gate as its siblings, so `pamAccessAllowedRps`
 and request signing apply unchanged.
@@ -353,6 +354,130 @@ must not open the gate.
 
 This is defence in depth **on top of** TLS, not a substitute for it. Do not
 relax `verify_ssl` because of it.
+
+### Signed responses (`Accept: application/ob-pam-response+jwt`)
+
+A host takes its access decisions from these answers — `valid: true` from
+`/pam/verify`, allow/deny, sudo and the voucher from `/pam/authorize`, the
+passwd entry from `/pam/userinfo` — and by default nothing but TLS vouches for
+them. Anyone holding a certificate the host accepts (an overly broad CA in
+`ca_cert`, `verify_ssl = false`, a TLS-intercepting proxy) can answer
+`valid: true` for anybody. Request signing does not help here: it
+authenticates the *host* to the portal, not the other way round.
+
+So a host may ask for a **signed answer** (issue #100, client side
+linagora/open-bastion#339), verified against a JWKS it got at deployment
+time. This is the model of LLNG's RFC 9701 signed introspection.
+
+**Negotiation.** Send `Accept: application/ob-pam-response+jwt` (it may sit in
+a list; the match is case-insensitive and ignores parameters such as `;q=`).
+The portal then answers with `Content-Type: application/ob-pam-response+jwt`,
+a compact JWS as body, and **the same HTTP status** the plain answer would
+have had, plus `Vary: Accept`. Without that header nothing changes — same
+JSON, same headers — so older hosts keep working.
+
+| Endpoint | Signed on request |
+| --- | --- |
+| `/pam/authorize`, `/pam/verify`, `/pam/userinfo` | yes — they drive login, sudo and the NSS identity |
+| `/pam/whoami`, `/pam/heartbeat` | yes |
+| `/pam/bastion-cert` | no — the certificate it returns is already checked by `sshd` against the SSH CA |
+| `/pam` (user web interface) | no |
+
+**Every** answer of a signed endpoint is signed, refusals included: `valid:
+false`, `authorized: false`, 400, 401, 403, a request-signature refusal. A host
+that requires signatures must be able to tell a real refusal from a forged
+one, and must treat any unsigned answer as a transport error.
+
+**The token.** Header: `alg`, `kid`, and `typ: ob-pam-response+jwt`. The
+dedicated `typ` is what stops an ID token, a logout token or a signed
+introspection answer — all signed by the same key — from being accepted as a
+pam answer: a host must check it. Claims:
+
+| Claim | Value |
+| --- | --- |
+| `iss` | the issuer (`oidcServiceMetaDataIssuer`) |
+| `aud` | the caller's `client_id` — see below |
+| `iat` / `exp` | now / now + 60 s |
+| `endpoint` | `authorize`, `verify`, `userinfo`, `whoami` or `heartbeat` |
+| `req_nonce` | the request's `X-Nonce`, echoed verbatim |
+| `req_sha256` | lowercase hex SHA-256 of the raw request body (empty body: SHA-256 of `""`) |
+| `http_status` | the HTTP status of the answer |
+| `resp` | the JSON object the endpoint answers without signing, unchanged |
+| `jwks` | `/pam/heartbeat` success only: the same signature keys as `/oauth2/jwks?client_id=` (encryption keys are not included: they are not needed to verify an answer), see *Key rotation* |
+
+**Why `req_nonce` and `req_sha256`.** A signature alone proves the portal said
+it, not that it said it *to this request*. Without the binding, a recorded
+`valid: true` could be replayed against a later login, or an answer about one
+user or fingerprint served for another. The host checks that `req_nonce` is
+the nonce it just sent and `req_sha256` the hash of the body it just sent.
+Hence a caller asking for a signed answer **must** send an `X-Nonce`
+(`[0-9A-Za-z._:-]{1,128}`, e.g. open-bastion's `<unix_ms>-<uuid-v4>`):
+otherwise the portal answers `400 {"error":"nonce_required"}` — signed, with
+no `req_nonce` claim — before doing any work (a one-time token in the body is
+not consumed). This holds whether request signing
+(`pamAccessRequestSigningMode`) is on or off; when it is on, the same nonce
+serves both.
+
+**`aud`.** The `client_id` of the relying party the caller's token was issued
+to, once the caller has passed the caller gate. An answer given before that —
+no or invalid Bearer, unknown refresh token, a request-signature or RP-
+allowlist refusal, `nonce_required` — has **no `aud`**. A host **MUST**
+accept a missing `aud` **only on an answer that grants nothing** (an error,
+`valid: false`, `authorized: false`, `found: false`), and **MUST** require
+`aud` equal to its own `client_id` on anything that grants. This rule is
+load-bearing: any unauthenticated caller can obtain a signed, `aud`-less
+refusal carrying the `req_nonce` and `req_sha256` of its choice, so an
+`aud`-less token proves only that the portal refused someone.
+
+**Which key signs.** The answer is signed with `createJWT`, the caller's RP as
+partner: the first key of the RP's `oidcRPMetaDataOptionsSigningKey` list,
+else of `oidcServiceSignatureKey`. That is exactly what the JWKS endpoint
+publishes for that client — `<portal>/oauth2/jwks?client_id=<client_id>`
+(the `jwks_uri` of `/.well-known/openid-configuration`) — so that document is
+what a host must trust. Answers given before the caller is identified are
+signed for `pamAccessRp` (`pam-access` by default), or with
+`oidcServiceSignatureKey` when that RP is not declared: keep the PAM relying
+parties on the same key list.
+
+**Algorithm.** `pamAccessResponseSigningAlg` when set; else the RP's
+`oidcRPMetaDataOptionsIDTokenSignAlg` when it is asymmetric; else `RS256`. It
+must match the key type (RS*/PS* need an RSA key, ES* an EC key). `none` and
+`HS*` are never used — `HS*` would sign with the RP's client secret, which
+every host of the project holds.
+
+**Fail closed.** When an answer cannot be signed — a configured
+`pamAccessResponseSigningAlg` that is not asymmetric, a key that does not
+match the algorithm, a missing key, or a PAM RP with
+`oidcRPMetaDataOptionsNoJwtHeader` set (it makes LLNG drop the `typ` header,
+so **the PAM RP must not set it**) — the portal logs an error and answers an
+**unsigned** `500 {"error":"response_signing_unavailable"}`. Never the plain
+success body: a host requiring signatures sees a transport error. The same
+500 replaces any unsigned answer that would escape a signed endpoint (a code
+path answering without going through the signing helper): the five routes are
+dispatched through one wrapper that checks what the handler returned, and logs
+`PAM <endpoint>: unsigned answer escaped the signing path`.
+
+#### Key rotation
+
+LLNG publishes every key listed in `oidcServiceSignatureKey` (or in the RP's
+`oidcRPMetaDataOptionsSigningKey`), and signs with the first one. A host
+pinned to the keys it got at deployment would reject every answer the moment
+the portal signed with a key it does not know — locking out the fleet. So
+rotate in this order:
+
+1. **Append** the new key at the end of the list. The portal still signs with
+   the old key, and now publishes both.
+2. **Wait until every host has the new key.** A successful signed
+   `/pam/heartbeat` answer carries a `jwks` claim — the same signature keys
+   as `/oauth2/jwks?client_id=` (encryption keys are not included: they are
+   not needed to verify an answer) — so a host learns the new key from a token signed by a key it already
+   trusts, without a TLS-only fetch. Wait at least as long as your longest
+   heartbeat gap (offline hosts included).
+3. **Move** the new key first. It now signs.
+4. **Remove** the old key later, once no host can still be relying on it.
+
+A host that missed step 2 entirely (powered off through the whole rotation)
+has to be re-provisioned with the current JWKS.
 
 ### Which callers may reach `/pam/*` (`pamAccessAllowedRps`)
 

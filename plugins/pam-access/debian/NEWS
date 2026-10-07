@@ -25,6 +25,14 @@ linagora-lemonldap-ng-plugin-pam-access (0.6.0) unstable; urgency=high
   renews its access token -- nothing fails when you flip the switch, then the
   whole fleet stops at once, hours later, as those tokens expire.
 
+  New, and opt-in on the client side: signed answers (Accept:
+  application/ob-pam-response+jwt). Nothing changes until a host asks for
+  them. Once hosts REQUIRE them, an answer the portal cannot sign is a 500
+  for the whole fleet: keep the PAM relying party without
+  oidcRPMetaDataOptionsNoJwtHeader, and rotate the signing key only as the
+  README says -- append the new key, wait for every host to receive it
+  through the signed heartbeat, move it first, drop the old one later.
+
   The rest of this release's upgrade notes are in UPGRADING.md upstream:
   https://github.com/linagora/lemonldap-ng-plugins/blob/main/UPGRADING.md
 
