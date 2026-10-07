@@ -1054,10 +1054,11 @@ sub _responseSigningAlg {
     return $RESPONSE_SIGNING_ALGS{$idAlg} ? $idAlg : 'RS256';
 }
 
-# HELPER: the public signature keys of an RP, as /oauth2/jwks?client_id=<rp>
-# publishes them (Issuer::OpenIDConnect::jwks, signature keys
-# only). Carried by the signed heartbeat so that hosts can follow a key
-# rotation through a chain of signed answers rather than a TLS-only fetch.
+# HELPER: the public signature keys of an RP: the same signature keys
+# /oauth2/jwks?client_id=<rp> publishes (Issuer::OpenIDConnect::jwks), built
+# the same way. Encryption keys are not included: they are not needed to
+# verify an answer. Carried by the signed heartbeat so that hosts can follow a
+# key rotation through a chain of signed answers rather than a TLS-only fetch.
 sub _signingJwks {
     my ( $self, $rpOpts ) = @_;
 
@@ -3261,15 +3262,18 @@ endpoint with C<?client_id=E<lt>callerE<gt>>. Claims:
 
   iss          issuer
   aud          the caller's client_id, absent until the caller has passed
-               the caller gate (a host must only accept a missing aud on an
-               answer that grants nothing)
+               the caller gate (a host MUST only accept a missing aud on an
+               answer that grants nothing: anyone can obtain a signed
+               aud-less refusal for a nonce and body of its choice)
   iat, exp     now, now + 60
   endpoint     authorize | verify | userinfo | whoami | heartbeat
   req_nonce    the request's X-Nonce, verbatim
   req_sha256   hex SHA-256 of the raw request body
   http_status  the HTTP status of the answer
   resp         the JSON object the plain answer carries
-  jwks         (heartbeat success only) the RP's public signature keys
+  jwks         (heartbeat success only) the same signature keys as
+               /oauth2/jwks?client_id= (encryption keys are not included:
+               they are not needed to verify an answer)
 
 A signed answer requires an C<X-Nonce> (C<[0-9A-Za-z._:-]{1,128}>): without
 one the request is refused with a signed C<400 {"error":"nonce_required"}>

@@ -403,7 +403,7 @@ pam answer: a host must check it. Claims:
 | `req_sha256` | lowercase hex SHA-256 of the raw request body (empty body: SHA-256 of `""`) |
 | `http_status` | the HTTP status of the answer |
 | `resp` | the JSON object the endpoint answers without signing, unchanged |
-| `jwks` | `/pam/heartbeat` success only: the public signature keys, see *Key rotation* |
+| `jwks` | `/pam/heartbeat` success only: the same signature keys as `/oauth2/jwks?client_id=` (encryption keys are not included: they are not needed to verify an answer), see *Key rotation* |
 
 **Why `req_nonce` and `req_sha256`.** A signature alone proves the portal said
 it, not that it said it *to this request*. Without the binding, a recorded
@@ -421,10 +421,13 @@ serves both.
 **`aud`.** The `client_id` of the relying party the caller's token was issued
 to, once the caller has passed the caller gate. An answer given before that —
 no or invalid Bearer, unknown refresh token, a request-signature or RP-
-allowlist refusal, `nonce_required` — has **no `aud`**. A host must accept a
-missing `aud` **only on an answer that grants nothing** (an error, `valid:
-false`, `authorized: false`, `found: false`), and require `aud` equal to its
-own `client_id` on anything that grants.
+allowlist refusal, `nonce_required` — has **no `aud`**. A host **MUST**
+accept a missing `aud` **only on an answer that grants nothing** (an error,
+`valid: false`, `authorized: false`, `found: false`), and **MUST** require
+`aud` equal to its own `client_id` on anything that grants. This rule is
+load-bearing: any unauthenticated caller can obtain a signed, `aud`-less
+refusal carrying the `req_nonce` and `req_sha256` of its choice, so an
+`aud`-less token proves only that the portal refused someone.
 
 **Which key signs.** The answer is signed with `createJWT`, the caller's RP as
 partner: the first key of the RP's `oidcRPMetaDataOptionsSigningKey` list,
@@ -465,9 +468,9 @@ rotate in this order:
 1. **Append** the new key at the end of the list. The portal still signs with
    the old key, and now publishes both.
 2. **Wait until every host has the new key.** A successful signed
-   `/pam/heartbeat` answer carries a `jwks` claim — the RP's public signature
-   keys, built exactly like `/oauth2/jwks?client_id=`, signature keys only —
-   so a host learns the new key from a token signed by a key it already
+   `/pam/heartbeat` answer carries a `jwks` claim — the same signature keys
+   as `/oauth2/jwks?client_id=` (encryption keys are not included: they are
+   not needed to verify an answer) — so a host learns the new key from a token signed by a key it already
    trusts, without a TLS-only fetch. Wait at least as long as your longest
    heartbeat gap (offline hosts included).
 3. **Move** the new key first. It now signs.
