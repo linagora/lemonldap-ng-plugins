@@ -70,19 +70,6 @@ fleet down.
 
 ### pam-access
 
-- **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
-  caller's scope** (#51). Any device-grant token could enumerate users or
-  burn a one-time token. One gate now fronts the six endpoints, matching the
-  scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
-- **Feature — the `X-Signature-256` request verifier** (#81,
-  open-bastion#188). The PAM client has been signing some of its calls for a
-  while and nothing read the headers. `pamAccessRequestSigningMode` (`off` /
-  `optional` / `required`), `...Secret` and `...Window`: timestamp window,
-  single-use nonce in shared storage, constant-time HMAC over the raw body.
-  Checked in that order so an unauthenticated caller never reaches the step
-  that writes. Off by default, and see upgrade note 10 before considering
-  `required`: `optional` already refuses a *bad* signature on the two
-  endpoints the client actually signs.
 - **Feature — signed answers of the `/pam/*` endpoints** (#100,
   open-bastion#339). Nothing but TLS vouched for `valid: true` or a sudo
   grant: a host accepting a too-broad CA, or running with `verify_ssl` off,
@@ -96,6 +83,19 @@ fleet down.
   `HS*`; an answer that cannot be signed is an unsigned `500
   response_signing_unavailable`. Optional `pamAccessResponseSigningAlg`.
   Nothing changes without the header.
+- **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
+  caller's scope** (#51). Any device-grant token could enumerate users or
+  burn a one-time token. One gate now fronts the six endpoints, matching the
+  scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
+- **Feature — the `X-Signature-256` request verifier** (#81,
+  open-bastion#188). The PAM client has been signing some of its calls for a
+  while and nothing read the headers. `pamAccessRequestSigningMode` (`off` /
+  `optional` / `required`), `...Secret` and `...Window`: timestamp window,
+  single-use nonce in shared storage, constant-time HMAC over the raw body.
+  Checked in that order so an unauthenticated caller never reaches the step
+  that writes. Off by default, and see upgrade note 10 before considering
+  `required`: `optional` already refuses a *bad* signature on the two
+  endpoints the client actually signs.
 - **Security fix — `/pam/*` accepted any device-grant token, and any host
   could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
   token to a PAM relying party and, once set, refuses a self-declared bastion
