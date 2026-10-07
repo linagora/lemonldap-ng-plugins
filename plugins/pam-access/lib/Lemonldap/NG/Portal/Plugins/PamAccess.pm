@@ -67,6 +67,18 @@ our $LEGACY_VOUCHER_KEY = '_pamBastionVouchers'; # legacy, read-only
 # SSHCA.pm. `_sshCerts` is the pre-upgrade array, still read as a fallback.
 our $SSO_CERT_PREFIX = '_sshCert::';
 
+# Signed answers of the /pam/* endpoints (issue #100). A caller asks for one
+# with `Accept: $SIGNED_RESPONSE_TYPE`; the JWS carries `typ: $SIGNED_RESPONSE_TYP`
+# so that no other token signed by the same key (ID token, logout token,
+# signed introspection) can pass for a pam answer. See _respond.
+our $SIGNED_RESPONSE_TYPE = 'application/ob-pam-response+jwt';
+our $SIGNED_RESPONSE_TYP  = 'ob-pam-response+jwt';
+our $SIGNED_RESPONSE_TTL  = 60;
+
+# Shape of an X-Nonce, shared by the request-signature verifier and the
+# signed-response binding: what open-bastion sends is <unix_ms>-<uuid-v4>.
+our $NONCE_RE = qr{\A[0-9A-Za-z._:-]{1,128}\z};
+
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
 use constant name => 'PamAccess';
@@ -340,6 +352,12 @@ sub generateToken {
 sub authorize {
     my ( $self, $req ) = @_;
 
+    # 0. Signed answers (issue #100): mark the endpoint, refuse an unbound
+    #    signed answer before doing any work. See _startSignedEndpoint.
+    if ( my $bail = $self->_startSignedEndpoint( $req, 'authorize' ) ) {
+        return $bail;
+    }
+
     # 1-3. Caller gate: a valid Bearer token, obtained through the Device
     #      Authorization Grant, carrying a pam scope (see _checkCaller).
     my ( $tokenSession, $bail ) = $self->_checkCaller( $req, 'authorize' );
@@ -440,7 +458,7 @@ sub authorize {
             server_id    => $server_id,
         );
 
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 authorized => JSON::false,
@@ -491,7 +509,7 @@ sub authorize {
                 fingerprint  => $fingerprint,
                 reason       => $sshCheck->{reason},
             );
-            return $self->p->sendJSONresponse(
+            return $self->_respond(
                 $req,
                 {
                     authorized => JSON::false,
@@ -631,7 +649,7 @@ sub authorize {
         $response->{reason} = 'Access denied by rule';
     }
 
-    return $self->p->sendJSONresponse( $req, $response, code => 200 );
+    return $self->_respond( $req, $response, code => 200 );
 }
 
 # HELPER METHODS
@@ -765,7 +783,7 @@ sub _unauthorizedResponse {
     my ( $self, $req, $message ) = @_;
     $message ||= 'Unauthorized';
 
-    return $self->p->sendJSONresponse(
+    return $self->_respond(
         $req,
         { error => $message },
         code    => 401,
@@ -777,16 +795,233 @@ sub _forbiddenResponse {
     my ( $self, $req, $message ) = @_;
     $message ||= 'Forbidden';
 
-    return $self->p->sendJSONresponse( $req, { error => $message },
-        code => 403 );
+    return $self->_respond( $req, { error => $message }, code => 403 );
 }
 
 sub _badRequest {
     my ( $self, $req, $message ) = @_;
     $message ||= 'Bad Request';
 
-    return $self->p->sendJSONresponse( $req, { error => $message },
-        code => 400 );
+    return $self->_respond( $req, { error => $message }, code => 400 );
+}
+
+# ---------------------------------------------------------------------------
+# Signed responses (issue #100, linagora/open-bastion#339)
+#
+# A host takes its access decisions from these answers -- `valid: true` from
+# /pam/verify, allow/deny + sudo + voucher from /pam/authorize, the passwd
+# entry from /pam/userinfo -- and nothing but TLS vouched for them: anyone
+# holding a certificate the host accepts (overly broad CA, verify_ssl off, a
+# TLS-intercepting proxy) could answer `valid: true` for anybody.
+#
+# So a caller may ask for a signed answer, `Accept: $SIGNED_RESPONSE_TYPE`,
+# and gets a compact JWS signed like an ID token, with the key the portal
+# publishes at its jwks_uri (/oauth2/jwks?client_id=<its client_id>). The
+# same model as RFC 9701 signed introspection. Without that Accept, nothing
+# changes: plain JSON, byte for byte.
+#
+# Five endpoints opt in by stamping their name first thing (see
+# _startSignedEndpoint): authorize, verify, userinfo, whoami, heartbeat. Every
+# answer they give then goes through _respond -- refusals included, because a
+# host that requires signatures must be able to tell a real `valid: false` or
+# 403 from a forged one, and treats anything unsigned as a transport error.
+# /pam/bastion-cert does not opt in: sshd checks its certificate against the
+# SSH CA, and the shared helpers above keep answering it in plain JSON.
+#
+# Claims: iss, aud (the caller's client_id, once it has passed the caller
+# gate), iat/exp (60 s), endpoint, req_nonce (the request's X-Nonce, echoed),
+# req_sha256 (hex SHA-256 of the raw request body), http_status, and resp --
+# the exact JSON object the plain answer carries. req_nonce and req_sha256
+# bind the answer to ONE request: a recorded `valid: true` can neither be
+# replayed nor moved to another user or fingerprint. Hence a signed answer
+# requires an X-Nonce, whether or not request signing (#81) is on.
+#
+# A signing failure never degrades to the plain success body: it is an
+# UNSIGNED 500 `response_signing_unavailable`, which a host requiring
+# signatures reads as a transport error, i.e. fails closed.
+
+# HELPER: mark the request as served by a signed endpoint, and refuse a
+# signed answer that would not be bound to its request. Called before
+# anything else by each of the five handlers. Returns the response to send,
+# or undef to carry on.
+sub _startSignedEndpoint {
+    my ( $self, $req, $endpoint ) = @_;
+
+    $req->data->{pamSignedEndpoint} = $endpoint;
+    return undef unless $self->_wantsSignedResponse($req);
+    return undef if defined $self->_requestNonce($req);
+
+    $self->logger->warn(
+        "PAM $endpoint: signed answer requested without a valid X-Nonce");
+    return $self->_respond( $req, { error => 'nonce_required' }, code => 400 );
+}
+
+# HELPER: does the Accept header list $SIGNED_RESPONSE_TYPE? Media types are
+# case-insensitive; parameters (`;q=...`) are ignored.
+sub _wantsSignedResponse {
+    my ( $self, $req ) = @_;
+
+    my $accept = $req->env->{HTTP_ACCEPT};
+    return 0 unless defined $accept and $accept ne '';
+    for my $range ( split /,/, $accept ) {
+        my ($type) = split /;/, $range, 2;
+        next unless defined $type;
+        $type =~ s/\A\s+|\s+\z//g;
+        return 1 if lc($type) eq $SIGNED_RESPONSE_TYPE;
+    }
+    return 0;
+}
+
+# HELPER: the request's X-Nonce when it is well formed, else undef.
+sub _requestNonce {
+    my ( $self, $req ) = @_;
+
+    my $nonce = $req->env->{HTTP_X_NONCE};
+    return ( defined $nonce and $nonce =~ $NONCE_RE ) ? $nonce : undef;
+}
+
+# HELPER: answer $body, the way sendJSONresponse would -- or, when the
+# request asked for it on a signed endpoint, as a signed JWS. Same arguments
+# as sendJSONresponse, plus `jwks => 1` (heartbeat success only) to embed the
+# signing RP's public keys in the token.
+sub _respond {
+    my ( $self, $req, $body, %args ) = @_;
+
+    my $with_jwks = delete $args{jwks};
+    my $endpoint  = $req->data->{pamSignedEndpoint};
+    return $self->p->sendJSONresponse( $req, $body, %args )
+      unless $endpoint and $self->_wantsSignedResponse($req);
+
+    my $code = $args{code} || 200;
+
+    # Main::Run::sendJSONresponse adds the form token to every JSON body it
+    # sends; do the same, so that `resp` is exactly the plain answer.
+    $body->{token} = $req->token if ref $body eq 'HASH' and $req->token;
+
+    my $oidc = $self->oidc;
+
+    # The relying party the caller's token belongs to, once the caller has
+    # passed the gate (see _checkCaller). Before that -- a missing or invalid
+    # credential, or a request we refused at the door -- there is no
+    # audience: the answer is signed with pamAccessRp's key and carries no
+    # `aud`, which a host must only accept on an answer that grants nothing.
+    my $caller = $req->data->{pamCallerSession};
+    my $rp     = $caller ? $self->_resolveRp($caller) : undef;
+    my $aud =
+      $rp ? $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID} : undef;
+    my $signRp = $rp || $self->rpName;
+
+    # _createJWT reads the partner's options through a nested lookup, which
+    # would autovivify an empty RP named after pamAccessRp in the issuer's
+    # live rpOptions when that RP is not declared. Lend it an empty entry for
+    # the duration instead: `local` deletes it again on the way out, and an
+    # empty entry means "sign with oidcServiceSignatureKey", the right default.
+    my $rpOptions = $oidc->rpOptions;
+    local $rpOptions->{$signRp} = {} unless $rpOptions->{$signRp};
+    my $rpOpts = $rpOptions->{$signRp};
+
+    my $alg = $self->_responseSigningAlg($rpOpts);
+    return $self->_signingUnavailable( $req, $endpoint,
+        'invalid pamAccessResponseSigningAlg' )
+      unless $alg;
+
+    # _createJWT silently drops `typ` for an RP flagged NoJwtHeader, and a
+    # pam answer without its dedicated typ is precisely what a host must
+    # refuse. Say so here rather than emit a token nobody will accept.
+    return $self->_signingUnavailable( $req, $endpoint,
+        "RP '$signRp' sets oidcRPMetaDataOptionsNoJwtHeader" )
+      if $rpOpts->{oidcRPMetaDataOptionsNoJwtHeader};
+
+    my $now     = time();
+    my $nonce   = $self->_requestNonce($req);
+    my $payload = {
+        iss => $oidc->get_issuer($req),
+        ( defined $aud && $aud ne '' ? ( aud => $aud ) : () ),
+        iat      => $now,
+        exp      => $now + $SIGNED_RESPONSE_TTL,
+        endpoint => $endpoint,
+        ( defined $nonce ? ( req_nonce => $nonce ) : () ),
+        req_sha256  => sha256_hex( $req->content // '' ),
+        http_status => $code + 0,
+        resp        => $body,
+        ( $with_jwks ? ( jwks => $self->_signingJwks($rpOpts) ) : () ),
+    };
+
+    my $jwt = eval {
+        $oidc->createJWT( $payload, $alg, $signRp,
+            { typ => $SIGNED_RESPONSE_TYP } );
+    };
+    return $self->_signingUnavailable( $req, $endpoint,
+        'createJWT failed' . ( $@ ? ": $@" : '' ) )
+      unless $jwt;
+
+    return $self->p->sendBinaryResponse(
+        $req, $jwt,
+        type    => $SIGNED_RESPONSE_TYPE,
+        code    => $code,
+        headers => [
+            @{ $args{headers} || [ $req->spliceHdrs ] },
+            'Vary'          => 'Accept',
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma'        => 'no-cache',
+            'Expires'       => '0',
+        ],
+    );
+}
+
+# Algorithms a pam answer may be signed with: asymmetric only. `none` would
+# sign nothing, and HS* would sign with the RP's client secret, which every
+# host of the project holds -- any of them could then forge answers for all
+# the others.
+my %RESPONSE_SIGNING_ALGS = map { $_ => 1 }
+  qw(RS256 RS384 RS512 PS256 PS384 PS512 ES256 ES256K ES384 ES512 EdDSA);
+
+# HELPER: pamAccessResponseSigningAlg, else the RP's ID token algorithm when
+# it is asymmetric, else RS256. undef when the configured value is not an
+# acceptable algorithm: that is a signing failure, never a fallback.
+sub _responseSigningAlg {
+    my ( $self, $rpOpts ) = @_;
+
+    my $alg = $self->conf->{pamAccessResponseSigningAlg};
+    if ( defined $alg and $alg ne '' ) {
+        return $alg if $RESPONSE_SIGNING_ALGS{$alg};
+        $self->logger->error( "PamAccess: pamAccessResponseSigningAlg '$alg'"
+              . ' is not an asymmetric signature algorithm' );
+        return undef;
+    }
+    my $idAlg = $rpOpts->{oidcRPMetaDataOptionsIDTokenSignAlg} // '';
+    return $RESPONSE_SIGNING_ALGS{$idAlg} ? $idAlg : 'RS256';
+}
+
+# HELPER: the public signature keys of an RP, as /oauth2/jwks?client_id=<rp>
+# publishes them (Issuer::OpenIDConnect::jwks, signature keys
+# only). Carried by the signed heartbeat so that hosts can follow a key
+# rotation through a chain of signed answers rather than a TLS-only fetch.
+sub _signingJwks {
+    my ( $self, $rpOpts ) = @_;
+
+    my $oidc = $self->oidc;
+    my $list =
+         $rpOpts->{oidcRPMetaDataOptionsSigningKey}
+      || $self->conf->{oidcServiceSignatureKey}
+      || '';
+    my @keys = map { $oidc->_buildJwk( 'Sig', $oidc->get_public_key($_) ) }
+      split /\s*,\s*/, $list;
+    return { keys => \@keys };
+}
+
+# HELPER: a signed answer was asked for and cannot be produced. Unsigned on
+# purpose -- there is nothing to sign it with -- and never the plain success
+# body: a host requiring signatures must see a transport error.
+sub _signingUnavailable {
+    my ( $self, $req, $endpoint, $why ) = @_;
+
+    $self->logger->error("PAM $endpoint: cannot sign the response ($why)");
+    return $self->p->sendJSONresponse(
+        $req,
+        { error => 'response_signing_unavailable' },
+        code => 500
+    );
 }
 
 # Scopes accepted at the /pam/* server-to-server endpoints. They are matched
@@ -986,7 +1221,7 @@ sub _checkRequestSignature {
     unless ( defined $ts
         and $ts =~ /\A[0-9]{1,11}\z/
         and defined $nonce
-        and $nonce =~ m{\A[0-9A-Za-z._:-]{1,128}\z}
+        and $nonce =~ $NONCE_RE
         and defined $given )
     {
         return $self->_signatureRefusal( $req, $label, 'malformed_headers',
@@ -1165,6 +1400,12 @@ sub _checkCaller {
         return ( undef, $bail );
     }
 
+    # The caller is now identified: a signed answer is addressed to its RP
+    # (`aud`) and signed with that RP's key (see _respond). Not before -- a
+    # token refused above must not get answers signed with the key of
+    # whichever relying party it was issued to.
+    $req->data->{pamCallerSession} = $session;
+
     return ( $session, undef );
 }
 
@@ -1290,6 +1531,11 @@ sub _callerId {
 sub verifyToken {
     my ( $self, $req ) = @_;
 
+    # 0. Signed answers (issue #100), see _startSignedEndpoint.
+    if ( my $bail = $self->_startSignedEndpoint( $req, 'verify' ) ) {
+        return $bail;
+    }
+
     # 1. Caller gate: a valid Bearer token, obtained through the Device
     #    Authorization Grant, carrying a pam scope (see _checkCaller). The
     #    scope test used to be missing here: any device-grant token could burn
@@ -1327,7 +1573,7 @@ sub verifyToken {
             reason    => 'Invalid or expired token',
         );
 
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 valid => JSON::false,
@@ -1386,7 +1632,7 @@ sub verifyToken {
             server_id => $server_id,
             reason    => 'token_not_consumed',
         );
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 valid => JSON::false,
@@ -1410,7 +1656,7 @@ sub verifyToken {
             reason    => 'Invalid token type',
         );
 
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 valid => JSON::false,
@@ -1437,7 +1683,7 @@ sub verifyToken {
             reason    => 'Token expired',
         );
 
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 valid => JSON::false,
@@ -1500,7 +1746,7 @@ sub verifyToken {
                 fingerprint => $fingerprint,
                 reason      => $sshCheck->{reason},
             );
-            return $self->p->sendJSONresponse(
+            return $self->_respond(
                 $req,
                 {
                     valid => JSON::false,
@@ -1545,7 +1791,7 @@ sub verifyToken {
     );
 
     # 8. Return success with user info and exported attributes
-    return $self->p->sendJSONresponse(
+    return $self->_respond(
         $req,
         {
             valid  => JSON::true,
@@ -1584,6 +1830,11 @@ sub verifyToken {
 sub whoami {
     my ( $self, $req ) = @_;
 
+    # Signed answers (issue #100), see _startSignedEndpoint.
+    if ( my $bail = $self->_startSignedEndpoint( $req, 'whoami' ) ) {
+        return $bail;
+    }
+
     my ( $session, $bail ) = $self->_checkCaller( $req, 'whoami' );
     return $bail if $bail;
 
@@ -1617,12 +1868,17 @@ sub whoami {
     $self->logger->info(
         "PAM whoami: '$client_id' identified as '$server_id'");
 
-    return $self->p->sendJSONresponse( $req, $response, code => 200 );
+    return $self->_respond( $req, $response, code => 200 );
 }
 
 # POST /pam/heartbeat - Server heartbeat for monitoring
 sub heartbeat {
     my ( $self, $req ) = @_;
+
+    # 0. Signed answers (issue #100), see _startSignedEndpoint.
+    if ( my $bail = $self->_startSignedEndpoint( $req, 'heartbeat' ) ) {
+        return $bail;
+    }
 
     # 1. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -1752,7 +2008,7 @@ sub heartbeat {
 
     unless ($access_token) {
         $self->logger->error('PAM heartbeat: failed to mint access token');
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             { error => 'token generation failed' },
             code => 500
@@ -1765,9 +2021,12 @@ sub heartbeat {
       || $self->conf->{oidcServiceAccessTokenExpiration}
       || 3600;
 
-    # 8. Respond with the fresh access token + next heartbeat interval
+    # 8. Respond with the fresh access token + next heartbeat interval. A
+    #    signed answer also carries the current signature keys (`jwks`), so
+    #    that a host learns a new key from a token signed by one it already
+    #    trusts -- see "Key rotation" in the README.
     my $interval = $self->conf->{pamAccessHeartbeatInterval} || 300;
-    return $self->p->sendJSONresponse(
+    return $self->_respond(
         $req,
         {
             status         => 'ok',
@@ -1775,13 +2034,19 @@ sub heartbeat {
             expires_in     => $at_ttl + 0,
             next_heartbeat => $interval,
             server_time    => $now,
-        }
+        },
+        jwks => 1,
     );
 }
 
 # POST /pam/userinfo - Get user info for NSS module
 sub userinfo {
     my ( $self, $req ) = @_;
+
+    # 0. Signed answers (issue #100), see _startSignedEndpoint.
+    if ( my $bail = $self->_startSignedEndpoint( $req, 'userinfo' ) ) {
+        return $bail;
+    }
 
     # 1. Caller gate: a valid Bearer token, obtained through the Device
     #    Authorization Grant, carrying a pam scope (see _checkCaller). The
@@ -1826,7 +2091,7 @@ sub userinfo {
         $self->logger->notice(
 "PAM userinfo: User '$user' not found, asked by server '$server_id' (error: $error)"
         );
-        return $self->p->sendJSONresponse(
+        return $self->_respond(
             $req,
             {
                 found => JSON::false,
@@ -1853,7 +2118,7 @@ sub userinfo {
     $self->logger->debug(
         "PAM userinfo: Found user '$user' (server: $server_id)");
 
-    return $self->p->sendJSONresponse(
+    return $self->_respond(
         $req,
         {
             found  => JSON::true,
@@ -2048,7 +2313,7 @@ sub _parseFingerprintOrReject {
         # Keep the caller's body shape (verify carries `valid => false`) and
         # only swap the message, so clients always get the expected fields.
         return ( undef,
-            $self->p->sendJSONresponse(
+            $self->_respond(
                 $req,
                 { %$body_out, error => 'SSH fingerprint required' },
                 code => 400
@@ -2068,8 +2333,7 @@ sub _parseFingerprintOrReject {
         %$audit_fields,
     );
 
-    return ( undef,
-        $self->p->sendJSONresponse( $req, $body_out, code => 400 ) );
+    return ( undef, $self->_respond( $req, $body_out, code => 400 ) );
 }
 
 # HELPER: last heartbeat received from the server presenting $tokenSession,
@@ -2931,6 +3195,39 @@ C<pam>.
 
 Failing the first check yields C<401>, the other two C<403>.
 
+=head1 SIGNED RESPONSES
+
+A caller sending C<Accept: application/ob-pam-response+jwt> to
+C</pam/authorize>, C</pam/verify>, C</pam/userinfo>, C</pam/whoami> or
+C</pam/heartbeat> receives, instead of the JSON object, a compact JWS with
+C<Content-Type: application/ob-pam-response+jwt> and the same HTTP status.
+Every answer is signed, refusals included. Without that header nothing
+changes. C</pam/bastion-cert> is never signed.
+
+The JWS header carries C<typ: ob-pam-response+jwt> and the C<kid> of the
+signing key: the caller's relying party C<oidcRPMetaDataOptionsSigningKey>,
+else C<oidcServiceSignatureKey> -- i.e. the keys published by the JWKS
+endpoint with C<?client_id=E<lt>callerE<gt>>. Claims:
+
+  iss          issuer
+  aud          the caller's client_id, absent until the caller has passed
+               the caller gate (a host must only accept a missing aud on an
+               answer that grants nothing)
+  iat, exp     now, now + 60
+  endpoint     authorize | verify | userinfo | whoami | heartbeat
+  req_nonce    the request's X-Nonce, verbatim
+  req_sha256   hex SHA-256 of the raw request body
+  http_status  the HTTP status of the answer
+  resp         the JSON object the plain answer carries
+  jwks         (heartbeat success only) the RP's public signature keys
+
+A signed answer requires an C<X-Nonce> (C<[0-9A-Za-z._:-]{1,128}>): without
+one the request is refused with a signed C<400 {"error":"nonce_required"}>
+before any work is done. When the answer cannot be signed (an algorithm that
+is not asymmetric, an RP flagged C<oidcRPMetaDataOptionsNoJwtHeader>, no
+usable key) the portal answers an B<unsigned>
+C<500 {"error":"response_signing_unavailable"}>, never the plain body.
+
 =head1 ENDPOINTS
 
 =head2 GET /pam
@@ -3080,6 +3377,13 @@ Maximum token validity in seconds (default: 3600)
 =item pamAccessRp
 
 OIDC Relying Party name for tokens (default: 'pam-access')
+
+=item pamAccessResponseSigningAlg
+
+Algorithm of the signed responses (see L</SIGNED RESPONSES>). Empty
+(default): the relying party's C<oidcRPMetaDataOptionsIDTokenSignAlg> when it
+is asymmetric, else C<RS256>. Only RS*, PS*, ES* and EdDSA are accepted: any
+other value makes every signed answer an unsigned C<500>.
 
 =item pamAccessHeartbeatInterval
 
