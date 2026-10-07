@@ -448,7 +448,11 @@ match the algorithm, a missing key, or a PAM RP with
 `oidcRPMetaDataOptionsNoJwtHeader` set (it makes LLNG drop the `typ` header,
 so **the PAM RP must not set it**) — the portal logs an error and answers an
 **unsigned** `500 {"error":"response_signing_unavailable"}`. Never the plain
-success body: a host requiring signatures sees a transport error.
+success body: a host requiring signatures sees a transport error. The same
+500 replaces any unsigned answer that would escape a signed endpoint (a code
+path answering without going through the signing helper): the five routes are
+dispatched through one wrapper that checks what the handler returned, and logs
+`PAM <endpoint>: unsigned answer escaped the signing path`.
 
 #### Key rotation
 

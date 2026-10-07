@@ -147,25 +147,25 @@ sub init {
 
     # Route for server-to-server authorization (Bearer token auth)
     $self->addUnauthRoute(
-        pam => { authorize => 'authorize' },
+        pam => { authorize => '_signed_authorize' },
         ['POST']
       )
 
       # Route for server heartbeat (refresh token based)
       ->addUnauthRoute(
-        pam => { heartbeat => 'heartbeat' },
+        pam => { heartbeat => '_signed_heartbeat' },
         ['POST']
       )
 
       # Route for one-time token verification (server-to-server)
       ->addUnauthRoute(
-        pam => { verify => 'verifyToken' },
+        pam => { verify => '_signed_verifyToken' },
         ['POST']
       )
 
       # Route for NSS user info lookup (server-to-server)
       ->addUnauthRoute(
-        pam => { userinfo => 'userinfo' },
+        pam => { userinfo => '_signed_userinfo' },
         ['POST']
       )
 
@@ -175,7 +175,7 @@ sub init {
       # Route for an enrolled server to read back its own identity, i.e. the
       # id the portal assigned it at enrollment (server -> LLNG).
       ->addUnauthRoute(
-        pam => { whoami => 'whoami' },
+        pam => { whoami => '_signed_whoami' },
         ['POST']
       )
 
@@ -351,12 +351,6 @@ sub generateToken {
 # POST /pam/authorize - Server-to-server authorization check
 sub authorize {
     my ( $self, $req ) = @_;
-
-    # 0. Signed answers (issue #100): mark the endpoint, refuse an unbound
-    #    signed answer before doing any work. See _startSignedEndpoint.
-    if ( my $bail = $self->_startSignedEndpoint( $req, 'authorize' ) ) {
-        return $bail;
-    }
 
     # 1-3. Caller gate: a valid Bearer token, obtained through the Device
     #      Authorization Grant, carrying a pam scope (see _checkCaller).
@@ -820,11 +814,13 @@ sub _badRequest {
 # same model as RFC 9701 signed introspection. Without that Accept, nothing
 # changes: plain JSON, byte for byte.
 #
-# Five endpoints opt in by stamping their name first thing (see
-# _startSignedEndpoint): authorize, verify, userinfo, whoami, heartbeat. Every
-# answer they give then goes through _respond -- refusals included, because a
-# host that requires signatures must be able to tell a real `valid: false` or
-# 403 from a forged one, and treats anything unsigned as a transport error.
+# Five endpoints opt in: authorize, verify, userinfo, whoami, heartbeat. Their
+# routes point at _signed_<handler> wrappers (see _signedRoute), the single
+# point of entry that stamps the endpoint before the handler runs and checks
+# what it returns. Every answer they give then goes through _respond --
+# refusals included, because a host that requires signatures must be able to
+# tell a real `valid: false` or 403 from a forged one, and treats anything
+# unsigned as a transport error.
 # /pam/bastion-cert does not opt in: sshd checks its certificate against the
 # SSH CA, and the shared helpers above keep answering it in plain JSON.
 #
@@ -841,9 +837,9 @@ sub _badRequest {
 # signatures reads as a transport error, i.e. fails closed.
 
 # HELPER: mark the request as served by a signed endpoint, and refuse a
-# signed answer that would not be bound to its request. Called before
-# anything else by each of the five handlers. Returns the response to send,
-# or undef to carry on.
+# signed answer that would not be bound to its request. Called by
+# _signedRoute before the handler runs, so before any work. Returns the
+# response to send, or undef to carry on.
 sub _startSignedEndpoint {
     my ( $self, $req, $endpoint ) = @_;
 
@@ -854,6 +850,58 @@ sub _startSignedEndpoint {
     $self->logger->warn(
         "PAM $endpoint: signed answer requested without a valid X-Nonce");
     return $self->_respond( $req, { error => 'nonce_required' }, code => 400 );
+}
+
+# Route handler => endpoint name, for the five signed endpoints. init() routes
+# each of them to the generated `_signed_<handler>` method below rather than
+# to the handler itself.
+our %SIGNED_HANDLERS = (
+    authorize   => 'authorize',
+    verifyToken => 'verify',
+    userinfo    => 'userinfo',
+    whoami      => 'whoami',
+    heartbeat   => 'heartbeat',
+);
+for my $handler ( keys %SIGNED_HANDLERS ) {
+    my $endpoint = $SIGNED_HANDLERS{$handler};
+    no strict 'refs';
+    *{"_signed_$handler"} = sub {
+        my ( $self, $req, @args ) = @_;
+        return $self->_signedRoute( $req, $endpoint, $handler, @args );
+    };
+}
+
+# ROUTE WRAPPER for the signed endpoints: the single point of entry.
+#
+# 1. _startSignedEndpoint, before anything else (nonce_required).
+# 2. The handler, which answers through _respond.
+# 3. A fail-closed guard on what it returned. Signing only holds if EVERY
+#    exit of a handler goes through _respond, and nothing but review enforces
+#    that: one `$self->p->sendJSONresponse(...)` added on some refusal path
+#    tomorrow would hand a host that asked for a signature an unsigned
+#    answer -- which a careful host refuses, but which a careless one may
+#    take at face value. So when a signed answer was asked for, anything
+#    that is neither a JWS nor our own deliberate response_signing_unavailable
+#    is logged and replaced by that 500.
+sub _signedRoute {
+    my ( $self, $req, $endpoint, $handler, @args ) = @_;
+
+    if ( my $bail = $self->_startSignedEndpoint( $req, $endpoint ) ) {
+        return $bail;
+    }
+
+    my $res = $self->$handler( $req, @args );
+    return $res unless $self->_wantsSignedResponse($req);
+    return $res if $req->data->{pamSigningUnavailable};
+    if ( ref $res eq 'ARRAY' and ref $res->[1] eq 'ARRAY' ) {
+        my %h = @{ $res->[1] };
+        my ($ct) = map { $h{$_} } grep { lc($_) eq 'content-type' } keys %h;
+        return $res if defined $ct and lc($ct) eq $SIGNED_RESPONSE_TYPE;
+    }
+
+    $self->logger->error(
+        "PAM $endpoint: unsigned answer escaped the signing path");
+    return $self->_sendSigningUnavailable($req);
 }
 
 # HELPER: does the Accept header list $SIGNED_RESPONSE_TYPE? Media types are
@@ -1030,6 +1078,15 @@ sub _signingUnavailable {
     my ( $self, $req, $endpoint, $why ) = @_;
 
     $self->logger->error("PAM $endpoint: cannot sign the response ($why)");
+    return $self->_sendSigningUnavailable($req);
+}
+
+# The unsigned 500 itself. Flagged in $req->data so that _signedRoute's guard
+# recognises it as deliberate without parsing the body.
+sub _sendSigningUnavailable {
+    my ( $self, $req ) = @_;
+
+    $req->data->{pamSigningUnavailable} = 1;
     return $self->p->sendJSONresponse(
         $req,
         { error => 'response_signing_unavailable' },
@@ -1544,11 +1601,6 @@ sub _callerId {
 sub verifyToken {
     my ( $self, $req ) = @_;
 
-    # 0. Signed answers (issue #100), see _startSignedEndpoint.
-    if ( my $bail = $self->_startSignedEndpoint( $req, 'verify' ) ) {
-        return $bail;
-    }
-
     # 1. Caller gate: a valid Bearer token, obtained through the Device
     #    Authorization Grant, carrying a pam scope (see _checkCaller). The
     #    scope test used to be missing here: any device-grant token could burn
@@ -1843,11 +1895,6 @@ sub verifyToken {
 sub whoami {
     my ( $self, $req ) = @_;
 
-    # Signed answers (issue #100), see _startSignedEndpoint.
-    if ( my $bail = $self->_startSignedEndpoint( $req, 'whoami' ) ) {
-        return $bail;
-    }
-
     my ( $session, $bail ) = $self->_checkCaller( $req, 'whoami' );
     return $bail if $bail;
 
@@ -1887,11 +1934,6 @@ sub whoami {
 # POST /pam/heartbeat - Server heartbeat for monitoring
 sub heartbeat {
     my ( $self, $req ) = @_;
-
-    # 0. Signed answers (issue #100), see _startSignedEndpoint.
-    if ( my $bail = $self->_startSignedEndpoint( $req, 'heartbeat' ) ) {
-        return $bail;
-    }
 
     # 1. Parse JSON request body
     my $body = eval { from_json( $req->content ) };
@@ -2055,11 +2097,6 @@ sub heartbeat {
 # POST /pam/userinfo - Get user info for NSS module
 sub userinfo {
     my ( $self, $req ) = @_;
-
-    # 0. Signed answers (issue #100), see _startSignedEndpoint.
-    if ( my $bail = $self->_startSignedEndpoint( $req, 'userinfo' ) ) {
-        return $bail;
-    }
 
     # 1. Caller gate: a valid Bearer token, obtained through the Device
     #    Authorization Grant, carrying a pam scope (see _checkCaller). The

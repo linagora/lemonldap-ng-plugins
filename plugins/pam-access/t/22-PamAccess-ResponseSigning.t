@@ -810,5 +810,41 @@ sub pamToken {
     count(1);
 }
 
+# ===========================================================================
+# The fail-closed guard: a handler answering outside _respond must never hand
+# an unsigned answer to a caller that asked for a signed one
+# ===========================================================================
+{
+    no warnings qw(redefine once);
+    local *Lemonldap::NG::Portal::Plugins::PamAccess::whoami = sub {
+        my ( $self, $req ) = @_;
+        return $self->p->sendJSONresponse( $req, { escaped => 1 } );
+    };
+
+    $res = call( '/pam/whoami', '{}' );
+    is( $res->[0], 500, 'A plain answer escaping a signed handler: 500' );
+    like( header( $res, 'Content-Type' ),
+        qr{^application/json}, '  -> unsigned' );
+    is_deeply(
+        from_json( $res->[2]->[0] ),
+        { error => 'response_signing_unavailable' },
+        '  -> response_signing_unavailable, not the escaped body'
+    );
+
+    $res = call( '/pam/whoami', '{}', plain => 1 );
+    is( $res->[0], 200, '  -> a plain caller is not affected' );
+    is_deeply(
+        from_json( $res->[2]->[0] ),
+        { escaped => 1 },
+        '  -> and gets the handler answer as is'
+    );
+
+    # The wrapper is the single point of entry: nonce_required still holds
+    # for a handler that would never call _startSignedEndpoint itself.
+    $res = call( '/pam/whoami', '{}', nonce => undef );
+    is( $res->[0], 400, '  -> nonce_required is enforced by the route' );
+    count(6);
+}
+
 clean_sessions();
 done_testing();
