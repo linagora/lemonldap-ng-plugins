@@ -1,0 +1,1298 @@
+.App {
+  text-align: center;
+}
+
+/* The global nav is a top AppBar now (see Navbar.tsx / NavBar.css), so the
+   page content simply flows below it instead of being offset by a left
+   margin for a persistent drawer. */
+.pageContent {
+  width: 100%;
+}
+
+.breadcrumbs {
+  padding-top: 1vw;
+  padding-left: 2vw;
+  background-color: #f7f8fa;
+  cursor: pointer;
+}
+
+@media (max-width: 500px) {
+  .main {
+    margin-top: 100px;
+  }
+}
+
+.toggleButton {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  background-color: #aaa;
+  border: 1px solid black;
+  border-radius: 90px;
+  cursor: pointer;
+}
+
+/* Global top app bar: brand + section links + language/account menu.
+   Per-app pages keep their own left column (.optionNavbar in AppPage.css),
+   so this bar intentionally does not add a second left rail. */
+.topNav {
+  z-index: 1100;
+  background-color: rgb(92, 93, 111);
+  color: rgb(226, 227, 235);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.topNavToolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  min-height: 56px;
+}
+
+.brandLink {
+  display: block;
+  flex-shrink: 0;
+}
+
+.brandLogo {
+  display: block;
+  height: 32px;
+  width: auto;
+  border-radius: 4px;
+  background-color: white;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.navMenu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navMenuDesktop {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topNavSpacer {
+  flex: 1 1 auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgb(209, 211, 223);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navItem:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.navItem.active {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 #ff9800;
+}
+
+.navItem.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.navItem.disabled:hover {
+  background-color: transparent;
+  color: rgb(209, 211, 223);
+}
+
+.navItem svg {
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.navMenuDesktop .legacyUiSwitch {
+  margin-left: 8px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0;
+}
+
+.navBurger {
+  display: none;
+  color: rgb(226, 227, 235);
+}
+
+.menuBurger {
+  color: rgb(226, 227, 235);
+}
+
+/* Narrow screens: collapse the horizontal section links into a burger that
+   opens a temporary drawer instead. */
+@media (max-width: 950px) {
+  .navMenuDesktop {
+    display: none;
+  }
+  .navBurger {
+    display: inline-flex;
+  }
+}
+
+/* Mobile drawer holding the same section links, only mounted when there is
+   something to show (i.e. not on the "partial" pages). */
+.navDrawerMobile .MuiDrawer-paper {
+  width: 260px;
+  box-sizing: border-box;
+  background-color: rgb(92, 93, 111);
+  color: rgb(209, 211, 223);
+}
+
+.navDrawerHeader {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px;
+}
+
+.navDrawerHeader .MuiIconButton-root {
+  color: rgb(226, 227, 235);
+}
+
+.navDrawerMobile .navMenu {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px 12px 16px;
+}
+
+.navDrawerMobile .navItem {
+  padding: 11px 14px;
+}
+
+.navDrawerMobile .legacyUiSwitch {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+.language-options {
+  display: flex;
+}
+
+.language-options span {
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.authOptionChoices {
+  padding: 15px;
+  display: flex;
+  justify-content: space-around;
+  background-color: rgb(209, 211, 223);
+}
+
+.options {
+  text-align: left;
+  margin: 2%;
+}
+
+@media (max-width: 500px) {
+  .box th {
+    font-size: smaller;
+  }
+  .appDesc table {
+    width: 45vw;
+  }
+  select {
+    width: 5vh;
+  }
+}
+.app {
+  display: flex;
+  flex-direction: row;
+}
+
+.appDesc {
+  margin: 2%;
+  border-radius: 15px;
+  flex-wrap: wrap;
+  height: 75vh;
+  overflow-y: scroll;
+  width: 100%;
+}
+
+.divider {
+  height: 80vh;
+}
+
+.box tr {
+  text-align: left;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #acacac;
+}
+
+.box tbody {
+  border-bottom: 2px solid #3f3f3f;
+}
+
+.box td {
+  padding-right: 2%;
+  flex-wrap: wrap;
+}
+
+.authLevel {
+  width: 50%;
+  flex-wrap: wrap;
+}
+
+.plus {
+  color: rgb(6, 190, 0);
+  font-size: xx-large;
+  background-color: transparent;
+}
+
+.minus {
+  color: red;
+  font-size: xx-large;
+  background-color: transparent;
+}
+
+.appDesc table {
+  width: 75%;
+  max-width: 100%;
+  flex-wrap: wrap;
+  border-collapse: collapse;
+}
+
+textarea {
+  height: 200px;
+  width: 100%;
+}
+
+.optionNavbar {
+  display: flex;
+  justify-content: space-between;
+  /* background-color: rgb(37, 63, 63); */
+  padding: 2%;
+  color: rgb(95, 95, 95);
+  justify-content: space-around;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+.optionNavbar :hover {
+  background-color: antiquewhite;
+}
+
+.optionNavbar.sub :hover {
+  background-color: rgb(248, 217, 177);
+}
+
+.option {
+  margin: 1%;
+  padding: 15px;
+  border-radius: 5px;
+  display: flex;
+}
+.suboption {
+  margin: 1%;
+  margin-left: 2%;
+  padding: 15px;
+  border-radius: 5px;
+}
+
+.suboption.selected {
+  background-color: rgb(248, 217, 177);
+}
+
+.option.selected {
+  background-color: antiquewhite;
+}
+
+.scopes {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+/* Bottom-right floating action button: out of the top toolbar, so it never
+   overlaps the header actions. */
+.saveButton {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2000;
+}
+
+.notif {
+  position: fixed;
+  background-color: #fff;
+  left: 50%;
+  padding: 2px;
+  transform: translateX(-50%);
+  border-radius: 5px;
+  justify-items: center;
+  text-align: left;
+  top: 65px;
+  align-content: center;
+  z-index: 5000;
+}
+
+.notif.red {
+  background-color: rgb(255, 192, 192);
+}
+.notif.hidden {
+  visibility: hidden;
+}
+
+.catAndApp {
+  text-align: left;
+  padding-bottom: 32px;
+}
+
+/* ---- Header ------------------------------------------------------------- */
+.catAndAppTop {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 2vw;
+  background-color: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+.catAndAppTop .title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #26262b;
+}
+.addCatButton {
+  margin-left: auto;
+}
+
+/* ---- Category list ------------------------------------------------------ */
+.catList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 2vw;
+}
+
+.catCard {
+  background-color: #ffffff !important;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px !important;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.05),
+    0 8px 24px rgba(15, 23, 42, 0.04) !important;
+  overflow: hidden;
+  margin: 0 !important;
+  cursor: default;
+}
+
+.catHeader {
+  background-color: #f7f8fa;
+  border-bottom: 1px solid #eceef1;
+}
+.catTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.catNameField {
+  min-width: 220px;
+}
+.catNameField input {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.catActions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+/* ---- Applications grid inside a category -------------------------------- */
+.applications.MuiCardContent-root {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 18px;
+}
+
+.appMenuCard {
+  border: 1px solid #e8e8ec !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  transition:
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+.appMenuCard:hover {
+  border-color: rgba(255, 152, 0, 0.5) !important;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06) !important;
+}
+.appMenuHeader.MuiCardHeader-root {
+  align-items: flex-start;
+  padding: 12px;
+}
+.appMenuHeader .MuiCardHeader-content {
+  min-width: 0;
+}
+.appMenuHeader .MuiCardHeader-avatar {
+  margin-right: 10px;
+}
+.appMenuTitle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.appNameField {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.appNameField input {
+  font-weight: 600;
+  color: #1e293b;
+}
+.appActions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
+/* Logo picker (avatar): a clearly-sized, labelled preview */
+.logoPicker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.logoSelect {
+  margin: 0 !important;
+}
+.logoSelect .MuiSelect-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 22px 4px 4px !important;
+  min-width: 44px;
+}
+.logoImg {
+  display: block;
+}
+.logoCaption {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a8a92;
+}
+.logoOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Details accordion: flat, framed, no default divider line */
+.appMenuCard .MuiCardHeader-subheader {
+  margin-top: 10px;
+}
+.appMenuCard .MuiAccordion-root {
+  box-shadow: none !important;
+  border: 1px solid #eceef1;
+  border-radius: 8px !important;
+  background-color: #fafbfc;
+}
+.appMenuCard .MuiAccordion-root::before {
+  display: none;
+}
+.appMenuCard .MuiAccordionDetails-root .MuiFormControl-root {
+  display: flex;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.appMenuCard .MuiAccordionDetails-root .MuiFormControl-root:last-child {
+  margin-bottom: 0;
+}
+.appMenuCard .MuiFormLabel-root {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b6b73;
+  margin-bottom: 4px;
+}
+
+/* ---- "Add" tiles -------------------------------------------------------- */
+.addAppTile {
+  align-self: stretch;
+  min-height: 72px;
+  border-style: dashed !important;
+  border-width: 1.5px !important;
+  border-color: #cbd5e1 !important;
+  border-radius: 10px !important;
+  color: #64748b !important;
+}
+.addAppTile:hover {
+  border-color: #ff9800 !important;
+  background-color: rgba(255, 152, 0, 0.06) !important;
+}
+
+.addCatTile {
+  align-self: flex-start;
+  border-style: dashed !important;
+  border-width: 1.5px !important;
+  border-radius: 10px !important;
+  padding: 8px 20px !important;
+}
+
+.footer {
+  position: fixed;
+  bottom: 0;
+  background-color: #2f3237;
+  width: 100%;
+  text-align: center;
+  color: #ffffffaf;
+}
+.footer span {
+  margin: 5px;
+}
+
+/* ---- Header / toolbar ---------------------------------------------------- */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #f7f8fa;
+  border-bottom: 1px solid #e2e4e8;
+  padding: 20px 2vw 24px;
+}
+
+.head .title {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #26262b;
+}
+
+.search-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* Push the "browse a configuration" group to the far right on wide screens. */
+.search-browse {
+  margin-left: auto;
+}
+
+/* ---- Content cards ------------------------------------------------------- */
+.desc {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  align-items: stretch;
+  padding: 28px 2vw;
+  overflow-wrap: break-word;
+}
+
+.descBox {
+  flex: 1 1 380px;
+  min-width: 300px;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  background-color: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  padding: 28px 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+/* ---- "Current configuration" info table --------------------------------- */
+.infoTable {
+  width: 100%;
+  margin: 0;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.infoTable thead th {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #26262b;
+  padding: 0 0 12px;
+  border-bottom: 2px solid #f0f0f2;
+}
+
+.infoTable tbody th {
+  width: 38%;
+  padding: 11px 16px 11px 0;
+  color: #6b6b73;
+  font-weight: 600;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.infoTable tbody td {
+  padding: 11px 0;
+  color: #1f1f24;
+  word-break: break-word;
+}
+
+.infoTable tbody tr + tr th,
+.infoTable tbody tr + tr td {
+  border-top: 1px solid #f4f4f6;
+}
+
+.logo {
+  width: 20vw;
+}
+
+/* ---- Header ------------------------------------------------------------- */
+.treeHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 2vw;
+  background-color: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+.treeHeader .title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #26262b;
+}
+/* Selected node name, shown as a tonal pill next to the title */
+.treeBreadcrumb {
+  padding: 3px 12px;
+  border-radius: 999px;
+  background-color: rgba(255, 152, 0, 0.14);
+  color: #b34700;
+  font-weight: 600;
+  font-size: 0.95rem;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.treeHelp {
+  display: inline-flex;
+  color: #8a8a92;
+}
+.treeHelp:hover {
+  color: #b34700;
+}
+
+/* ---- Two-pane layout ---------------------------------------------------- */
+.treePage {
+  display: flex;
+  align-items: stretch;
+  text-align: left;
+  height: calc(100vh - 140px);
+  min-height: 420px;
+}
+
+.tree {
+  flex: 0 0 40%;
+  max-width: 480px;
+  min-width: 280px;
+  border-right: 1px solid #e2e4e8;
+  background-color: #fdfdfd;
+  overflow: hidden; /* react-arborist scrolls internally */
+}
+
+.treeDetail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  background-color: #f7f8fa;
+  padding: 20px 24px;
+}
+
+.nodeContent {
+  word-break: break-word;
+}
+.nodeContent table {
+  width: 100%;
+}
+
+/* ---- Tree rows ---------------------------------------------------------- */
+.treeitem {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #3a3a42;
+  border-radius: 6px;
+  transition: background-color 0.12s ease;
+}
+.treeitem:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+.treeitem.selected {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #b34700;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #ff9800;
+}
+
+.treeitemInner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+.treeToggleIcon {
+  color: #9a9aa2;
+  flex: 0 0 auto;
+}
+.treeLeafIcon {
+  color: #ff9800;
+  flex: 0 0 auto;
+}
+/* Multi-valued (hash) leaves, e.g. macros: a distinct icon and colour */
+.treeMultiIcon {
+  color: #0d9488;
+  flex: 0 0 auto;
+}
+.treeitem.selected .treeToggleIcon {
+  color: #b34700;
+}
+.treeitemLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1000px) {
+  .tree {
+    flex-basis: 52%;
+    font-size: smaller;
+  }
+}
+
+.addButton {
+  left: 2vw;
+}
+
+.modal > .close {
+  cursor: pointer;
+  position: absolute;
+  top: -30px;
+  padding: 1px 10px;
+  vertical-align: middle;
+  text-align: center;
+  font-size: xx-large;
+  background: #ffffff;
+  border-radius: 50%;
+}
+
+.createAssistant {
+  background-color: white;
+  text-align: center;
+  display: flex;
+  flex-flow: column;
+}
+
+.createAssistant select {
+  font-size: medium;
+}
+
+.createAssistant input {
+  font-size: medium;
+  margin: 2%;
+}
+
+.createAssistant textarea {
+  font-size: large;
+}
+
+.mandatoryField {
+  text-align: left;
+}
+
+.card {
+  background-color: white;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-left: 4px solid transparent;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 1px 6px rgba(15, 23, 42, 0.04);
+  padding: 12px 20px;
+  border-radius: 10px;
+  align-content: center;
+  cursor: pointer;
+  position: relative;
+  flex-direction: row;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.cardInfo {
+  display: flex;
+  flex-flow: row;
+  /* Keep the type chip and the name together on the left; the actions are
+     pushed to the right with margin-left:auto on .name */
+  justify-content: flex-start;
+  align-items: center;
+  gap: 14px;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 10px rgba(15, 23, 42, 0.08),
+    0 10px 24px rgba(15, 23, 42, 0.08);
+  border-left-color: rgba(71, 85, 105, 0.55);
+}
+.maintenanceToggle {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 6px;
+}
+
+.card.Maintenance {
+  background-color: #fff8f0;
+  border-left-color: #fb923c;
+}
+
+.card.issue {
+  color: #8a1c1c;
+  background-color: #fdf1f1;
+  border-left-color: #e53935;
+}
+
+.name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 18px;
+  border-left: 1px solid rgba(15, 23, 42, 0.08);
+}
+.menu-item {
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  justify-content: space-between;
+  height: 28px;
+  border-bottom: 1px solid rgb(187, 187, 187);
+}
+
+.popupConf {
+  display: flex;
+  justify-content: space-between;
+  background-color: white;
+  padding: 5%;
+  border-radius: 15px;
+  text-align: center;
+  width: max-content;
+}
+
+.card .title2 {
+  padding: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.card.issue .title2 {
+  color: #8a1c1c;
+}
+
+.bottomRectangle {
+  height: 22px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
+  background-color: rgba(100, 116, 139, 0.14);
+  color: #334155;
+}
+.bottomRectangle .MuiChip-label {
+  padding: 0 10px;
+}
+/* Subtle per-type accent so the row of cards reads with a bit more rhythm,
+   without turning the chip into a loud badge. */
+.bottomRectangle.type-SPsaml {
+  background-color: rgba(13, 148, 136, 0.14);
+  color: #0f766e;
+}
+.bottomRectangle.type-RPoidc {
+  background-color: rgba(37, 99, 235, 0.14);
+  color: #1d4ed8;
+}
+.bottomRectangle.type-AppCas {
+  background-color: rgba(225, 29, 72, 0.14);
+  color: #be123c;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2vw;
+  background-color: #f7f7f8;
+  border-bottom: 1px solid #ededed;
+}
+
+.filter {
+  border: 0;
+  margin: 0;
+}
+
+.filters .MuiOutlinedInput-root {
+  background-color: white;
+  border-radius: 8px;
+}
+
+.filters .MuiToggleButton-root {
+  border-radius: 8px;
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
+.issuerAssistant {
+  padding: 3vh;
+  background-color: white;
+  z-index: 900;
+  border-radius: 15px;
+  text-align: center;
+  width: max-content;
+  height: max-content;
+  font-size: medium;
+}
+
+.issuerInitials {
+  margin-bottom: 5px;
+}
+
+.buttonContainer {
+  margin-top: 10px;
+}
+
+.issuerAssistant Button {
+  border: none;
+  border-radius: 5px;
+  padding: 1vh 2vh;
+  cursor: pointer;
+  font-size: medium;
+}
+
+.ignoreButton {
+  margin-left: 10px;
+}
+
+.ignoreButton:last-child {
+  margin-right: 0;
+}
+.issuerAssistant.hidden {
+  visibility: hidden;
+}
+
+.text {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.formInput,
+.fileInput,
+.generateButton,
+.previousButton,
+.nextButton,
+.ignoreButton {
+  margin-top: 5px;
+}
+
+.buttonContainer {
+  margin-top: 10px;
+}
+
+.ignoreButton {
+  margin-left: 10px;
+}
+
+.issuersList {
+  background-color: white;
+  padding: 10px 2vw;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.issuers {
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
+}
+
+.issuers:hover {
+  background-color: rgba(15, 23, 42, 0.03);
+}
+
+/* The last toggle group only holds the overflow ("other issuers") menu
+   button: keep the SAML/OIDC/CAS switches grouped on the left and let this
+   one sit on the right, like a toolbar action. */
+.issuers:last-child {
+  margin-left: auto;
+  padding: 0;
+}
+
+.issuers label {
+  margin: 0;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+}
+
+.issuers img {
+  width: 40px;
+  top: 50%;
+  rotate: 90deg;
+  cursor: pointer;
+}
+
+.warningPopup {
+  background-color: white;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+.otherIssuers {
+  background-color: coral;
+  width: 150px;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-item {
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  justify-content: space-between;
+  height: 28px;
+  border-bottom: 1px solid rgb(187, 187, 187);
+}
+
+.cfgNum {
+  border-radius: 999px;
+  margin: 0 2px;
+  padding: 2px 12px;
+  min-width: 0;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  text-transform: none;
+  box-shadow: none !important;
+}
+
+/* Soft, tonal treatment instead of a fully saturated fill: keeps the
+   success/warning semantics (latest config vs. newer config available)
+   without shouting. */
+.cfgNum.MuiButton-containedSuccess {
+  background-color: rgba(46, 125, 50, 0.12);
+  color: #2e7d32;
+}
+.cfgNum.MuiButton-containedSuccess:hover {
+  background-color: rgba(46, 125, 50, 0.2);
+}
+.cfgNum.MuiButton-containedWarning {
+  background-color: rgba(251, 192, 45, 0.28);
+  color: #a15c00;
+}
+.cfgNum.MuiButton-containedWarning:hover {
+  background-color: rgba(251, 192, 45, 0.4);
+}
+
+.grid {
+  display: flex;
+  justify-content: center;
+  margin-left: 2vw;
+  margin-right: 5vw;
+  grid-gap: 12px;
+  flex-flow: column;
+  padding-top: 14px;
+}
+
+.top {
+  display: flex;
+  /* wrap on narrow viewports so the header items never overlap */
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 2vw;
+  background-color: #fafafa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Keep the title/config badge/apps-overview cluster together on the left;
+   the divider + "new application" action are pushed to the right so the
+   header reads as a single toolbar rather than a loose row of controls. */
+.topIdentity {
+  display: flex;
+  flex-flow: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.topDivider {
+  margin-left: auto;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: xx-large;
+}
+.title2 {
+  font-size: larger;
+  padding: 15px;
+  text-align: left;
+}
+.title3 {
+  font-size: large;
+  padding: 15px;
+}
+
+/* Configuration app left rail, matching the sessions explorer look
+   (.sessionsNav). Sticks under the global top AppBar and scrolls on its own. */
+.configLayout {
+  display: flex;
+  align-items: stretch;
+  text-align: left;
+}
+
+.configNav {
+  flex: 0 0 240px;
+  align-self: stretch;
+  position: sticky;
+  top: 56px;
+  /* border-box so the vertical padding stays inside the viewport-height box;
+     otherwise the pinned save button overflows below the fold and is clipped */
+  box-sizing: border-box;
+  height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  background-color: #f7f8fa;
+  border-right: 1px solid #e2e4e8;
+  padding: 16px 10px;
+  overflow-y: auto;
+}
+
+.configMain {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.configNavMenu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.configNavItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #4a4a52;
+  font-size: 0.95rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.configNavItem:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.configNavItem.active {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #b34700;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #ff9800;
+}
+
+/* Pin the save action to the bottom of the rail. */
+.configNavSave {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #e2e4e8;
+}
+
+/* On narrow screens the rail becomes a horizontal strip above the content so
+   it never eats the whole width (the global nav is already a burger there). */
+@media (max-width: 700px) {
+  .configLayout {
+    flex-direction: column;
+  }
+  .configNav {
+    flex: 0 0 auto;
+    position: static;
+    height: auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e2e4e8;
+    padding: 8px;
+  }
+  .configNavMenu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .configNavItem.active {
+    box-shadow: inset 0 -3px 0 #ff9800;
+  }
+  .configNavSave {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+}
+
+body {
+  margin: 0;
+  background-color: rgb(232, 233, 235);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}

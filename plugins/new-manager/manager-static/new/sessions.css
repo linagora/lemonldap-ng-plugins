@@ -1,0 +1,428 @@
+body {
+  margin: 0;
+  background-color: rgb(232, 233, 235);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* Global top app bar: brand + section links + language/account menu.
+   Per-app pages keep their own left column (.optionNavbar in AppPage.css),
+   so this bar intentionally does not add a second left rail. */
+.topNav {
+  z-index: 1100;
+  background-color: rgb(92, 93, 111);
+  color: rgb(226, 227, 235);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.topNavToolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px;
+  min-height: 56px;
+}
+
+.brandLink {
+  display: block;
+  flex-shrink: 0;
+}
+
+.brandLogo {
+  display: block;
+  height: 32px;
+  width: auto;
+  border-radius: 4px;
+  background-color: white;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.navMenu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.navMenuDesktop {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.topNavSpacer {
+  flex: 1 1 auto;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgb(209, 211, 223);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  line-height: 1.2;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.navItem:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.navItem.active {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 #ff9800;
+}
+
+.navItem.disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.navItem.disabled:hover {
+  background-color: transparent;
+  color: rgb(209, 211, 223);
+}
+
+.navItem svg {
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
+.navMenuDesktop .legacyUiSwitch {
+  margin-left: 8px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0;
+}
+
+.navBurger {
+  display: none;
+  color: rgb(226, 227, 235);
+}
+
+.menuBurger {
+  color: rgb(226, 227, 235);
+}
+
+/* Narrow screens: collapse the horizontal section links into a burger that
+   opens a temporary drawer instead. */
+@media (max-width: 950px) {
+  .navMenuDesktop {
+    display: none;
+  }
+  .navBurger {
+    display: inline-flex;
+  }
+}
+
+/* Mobile drawer holding the same section links, only mounted when there is
+   something to show (i.e. not on the "partial" pages). */
+.navDrawerMobile .MuiDrawer-paper {
+  width: 260px;
+  box-sizing: border-box;
+  background-color: rgb(92, 93, 111);
+  color: rgb(209, 211, 223);
+}
+
+.navDrawerHeader {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px;
+}
+
+.navDrawerHeader .MuiIconButton-root {
+  color: rgb(226, 227, 235);
+}
+
+.navDrawerMobile .navMenu {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 4px 12px 16px;
+}
+
+.navDrawerMobile .navItem {
+  padding: 11px 14px;
+}
+
+.navDrawerMobile .legacyUiSwitch {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+.language-options {
+  display: flex;
+}
+
+.language-options span {
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+.sessionsExplorer {
+  display: flex;
+  align-items: stretch;
+  height: 100vh;
+  overflow: hidden;
+  text-align: left;
+}
+
+/* ---- Left navigation ----------------------------------------------------- */
+.sessionsNav {
+  flex: 0 0 220px;
+  background-color: #f7f8fa;
+  border-right: 1px solid #e2e4e8;
+  padding: 16px 10px;
+  overflow-y: auto;
+}
+
+.sessionNavGroup {
+  margin-bottom: 10px;
+}
+
+.sessionNavHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  font-weight: 700;
+  color: #26262b;
+  text-transform: none;
+}
+
+.sessionNavItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #4a4a52;
+  font-size: 0.95rem;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sessionNavItem.sub {
+  padding-left: 26px;
+}
+
+.sessionNavItem:hover {
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+.sessionNavItem.active {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #b34700;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #ff9800;
+}
+
+/* ---- Tree ---------------------------------------------------------------- */
+.sessionsTree {
+  flex: 0 0 340px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e2e4e8;
+  overflow: hidden;
+}
+
+.sessionsTreeHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #eceef1;
+  font-size: 1.1rem;
+}
+
+.sessionsTreeBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 6px;
+}
+
+.sessionGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #2b2b30;
+  white-space: nowrap;
+}
+
+.sessionGroup:hover {
+  background-color: #f2f3f5;
+}
+
+.sessionGroupTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sessionCount {
+  margin-left: auto;
+  background-color: #ffe0b2 !important;
+  color: #8a4b00 !important;
+  height: 20px !important;
+}
+
+.sessionLeaf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #4a4a52;
+  font-size: 0.9rem;
+}
+
+.sessionLeaf:hover {
+  background-color: #f2f3f5;
+}
+
+.sessionLeaf.selected {
+  background-color: rgba(255, 152, 0, 0.18);
+  color: #b34700;
+  font-weight: 600;
+}
+
+/* ---- Detail pane --------------------------------------------------------- */
+.sessionsDetailPane {
+  flex: 1;
+  overflow-y: auto;
+  background-color: rgb(232, 233, 235);
+}
+
+.sessionsDetailPlaceholder {
+  padding: 40px;
+  color: #8a8a92;
+  font-style: italic;
+}
+
+.sessionsEmpty {
+  padding: 24px 12px;
+  color: #8a8a92;
+  font-style: italic;
+}
+
+.notifForm {
+  padding: 18px 22px;
+  max-width: 720px;
+}
+
+.twofaTypeFilters {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+  padding: 0 4px;
+}
+
+.sessionDetail {
+  padding: 20px 24px;
+}
+
+.sessionDetailToolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.sessionGroupBox {
+  background-color: #fff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sessionGroupHeader {
+  background-color: #f7f8fa;
+  border-bottom: 1px solid #eceef1;
+  padding: 10px 16px;
+  font-weight: 700;
+  color: #26262b;
+}
+
+.sessionAttrTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.sessionAttrTable th,
+.sessionAttrTable td {
+  padding: 8px 16px;
+  text-align: left;
+  vertical-align: top;
+  word-break: break-word;
+  border-top: 1px solid #f4f4f6;
+}
+
+.sessionAttrTable th {
+  color: #6b6b73;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sessionAttrTable tr:first-child th,
+.sessionAttrTable tr:first-child td {
+  border-top: none;
+}
+
+.sessionAttrTable .attrHeader th {
+  color: #26262b;
+  background-color: #fafafb;
+}
+
+.App {
+  text-align: center;
+}
+
+/* The global nav is a top AppBar now (see Navbar.tsx / NavBar.css), so the
+   page content simply flows below it instead of being offset by a left
+   margin for a persistent drawer. */
+.pageContent {
+  width: 100%;
+}
+
+.breadcrumbs {
+  padding-top: 1vw;
+  padding-left: 2vw;
+  background-color: #f7f8fa;
+  cursor: pointer;
+}
+
+@media (max-width: 500px) {
+  .main {
+    margin-top: 100px;
+  }
+}
+
+.toggleButton {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+  background-color: #aaa;
+  border: 1px solid black;
+  border-radius: 90px;
+  cursor: pointer;
+}

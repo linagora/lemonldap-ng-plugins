@@ -1,0 +1,192 @@
+#!/usr/bin/perl
+#
+# Import the new (React) manager of a LemonLDAP::NG checkout into this
+# plugin, adapted to LLNG 2.23.x.
+#
+# Usage: plugins/new-manager/scripts/import <llng-checkout> [<base-tag>]
+#
+#   <llng-checkout>  LLNG sources where "make new_manager" was run: the
+#                    readable bundles and templates are taken from
+#                    lemonldap-ng-manager/site/{htdocs/static,templates}/new
+#   <base-tag>       LLNG 2.23 tag (in <llng-checkout>) whose schema and
+#                    translations are the reference (default: v2.23.4)
+#
+# Produces:
+#   manager-static/new/*.{js,css}  readable bundles, patched for 2.23 APIs
+#   manager-static/new/*.json      configuration metadata (2.23 schema)
+#   manager-static/nstruct.json    configuration tree (2.23 schema)
+#   manager-templates/new/*.tpl    templates loading the readable bundles
+#   manager-overrides/new-manager.json  translations missing in 2.23
+#
+# The metadata files are regenerated on the server, with the other plugins'
+# overrides, by linagora-llng-build-manager-files when it is installed.
+
+use strict;
+use warnings;
+use utf8;
+use Cwd            qw(abs_path);
+use Digest::SHA    qw(sha256_hex);
+use File::Basename qw(basename dirname);
+use File::Path     qw(make_path remove_tree);
+use File::Temp     qw(tempdir);
+use JSON;
+
+my ( $llng, $base ) = @ARGV;
+die "Usage: $0 <llng-checkout> [<base-tag>]\n" unless $llng and -d $llng;
+$base ||= 'v2.23.4';
+$llng = abs_path($llng);
+
+my $plugin = abs_path( dirname(__FILE__) . '/..' );
+my $store  = abs_path("$plugin/../../store");
+my $src    = "$llng/lemonldap-ng-manager/site";
+my $static = "$plugin/manager-static";
+my $tpls   = "$plugin/manager-templates/new";
+
+# Patches adapting the bundles to LLNG 2.23 APIs. Each one must match: a
+# failure means the upstream code changed and the patch must be reviewed.
+my @patches = (
+
+    # 2FA routes were renamed from sfa/ to 2ndfa/ in 3.0 (#3672)
+    {
+        files => [qw(home.js twofa.js)],
+        re    => qr#"2ndfa/persistent#,
+        to    => '"sfa/persistent',
+    },
+
+    # Notifications body field was renamed from "xml" to "content" in 3.0
+    # (#3648)
+    {
+        files => [qw(notifications.js)],
+        re    => qr#(createNotification\(\{[^}]*?)\bcontent: content,#s,
+        to    => sub { "$1xml: content," },
+    },
+);
+
+sub slurp {
+    open my $fh, '<:raw', $_[0] or die "Cannot read $_[0]: $!\n";
+    local $/;
+    return <$fh>;
+}
+
+sub spew {
+    my ( $file, $content ) = @_;
+    make_path( dirname($file) );
+    open my $fh, '>:raw', $file or die "Cannot write $file: $!\n";
+    print $fh $content;
+    close $fh;
+}
+
+sub git {
+    my $cmd = join ' ', 'git', '-C', $llng, @_;
+    my $res = `$cmd`;
+    die "$cmd failed\n" if $?;
+    return $res;
+}
+
+# 1. Readable bundles, patched
+remove_tree( "$static/new", $tpls );
+my %content;
+for my $file ( glob("$src/htdocs/static/new/*.js"),
+    glob("$src/htdocs/static/new/*.css") )
+{
+    next if $file =~ /\.min\./;
+    $content{ basename($file) } = slurp($file);
+}
+die "No bundle found in $src/htdocs/static/new: run \"make new_manager\"\n"
+  unless %content;
+
+for my $patch (@patches) {
+    for my $name ( @{ $patch->{files} } ) {
+        die "Missing bundle $name\n" unless defined $content{$name};
+        my $to = $patch->{to};
+        my $n =
+          ref $to
+          ? ( $content{$name} =~ s/$patch->{re}/$to->()/ge )
+          : ( $content{$name} =~ s/$patch->{re}/$to/g );
+        die "Patch $patch->{re} does not apply to $name\n" unless $n;
+    }
+}
+spew( "$static/new/$_", $content{$_} ) for sort keys %content;
+spew( "$static/new/attributes-ui.json",
+    slurp("$src/htdocs/static/new/attributes-ui.json") );
+
+# 2. Templates: load the readable bundles, with a cache tag matching the
+# patched content
+for my $file ( glob("$src/templates/new/*.tpl") ) {
+    my $tpl = slurp($file);
+    $tpl =~ s#new/([\w-]+)\.min\.(js|css)\?v=\w+#
+        my $name = "$1.$2";
+        die "Template refers to unknown $name\n" unless defined $content{$name};
+        "new/$name?v=" . substr( sha256_hex( $content{$name} ), 0, 12 )
+      #ge;
+    spew( "$tpls/" . basename($file), $tpl );
+}
+
+# 3. Metadata, from the base tag schema
+{
+    my $tmp = tempdir( CLEANUP => 1 );
+    git(
+        'archive', $base, 'lemonldap-ng-common/lib', 'lemonldap-ng-handler/lib',
+        'lemonldap-ng-manager/lib', 'lemonldap-ng-portal/lib',
+        "| tar -x -C $tmp"
+    );
+    make_path("$tmp/out");
+    make_path("$tmp/overrides");
+    my @inc = map { ( '-I', "$tmp/lemonldap-ng-$_/lib" ) }
+      qw(common handler manager portal);
+    my %out = (
+        struct                     => 'struct.json',
+        conftree                   => 'conftree.js',
+        'manager-constants'        => 'ReConstants.pm',
+        'manager-attributes'       => 'Attributes.pm',
+        'default-values'           => 'DefaultValues.pm',
+        'conf-constants'           => 'Constants.pm',
+        'first-lmconf'             => 'lmConf-1.json',
+        'reverse-tree'             => 'reverseTree.json',
+        'portal-constants'         => 'PortalConstants.pm',
+        'handler-status-constants' => 'StatusConstants.pm',
+        'doc-constants'            => 'portalConstants.rst',
+    );
+    my @out = map { ( "--$_-file", "$tmp/out/$out{$_}" ) } sort keys %out;
+    system(
+        $^X, @inc, '-I', "$store/lib",
+        "$store/scripts/llng-build-manager-files",
+        '--plugins-dir',                       "$tmp/overrides",
+        '--lang-dir',                          "$tmp/out",
+        '--new-struct-file',                   "$static/nstruct.json",
+        '--new-manager-attributes-file',       "$static/new/attributes.json",
+        '--new-manager-definitions-file',      "$static/new/definitions.json",
+        '--new-manager-tree-file',             "$static/new/tree.json",
+        '--new-manager-attributes-extra-file', "$static/new/attributes-ui.json",
+        @out
+    ) == 0 or die "llng-build-manager-files failed\n";
+    die "nstruct.json not generated\n" unless -s "$static/nstruct.json";
+}
+
+# 4. Translations of the new interface missing in the base tag
+{
+    my $json = JSON->new->utf8;
+    my %lang;
+    for my $l (qw(en fr)) {
+        my $file = "lemonldap-ng-manager/site/htdocs/static/languages/$l.json";
+        my $old  = $json->decode( git( 'show', "$base:$file" ) );
+        my $new  = $json->decode( slurp("$llng/$file") );
+        for my $k ( keys %$new ) {
+            $lang{$k}{$l} = $new->{$k} unless exists $old->{$k};
+        }
+    }
+
+    # Title of the tab added to the historical interface
+    $lang{newManager} = {
+        en => 'New manager (beta)',
+        fr => 'Nouveau manager (bêta)',
+    };
+    $_->{fr} //= $_->{en} for values %lang;
+    spew(
+        "$plugin/manager-overrides/new-manager.json",
+        JSON->new->utf8->canonical->pretty->encode( { lang => \%lang } )
+    );
+}
+
+print "Imported from $llng (" . git( 'describe', '--always', 'HEAD' ) =~ s/\s+$//r
+  . "), base $base\n";

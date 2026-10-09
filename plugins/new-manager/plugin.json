@@ -1,0 +1,23 @@
+{
+  "name": "new-manager",
+  "version": "0.5.3",
+  "summary": "New (React) manager interface, backported to LLNG 2.23",
+  "description": "Backport of the new LemonLDAP::NG 3.0 manager interface (configuration, sessions, notifications and second factors explorers, home page) to LLNG 2.23. Users switch between the historical interface and the new one; the historical interface stays the default.",
+  "author": "Xavier Guimard / Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.23.2 <3.0.0",
+  "debian": {
+    "depends": [
+      "linagora-llng-build-manager-files (>= 0.5.3~)"
+    ],
+    "conflicts": [
+      "liblemonldap-ng-manager-perl (>= 3.0.0~)"
+    ]
+  },
+  "tags": [
+    "manager",
+    "ui"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "post_install": "Append \"newManager\" to enabledModules in the [manager] section of lemonldap-ng.ini (never first: the first module is the default page), then reload the manager. The historical interface then has a \"New manager (beta)\" tab."
+}

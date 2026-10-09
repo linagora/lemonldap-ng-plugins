@@ -1,0 +1,105 @@
+{
+   "dbiUserChain": {
+      "type": "text"
+   },
+   "dbiUserPassword": {
+      "type": "password"
+   },
+   "dbiUserUser": {
+      "type": "text"
+   },
+   "groupsBeforeMacros": {
+      "default": 0,
+      "type": "bool"
+   },
+   "oidcOPMetaDataOptionsAuthnEndpointAuthMethod": {
+      "default": "get"
+   },
+   "reloadTimeout": {
+      "default": 5,
+      "type": "int"
+   },
+   "reloadUrls": {
+      "msgFail": "__badUrl__",
+      "type": "keyTextContainer"
+   },
+   "rest2fInitArgs": {
+      "keyMsgFail": "__badKeyName__"
+   },
+   "rest2fVerifyUrl": {
+      "keyMsgFail": "__badKeyName__",
+      "msgFail": "__badValue__"
+   },
+   "samlIDPMetaDataOptionsForceUTF8": {
+      "default": 0,
+      "type": "bool"
+   },
+   "samlMetadataForceUTF8": {
+      "default": 1,
+      "type": "bool"
+   },
+   "samlSPMetaDataExportedAttributes": {
+      "select": [
+         {
+            "k": "urn:oasis:names:tc:SAML:2.0:attrname-format:unspecified",
+            "v": "Unspecified"
+         },
+         {
+            "k": "urn:oasis:names:tc:SAML:2.0:attrname-format:uri",
+            "v": "URI"
+         },
+         {
+            "k": "urn:oasis:names:tc:SAML:2.0:attrname-format:basic",
+            "v": "Basic"
+         }
+      ]
+   },
+   "samlSPMetaDataOptionsForceUTF8": {
+      "default": 1,
+      "type": "bool"
+   },
+   "status": {
+      "type": "bool"
+   },
+   "u2fActivation": {
+      "default": 0,
+      "type": "boolOrExpr"
+   },
+   "u2fAuthnLevel": {
+      "type": "intOrNull"
+   },
+   "u2fLabel": {
+      "type": "text"
+   },
+   "u2fLogo": {
+      "type": "text"
+   },
+   "u2fSelfRegistration": {
+      "default": 0,
+      "type": "boolOrExpr"
+   },
+   "u2fTTL": {
+      "type": "intOrNull"
+   },
+   "u2fUserCanRemoveKey": {
+      "default": 1,
+      "type": "bool"
+   },
+   "utotp2fActivation": {
+      "default": 0,
+      "type": "boolOrExpr"
+   },
+   "utotp2fAuthnLevel": {
+      "type": "intOrNull"
+   },
+   "utotp2fLabel": {
+      "type": "text"
+   },
+   "utotp2fLogo": {
+      "type": "text"
+   },
+   "virtualHostName": {
+      "default": ".example.com",
+      "type": "text"
+   }
+}

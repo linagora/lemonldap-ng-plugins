@@ -115,7 +115,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 > **LLNG < 2.24.0:** the `linagora-lemonldap-ng-store` package is available in this repository and provides `lemonldap-ng-store` for older LemonLDAP::NG versions. It is pulled automatically when needed.
 
-> **LLNG 2.23.0 to 2.23.3:** these releases write the `test` / `keyTest` regexps of manager overrides to `Manager/Attributes.pm` as plain strings instead of `qr//`, which makes every configuration save fail with `Malformed test`. Install `linagora-llng-build-manager-files`, which ships the fixed upstream script; it retires itself once 2.23.4 is installed:
+> **LLNG 2.23.0 to 2.23.3:** these releases write the `test` / `keyTest` regexps of manager overrides to `Manager/Attributes.pm` as plain strings instead of `qr//`, which makes every configuration save fail with `Malformed test`. Install `linagora-llng-build-manager-files`, which ships the fixed upstream script. It also generates the metadata of the [new-manager](plugins/new-manager) backport (on every 2.23.x) and retires itself with LemonLDAP::NG 3.0:
 >
 > ```bash
 > sudo apt install linagora-llng-build-manager-files
@@ -136,6 +136,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [fixed-logout-redirection](plugins/fixed-logout-redirection) | Force redirect to a fixed URL after logout                 | beta   |
 | [external-menu](plugins/external-menu)                       | Redirect authenticated users to an external menu URL       | beta   |
 | [custom-functions](plugins/custom-functions)                 | Extra `customFunctions` for rules, macros and headers      | beta   |
+| [new-manager](plugins/new-manager)                           | New (React) manager interface, backported to LLNG 2.23     | beta   |
 
 #### OIDC extensions
 
