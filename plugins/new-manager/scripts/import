@@ -13,6 +13,7 @@
 #
 # Produces:
 #   manager-static/new/*.{js,css}  readable bundles, patched for 2.23 APIs
+#   manager-static/new/*.licenses.txt  third-party notices of the bundles
 #   manager-static/new/*.json      configuration metadata (2.23 schema)
 #   manager-static/nstruct.json    configuration tree (2.23 schema)
 #   manager-templates/new/*.tpl    templates loading the readable bundles
@@ -110,6 +111,11 @@ spew( "$static/new/$_", $content{$_} ) for sort keys %content;
 spew( "$static/new/attributes-ui.json",
     slurp("$src/htdocs/static/new/attributes-ui.json") );
 
+# Third-party license notices of the bundles
+my @notices = glob("$src/htdocs/static/new/*.licenses.txt");
+die "No third-party notices in $src/htdocs/static/new\n" unless @notices;
+spew( "$static/new/" . basename($_), slurp($_) ) for @notices;
+
 # 2. Templates: load the readable bundles, with a cache tag matching the
 # patched content
 for my $file ( glob("$src/templates/new/*.tpl") ) {
@@ -164,6 +170,11 @@ for my $file ( glob("$src/templates/new/*.tpl") ) {
 }
 
 # 4. Translations of the new interface missing in the base tag
+
+# Keys not to ship: installed by other means (the CrowdSec metrics labels come
+# with the crowdsec-stats patch), they would collide on install
+my $skipKeys = qr/^crowdsecMetrics/;
+
 {
     my $json = JSON->new->utf8;
     my %lang;
@@ -172,6 +183,7 @@ for my $file ( glob("$src/templates/new/*.tpl") ) {
         my $old  = $json->decode( git( 'show', "$base:$file" ) );
         my $new  = $json->decode( slurp("$llng/$file") );
         for my $k ( keys %$new ) {
+            next if $k =~ $skipKeys;
             $lang{$k}{$l} = $new->{$k} unless exists $old->{$k};
         }
     }

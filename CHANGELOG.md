@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### new-manager
+
+- **Third-party license notices are shipped with the bundles**
+  (`static/new/*.licenses.txt`), and the unused `web-vitals` module
+  (Apache-2.0) is no longer bundled.
+
 ## v0.5.3 - 2026-10-09
 
 Touched plugins bumped to **0.5.3** in lockstep: `new-manager` (new).

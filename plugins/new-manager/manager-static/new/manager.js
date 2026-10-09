@@ -27110,7 +27110,7 @@ ${String(error)}`;
 	instance$1.use;
 	instance$1.changeLanguage;
 	instance$1.getFixedT;
-	const t$2 = instance$1.t;
+	const t$1 = instance$1.t;
 	instance$1.exists;
 	instance$1.setDefaultNamespace;
 	instance$1.hasLoadedNamespace;
@@ -27132,14 +27132,14 @@ ${String(error)}`;
 	        var id_1 = ((_a = tree.title) === null || _a === void 0 ? void 0 : _a.slice(0, -1)) || "";
 	        if (Object.keys(confFieldsEq).includes(id_1)) {
 	            return {
-	                name: t$2(tree.title),
+	                name: t$1(tree.title),
 	                help: tree.help,
 	                type: (_b = attributes[tree.title]) === null || _b === void 0 ? void 0 : _b.type,
 	                id: "".concat(parentId, ";").concat(tree.title),
 	                children: Object.keys((config[confFieldsEq[id_1]] || {})).map(function (el) {
 	                    var _a;
 	                    return {
-	                        name: t$2(el),
+	                        name: t$1(el),
 	                        type: id_1,
 	                        app: el,
 	                        id: "".concat(parentId, ";").concat(tree.title, ";").concat(el),
@@ -27154,7 +27154,7 @@ ${String(error)}`;
 	    }
 	    else if (tree.cnodes === "applicationList") {
 	        return {
-	            name: t$2(tree.title),
+	            name: t$1(tree.title),
 	            help: tree.help,
 	            type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_c = attributes[tree.title]) === null || _c === void 0 ? void 0 : _c.type),
 	            id: "".concat(parentId, ";").concat(tree.title),
@@ -27190,14 +27190,14 @@ ${String(error)}`;
 	            tree._nodes = tree._nodes.concat(tree._nodes_cond);
 	        }
 	        return {
-	            name: t$2(tree.title),
+	            name: t$1(tree.title),
 	            help: tree.help,
 	            type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_d = attributes[tree.title]) === null || _d === void 0 ? void 0 : _d.type),
 	            id: "".concat(parentId, ";").concat(tree.title),
 	            children: (_e = tree._nodes) === null || _e === void 0 ? void 0 : _e.map(function (node) {
 	                var _a;
 	                return {
-	                    name: t$2(node.title),
+	                    name: t$1(node.title),
 	                    type: node.type ||
 	                        ((_a = attributes[node.title]) === null || _a === void 0 ? void 0 : _a.type),
 	                    id: "".concat(parentId, ";").concat(tree.title, ";").concat(node.title),
@@ -27209,7 +27209,7 @@ ${String(error)}`;
 	        };
 	    }
 	    return {
-	        name: t$2(tree.title),
+	        name: t$1(tree.title),
 	        type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_f = attributes[tree.title]) === null || _f === void 0 ? void 0 : _f.type),
 	        id: "".concat(parentId, ";").concat(tree.title),
 	        app: app,
@@ -29938,18 +29938,18 @@ ${String(error)}`;
 		default: clamp$2
 	});
 
-	function r$2(e) {
+	function r$1(e) {
 	  var t,
 	    f,
 	    n = "";
 	  if ("string" == typeof e || "number" == typeof e) n += e;else if ("object" == typeof e) if (Array.isArray(e)) {
 	    var o = e.length;
-	    for (t = 0; t < o; t++) e[t] && (f = r$2(e[t])) && (n && (n += " "), n += f);
+	    for (t = 0; t < o; t++) e[t] && (f = r$1(e[t])) && (n && (n += " "), n += f);
 	  } else for (f in e) e[f] && (n && (n += " "), n += f);
 	  return n;
 	}
 	function clsx() {
-	  for (var e, t, f = 0, n = "", o = arguments.length; f < o; f++) (e = arguments[f]) && (t = r$2(e)) && (n && (n += " "), n += t);
+	  for (var e, t, f = 0, n = "", o = arguments.length; f < o; f++) (e = arguments[f]) && (t = r$1(e)) && (n && (n += " "), n += t);
 	  return n;
 	}
 
@@ -50513,11 +50513,11 @@ ${String(error)}`;
 	}
 	//#endregion
 	//#region lib/request.js
-	const g$2 = typeof globalThis !== "undefined" ? globalThis : typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : void 0;
+	const g$1 = typeof globalThis !== "undefined" ? globalThis : typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : void 0;
 	let fetchApi;
-	if (typeof fetch === "function") fetchApi = fetch;else if (g$2 && typeof g$2.fetch === "function") fetchApi = g$2.fetch;
-	const XmlHttpRequestApi = hasXMLHttpRequest() && g$2 ? g$2.XMLHttpRequest : void 0;
-	const ActiveXObjectApi = typeof ActiveXObject === "function" && g$2 ? g$2.ActiveXObject : void 0;
+	if (typeof fetch === "function") fetchApi = fetch;else if (g$1 && typeof g$1.fetch === "function") fetchApi = g$1.fetch;
+	const XmlHttpRequestApi = hasXMLHttpRequest() && g$1 ? g$1.XMLHttpRequest : void 0;
+	const ActiveXObjectApi = typeof ActiveXObject === "function" && g$1 ? g$1.ActiveXObject : void 0;
 	const UNSAFE_KEYS = ["__proto__", "constructor", "prototype"];
 	const addQueryString = (url, params) => {
 	  if (params && typeof params === "object") {
@@ -51359,26 +51359,26 @@ ${String(error)}`;
 	var ExpandMoreExports = /*@__PURE__*/ requireExpandMore();
 	var ExpandMoreIcon = /*@__PURE__*/getDefaultExportFromCjs(ExpandMoreExports);
 
-	function n$1() {
-	  return n$1 = Object.assign ? Object.assign.bind() : function (e) {
+	function n() {
+	  return n = Object.assign ? Object.assign.bind() : function (e) {
 	    for (var n = 1; n < arguments.length; n++) {
 	      var t = arguments[n];
 	      for (var r in t) Object.prototype.hasOwnProperty.call(t, r) && (e[r] = t[r]);
 	    }
 	    return e;
-	  }, n$1.apply(this, arguments);
+	  }, n.apply(this, arguments);
 	}
-	const t$1 = ["children", "options"];
-	var r$1, i$1;
+	const t = ["children", "options"];
+	var r, i;
 	!function (e) {
 	  e.blockQuote = "0", e.breakLine = "1", e.breakThematic = "2", e.codeBlock = "3", e.codeFenced = "4", e.codeInline = "5", e.footnote = "6", e.footnoteReference = "7", e.gfmTask = "8", e.heading = "9", e.headingSetext = "10", e.htmlBlock = "11", e.htmlComment = "12", e.htmlSelfClosing = "13", e.image = "14", e.link = "15", e.linkAngleBraceStyleDetector = "16", e.linkBareUrlDetector = "17", e.linkMailtoDetector = "18", e.newlineCoalescer = "19", e.orderedList = "20", e.paragraph = "21", e.ref = "22", e.refImage = "23", e.refLink = "24", e.table = "25", e.tableSeparator = "26", e.text = "27", e.textBolded = "28", e.textEmphasized = "29", e.textEscaped = "30", e.textMarked = "31", e.textStrikethroughed = "32", e.unorderedList = "33";
-	}(r$1 || (r$1 = {})), function (e) {
+	}(r || (r = {})), function (e) {
 	  e[e.MAX = 0] = "MAX", e[e.HIGH = 1] = "HIGH", e[e.MED = 2] = "MED", e[e.LOW = 3] = "LOW", e[e.MIN = 4] = "MIN";
-	}(i$1 || (i$1 = {}));
-	const l$1 = ["allowFullScreen", "allowTransparency", "autoComplete", "autoFocus", "autoPlay", "cellPadding", "cellSpacing", "charSet", "className", "classId", "colSpan", "contentEditable", "contextMenu", "crossOrigin", "encType", "formAction", "formEncType", "formMethod", "formNoValidate", "formTarget", "frameBorder", "hrefLang", "inputMode", "keyParams", "keyType", "marginHeight", "marginWidth", "maxLength", "mediaGroup", "minLength", "noValidate", "radioGroup", "readOnly", "rowSpan", "spellCheck", "srcDoc", "srcLang", "srcSet", "tabIndex", "useMap"].reduce((e, n) => (e[n.toLowerCase()] = n, e), {
+	}(i || (i = {}));
+	const l = ["allowFullScreen", "allowTransparency", "autoComplete", "autoFocus", "autoPlay", "cellPadding", "cellSpacing", "charSet", "className", "classId", "colSpan", "contentEditable", "contextMenu", "crossOrigin", "encType", "formAction", "formEncType", "formMethod", "formNoValidate", "formTarget", "frameBorder", "hrefLang", "inputMode", "keyParams", "keyType", "marginHeight", "marginWidth", "maxLength", "mediaGroup", "minLength", "noValidate", "radioGroup", "readOnly", "rowSpan", "spellCheck", "srcDoc", "srcLang", "srcSet", "tabIndex", "useMap"].reduce((e, n) => (e[n.toLowerCase()] = n, e), {
 	    for: "htmlFor"
 	  }),
-	  o$1 = {
+	  o = {
 	    amp: "&",
 	    apos: "'",
 	    gt: ">",
@@ -51386,30 +51386,30 @@ ${String(error)}`;
 	    nbsp: " ",
 	    quot: "“"
 	  },
-	  c$1 = ["style", "script"],
-	  a$1 = /([-A-Z0-9_:]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|(?:\{((?:\\.|{[^}]*?}|[^}])*)\})))?/gi,
-	  s$1 = /mailto:/i,
-	  d$1 = /\n{2,}$/,
-	  u$1 = /^(\s*>[\s\S]*?)(?=\n{2,})/,
-	  p$1 = /^ *> ?/gm,
-	  f$1 = /^ {2,}\n/,
-	  h$1 = /^(?:( *[-*_])){3,} *(?:\n *)+\n/,
-	  m$1 = /^\s*(`{3,}|~{3,}) *(\S+)?([^\n]*?)?\n([\s\S]+?)\s*\1 *(?:\n *)*\n?/,
-	  g$1 = /^(?: {4}[^\n]+\n*)+(?:\n *)+\n?/,
-	  y$1 = /^(`+)\s*([\s\S]*?[^`])\s*\1(?!`)/,
+	  c = ["style", "script"],
+	  a = /([-A-Z0-9_:]+)(?:\s*=\s*(?:(?:"((?:\\.|[^"])*)")|(?:'((?:\\.|[^'])*)')|(?:\{((?:\\.|{[^}]*?}|[^}])*)\})))?/gi,
+	  s = /mailto:/i,
+	  d = /\n{2,}$/,
+	  u = /^(\s*>[\s\S]*?)(?=\n{2,})/,
+	  p = /^ *> ?/gm,
+	  f = /^ {2,}\n/,
+	  h = /^(?:( *[-*_])){3,} *(?:\n *)+\n/,
+	  m = /^\s*(`{3,}|~{3,}) *(\S+)?([^\n]*?)?\n([\s\S]+?)\s*\1 *(?:\n *)*\n?/,
+	  g = /^(?: {4}[^\n]+\n*)+(?:\n *)+\n?/,
+	  y = /^(`+)\s*([\s\S]*?[^`])\s*\1(?!`)/,
 	  k = /^(?:\n *)*\n/,
 	  x = /\r\n?/g,
-	  v$1 = /^\[\^([^\]]+)](:(.*)((\n+ {4,}.*)|(\n(?!\[\^).+))*)/,
-	  b$1 = /^\[\^([^\]]+)]/,
+	  v = /^\[\^([^\]]+)](:(.*)((\n+ {4,}.*)|(\n(?!\[\^).+))*)/,
+	  b = /^\[\^([^\]]+)]/,
 	  $ = /\f/g,
-	  E$1 = /^---[ \t]*\n(.|\n)*\n---[ \t]*\n/,
-	  w$1 = /^\s*?\[(x|\s)\]/,
-	  S$1 = /^ *(#{1,6}) *([^\n]+?)(?: +#*)?(?:\n *)*(?:\n|$)/,
+	  E = /^---[ \t]*\n(.|\n)*\n---[ \t]*\n/,
+	  w = /^\s*?\[(x|\s)\]/,
+	  S = /^ *(#{1,6}) *([^\n]+?)(?: +#*)?(?:\n *)*(?:\n|$)/,
 	  C = /^ *(#{1,6}) +([^\n]+?)(?: +#*)?(?:\n *)*(?:\n|$)/,
 	  A = /^([^\n]+)\n *(=|-){3,} *(?:\n *)+\n/,
 	  O = /^ *(?!<[a-z][^ >/]* ?\/>)<([a-z][^ >/]*) ?((?:[^>]*[^/])?)>\n?(\s*(?:<\1[^>]*?>[\s\S]*?<\/\1>|(?!<\1\b)[\s\S])*?)<\/\1>(?!<\/\1>)\n*/i,
-	  T$1 = /&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});/gi,
-	  L$1 = /^<!--[\s\S]*?(?:-->)/,
+	  T = /&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-fA-F]{1,6});/gi,
+	  L = /^<!--[\s\S]*?(?:-->)/,
 	  R = /^(data|aria|x)-[a-z_][a-z\d_.-]*$/,
 	  z = /^ *<([a-z][a-z0-9:]*)(?:\s+((?:<.*?>|[^>])*))?\/?>(?!<\/\1>)(\s*\n)?/i,
 	  M = /^\{.*\}$/,
@@ -51420,9 +51420,9 @@ ${String(error)}`;
 	  N = /^(.*\|.*)\n(?: *(\|? *[-:]+ *\|[-| :]*)\n((?:.*\|.*\n)*))?\n?/,
 	  H = /^\[([^\]]*)\]:\s+<?([^\s>]+)>?\s*("([^"]*)")?/,
 	  D = /^!\[([^\]]*)\] ?\[([^\]]*)\]/,
-	  P$1 = /^\[([^\]]*)\] ?\[([^\]]*)\]/,
+	  P = /^\[([^\]]*)\] ?\[([^\]]*)\]/,
 	  _ = /(\[|\])/g,
-	  F$1 = /(\n|^[-*]\s|^#|^ {2,}|^-{2,}|^>\s)/,
+	  F = /(\n|^[-*]\s|^#|^ {2,}|^-{2,}|^>\s)/,
 	  W = /\t/g,
 	  G = /(^ *\||\| *$)/g,
 	  Z = /^ *:-+: *$/,
@@ -51476,7 +51476,7 @@ ${String(error)}`;
 	    order: 1,
 	    parse(e, n, r) {
 	      const o = t ? +e[2] : void 0,
-	        c = e[0].replace(d$1, "\n").match(i);
+	        c = e[0].replace(d, "\n").match(i);
 	      let a = !1;
 	      return {
 	        items: c.map(function (e, t) {
@@ -51509,7 +51509,7 @@ ${String(error)}`;
 	}
 	const $e = new RegExp("^\\[((?:\\[[^\\]]*\\]|[^\\[\\]]|\\](?=[^\\[]*\\]))*)\\]\\(\\s*<?((?:\\([^)]*\\)|[^\\s\\\\]|\\\\.)*?)>?(?:\\s+['\"]([\\s\\S]*?)['\"])?\\s*\\)"),
 	  Ee = /^!\[(.*?)\]\( *((?:\([^)]*\)|[^() ])*) *"?([^)"]*)?"?\)/,
-	  we = [u$1, m$1, g$1, S$1, A, C, L$1, N, ge, xe, ye, ve],
+	  we = [u, m, g, S, A, C, L, N, ge, xe, ye, ve],
 	  Se = [...we, /^[^\n]+(?:  \n|\n{2,})/, O, z];
 	function Ce(e) {
 	  return e.replace(/[ÀÁÂÃÄÅàáâãäåæÆ]/g, "a").replace(/[çÇ]/g, "c").replace(/[ðÐ]/g, "d").replace(/[ÈÉÊËéèêë]/g, "e").replace(/[ÏïÎîÍíÌì]/g, "i").replace(/[Ññ]/g, "n").replace(/[øØœŒÕõÔôÓóÒò]/g, "o").replace(/[ÜüÛûÚúÙù]/g, "u").replace(/[ŸÿÝý]/g, "y").replace(/[^a-z0-9- ]/gi, "").replace(/ /gi, "-").toLowerCase();
@@ -51634,21 +51634,21 @@ ${String(error)}`;
 	  return r || t;
 	}
 	function Ze(t = "", r = {}) {
-	  r.overrides = r.overrides || {}, r.slugify = r.slugify || Ce, r.namedCodesToUnicode = r.namedCodesToUnicode ? n$1({}, o$1, r.namedCodesToUnicode) : o$1;
+	  r.overrides = r.overrides || {}, r.slugify = r.slugify || Ce, r.namedCodesToUnicode = r.namedCodesToUnicode ? n({}, o, r.namedCodesToUnicode) : o;
 	  const i = r.createElement || reactExports.createElement;
 	  function d(e, t, ...l) {
 	    const o = Ge(r.overrides, `${e}.props`, {});
 	    return i(function (e, n) {
 	      const t = Ge(n, e);
 	      return t ? "function" == typeof t || "object" == typeof t && "render" in t ? t : Ge(n, `${e}.component`, e) : e;
-	    }(e, r.overrides), n$1({}, t, o, {
+	    }(e, r.overrides), n({}, t, o, {
 	      className: We(null == t ? void 0 : t.className, o.className) || void 0
 	    }), ...l);
 	  }
 	  function G(n) {
-	    n = n.replace(E$1, "");
+	    n = n.replace(E, "");
 	    let t = !1;
-	    r.forceInline ? t = !0 : r.forceBlock || (t = !1 === F$1.test(n));
+	    r.forceInline ? t = !0 : r.forceBlock || (t = !1 === F.test(n));
 	    const i = le(ie(t ? n : `${n.trimEnd().replace(te, "")}\n\n`, {
 	      inline: t
 	    }));
@@ -51667,7 +51667,7 @@ ${String(error)}`;
 	    }, o);
 	  }
 	  function Z(n) {
-	    const t = n.match(a$1);
+	    const t = n.match(a);
 	    return t ? t.reduce(function (n, t, r) {
 	      const i = t.indexOf("=");
 	      if (-1 !== i) {
@@ -51680,7 +51680,7 @@ ${String(error)}`;
 	            const n = e[0];
 	            return ('"' === n || "'" === n) && e.length >= 2 && e[e.length - 1] === n ? e.slice(1, -1) : e;
 	          }(t.slice(i + 1).trim()),
-	          a = l$1[o] || o,
+	          a = l[o] || o,
 	          s = n[a] = function (e, n) {
 	            return "style" === e ? n.split(/;\s?/).reduce(function (e, n) {
 	              const t = n.slice(0, n.indexOf(":"));
@@ -51690,7 +51690,7 @@ ${String(error)}`;
 	        "string" == typeof s && (O.test(s) || z.test(s)) && (n[a] = /*#__PURE__*/reactExports.cloneElement(G(s.trim()), {
 	          key: r
 	        }));
-	      } else "style" !== t && (n[l$1[t] || t] = !0);
+	      } else "style" !== t && (n[l[t] || t] = !0);
 	      return n;
 	    }, {}) : null;
 	  }
@@ -51698,17 +51698,17 @@ ${String(error)}`;
 	    V = {},
 	    X = {
 	      0: {
-	        match: Me(u$1),
+	        match: Me(u),
 	        order: 1,
 	        parse: (e, n, t) => ({
-	          children: n(e[0].replace(p$1, ""), t)
+	          children: n(e[0].replace(p, ""), t)
 	        }),
 	        render: (e, n, t) => d("blockquote", {
 	          key: t.key
 	        }, n(e.children, t))
 	      },
 	      1: {
-	        match: Ie(f$1),
+	        match: Ie(f),
 	        order: 1,
 	        parse: _e,
 	        render: (e, n, t) => d("br", {
@@ -51716,7 +51716,7 @@ ${String(error)}`;
 	        })
 	      },
 	      2: {
-	        match: Me(h$1),
+	        match: Me(h),
 	        order: 1,
 	        parse: _e,
 	        render: (e, n, t) => d("hr", {
@@ -51724,7 +51724,7 @@ ${String(error)}`;
 	        })
 	      },
 	      3: {
-	        match: Me(g$1),
+	        match: Me(g),
 	        order: 0,
 	        parse: e => ({
 	          lang: void 0,
@@ -51732,12 +51732,12 @@ ${String(error)}`;
 	        }),
 	        render: (e, t, r) => d("pre", {
 	          key: r.key
-	        }, d("code", n$1({}, e.attrs, {
+	        }, d("code", n({}, e.attrs, {
 	          className: e.lang ? `lang-${e.lang}` : ""
 	        }), e.text))
 	      },
 	      4: {
-	        match: Me(m$1),
+	        match: Me(m),
 	        order: 0,
 	        parse: e => ({
 	          attrs: Z(e[3] || ""),
@@ -51747,7 +51747,7 @@ ${String(error)}`;
 	        })
 	      },
 	      5: {
-	        match: ze(y$1),
+	        match: ze(y),
 	        order: 3,
 	        parse: e => ({
 	          text: e[2]
@@ -51757,7 +51757,7 @@ ${String(error)}`;
 	        }, e.text)
 	      },
 	      6: {
-	        match: Me(v$1),
+	        match: Me(v),
 	        order: 0,
 	        parse: e => (q.push({
 	          footnote: e[2],
@@ -51766,7 +51766,7 @@ ${String(error)}`;
 	        render: Fe
 	      },
 	      7: {
-	        match: Re(b$1),
+	        match: Re(b),
 	        order: 1,
 	        parse: e => ({
 	          target: `#${r.slugify(e[1])}`,
@@ -51780,7 +51780,7 @@ ${String(error)}`;
 	        }, e.text))
 	      },
 	      8: {
-	        match: Re(w$1),
+	        match: Re(w),
 	        order: 1,
 	        parse: e => ({
 	          completed: "x" === e[1].toLowerCase()
@@ -51793,7 +51793,7 @@ ${String(error)}`;
 	        })
 	      },
 	      9: {
-	        match: Me(r.enforceAtxHeadings ? C : S$1),
+	        match: Me(r.enforceAtxHeadings ? C : S),
 	        order: 1,
 	        parse: (e, n, t) => ({
 	          children: Ne(n, e[2], t),
@@ -51824,7 +51824,7 @@ ${String(error)}`;
 	            o = (a = l, Se.some(e => e.test(a)) ? De : Ne);
 	          var a;
 	          const s = e[1].toLowerCase(),
-	            d = -1 !== c$1.indexOf(s),
+	            d = -1 !== c.indexOf(s),
 	            u = {
 	              attrs: Z(e[2]),
 	              noInnerParse: d,
@@ -51832,7 +51832,7 @@ ${String(error)}`;
 	            };
 	          return t.inAnchor = t.inAnchor || "a" === s, d ? u.text = e[3] : u.children = o(n, l, t), t.inAnchor = !1, u;
 	        },
-	        render: (e, t, r) => d(e.tag, n$1({
+	        render: (e, t, r) => d(e.tag, n({
 	          key: r.key
 	        }, e.attrs), e.text || t(e.children, r))
 	      },
@@ -51843,12 +51843,12 @@ ${String(error)}`;
 	          attrs: Z(e[2] || ""),
 	          tag: e[1].trim()
 	        }),
-	        render: (e, t, r) => d(e.tag, n$1({}, e.attrs, {
+	        render: (e, t, r) => d(e.tag, n({}, e.attrs, {
 	          key: r.key
 	        }))
 	      },
 	      12: {
-	        match: Ie(L$1),
+	        match: Ie(L),
 	        order: 1,
 	        parse: () => ({}),
 	        render: Fe
@@ -51913,7 +51913,7 @@ ${String(error)}`;
 	        parse(e) {
 	          let n = e[1],
 	            t = e[1];
-	          return s$1.test(t) || (t = "mailto:" + t), {
+	          return s.test(t) || (t = "mailto:" + t), {
 	            children: [{
 	              text: n.replace("mailto:", ""),
 	              type: "27"
@@ -51963,7 +51963,7 @@ ${String(error)}`;
 	        }) : null
 	      },
 	      24: {
-	        match: Re(P$1),
+	        match: Re(P),
 	        order: 0,
 	        parse: (e, n, t) => ({
 	          children: n(e[1], t),
@@ -52007,7 +52007,7 @@ ${String(error)}`;
 	        match: Ie(ne),
 	        order: 4,
 	        parse: e => ({
-	          text: e[0].replace(T$1, (e, n) => r.namedCodesToUnicode[n] ? r.namedCodesToUnicode[n] : e)
+	          text: e[0].replace(T, (e, n) => r.namedCodesToUnicode[n] ? r.namedCodesToUnicode[n] : e)
 	        }),
 	        render: e => e.text
 	      },
@@ -52136,7 +52136,7 @@ ${String(error)}`;
 	        l = Object.keys(e);
 	      for (r = 0; r < l.length; r++) n.indexOf(t = l[r]) >= 0 || (i[t] = e[t]);
 	      return i;
-	    }(n, t$1);
+	    }(n, t);
 	  return /*#__PURE__*/reactExports.cloneElement(Ze(r, i), l);
 	};
 
@@ -52258,32 +52258,32 @@ ${String(error)}`;
 	function AuthChoiceContainerForm(_a) {
 	    var data = _a.data, dispatch = _a.dispatch;
 	    var i = 0;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "choiceParam", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("name") }), jsxRuntimeExports.jsx("th", { children: t$2("authentication") }), jsxRuntimeExports.jsx("th", { children: t$2("userDB") }), jsxRuntimeExports.jsx("th", { children: t$2("passwordDB") }), jsxRuntimeExports.jsx("th", { children: t$2("url") }), jsxRuntimeExports.jsx("th", { children: t$2("condition") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newChoiceParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data || {}).map(function (key) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "choiceParam", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("name") }), jsxRuntimeExports.jsx("th", { children: t$1("authentication") }), jsxRuntimeExports.jsx("th", { children: t$1("userDB") }), jsxRuntimeExports.jsx("th", { children: t$1("passwordDB") }), jsxRuntimeExports.jsx("th", { children: t$1("url") }), jsxRuntimeExports.jsx("th", { children: t$1("condition") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newChoiceParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data || {}).map(function (key) {
 	                            i++;
 	                            var _a = data[key].split(";"), authMod = _a[0], userMod = _a[1], passMod = _a[2], url = _a[3], cond = _a[4];
 	                            return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", value: key, onChange: function (e) {
 	                                                return dispatch(updateChoiceParam(updateChoice("choiceParam", data, { name: key }, e.target.value)));
-	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$2("type"), value: authMod || "LDAP", onChange: function (e) {
+	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$1("type"), value: authMod || "LDAP", onChange: function (e) {
 	                                                        return dispatch(updateChoiceParam(updateChoice("choiceParam", data, {
 	                                                            name: key,
 	                                                            auth: e.target.value,
 	                                                        })));
 	                                                    }, children: attributes.authChoiceModules.select[0].map(function (e) {
-	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$2(e.v) }, e.v + "auth"));
-	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$2("type"), value: userMod || "LDAP", onChange: function (e) {
+	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$1(e.v) }, e.v + "auth"));
+	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$1("type"), value: userMod || "LDAP", onChange: function (e) {
 	                                                        return dispatch(updateChoiceParam(updateChoice("choiceParam", data, {
 	                                                            name: key,
 	                                                            user: e.target.value,
 	                                                        })));
 	                                                    }, children: attributes.authChoiceModules.select[1].map(function (e) {
-	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$2(e.v) }, e.v + "auth"));
-	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$2("type"), value: passMod || "LDAP", onChange: function (e) {
+	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$1(e.v) }, e.v + "auth"));
+	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$1("type"), value: passMod || "LDAP", onChange: function (e) {
 	                                                        return dispatch(updateChoiceParam(updateChoice("choiceParam", data, {
 	                                                            name: key,
 	                                                            pass: e.target.value,
 	                                                        })));
 	                                                    }, children: attributes.authChoiceModules.select[2].map(function (e) {
-	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$2(e.v) }, e.v + "choice"));
+	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$1(e.v) }, e.v + "choice"));
 	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "url", value: url, onChange: function () {
 	                                                return dispatch(updateChoiceParam(updateChoice("choiceParam", data, {
 	                                                    name: key,
@@ -52296,7 +52296,7 @@ ${String(error)}`;
 	                        }) })] }), Object.keys(data).map(function (key) {
 	                i++;
 	                var over = data[key].split(";")[5];
-	                return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$2("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newChoiceOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (over ? JSON.parse(over) : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: delChoiceOverParam, updateFunction: updateChoiceOverParam })] })] }, i));
+	                return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$1("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newChoiceOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (over ? JSON.parse(over) : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: delChoiceOverParam, updateFunction: updateChoiceOverParam })] })] }, i));
 	            })] }));
 	}
 
@@ -52341,28 +52341,28 @@ ${String(error)}`;
 	function CmbModuleContainerForm(_a) {
 	    var data = _a.data, dispatch = _a.dispatch;
 	    var i = 0;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "combTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("name") }), jsxRuntimeExports.jsx("th", { children: t$2("type") }), jsxRuntimeExports.jsx("th", { children: t$2("use") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () { return dispatch(newCombParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data).map(function (key) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "combTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("name") }), jsxRuntimeExports.jsx("th", { children: t$1("type") }), jsxRuntimeExports.jsx("th", { children: t$1("use") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () { return dispatch(newCombParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data).map(function (key) {
 	                            i++;
-	                            return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", placeholder: t$2(key), value: key || "", onChange: function (e) {
+	                            return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", placeholder: t$1(key), value: key || "", onChange: function (e) {
 	                                                return dispatch(updateCombParam(updateComb("combTable", data, {
 	                                                    name: key,
 	                                                }, e.target.value)));
-	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$2("type"), value: data[key].type || "LDAP", onChange: function (e) {
+	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$1("type"), value: data[key].type || "LDAP", onChange: function (e) {
 	                                                        return dispatch(updateCombParam(updateComb("combTable", data, {
 	                                                            name: key,
 	                                                            type: String(e.target.value),
 	                                                        })));
 	                                                    }, children: attributes.combModules.select.map(function (e) {
-	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$2(e.v) }, e.v));
-	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("use") }), jsxRuntimeExports.jsxs(Select$1, { label: t$2("use"), value: String(data[key].for) || "0", onChange: function (e) {
+	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$1(e.v) }, e.v));
+	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("use") }), jsxRuntimeExports.jsxs(Select$1, { label: t$1("use"), value: String(data[key].for) || "0", onChange: function (e) {
 	                                                        return dispatch(updateCombParam(updateComb("combTable", data, {
 	                                                            name: key,
 	                                                            use: String(e.target.value),
 	                                                        })));
-	                                                    }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "0", children: t$2("authAndUserdb") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "1", children: t$2("authOnly") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "2", children: t$2("userdbOnly") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () { return dispatch(delCombParam(key)); }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
+	                                                    }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "0", children: t$1("authAndUserdb") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "1", children: t$1("authOnly") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "2", children: t$1("userdbOnly") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () { return dispatch(delCombParam(key)); }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
 	                        }) })] }), jsxRuntimeExports.jsx("div", { children: Object.keys(data).map(function (key) {
 	                    i++;
-	                    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$2("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCombOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (data[key].over ? data[key].over : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: delCombOverParam, updateFunction: updateCombOverParam })] })] }, i));
+	                    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$1("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCombOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (data[key].over ? data[key].over : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: delCombOverParam, updateFunction: updateCombOverParam })] })] }, i));
 	                }) })] }));
 	}
 
@@ -52370,7 +52370,7 @@ ${String(error)}`;
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    return (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions
 	                                ? definitions[fieldName]
-	                                : "") + "" }), children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$2(fieldName) }) }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("default") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: (value === null || value === void 0 ? void 0 : value.split(";")[0]) || 0, onChange: function (e) {
+	                                : "") + "" }), children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$1(fieldName) }) }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("default") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: (value === null || value === void 0 ? void 0 : value.split(";")[0]) || 0, onChange: function (e) {
 	                                        return updateFunc({
 	                                            param: fieldName,
 	                                            value: [
@@ -52380,7 +52380,7 @@ ${String(error)}`;
 	                                                value === null || value === void 0 ? void 0 : value.split(";")[3],
 	                                            ].join(";"),
 	                                        });
-	                                    }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") })] }) }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("url") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[3]) || "", onChange: function (e) {
+	                                    }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") })] }) }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("url") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[3]) || "", onChange: function (e) {
 	                                    return updateFunc({
 	                                        param: fieldName,
 	                                        value: [
@@ -52397,7 +52397,7 @@ ${String(error)}`;
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    return (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions
 	                                ? definitions[fieldName]
-	                                : "") + "" }), children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$2(fieldName) }) }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("url") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$2("url"), className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[1]) || "", onChange: function (e) {
+	                                : "") + "" }), children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$1(fieldName) }) }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("url") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$1("url"), className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[1]) || "", onChange: function (e) {
 	                                    return updateFunc({
 	                                        param: fieldName,
 	                                        value: [
@@ -52406,7 +52406,7 @@ ${String(error)}`;
 	                                            value === null || value === void 0 ? void 0 : value.split(";")[2],
 	                                        ].join(";"),
 	                                    });
-	                                } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("returnUrl") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$2("returnUrl"), className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[2]) || "", onChange: function (e) {
+	                                } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("returnUrl") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$1("returnUrl"), className: "form", value: (value === null || value === void 0 ? void 0 : value.split(";")[2]) || "", onChange: function (e) {
 	                                    return updateFunc({
 	                                        param: fieldName,
 	                                        value: [
@@ -52423,7 +52423,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$2(fieldName), type: "text", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$2(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "text", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52437,7 +52437,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName] || {};
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$2(fieldName), type: "number", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$2(fieldName), value: !isNaN(value)
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "number", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: !isNaN(value)
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52451,19 +52451,19 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName] || {};
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: !isNaN(value)
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: !isNaN(value)
 	                                ? value
 	                                : attribute
 	                                    ? "default" in attribute
 	                                        ? attribute.default
 	                                        : 0
-	                                    : 0, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") })] })] }) })] }));
+	                                    : 0, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") })] })] }) })] }));
 	}
 
 	function SAMLRenderer() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("SAMLParams") }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlNameIDFormatMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlNameIDFormatMapEmail", value: config.samlNameIDFormatMapEmail
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("SAMLParams") }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlNameIDFormatMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlNameIDFormatMapEmail", value: config.samlNameIDFormatMapEmail
 	                                                    ? config.samlNameIDFormatMapEmail
 	                                                    : "", updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
@@ -52491,7 +52491,7 @@ ${String(error)}`;
 	                                                        param: "samlNameIDFormatMapKerberos",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlAuthnContextMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapPassword", value: Number(config.samlAuthnContextMapPassword
+	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAuthnContextMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapPassword", value: Number(config.samlAuthnContextMapPassword
 	                                                    ? config.samlAuthnContextMapPassword
 	                                                    : ""), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
@@ -52519,34 +52519,34 @@ ${String(error)}`;
 	                                                        param: "samlAuthnContextMapTLSClient",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlSPSSODescriptor") }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlSPSSODescriptorSingleLogoutService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlSPSSODescriptorSingleLogoutServiceHTTPRedirect ||
+	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlSPSSODescriptor") }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlSPSSODescriptorSingleLogoutService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlSPSSODescriptorSingleLogoutServiceHTTPRedirect ||
 	                                            attributes.samlSPSSODescriptorSingleLogoutServiceHTTPRedirect
 	                                                .default, fieldName: "samlSPSSODescriptorSingleLogoutServiceHTTPRedirect", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlSPSSODescriptorSingleLogoutServiceHTTPPost ||
 	                                            attributes.samlSPSSODescriptorSingleLogoutServiceHTTPPost
 	                                                .default, fieldName: "samlSPSSODescriptorSingleLogoutServiceHTTPPost", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlSPSSODescriptorSingleLogoutServiceSOAP ||
-	                                            attributes.samlSPSSODescriptorSingleLogoutServiceSOAP.default, fieldName: "samlSPSSODescriptorSingleLogoutServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlSPSSODescriptorAssertionConsumerService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlSPSSODescriptorAssertionConsumerServiceHTTPArtifact ||
+	                                            attributes.samlSPSSODescriptorSingleLogoutServiceSOAP.default, fieldName: "samlSPSSODescriptorSingleLogoutServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlSPSSODescriptorAssertionConsumerService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlSPSSODescriptorAssertionConsumerServiceHTTPArtifact ||
 	                                            attributes
 	                                                .samlSPSSODescriptorAssertionConsumerServiceHTTPArtifact
 	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlSPSSODescriptorAssertionConsumerServiceHTTPArtifact" }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlSPSSODescriptorAssertionConsumerServiceHTTPPost ||
 	                                            attributes.samlSPSSODescriptorAssertionConsumerServiceHTTPPost
-	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlSPSSODescriptorAssertionConsumerServiceHTTPPost" })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlSPSSODescriptorArtifactResolutionService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlSPSSODescriptorArtifactResolutionServiceArtifact ||
+	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlSPSSODescriptorAssertionConsumerServiceHTTPPost" })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlSPSSODescriptorArtifactResolutionService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlSPSSODescriptorArtifactResolutionServiceArtifact ||
 	                                            attributes.samlSPSSODescriptorArtifactResolutionServiceArtifact
-	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlSPSSODescriptorArtifactResolutionServiceArtifact" })] })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlIDPSSODescriptor") }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlIDPSSODescriptorSingleSignOnService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleSignOnServiceHTTPRedirect ||
+	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlSPSSODescriptorArtifactResolutionServiceArtifact" })] })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlIDPSSODescriptor") }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlIDPSSODescriptorSingleSignOnService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleSignOnServiceHTTPRedirect ||
 	                                            attributes.samlIDPSSODescriptorSingleSignOnServiceHTTPRedirect
 	                                                .default, fieldName: "samlIDPSSODescriptorSingleSignOnServiceHTTPRedirect", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleSignOnServiceHTTPPost ||
 	                                            attributes.samlIDPSSODescriptorSingleSignOnServiceHTTPPost
 	                                                .default, fieldName: "samlIDPSSODescriptorSingleSignOnServiceHTTPPost", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleSignOnServiceHTTPArtifact ||
 	                                            attributes.samlIDPSSODescriptorSingleSignOnServiceHTTPArtifact
-	                                                .default, fieldName: "samlIDPSSODescriptorSingleSignOnServiceHTTPArtifact", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlIDPSSODescriptorSingleLogoutService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleLogoutServiceHTTPRedirect ||
+	                                                .default, fieldName: "samlIDPSSODescriptorSingleSignOnServiceHTTPArtifact", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlIDPSSODescriptorSingleLogoutService") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleLogoutServiceHTTPRedirect ||
 	                                            attributes.samlIDPSSODescriptorSingleLogoutServiceHTTPRedirect
 	                                                .default, fieldName: "samlIDPSSODescriptorSingleLogoutServiceHTTPRedirect", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleLogoutServiceHTTPPost ||
 	                                            attributes.samlIDPSSODescriptorSingleLogoutServiceHTTPPost
 	                                                .default, fieldName: "samlIDPSSODescriptorSingleLogoutServiceHTTPPost", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlIDPSSODescriptorSingleLogoutServiceSOAP ||
-	                                            attributes.samlIDPSSODescriptorSingleLogoutServiceSOAP.default, fieldName: "samlIDPSSODescriptorSingleLogoutServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlIDPSSODescriptorArtifactResolutionService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlIDPSSODescriptorArtifactResolutionServiceArtifact ||
+	                                            attributes.samlIDPSSODescriptorSingleLogoutServiceSOAP.default, fieldName: "samlIDPSSODescriptorSingleLogoutServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlIDPSSODescriptorArtifactResolutionService") }), jsxRuntimeExports.jsx(SamlAssertionForm, { value: config.samlIDPSSODescriptorArtifactResolutionServiceArtifact ||
 	                                            attributes.samlIDPSSODescriptorArtifactResolutionServiceArtifact
-	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlIDPSSODescriptorArtifactResolutionServiceArtifact" })] })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlAttributeAuthorityDescriptor") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlAttributeAuthorityDescriptorAttributeServiceSOAP ||
+	                                                .default, updateFunc: function (e) { return dispatch(updateConfigParams(e)); }, fieldName: "samlIDPSSODescriptorArtifactResolutionServiceArtifact" })] })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAttributeAuthorityDescriptor") }), jsxRuntimeExports.jsx(SamlServiceForm, { value: config.samlAttributeAuthorityDescriptorAttributeServiceSOAP ||
 	                                    attributes.samlAttributeAuthorityDescriptorAttributeServiceSOAP
-	                                        .default, fieldName: "samlAttributeAuthorityDescriptorAttributeServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlAdvanced") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlMetadataForceUTF8", value: Number(config.samlMetadataForceUTF8 ||
+	                                        .default, fieldName: "samlAttributeAuthorityDescriptorAttributeServiceSOAP", updateFunc: function (e) { return dispatch(updateConfigParams(e)); } })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAdvanced") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlMetadataForceUTF8", value: Number(config.samlMetadataForceUTF8 ||
 	                                                    attributes.samlMetadataForceUTF8.default), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
 	                                                        param: "samlMetadataForceUTF8",
@@ -52569,7 +52569,7 @@ ${String(error)}`;
 	                                                        param: "samlFederationFiles",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) })] }) }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlAttributeAuthorityDescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlCommonDomainCookieActivation", value: Number(config.samlCommonDomainCookieActivation ||
+	                                                } }) })] }) }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAttributeAuthorityDescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlCommonDomainCookieActivation", value: Number(config.samlCommonDomainCookieActivation ||
 	                                                            attributes.samlCommonDomainCookieActivation.default), updateFunc: function (e) {
 	                                                            return dispatch(updateConfigParams({
 	                                                                param: "samlCommonDomainCookieActivation",
@@ -52590,7 +52590,7 @@ ${String(error)}`;
 	                                                                param: "samlCommonDomainCookieWriter",
 	                                                                value: e,
 	                                                            }));
-	                                                        } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlDiscoveryProtocol") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlDiscoveryProtocolActivation", value: Number(config.samlDiscoveryProtocolActivation ||
+	                                                        } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlDiscoveryProtocol") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlDiscoveryProtocolActivation", value: Number(config.samlDiscoveryProtocolActivation ||
 	                                                            attributes.samlDiscoveryProtocolActivation.default), updateFunc: function (e) {
 	                                                            return dispatch(updateConfigParams({
 	                                                                param: "samlDiscoveryProtocolActivation",
@@ -52620,7 +52620,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$2(fieldName), type: "password", autoComplete: "new-password", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$2(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "password", autoComplete: "new-password", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52638,8 +52638,8 @@ ${String(error)}`;
 	        var currentValue = isValidValue ? selectedValue_1 : "";
 	        return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                            ? definitions[fieldName]
-	                            : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2(fieldName) }), jsxRuntimeExports.jsx(Select$1, { labelId: fieldName, size: "small", label: t$2(fieldName), placeholder: t$2(fieldName), value: currentValue, displayEmpty: true, sx: { m: 1, minWidth: 120 }, onChange: function (e) { return updateFunc(e.target.value); }, children: attribute.select.map(function (el) {
-	                                    return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, el.v));
+	                            : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1(fieldName) }), jsxRuntimeExports.jsx(Select$1, { labelId: fieldName, size: "small", label: t$1(fieldName), placeholder: t$1(fieldName), value: currentValue, displayEmpty: true, sx: { m: 1, minWidth: 120 }, onChange: function (e) { return updateFunc(e.target.value); }, children: attribute.select.map(function (el) {
+	                                    return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, el.v));
 	                                }) })] }) })] }));
 	    }
 	    return jsxRuntimeExports.jsxs("td", { children: ["type issue : ", fieldName] });
@@ -52650,7 +52650,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "url", onChange: function (e) { return updateFunc(e.target.value); }, label: t$2(fieldName), placeholder: t$2(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "url", onChange: function (e) { return updateFunc(e.target.value); }, label: t$1(fieldName), placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52664,14 +52664,14 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: value.split(";")[0] ||
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: value.split(";")[0] ||
 	                                    ("default" in attribute
 	                                        ? String(attribute.default).split(";")[0]
 	                                        : 0), onChange: function (e) {
 	                                    return updateFunc("".concat(Number(e.target.value), ";").concat(String(value).split(";")[1]));
-	                                }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("whiteList") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("blackList") })] })] }), jsxRuntimeExports.jsx(TextField$1, { size: "small", onChange: function (e) {
+	                                }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("whiteList") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("blackList") })] })] }), jsxRuntimeExports.jsx(TextField$1, { size: "small", onChange: function (e) {
 	                            return updateFunc("".concat(String(value).split(";")[0], ";").concat(e.target.value));
-	                        }, label: t$2(fieldName), placeholder: t$2(fieldName), value: value.split(";")[1] ||
+	                        }, label: t$1(fieldName), placeholder: t$1(fieldName), value: value.split(";")[1] ||
 	                            ("default" in attribute
 	                                ? String(attribute.default).split(";")[1]
 	                                : 0) })] })] }));
@@ -52681,7 +52681,7 @@ ${String(error)}`;
 	    var param = _a.param;
 	    return param.values.map(function (el) {
 	        if (typeof el === "object") {
-	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2(el.title) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(RecursRender, { param: {
+	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1(el.title) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(RecursRender, { param: {
 	                                            values: el.nodes,
 	                                            config: param.config,
 	                                            tab: param.tab + 1,
@@ -52727,11 +52727,11 @@ ${String(error)}`;
 	            case "authChoiceContainer":
 	                return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[el]
 	                                    ? definitions[el]
-	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(AuthChoiceContainerForm, { data: param.config[el] || {}, dispatch: param.dispatch }) })] }, el));
+	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(AuthChoiceContainerForm, { data: param.config[el] || {}, dispatch: param.dispatch }) })] }, el));
 	            case "cmbModuleContainer":
 	                return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[el]
 	                                    ? definitions[el]
-	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(CmbModuleContainerForm, { data: param.config[el] || {}, dispatch: param.dispatch }) })] }, el));
+	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(CmbModuleContainerForm, { data: param.config[el] || {}, dispatch: param.dispatch }) })] }, el));
 	            case "select":
 	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: el, value: String(param.config[el] || ""), updateFunc: function (e) {
 	                            return param.dispatch(updateConfigParams({
@@ -52749,7 +52749,7 @@ ${String(error)}`;
 	            case "keyTextContainer":
 	                return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[el]
 	                                    ? definitions[el]
-	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: el + "Table", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                    : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(el) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: el + "Table", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                            return param.dispatch(newModuleOpt(el));
 	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: el, vars: param.config[el] || {}, tableID: el + "Table", dispatch: param.dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] }) })] }, el));
 	            case "url":
@@ -52781,7 +52781,7 @@ ${String(error)}`;
 	    if (selected !== "SAML") {
 	        var l_1 = "".concat(selected === "OpenIDConnect" ? "oidc" : selected.toLowerCase(), "Params");
 	        var nodeSelected = test1.filter(function (el) { return el.title === l_1; })[0].nodes;
-	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2(l_1) }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: nodeSelected ? (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(RecursRender, { param: { values: nodeSelected, config: config, tab: 0, dispatch: dispatch } }) }) }, selected)) : (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", {}) }, selected)) })] }));
+	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1(l_1) }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: nodeSelected ? (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(RecursRender, { param: { values: nodeSelected, config: config, tab: 0, dispatch: dispatch } }) }) }, selected)) : (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", {}) }, selected)) })] }));
 	    }
 	    return jsxRuntimeExports.jsx(SAMLRenderer, {});
 	}
@@ -52837,34 +52837,34 @@ ${String(error)}`;
 	    }, [dispatch, configNum, config.data.metadata]);
 	    var _a = reactExports.useState(authModule), optionSelected = _a[0], setOptionSelected = _a[1];
 	    try {
-	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "authOptionChoices", children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "authenticationLabel", children: t$2("authentication") }), jsxRuntimeExports.jsx(Select$1, { labelId: "authenticationLabel", label: t$2("authentication"), size: "small", value: authModule || attributes.authentication.default, onChange: function (e) {
+	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "authOptionChoices", children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "authenticationLabel", children: t$1("authentication") }), jsxRuntimeExports.jsx(Select$1, { labelId: "authenticationLabel", label: t$1("authentication"), size: "small", value: authModule || attributes.authentication.default, onChange: function (e) {
 	                                        return dispatch(updateAuthParams({
 	                                            param: "authentication",
 	                                            value: String(e.target.value),
 	                                        }));
 	                                    }, children: attributes.authentication.select.map(function (el) {
-	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, "auth" + el.v));
-	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "userDBLabel", children: t$2("userDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "userDBLabel", label: t$2("userDB"), size: "small", value: userDB || attributes.userDB.default, onChange: function (e) {
+	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, "auth" + el.v));
+	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "userDBLabel", children: t$1("userDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "userDBLabel", label: t$1("userDB"), size: "small", value: userDB || attributes.userDB.default, onChange: function (e) {
 	                                        return dispatch(updateAuthParams({
 	                                            param: "userDB",
 	                                            value: String(e.target.value),
 	                                        }));
 	                                    }, children: attributes.userDB.select.map(function (el) {
-	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, "user" + el.v));
-	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "passwordDBLabel", children: t$2("passwordDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "passwordDBLabel", label: t$2("passwordDB"), size: "small", value: passwordDB || attributes.passwordDB.default, onChange: function (e) {
+	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, "user" + el.v));
+	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "passwordDBLabel", children: t$1("passwordDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "passwordDBLabel", label: t$1("passwordDB"), size: "small", value: passwordDB || attributes.passwordDB.default, onChange: function (e) {
 	                                        return dispatch(updateAuthParams({
 	                                            param: "passwordDB",
 	                                            value: String(e.target.value),
 	                                        }));
 	                                    }, children: attributes.passwordDB.select.map(function (el) {
-	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, "pass" + el.v));
-	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "registerDBLabel", children: t$2("registerDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "registerDBLabel", label: t$2("registerDB"), size: "small", value: registerDB || attributes.registerDB.default, onChange: function (e) {
+	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, "pass" + el.v));
+	                                    }) })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "registerDBLabel", children: t$1("registerDB") }), jsxRuntimeExports.jsx(Select$1, { labelId: "registerDBLabel", label: t$1("registerDB"), size: "small", value: registerDB || attributes.registerDB.default, onChange: function (e) {
 	                                        return dispatch(updateAuthParams({
 	                                            param: "registerDB",
 	                                            value: String(e.target.value),
 	                                        }));
-	                                    }, children: attributes.registerDB.select.map(function (el) { return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, "reg" + el.v)); }) })] })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsx("div", { className: "optionNavbar", children: allOptChoices.map(function (el) {
-	                                return selectedOptions.includes(el.k) && el.k !== "Same" ? (jsxRuntimeExports.jsx("span", { className: "option ".concat(optionSelected === el.k ? "selected" : ""), onClick: function () { return setOptionSelected(el.k); }, children: t$2(el.v) }, "selected" + el.v)) : null;
+	                                    }, children: attributes.registerDB.select.map(function (el) { return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, "reg" + el.v)); }) })] })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsx("div", { className: "optionNavbar", children: allOptChoices.map(function (el) {
+	                                return selectedOptions.includes(el.k) && el.k !== "Same" ? (jsxRuntimeExports.jsx("span", { className: "option ".concat(optionSelected === el.k ? "selected" : ""), onClick: function () { return setOptionSelected(el.k); }, children: t$1(el.v) }, "selected" + el.v)) : null;
 	                            }) }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx(OptionRenderer, { selected: optionSelected ? optionSelected : "" }) })] })] }));
 	    }
 	    catch (e) {
@@ -52881,7 +52881,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", label: t$2(fieldName), multiline: true, rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$2(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", label: t$1(fieldName), multiline: true, rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52896,7 +52896,7 @@ ${String(error)}`;
 	    var fieldValue = value === 1 || value === 0 ? value : -1;
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: fieldValue, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("default") })] })] }) })] }));
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: fieldValue, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("default") })] })] }) })] }));
 	}
 
 	var Home = {};
@@ -52949,8 +52949,8 @@ ${String(error)}`;
 	    }) || {};
 	    var _b = reactExports.useState("basic"), optionSelected = _b[0], setOptionSelected = _b[1];
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () { return setOptionSelected("basic"); }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataExportedVars" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataExportedVars"); }, children: t$2("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataMacros" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataMacros"); }, children: t$2("casAppMetaDataMacros") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataOptions" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataOptions"); }, children: t$2("casAppMetaDataOptions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [(optionSelected === "casAppMetaDataExportedVars" ||
-	                                optionSelected === "basic") && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataExportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: vars, tableID: "exportedVars", dispatch: dispatch, delFunction: delCASexportedVars, updateFunction: updateCASexportedVars })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("casAppMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "macros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: casAppMetaDataMacros, tableID: "macros", dispatch: dispatch, delFunction: delCASAppMetaDataMacros, updateFunction: updateCASAppMetaDataMacros })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("casAppMetaDataOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsDisplayName
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () { return setOptionSelected("basic"); }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataExportedVars" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataExportedVars"); }, children: t$1("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataMacros" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataMacros"); }, children: t$1("casAppMetaDataMacros") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataOptions" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataOptions"); }, children: t$1("casAppMetaDataOptions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [(optionSelected === "casAppMetaDataExportedVars" ||
+	                                optionSelected === "basic") && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataExportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: vars, tableID: "exportedVars", dispatch: dispatch, delFunction: delCASexportedVars, updateFunction: updateCASexportedVars })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "macros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: casAppMetaDataMacros, tableID: "macros", dispatch: dispatch, delFunction: delCASAppMetaDataMacros, updateFunction: updateCASAppMetaDataMacros })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsDisplayName
 	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsDisplayName
 	                                                            : ""), fieldName: "casAppMetaDataOptionsDisplayName", updateFunc: function (e) {
 	                                                            dispatch(updateCASOptions({
@@ -53116,7 +53116,7 @@ ${String(error)}`;
 	                                        key: "(?#".concat(commentary, ")").concat(regex).concat(authLevel ? "(?#AuthnLevel=".concat(authLevel, ")") : ""),
 	                                    }));
 	                                }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	            }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function () {
+	            }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function () {
 	                                return dispatch(updateLocationRule({
 	                                    appName: appName,
 	                                    locationRules: updateRules$1("locationRules"),
@@ -53182,9 +53182,9 @@ ${String(error)}`;
 	    });
 	    var _b = reactExports.useState("basic"), optionSelected = _b[0], setOptionSelected = _b[1];
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () { return setOptionSelected("basic"); }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "locationRules" ? "selected" : ""), onClick: function () { return setOptionSelected("locationRules"); }, children: t$2("locationRules") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "exportedHeaders" ? "selected" : ""), onClick: function () { return setOptionSelected("exportedHeaders"); }, children: t$2("exportedHeaders") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "post" ? "selected" : ""), onClick: function () { return setOptionSelected("post"); }, children: t$2("post") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "vhostOptions" ? "selected" : ""), onClick: function () { return setOptionSelected("vhostOptions"); }, children: t$2("vhostOptions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsxs("div", { className: "box", children: [optionSelected === "basic" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.vhostComment
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () { return setOptionSelected("basic"); }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "locationRules" ? "selected" : ""), onClick: function () { return setOptionSelected("locationRules"); }, children: t$1("locationRules") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "exportedHeaders" ? "selected" : ""), onClick: function () { return setOptionSelected("exportedHeaders"); }, children: t$1("exportedHeaders") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "post" ? "selected" : ""), onClick: function () { return setOptionSelected("post"); }, children: t$1("post") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "vhostOptions" ? "selected" : ""), onClick: function () { return setOptionSelected("vhostOptions"); }, children: t$1("vhostOptions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsxs("div", { className: "box", children: [optionSelected === "basic" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.vhostComment
 	                                                                ? definitions.vhostComment
-	                                                                : "" }), children: jsxRuntimeExports.jsx("th", { children: t$2("vhostComment") }) }), jsxRuntimeExports.jsx("th", { children: t$2("regexp") }), jsxRuntimeExports.jsx("th", { children: t$2("rules") }), jsxRuntimeExports.jsx("th", { children: t$2("rulesAuthnLevel") })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function (e) {
+	                                                                : "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("vhostComment") }) }), jsxRuntimeExports.jsx("th", { children: t$1("regexp") }), jsxRuntimeExports.jsx("th", { children: t$1("rules") }), jsxRuntimeExports.jsx("th", { children: t$1("rulesAuthnLevel") })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function (e) {
 	                                                                return dispatch(updateDefaultLocationRule({
 	                                                                    appName: name,
 	                                                                    rule: e.target.value,
@@ -53197,8 +53197,8 @@ ${String(error)}`;
 	                                                                option: "vhostMaintenance",
 	                                                                value: Number(e),
 	                                                            }));
-	                                                        } }), jsxRuntimeExports.jsx("td", {}), jsxRuntimeExports.jsx("td", {})] })] }) })), optionSelected === "locationRules" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("locationRules") }), jsxRuntimeExports.jsxs("table", { id: "locationRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("vhostComment") }), jsxRuntimeExports.jsx("th", { children: t$2("regexp") }), jsxRuntimeExports.jsx("th", { children: t$2("rules") }), jsxRuntimeExports.jsx("th", { children: t$2("rulesAuthnLevel") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newLocationRule(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativeRule(name, locationRules, dispatch)] })] })), (optionSelected === "exportedHeaders" ||
-	                                    optionSelected === "basic") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("exportedHeaders") }) }), jsxRuntimeExports.jsxs("table", { id: "exportedHeaders", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedHeaders }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: exportedHeaders ? exportedHeaders : {}, tableID: "exportedHeaders", dispatch: dispatch, delFunction: delVhostHeader, updateFunction: updateVhostHeaders })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "post" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("post") }), jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativPost(name, post ? post : {}, dispatch)] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "vhostOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("vhostOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(options
+	                                                        } }), jsxRuntimeExports.jsx("td", {}), jsxRuntimeExports.jsx("td", {})] })] }) })), optionSelected === "locationRules" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("locationRules") }), jsxRuntimeExports.jsxs("table", { id: "locationRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("vhostComment") }), jsxRuntimeExports.jsx("th", { children: t$1("regexp") }), jsxRuntimeExports.jsx("th", { children: t$1("rules") }), jsxRuntimeExports.jsx("th", { children: t$1("rulesAuthnLevel") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newLocationRule(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativeRule(name, locationRules, dispatch)] })] })), (optionSelected === "exportedHeaders" ||
+	                                    optionSelected === "basic") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("exportedHeaders") }) }), jsxRuntimeExports.jsxs("table", { id: "exportedHeaders", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedHeaders }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: exportedHeaders ? exportedHeaders : {}, tableID: "exportedHeaders", dispatch: dispatch, delFunction: delVhostHeader, updateFunction: updateVhostHeaders })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "post" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("post") }), jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativPost(name, post ? post : {}, dispatch)] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "vhostOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("vhostOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(options
 	                                                                ? options.vhostPort
 	                                                                : attributes.vhostPort.default), fieldName: "port", updateFunc: function (el) {
 	                                                                dispatch(updateVhostOptions({
@@ -53269,7 +53269,7 @@ ${String(error)}`;
 	    var value = _a.value, fieldName = _a.fieldName, appName = _a.appName;
 	    var i = 0;
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { className: "title2", children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$2("claimName") }) }), jsxRuntimeExports.jsx("th", { children: t$2("variableName") }), jsxRuntimeExports.jsx("th", { children: t$2("type") }), jsxRuntimeExports.jsx("th", { children: t$2("array") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$1("claimName") }) }), jsxRuntimeExports.jsx("th", { children: t$1("variableName") }), jsxRuntimeExports.jsx("th", { children: t$1("type") }), jsxRuntimeExports.jsx("th", { children: t$1("array") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                        return dispatch(newOidcRPMetaDataExportedVars(appName));
 	                                                    }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
 	                                        i++;
@@ -53284,21 +53284,21 @@ ${String(error)}`;
 	                                                                appName: appName,
 	                                                                data: updateExpAttr$1("exportedVars"),
 	                                                            }));
-	                                                        }, type: "text", value: name }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$2("type") }), jsxRuntimeExports.jsxs(Select$1, { value: type ? type : "string", label: t$2("type"), onChange: function (e) {
+	                                                        }, type: "text", value: name }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("type") }), jsxRuntimeExports.jsxs(Select$1, { value: type ? type : "string", label: t$1("type"), onChange: function (e) {
 	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
 	                                                                        appName: appName,
 	                                                                        data: updateExpAttr$1("exportedVars", key, {
 	                                                                            type: e.target.value,
 	                                                                        }),
 	                                                                    }));
-	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "string", children: t$2("string") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "int", children: t$2("int") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "bool", children: t$2("bool") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$2("array") }), jsxRuntimeExports.jsxs(Select$1, { value: table ? table : "auto", label: t$2("array"), onChange: function (e) {
+	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "string", children: t$1("string") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "int", children: t$1("int") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "bool", children: t$1("bool") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("array") }), jsxRuntimeExports.jsxs(Select$1, { value: table ? table : "auto", label: t$1("array"), onChange: function (e) {
 	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
 	                                                                        appName: appName,
 	                                                                        data: updateExpAttr$1("exportedVars", key, {
 	                                                                            array: e.target.value,
 	                                                                        }),
 	                                                                    }));
-	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "auto", children: t$2("auto") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "always", children: t$2("always") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "never", children: t$2("never") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
+	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "auto", children: t$1("auto") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "always", children: t$1("always") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "never", children: t$1("never") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
 	                                                            return dispatch(delOidcRPMetaDataExportedVars({ appName: appName, key: key }));
 	                                                        }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
 	                                    }) })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOidcRPMetaDataExportedVars(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }) })] }));
@@ -53394,7 +53394,7 @@ ${String(error)}`;
 	    var _c = reactExports.useState(false), loading = _c[0], setLoading = _c[1];
 	    var _d = reactExports.useState(false), error = _d[0], setError = _d[1];
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { style: { alignContent: "bottom" }, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$2("url"), type: "url", placeholder: t$2("url"), onChange: function (e) { return setUrl(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", sx: { verticalAlign: "-28px" }, onClick: function () {
+	    return (jsxRuntimeExports.jsxs("div", { style: { alignContent: "bottom" }, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$1("url"), type: "url", placeholder: t$1("url"), onChange: function (e) { return setUrl(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", sx: { verticalAlign: "-28px" }, onClick: function () {
 	                    return __awaiter$1(this, void 0, void 0, function () {
 	                        var data;
 	                        return __generator(this, function (_a) {
@@ -53422,7 +53422,7 @@ ${String(error)}`;
 	                            }
 	                        });
 	                    });
-	                }, children: t$2("load") }), loading && jsxRuntimeExports.jsx("div", { children: t$2("loading") }), error && jsxRuntimeExports.jsx("div", { children: t$2("badUrl") })] }));
+	                }, children: t$1("load") }), loading && jsxRuntimeExports.jsx("div", { children: t$1("loading") }), error && jsxRuntimeExports.jsx("div", { children: t$1("badUrl") })] }));
 	}
 
 	var VisuallyHiddenInput = styled$2("input")({
@@ -53465,7 +53465,7 @@ ${String(error)}`;
 	function FileForm(_a) {
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    attributes[fieldName];
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$2(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, rows: 12, label: t$2(fieldName), placeholder: t$2(fieldName), onChange: function (e) { return updateFunc(e.target.value); }, value: value || "" }) }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, rows: 12, label: t$1(fieldName), placeholder: t$1(fieldName), onChange: function (e) { return updateFunc(e.target.value); }, value: value || "" }) }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                        if (e.target instanceof HTMLInputElement) {
 	                                            handleChangeFile(e).then(function (fileContent) {
 	                                                console.debug("File content:", fileContent);
@@ -53548,15 +53548,15 @@ ${String(error)}`;
 	                                        option: "oidcRPMetaDataOptionsAdditionalAudiences",
 	                                        value: e,
 	                                    }));
-	                                } }) })] }) })), optionSelect === "scope" && (jsxRuntimeExports.jsxs("div", { className: "scopes", children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$2("oidcRPMetaDataOptionsExtraClaims") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataOptionsExtraClaims", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataOptionsExtraClaims
+	                                } }) })] }) })), optionSelect === "scope" && (jsxRuntimeExports.jsxs("div", { className: "scopes", children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$1("oidcRPMetaDataOptionsExtraClaims") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataOptionsExtraClaims", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataOptionsExtraClaims
 	                                                            ? definitions.oidcRPMetaDataOptionsExtraClaims
-	                                                            : "" }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                            : "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                            return dispatch(newOidcRPMetaDataOptionsExtraClaims(name));
 	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataOptionsExtraClaims
 	                                            ? data.oidcRPMetaDataOptionsExtraClaims[name]
 	                                            : {}, tableID: "oidcRPMetaDataOptionsExtraClaims", dispatch: dispatch, delFunction: delOidcRPMetaDataOptionsExtraClaims, updateFunction: updateOidcRPMetaDataOptionsExtraClaims })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                    return dispatch(newOidcRPMetaDataOptionsExtraClaims(name));
-	                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$2("oidcRPMetaDataScopeRules") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataScopeRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataScopeRules }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$1("oidcRPMetaDataScopeRules") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataScopeRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataScopeRules }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                            return dispatch(newOidcRPMetaDataScopeRules(name));
 	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataScopeRules
 	                                            ? data.oidcRPMetaDataScopeRules[name]
@@ -53878,7 +53878,7 @@ ${String(error)}`;
 	}
 	function OidcOptionSelection(_a) {
 	    var optionSelect = _a.optionSelect, setOptionSelected = _a.setOptionSelected;
-	    return (jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsAdvanced", className: "suboption ".concat(optionSelect === "advanced" ? "selected" : ""), onClick: function () { return setOptionSelected("advanced"); }, children: t$2("oidcRPMetaDataOptionsAdvanced") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsScopes", className: "suboption ".concat(optionSelect === "scope" ? "selected" : ""), onClick: function () { return setOptionSelected("scope"); }, children: t$2("oidcRPMetaDataOptionsScopes") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "security", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$2("security") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "keys", className: "suboption ".concat(optionSelect === "keys" ? "selected" : ""), onClick: function () { return setOptionSelected("keys"); }, children: t$2("keys") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsTimeouts", className: "suboption ".concat(optionSelect === "timouts" ? "selected" : ""), onClick: function () { return setOptionSelected("timouts"); }, children: t$2("oidcRPMetaDataOptionsTimeouts") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "logout", className: "suboption ".concat(optionSelect === "logout" ? "selected" : ""), onClick: function () { return setOptionSelected("logout"); }, children: t$2("logout") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$2("oidcRPMetaDataOptionsComment") })] }));
+	    return (jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsAdvanced", className: "suboption ".concat(optionSelect === "advanced" ? "selected" : ""), onClick: function () { return setOptionSelected("advanced"); }, children: t$1("oidcRPMetaDataOptionsAdvanced") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsScopes", className: "suboption ".concat(optionSelect === "scope" ? "selected" : ""), onClick: function () { return setOptionSelected("scope"); }, children: t$1("oidcRPMetaDataOptionsScopes") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "security", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$1("security") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "keys", className: "suboption ".concat(optionSelect === "keys" ? "selected" : ""), onClick: function () { return setOptionSelected("keys"); }, children: t$1("keys") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsTimeouts", className: "suboption ".concat(optionSelect === "timouts" ? "selected" : ""), onClick: function () { return setOptionSelected("timouts"); }, children: t$1("oidcRPMetaDataOptionsTimeouts") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "logout", className: "suboption ".concat(optionSelect === "logout" ? "selected" : ""), onClick: function () { return setOptionSelected("logout"); }, children: t$1("logout") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$1("oidcRPMetaDataOptionsComment") })] }));
 	}
 
 	var ExpandLess$1 = {};
@@ -53915,19 +53915,19 @@ ${String(error)}`;
 	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar", component: "nav", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataOptionsBasic" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("oidcRPMetaDataOptionsBasic");
 	                                    setOpen(false);
-	                                }, children: t$2("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataExportedVars" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataExportedVars" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("oidcRPMetaDataExportedVars");
 	                                    setOpen(false);
-	                                }, children: t$2("oidcRPMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataMacros" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("oidcRPMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataMacros" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("oidcRPMetaDataMacros");
 	                                    setOpen(false);
-	                                }, children: t$2("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("oidcRPMetaDataOptions");
 	                                    setOpen(!open);
-	                                }, "data-testid": "oidcOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsx("span", { children: t$2("oidcRPMetaDataOptions") })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(OidcOptionSelection, { optionSelect: secondOptionSelect, setOptionSelected: function (e) {
+	                                }, "data-testid": "oidcOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsx("span", { children: t$1("oidcRPMetaDataOptions") })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(OidcOptionSelection, { optionSelect: secondOptionSelect, setOptionSelected: function (e) {
 	                                        setOptionSelected("oidcRPMetaDataOptions");
 	                                        setSecondOptionSelected(e);
-	                                    } }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "oidcRPMetaDataOptionsBasic" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
+	                                    } }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "oidcRPMetaDataOptionsBasic" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
 	                                                                ? data.oidcRPMetaDataOptions[name]
 	                                                                    .oidcRPMetaDataOptionsClientID
 	                                                                : ""), fieldName: "oidcRPMetaDataOptionsClientID", updateFunc: function (e) {
@@ -54031,14 +54031,14 @@ ${String(error)}`;
 	                                                            }));
 	                                                        } }) })] }) })] })), optionSelected === "oidcRPMetaDataExportedVars" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(OidcAttributeContainerForm, { appName: name, value: data.oidcRPMetaDataExportedVars
 	                                                ? data.oidcRPMetaDataExportedVars[name]
-	                                                : {}, fieldName: "oidcRPMetaDataExportedVars" }) }) }) })), optionSelected === "oidcRPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.oidcRPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataMacros[name], tableID: "oidcRPMetaDataMacros", dispatch: dispatch, delFunction: delOIDCRPMetaDataMacros, updateFunction: updateOIDCRPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "oidcRPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$2("oidcRPMetaDataOptions"), " / ", t$2(secondOptionSelect)] }), jsxRuntimeExports.jsx(OptionOidc, { name: name, optionSelect: secondOptionSelect })] }))] })] })] }));
+	                                                : {}, fieldName: "oidcRPMetaDataExportedVars" }) }) }) })), optionSelected === "oidcRPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.oidcRPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataMacros[name], tableID: "oidcRPMetaDataMacros", dispatch: dispatch, delFunction: delOIDCRPMetaDataMacros, updateFunction: updateOIDCRPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "oidcRPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("oidcRPMetaDataOptions"), " / ", t$1(secondOptionSelect)] }), jsxRuntimeExports.jsx(OptionOidc, { name: name, optionSelect: secondOptionSelect })] }))] })] })] }));
 	}
 
 	function SamlAttributeContainerForm(_a) {
 	    var value = _a.value, fieldName = _a.fieldName, appName = _a.appName;
 	    var i = 0;
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$2(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedAttribute", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("variableName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("attributeName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("friendlyName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("mandatory") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("format") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedAttribute", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("variableName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("attributeName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("friendlyName") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("mandatory") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("format") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                                    return dispatch(newSamlMetadataExportedAttribute({ appName: appName, fieldName: fieldName }));
 	                                                }, color: "success", startIcon: jsxRuntimeExports.jsx(AddCircleIcon, {}) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
 	                                    var _a = value[key].split(";"), mandatory = _a[0], name = _a[1], format = _a[2], friendlyName = _a[3];
@@ -54067,14 +54067,14 @@ ${String(error)}`;
 	                                                                data: updateExpAttr("exportedAttribute"),
 	                                                                fieldName: fieldName,
 	                                                            }));
-	                                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") })] }) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("format") }), jsxRuntimeExports.jsx(Select$1, { value: format, label: t$2("format"), displayEmpty: true, onChange: function (e) {
+	                                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") })] }) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("format") }), jsxRuntimeExports.jsx(Select$1, { value: format, label: t$1("format"), displayEmpty: true, onChange: function (e) {
 	                                                                return dispatch(updateSamlMetadataExportedAttribute({
 	                                                                    appName: appName,
 	                                                                    data: updateExpAttr("exportedAttribute", key, e.target.value),
 	                                                                    fieldName: fieldName,
 	                                                                }));
 	                                                            }, children: attributes.samlSPMetaDataExportedAttributes.select.map(function (el) {
-	                                                                return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, el.k));
+	                                                                return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, el.k));
 	                                                            }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                        dispatch(delSamlMetadataExportedAttribute({
 	                                                            appName: appName,
@@ -54104,12 +54104,12 @@ ${String(error)}`;
 	            var mandatory = 0;
 	            cells[3].querySelectorAll("label").forEach(function (e) {
 	                var _a, _b;
-	                if (e.innerText === t$2("on")) {
+	                if (e.innerText === t$1("on")) {
 	                    if ((_a = e.querySelector("input")) === null || _a === void 0 ? void 0 : _a.checked) {
 	                        mandatory = 1;
 	                    }
 	                }
-	                if (e.innerText === t$2("off")) {
+	                if (e.innerText === t$1("off")) {
 	                    if ((_b = e.querySelector("input")) === null || _b === void 0 ? void 0 : _b.checked) {
 	                        mandatory = 0;
 	                    }
@@ -54282,7 +54282,7 @@ ${String(error)}`;
 	}
 	function SubObtionSelector(_a) {
 	    var optionSelect = _a.optionSelect, setOptionSelected = _a.setOptionSelected;
-	    return (jsxRuntimeExports.jsxs("div", { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsAuthnResponse", className: "suboption ".concat(optionSelect === "authResponse" ? "selected" : ""), onClick: function () { return setOptionSelected("authResponse"); }, children: t$2("samlSPMetaDataOptionsAuthnResponse") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSignature", className: "suboption ".concat(optionSelect === "signature" ? "selected" : ""), onClick: function () { return setOptionSelected("signature"); }, children: t$2("samlSPMetaDataOptionsSignature") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSecurity", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$2("samlSPMetaDataOptionsSecurity") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsFederation", className: "suboption ".concat(optionSelect === "federation" ? "selected" : ""), onClick: function () { return setOptionSelected("federation"); }, children: t$2("samlSPMetaDataOptionsFederation") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$2("samlSPMetaDataOptionsComment") })] }));
+	    return (jsxRuntimeExports.jsxs("div", { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsAuthnResponse", className: "suboption ".concat(optionSelect === "authResponse" ? "selected" : ""), onClick: function () { return setOptionSelected("authResponse"); }, children: t$1("samlSPMetaDataOptionsAuthnResponse") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSignature", className: "suboption ".concat(optionSelect === "signature" ? "selected" : ""), onClick: function () { return setOptionSelected("signature"); }, children: t$1("samlSPMetaDataOptionsSignature") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSecurity", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$1("samlSPMetaDataOptionsSecurity") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsFederation", className: "suboption ".concat(optionSelect === "federation" ? "selected" : ""), onClick: function () { return setOptionSelected("federation"); }, children: t$1("samlSPMetaDataOptionsFederation") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$1("samlSPMetaDataOptionsComment") })] }));
 	}
 
 	function SAMLApp(_a) {
@@ -54294,21 +54294,21 @@ ${String(error)}`;
 	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("basic");
 	                                    setOpen(false);
-	                                }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataXML" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataXML" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("samlSPMetaDataXML");
 	                                    setOpen(false);
-	                                }, children: t$2("samlSPMetaDataXML") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataExportedAttributes"
+	                                }, children: t$1("samlSPMetaDataXML") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataExportedAttributes"
 	                                    ? "selected"
 	                                    : ""), onClick: function () {
 	                                    setOptionSelected("samlSPMetaDataExportedAttributes");
 	                                    setOpen(false);
-	                                }, children: t$2("samlSPMetaDataExportedAttributes") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataMacros" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("samlSPMetaDataExportedAttributes") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataMacros" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("samlSPMetaDataMacros");
 	                                    setOpen(false);
-	                                }, children: t$2("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), onClick: function () {
+	                                }, children: t$1("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), onClick: function () {
 	                                    setOptionSelected("samlSPMetaDataOptions");
 	                                    setOpen(!open);
-	                                }, "data-testid": "samlSPMetaDataOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsxs("span", { children: [" ", t$2("samlSPMetaDataOptions")] })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(SubObtionSelector, { optionSelect: suboptionSelect, setOptionSelected: setSubOptionSelected }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle", flexItem: true }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "samlSPMetaDataXML" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$2("samlSPMetaDataXML"), name
+	                                }, "data-testid": "samlSPMetaDataOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsxs("span", { children: [" ", t$1("samlSPMetaDataOptions")] })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(SubObtionSelector, { optionSelect: suboptionSelect, setOptionSelected: setSubOptionSelected }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle", flexItem: true }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "samlSPMetaDataXML" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("samlSPMetaDataXML"), name
 	                                                ? data.samlSPMetaDataXML
 	                                                    ? data.samlSPMetaDataXML[name]
 	                                                        ? data.samlSPMetaDataXML[name].samlSPMetaDataXML === ""
@@ -54332,7 +54332,7 @@ ${String(error)}`;
 	                                                    ? data.samlSPMetaDataExportedAttributes[name]
 	                                                        ? data.samlSPMetaDataExportedAttributes[name]
 	                                                        : {}
-	                                                    : {}, appName: name, fieldName: "samlSPMetaDataExportedAttributes" }) }) }) }) })), optionSelected === "samlSPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "samlSPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.samlSPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.samlSPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.samlSPMetaDataMacros[name], tableID: "samlSPMetaDataMacros", dispatch: dispatch, delFunction: delSAMLSPMetaDataMacros, updateFunction: updateSAMLSPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "samlSPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$2("samlSPMetaDataOptions"), " / ", t$2(suboptionSelect)] }), jsxRuntimeExports.jsx(OptionSaml, { name: name, dispatch: dispatch, optionSelect: suboptionSelect })] }))] })] })] }));
+	                                                    : {}, appName: name, fieldName: "samlSPMetaDataExportedAttributes" }) }) }) }) })), optionSelected === "samlSPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "samlSPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.samlSPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.samlSPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.samlSPMetaDataMacros[name], tableID: "samlSPMetaDataMacros", dispatch: dispatch, delFunction: delSAMLSPMetaDataMacros, updateFunction: updateSAMLSPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "samlSPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("samlSPMetaDataOptions"), " / ", t$1(suboptionSelect)] }), jsxRuntimeExports.jsx(OptionSaml, { name: name, dispatch: dispatch, optionSelect: suboptionSelect })] }))] })] })] }));
 	}
 
 	function ApplicationDashboard(_a) {
@@ -54495,7 +54495,7 @@ ${String(error)}`;
 	                                    field: "logo",
 	                                    value: e.target.value,
 	                                }));
-	                            }, renderValue: function (value) { return (jsxRuntimeExports.jsx("img", { className: "logoImg", src: "".concat(portal, "/static/common/apps/").concat(value), height: 40, width: 40, alt: "" })); }, children: logoOptions.map(function (option) { return (jsxRuntimeExports.jsxs(MenuItem$1, { value: option, className: "logoOption", children: [jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/common/apps/").concat(option), height: 28, width: 28, alt: "" }), jsxRuntimeExports.jsx("span", { children: option.replace(/\.png$/, "") })] }, option)); }) }) }), jsxRuntimeExports.jsx("span", { className: "logoCaption", children: t$2("logo") })] }), title: jsxRuntimeExports.jsxs("div", { className: "appMenuTitle", children: [jsxRuntimeExports.jsx(TextField$1, { className: "appNameField", size: "small", variant: "standard", value: app.options.name, onChange: function (e) {
+	                            }, renderValue: function (value) { return (jsxRuntimeExports.jsx("img", { className: "logoImg", src: "".concat(portal, "/static/common/apps/").concat(value), height: 40, width: 40, alt: "" })); }, children: logoOptions.map(function (option) { return (jsxRuntimeExports.jsxs(MenuItem$1, { value: option, className: "logoOption", children: [jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/common/apps/").concat(option), height: 28, width: 28, alt: "" }), jsxRuntimeExports.jsx("span", { children: option.replace(/\.png$/, "") })] }, option)); }) }) }), jsxRuntimeExports.jsx("span", { className: "logoCaption", children: t$1("logo") })] }), title: jsxRuntimeExports.jsxs("div", { className: "appMenuTitle", children: [jsxRuntimeExports.jsx(TextField$1, { className: "appNameField", size: "small", variant: "standard", value: app.options.name, onChange: function (e) {
 	                            return dispatch(changeApplicationField({
 	                                catid: catId,
 	                                id: appKey,
@@ -54516,21 +54516,21 @@ ${String(error)}`;
 	                                    }));
 	                                }, disabled: appIndex === applications.length - 1, children: jsxRuntimeExports.jsx(ArrowDownwardOutlinedIcon, { fontSize: "small" }) }), jsxRuntimeExports.jsx(IconButton$1, { size: "small", color: "error", onClick: function () {
 	                                    return dispatch(delApplication({ catid: catId, id: appKey }));
-	                                }, children: jsxRuntimeExports.jsx(DeleteOutlineOutlinedIcon, { fontSize: "small" }) })] })] }), subheader: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: jsxRuntimeExports.jsx("span", { children: t$2("details") }) }), jsxRuntimeExports.jsxs(AccordionDetails$1, { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2("description") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", rows: 3, multiline: true, fullWidth: true, value: app.options.description, onChange: function (e) {
+	                                }, children: jsxRuntimeExports.jsx(DeleteOutlineOutlinedIcon, { fontSize: "small" }) })] })] }), subheader: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: jsxRuntimeExports.jsx("span", { children: t$1("details") }) }), jsxRuntimeExports.jsxs(AccordionDetails$1, { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1("description") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", rows: 3, multiline: true, fullWidth: true, value: app.options.description, onChange: function (e) {
 	                                            return dispatch(changeApplicationField({
 	                                                catid: catId,
 	                                                id: appKey,
 	                                                field: "description",
 	                                                value: e.target.value,
 	                                            }));
-	                                        } })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2("URI") }), jsxRuntimeExports.jsx(TextField$1, { value: app.options.uri, onChange: function (e) {
+	                                        } })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1("URI") }), jsxRuntimeExports.jsx(TextField$1, { value: app.options.uri, onChange: function (e) {
 	                                            return dispatch(changeApplicationField({
 	                                                catid: catId,
 	                                                id: appKey,
 	                                                field: "uri",
 	                                                value: e.target.value,
 	                                            }));
-	                                        } })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2("applicationDisplay") }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: display, onChange: function (e) {
+	                                        } })] }), jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1("applicationDisplay") }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: display, onChange: function (e) {
 	                                            dispatch(changeApplicationField({
 	                                                catid: catId,
 	                                                id: appKey,
@@ -54538,7 +54538,7 @@ ${String(error)}`;
 	                                                value: e.target.value,
 	                                            }));
 	                                            setDisplay(e.target.value);
-	                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "on", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "off", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "auto", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("auto") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "specialRule", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("specialRule") })] }), display === "specialRule" && (jsxRuntimeExports.jsx(TextField$1, { size: "small", fullWidth: true, variant: "filled", onChange: function (e) {
+	                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "on", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "off", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "auto", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("auto") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "specialRule", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("specialRule") })] }), display === "specialRule" && (jsxRuntimeExports.jsx(TextField$1, { size: "small", fullWidth: true, variant: "filled", onChange: function (e) {
 	                                            return dispatch(changeApplicationField({
 	                                                catid: catId,
 	                                                id: appKey,
@@ -54571,7 +54571,7 @@ ${String(error)}`;
 	                            return (jsxRuntimeExports.jsx(MenuAppCard, { app: app, cardIndex: cardIndex, catId: catId, portal: portal, appKey: key, appIndex: index, applications: applications, dispatch: dispatch }, key));
 	                        }
 	                        return null;
-	                    }), jsxRuntimeExports.jsx(Button$1, { className: "addAppTile", variant: "outlined", color: "secondary", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newApplication(catId)); }, children: t$2("application") })] })] }));
+	                    }), jsxRuntimeExports.jsx(Button$1, { className: "addAppTile", variant: "outlined", color: "secondary", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newApplication(catId)); }, children: t$1("application") })] })] }));
 	}
 
 	function CatAndAppList() {
@@ -54584,7 +54584,7 @@ ${String(error)}`;
 	        return Number(applicationList[key1].order) -
 	            Number(applicationList[key2].order);
 	    });
-	    return (jsxRuntimeExports.jsxs("div", { className: "catAndApp", children: [jsxRuntimeExports.jsxs("div", { className: "catAndAppTop", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("applicationList") }), jsxRuntimeExports.jsx(Button$1, { className: "addCatButton", variant: "contained", disableElevation: true, size: "small", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newCategory()); }, children: t$2("menuCategory") })] }), jsxRuntimeExports.jsxs("div", { className: "catList", children: [catList.map(function (key, index) { return (jsxRuntimeExports.jsx(CatCard, { catId: key, cardIndex: index, dataLength: catList.length, data: applicationList[key], dispatch: dispatch, portal: portal || attributes.portal.default }, key)); }), jsxRuntimeExports.jsx(Button$1, { className: "addCatTile", variant: "outlined", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newCategory()); }, children: t$2("menuCategory") })] })] }));
+	    return (jsxRuntimeExports.jsxs("div", { className: "catAndApp", children: [jsxRuntimeExports.jsxs("div", { className: "catAndAppTop", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("applicationList") }), jsxRuntimeExports.jsx(Button$1, { className: "addCatButton", variant: "contained", disableElevation: true, size: "small", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newCategory()); }, children: t$1("menuCategory") })] }), jsxRuntimeExports.jsxs("div", { className: "catList", children: [catList.map(function (key, index) { return (jsxRuntimeExports.jsx(CatCard, { catId: key, cardIndex: index, dataLength: catList.length, data: applicationList[key], dispatch: dispatch, portal: portal || attributes.portal.default }, key)); }), jsxRuntimeExports.jsx(Button$1, { className: "addCatTile", variant: "outlined", startIcon: jsxRuntimeExports.jsx(AddOutlinedIcon, {}), onClick: function () { return dispatch(newCategory()); }, children: t$1("menuCategory") })] })] }));
 	}
 
 	var Download = {};
@@ -67060,12 +67060,12 @@ ${String(error)}`;
 	                    alignSelf: "stretch",
 	                    paddingBottom: 12,
 	                    borderBottom: "2px solid #f0f0f2",
-	                }, children: [t$2("appNum"), " (", appNum, ")"] }), jsxRuntimeExports.jsx(PieChart, { series: [
+	                }, children: [t$1("appNum"), " (", appNum, ")"] }), jsxRuntimeExports.jsx(PieChart, { series: [
 	                    {
 	                        data: [
 	                            {
 	                                id: 1,
-	                                label: "".concat(t$2("saml"), " (").concat(config.samlSPMetaDataXML
+	                                label: "".concat(t$1("saml"), " (").concat(config.samlSPMetaDataXML
 	                                    ? Object.keys(config.samlSPMetaDataXML).length
 	                                    : 0, ")"),
 	                                value: config.samlSPMetaDataXML
@@ -67075,7 +67075,7 @@ ${String(error)}`;
 	                            },
 	                            {
 	                                id: 2,
-	                                label: "".concat(t$2("virtualHost"), " (").concat(config.locationRules
+	                                label: "".concat(t$1("virtualHost"), " (").concat(config.locationRules
 	                                    ? Object.keys(config.locationRules).length
 	                                    : 0, ")"),
 	                                value: config.locationRules
@@ -67085,7 +67085,7 @@ ${String(error)}`;
 	                            },
 	                            {
 	                                id: 3,
-	                                label: "".concat(t$2("oidc"), " (").concat(config.oidcRPMetaDataOptions
+	                                label: "".concat(t$1("oidc"), " (").concat(config.oidcRPMetaDataOptions
 	                                    ? Object.keys(config.oidcRPMetaDataOptions).length
 	                                    : 0, ")"),
 	                                value: config.oidcRPMetaDataOptions
@@ -67095,7 +67095,7 @@ ${String(error)}`;
 	                            },
 	                            {
 	                                id: 4,
-	                                label: "".concat(t$2("cas"), " (").concat(config.casAppMetaDataOptions
+	                                label: "".concat(t$1("cas"), " (").concat(config.casAppMetaDataOptions
 	                                    ? Object.keys(config.casAppMetaDataOptions).length
 	                                    : 0, ")"),
 	                                value: config.casAppMetaDataOptions
@@ -67128,7 +67128,7 @@ ${String(error)}`;
 	function SavePopup(_a) {
 	    var _b, _c;
 	    var config = _a.config, openSavePopup = _a.openSavePopup, setOpenSavePopup = _a.setOpenSavePopup, dispatch = _a.dispatch, partial = _a.partial;
-	    return (jsxRuntimeExports.jsxs(Dialog$1, { open: openSavePopup, children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$2("saveReport") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(DialogContent$1, { children: config.saveResponse ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [!config.saveResponse.details.__errors__ && jsxRuntimeExports.jsx("p", { children: t$2("successfullySaved") }), config.saveResponse.details.__warnings__ ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { children: t$2("warnings") }), jsxRuntimeExports.jsx("span", { children: (_b = config.saveResponse.details.__warnings__) === null || _b === void 0 ? void 0 : _b.map(function (el) { return (jsxRuntimeExports.jsx("ul", { children: el.message }, el.message)); }) })] })) : (""), config.saveResponse.details.__errors__ ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { children: t$2("errors") }), jsxRuntimeExports.jsx("span", { children: (_c = config.saveResponse.details.__errors__) === null || _c === void 0 ? void 0 : _c.map(function (el) { return (jsxRuntimeExports.jsx("ul", { children: el.message }, el.message)); }) })] })) : ("")] })) : ("") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	    return (jsxRuntimeExports.jsxs(Dialog$1, { open: openSavePopup, children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$1("saveReport") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(DialogContent$1, { children: config.saveResponse ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [!config.saveResponse.details.__errors__ && jsxRuntimeExports.jsx("p", { children: t$1("successfullySaved") }), config.saveResponse.details.__warnings__ ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { children: t$1("warnings") }), jsxRuntimeExports.jsx("span", { children: (_b = config.saveResponse.details.__warnings__) === null || _b === void 0 ? void 0 : _b.map(function (el) { return (jsxRuntimeExports.jsx("ul", { children: el.message }, el.message)); }) })] })) : (""), config.saveResponse.details.__errors__ ? (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { children: t$1("errors") }), jsxRuntimeExports.jsx("span", { children: (_c = config.saveResponse.details.__errors__) === null || _c === void 0 ? void 0 : _c.map(function (el) { return (jsxRuntimeExports.jsx("ul", { children: el.message }, el.message)); }) })] })) : ("")] })) : ("") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                    var _a;
 	                    if (!((_a = config.saveResponse) === null || _a === void 0 ? void 0 : _a.details.__errors__)) {
 	                        dispatch(partial ? getPartialConfigAsync() : getConfigAsync());
@@ -67137,7 +67137,7 @@ ${String(error)}`;
 	                        dispatch(push(partial ? "#conf/latest" : ""));
 	                    }
 	                    setOpenSavePopup(false);
-	                }, children: t$2("close") })] }));
+	                }, children: t$1("close") })] }));
 	}
 
 	var exportData = function (data, num) { return __awaiter$1(void 0, void 0, void 0, function () {
@@ -67225,14 +67225,14 @@ ${String(error)}`;
 	    }, [configPresent, dispatch]);
 	    try {
 	        if (config.loading) {
-	            return jsxRuntimeExports.jsx("div", { className: "main", children: t$2("loading") });
+	            return jsxRuntimeExports.jsx("div", { className: "main", children: t$1("loading") });
 	        }
 	        else if (config.error.has) {
-	            return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsx("strong", { children: t$2("failedLoading") }), jsxRuntimeExports.jsx("span", { children: JSON.stringify(config.error) })] }));
+	            return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsx("strong", { children: t$1("failedLoading") }), jsxRuntimeExports.jsx("span", { children: JSON.stringify(config.error) })] }));
 	        }
 	        else {
 	            var createdDate = new Date(config.data.metadata.cfgDate * 1000);
-	            return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("div", { className: "head", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("configurationManager") }) }), jsxRuntimeExports.jsxs("div", { className: "search-container", children: [jsxRuntimeExports.jsx("div", { className: "search", children: jsxRuntimeExports.jsx(Tooltip$1, { title: t$2("downloadLastConf"), children: jsxRuntimeExports.jsx(Button$1, { component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(DownloadIcon, {}), onClick: function () {
+	            return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("div", { className: "head", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("configurationManager") }) }), jsxRuntimeExports.jsxs("div", { className: "search-container", children: [jsxRuntimeExports.jsx("div", { className: "search", children: jsxRuntimeExports.jsx(Tooltip$1, { title: t$1("downloadLastConf"), children: jsxRuntimeExports.jsx(Button$1, { component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(DownloadIcon, {}), onClick: function () {
 	                                                        return __awaiter$1(this, void 0, void 0, function () {
 	                                                            return __generator(this, function (_a) {
 	                                                                switch (_a.label) {
@@ -67243,7 +67243,7 @@ ${String(error)}`;
 	                                                                }
 	                                                            });
 	                                                        });
-	                                                    }, children: t$2("download") }) }) }), jsxRuntimeExports.jsx("div", { className: "search", children: jsxRuntimeExports.jsxs(Button$1, { component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("restore"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                                    }, children: t$1("download") }) }) }), jsxRuntimeExports.jsx("div", { className: "search", children: jsxRuntimeExports.jsxs(Button$1, { component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("restore"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                            if (e.target instanceof HTMLInputElement) {
 	                                                                handleChangeFile(e).then(function (fileContent) {
 	                                                                    console.debug("File content:", fileContent);
@@ -67251,7 +67251,7 @@ ${String(error)}`;
 	                                                                    setOpenSavePopup(true);
 	                                                                });
 	                                                            }
-	                                                        } })] }) }), jsxRuntimeExports.jsxs("div", { className: "search search-browse", children: [jsxRuntimeExports.jsx(TextField$1, { type: "number", size: "small", label: t$2("browse"), error: Boolean(aimedConf && aimedConf <= 0), helperText: aimedConf && aimedConf <= 0 ? "Enter only positive and non nul numbers" : "", placeholder: t$2("browse"), onChange: function (e) { return SetAimedConf(Number(e.target.value)); }, onKeyDown: function (e) {
+	                                                        } })] }) }), jsxRuntimeExports.jsxs("div", { className: "search search-browse", children: [jsxRuntimeExports.jsx(TextField$1, { type: "number", size: "small", label: t$1("browse"), error: Boolean(aimedConf && aimedConf <= 0), helperText: aimedConf && aimedConf <= 0 ? "Enter only positive and non nul numbers" : "", placeholder: t$1("browse"), onChange: function (e) { return SetAimedConf(Number(e.target.value)); }, onKeyDown: function (e) {
 	                                                        if (e.key === "Enter") {
 	                                                            if (0 < aimedConf && aimedConf <= config.data.metadata.cfgNum) {
 	                                                                dispatch(push("#conf/".concat(aimedConf)));
@@ -67267,12 +67267,12 @@ ${String(error)}`;
 	                                                        else {
 	                                                            dispatch(setError("Wrong config number :".concat(aimedConf, ", try latest : ").concat(config.data.metadata.cfgNum)));
 	                                                        }
-	                                                    }, children: t$2("go") })] })] })] }) }), jsxRuntimeExports.jsxs("div", { className: "desc", children: [jsxRuntimeExports.jsxs("div", { className: "descBox", children: [jsxRuntimeExports.jsxs("table", { className: "infoTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: jsxRuntimeExports.jsx("strong", { children: t$2("currentConfiguration") }) }) }) }), jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("latest") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgNum })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("date") }) }), jsxRuntimeExports.jsx("td", { children: createdDate.toLocaleString() })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("author") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgAuthor })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("authorIPAddress") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgAuthorIP })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("cfgLog") }), jsxRuntimeExports.jsx("td", { children: config.data.config.cfgLog })] })] })] }), jsxRuntimeExports.jsx(Button$1, { variant: "contained", onClick: function () {
+	                                                    }, children: t$1("go") })] })] })] }) }), jsxRuntimeExports.jsxs("div", { className: "desc", children: [jsxRuntimeExports.jsxs("div", { className: "descBox", children: [jsxRuntimeExports.jsxs("table", { className: "infoTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: jsxRuntimeExports.jsx("strong", { children: t$1("currentConfiguration") }) }) }) }), jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("latest") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgNum })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("date") }) }), jsxRuntimeExports.jsx("td", { children: createdDate.toLocaleString() })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("author") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgAuthor })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("authorIPAddress") }) }), jsxRuntimeExports.jsx("td", { children: config.data.metadata.cfgAuthorIP })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("cfgLog") }), jsxRuntimeExports.jsx("td", { children: config.data.config.cfgLog })] })] })] }), jsxRuntimeExports.jsx(Button$1, { variant: "contained", onClick: function () {
 	                                            dispatch(push("#conf/latest"));
 	                                            dispatch(getConfigAsync());
-	                                        }, children: t$2("go") })] }), jsxRuntimeExports.jsx("div", { className: "descBox", children: jsxRuntimeExports.jsx(ConfStats, { config: config.data.config }) })] }), jsxRuntimeExports.jsxs("div", { style: {
+	                                        }, children: t$1("go") })] }), jsxRuntimeExports.jsx("div", { className: "descBox", children: jsxRuntimeExports.jsx(ConfStats, { config: config.data.config }) })] }), jsxRuntimeExports.jsxs("div", { style: {
 	                            visibility: config.error.errorContent ? "visible" : "hidden",
-	                        }, children: [jsxRuntimeExports.jsx("strong", { children: t$2("latestError") }), " ", config.error.errorContent] }), jsxRuntimeExports.jsx(Footer, { cfgVersion: config.data.config.cfgVersion }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup })] }));
+	                        }, children: [jsxRuntimeExports.jsx("strong", { children: t$1("latestError") }), " ", config.error.errorContent] }), jsxRuntimeExports.jsx(Footer, { cfgVersion: config.data.config.cfgVersion }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup })] }));
 	        }
 	    }
 	    catch (e) {
@@ -67288,9 +67288,9 @@ ${String(error)}`;
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
 	    var _a = reactExports.useState("basic"), option = _a[0], setOption = _a[1];
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("casServiceMetadata") })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "basic" ? "selected" : ""), onClick: function () {
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("casServiceMetadata") })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "basic" ? "selected" : ""), onClick: function () {
 	                                    setOption("basic");
-	                                }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "casStorageOptions" ? "selected" : ""), onClick: function () { return setOption("casStorageOptions"); }, children: t$2("casStorageOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "casAttributes" ? "selected" : ""), onClick: function () { return setOption("casAttributes"); }, children: t$2("casAttributes") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [option === "basic" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBCASActivation", value: Number(config.issuerDBCASActivation ||
+	                                }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "casStorageOptions" ? "selected" : ""), onClick: function () { return setOption("casStorageOptions"); }, children: t$1("casStorageOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "casAttributes" ? "selected" : ""), onClick: function () { return setOption("casAttributes"); }, children: t$1("casAttributes") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [option === "basic" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBCASActivation", value: Number(config.issuerDBCASActivation ||
 	                                                        attributes.issuerDBCASActivation.default), updateFunc: function () { return dispatch(toggleCAS()); } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "casAttr", value: config.casAttr || "", updateFunc: function (e) {
 	                                                        return dispatch(updateConfigParams({
 	                                                            param: "casAttr",
@@ -67326,9 +67326,9 @@ ${String(error)}`;
 	                                                            param: "casStorage",
 	                                                            value: e,
 	                                                        }));
-	                                                    } }) })] }) }) })), option === "casStorageOptions" && (jsxRuntimeExports.jsxs("table", { id: "casStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                    } }) })] }) }) })), option === "casStorageOptions" && (jsxRuntimeExports.jsxs("table", { id: "casStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                            return dispatch(newModuleOpt("casStorageOptions"));
-	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "casStorageOptions", vars: config.casStorageOptions ? config.casStorageOptions : {}, tableID: "casStorageOptions", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })), option === "casAttributes" && (jsxRuntimeExports.jsxs("table", { id: "casAttributes", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("casAttributes")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "casAttributes", vars: config.casAttributes ? config.casAttributes : {}, tableID: "casAttributes", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] }))] })] })] }));
+	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "casStorageOptions", vars: config.casStorageOptions ? config.casStorageOptions : {}, tableID: "casStorageOptions", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })), option === "casAttributes" && (jsxRuntimeExports.jsxs("table", { id: "casAttributes", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("casAttributes")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "casAttributes", vars: config.casAttributes ? config.casAttributes : {}, tableID: "casAttributes", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] }))] })] })] }));
 	}
 
 	function updatedGetParam(tableID, key) {
@@ -67362,11 +67362,11 @@ ${String(error)}`;
 	function DoubleHashForm(_a) {
 	    var value = _a.value; _a.fieldName; var dispatch = _a.dispatch;
 	    var i = 0;
-	    return (jsxRuntimeExports.jsxs("table", { id: "getParams", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$2("hostname") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newGetParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value ? value : {}).map(function (key) {
+	    return (jsxRuntimeExports.jsxs("table", { id: "getParams", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$1("hostname") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newGetParam()); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value ? value : {}).map(function (key) {
 	                    i++;
 	                    return (jsxRuntimeExports.jsxs("tr", { className: "getParamRow", children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
 	                                        return dispatch(updateGetParamHostname(updatedGetParam("getParams")));
-	                                    }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("params") }), jsxRuntimeExports.jsxs("table", { id: "getParams".concat(i), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newGetParamOption(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { tableID: "getParams".concat(i), vars: value ? value[key] : {}, delFunction: delGetParamOption, appName: key, updateFunction: updateGetParamOption, dispatch: dispatch })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
+	                                    }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("params") }), jsxRuntimeExports.jsxs("table", { id: "getParams".concat(i), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newGetParamOption(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { tableID: "getParams".concat(i), vars: value ? value[key] : {}, delFunction: delGetParamOption, appName: key, updateFunction: updateGetParamOption, dispatch: dispatch })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                        dispatch(delGetParam(key));
 	                                    }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
 	                }) })] }));
@@ -67375,7 +67375,7 @@ ${String(error)}`;
 	function GetIssuer() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("issuerDBGetParameters") })] }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBGetActivation", value: Number(config.issuerDBGetActivation ||
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("issuerDBGetParameters") })] }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBGetActivation", value: Number(config.issuerDBGetActivation ||
 	                                            attributes.issuerDBGetActivation.default), updateFunc: function () { return dispatch(toggleGET()); } }) }) }) }), jsxRuntimeExports.jsx(DoubleHashForm, { value: config.issuerDBGetParameters || {}, fieldName: "issuerDBGetParameters", dispatch: dispatch })] }) })] }));
 	}
 
@@ -67487,24 +67487,24 @@ ${String(error)}`;
 	            }
 	        });
 	    }); };
-	    return (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2(fieldNames.hash) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$2("oidcServiceKeyTypeSig") }), jsxRuntimeExports.jsx(Select$1, { value: value.type || "RSA", label: t$2("oidcServiceKeyTypeSig"), onChange: function (e) {
+	    return (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1(fieldNames.hash) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("oidcServiceKeyTypeSig") }), jsxRuntimeExports.jsx(Select$1, { value: value.type || "RSA", label: t$1("oidcServiceKeyTypeSig"), onChange: function (e) {
 	                                                return updateFunc({
 	                                                    param: fieldNames.type,
 	                                                    value: e.target.value,
 	                                                });
 	                                            }, children: attributes[fieldNames.type].select.map(function (el) {
-	                                                return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, el.k));
+	                                                return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, el.k));
 	                                            }) })] }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldNames.hash]
 	                                        ? definitions[fieldNames.hash] +
 	                                            ""
-	                                        : "" }), children: jsxRuntimeExports.jsxs("th", { children: [" ", t$2("oidcServiceKeyIdSig"), " "] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$2("oidcServiceKeyIdSig"), variant: "filled", className: "formInput", value: value.hash || "", onChange: function (e) {
+	                                        : "" }), children: jsxRuntimeExports.jsxs("th", { children: [" ", t$1("oidcServiceKeyIdSig"), " "] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", label: t$1("oidcServiceKeyIdSig"), variant: "filled", className: "formInput", value: value.hash || "", onChange: function (e) {
 	                                        return updateFunc({
 	                                            param: fieldNames.hash,
 	                                            value: e.target.value,
 	                                        });
 	                                    } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldNames.priv]
 	                                                    ? definitions[fieldNames.priv] + ""
-	                                                    : "" }), children: jsxRuntimeExports.jsx("span", { children: t$2("oidcServicePrivateKeySig") }) }) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                                    : "" }), children: jsxRuntimeExports.jsx("span", { children: t$1("oidcServicePrivateKeySig") }) }) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                    if (e.target instanceof HTMLInputElement) {
 	                                                        handleChangeFile(e).then(function (fileContent) {
 	                                                            console.debug("File content:", fileContent);
@@ -67514,14 +67514,14 @@ ${String(error)}`;
 	                                                            });
 	                                                        });
 	                                                    }
-	                                                } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, label: t$2("oidcServicePrivateKeySig"), variant: "filled", rows: 5, className: "formInput", value: value.priv || "", onChange: function (e) {
+	                                                } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, label: t$1("oidcServicePrivateKeySig"), variant: "filled", rows: 5, className: "formInput", value: value.priv || "", onChange: function (e) {
 	                                        return updateFunc({
 	                                            param: "oidcServicePrivateKeySig",
 	                                            value: e.target.value,
 	                                        });
 	                                    } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcServicePublicKeySig
 	                                                    ? definitions.oidcServicePublicKeySig
-	                                                    : "" }), children: jsxRuntimeExports.jsx("span", { children: t$2("oidcServicePublicKeySig") }) }) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                                    : "" }), children: jsxRuntimeExports.jsx("span", { children: t$1("oidcServicePublicKeySig") }) }) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                    if (e.target instanceof HTMLInputElement) {
 	                                                        handleChangeFile(e).then(function (fileContent) {
 	                                                            console.debug("File content:", fileContent);
@@ -67531,23 +67531,23 @@ ${String(error)}`;
 	                                                            });
 	                                                        });
 	                                                    }
-	                                                } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 5, label: t$2("oidcServicePublicKeySig"), className: "formInput", value: value.pub || "", onChange: function (e) {
+	                                                } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 5, label: t$1("oidcServicePublicKeySig"), className: "formInput", value: value.pub || "", onChange: function (e) {
 	                                        return updateFunc({
 	                                            param: "oidcServicePublicKeySig",
 	                                            value: e.target.value,
 	                                        });
 	                                    } }) })] }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () {
 	                                    return handleGenerateKeys(value.type ? value.type : "RSA");
-	                                }, children: t$2("newRSAKey") }) }) })] }) }) }));
+	                                }, children: t$1("newRSAKey") }) }) })] }) }) }));
 	}
 
 	function OIDCIssuer() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
 	    var _a = reactExports.useState("basic"), option = _a[0], setOption = _a[1];
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("oidcServiceMetaData") })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "basic" ? "selected" : ""), onClick: function () {
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("oidcServiceMetaData") })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "basic" ? "selected" : ""), onClick: function () {
 	                                    setOption("basic");
-	                                }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceDynamicRegistration" ? "selected" : ""), onClick: function () { return setOption("oidcServiceDynamicRegistration"); }, children: t$2("oidcServiceDynamicRegistration") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataSecurity" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataSecurity"); }, children: t$2("oidcServiceMetaDataSecurity") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataTimeouts" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataTimeouts"); }, children: t$2("oidcServiceMetaDataTimeouts") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataSessions" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataSessions"); }, children: t$2("oidcServiceMetaDataSessions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [option === "basic" && (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBOpenIDConnectActivation", value: Number(config.issuerDBOpenIDConnectActivation ||
+	                                }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceDynamicRegistration" ? "selected" : ""), onClick: function () { return setOption("oidcServiceDynamicRegistration"); }, children: t$1("oidcServiceDynamicRegistration") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataSecurity" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataSecurity"); }, children: t$1("oidcServiceMetaDataSecurity") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataTimeouts" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataTimeouts"); }, children: t$1("oidcServiceMetaDataTimeouts") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "oidcServiceMetaDataSessions" ? "selected" : ""), onClick: function () { return setOption("oidcServiceMetaDataSessions"); }, children: t$1("oidcServiceMetaDataSessions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [option === "basic" && (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBOpenIDConnectActivation", value: Number(config.issuerDBOpenIDConnectActivation ||
 	                                                    attributes.issuerDBOpenIDConnectActivation.default), updateFunc: function () { return dispatch(toggleOIDC()); } }) })), option === "oidcServiceMetaDataSecurity" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsx(OidcKeyForm, { value: {
 	                                                                type: config.oidcServiceKeyTypeSig
 	                                                                    ? config.oidcServiceKeyTypeSig
@@ -67590,11 +67590,11 @@ ${String(error)}`;
 	                                                                param: "oidcServiceAllowDynamicRegistration",
 	                                                                value: e,
 	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("oidcServiceDynamicRegistrationExportedVars") }), jsxRuntimeExports.jsxs("table", { id: "oidcServiceDynamicRegistrationExportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("oidcServiceDynamicRegistrationExportedVars") }), jsxRuntimeExports.jsxs("table", { id: "oidcServiceDynamicRegistrationExportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                                                                return dispatch(newModuleOpt("oidcServiceDynamicRegistrationExportedVars"));
 	                                                                                            }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "oidcServiceDynamicRegistrationExportedVars", vars: config.oidcServiceDynamicRegistrationExportedVars
 	                                                                                ? config.oidcServiceDynamicRegistrationExportedVars
-	                                                                                : {}, tableID: "oidcServiceDynamicRegistrationExportedVars", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })] }) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("oidcServiceDynamicRegistrationExtraClaims") }), jsxRuntimeExports.jsxs("table", { id: "oidcServiceDynamicRegistrationExtraClaims", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                                                : {}, tableID: "oidcServiceDynamicRegistrationExportedVars", dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })] }) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("oidcServiceDynamicRegistrationExtraClaims") }), jsxRuntimeExports.jsxs("table", { id: "oidcServiceDynamicRegistrationExtraClaims", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                                                                return dispatch(newModuleOpt("oidcServiceDynamicRegistrationExtraClaims"));
 	                                                                                            }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "oidcServiceDynamicRegistrationExtraClaims", vars: config.oidcServiceDynamicRegistrationExtraClaims
 	                                                                                ? config.oidcServiceDynamicRegistrationExtraClaims
@@ -67629,7 +67629,7 @@ ${String(error)}`;
 	                                                                param: "oidcStorage",
 	                                                                value: e,
 	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$2("oidcStorageOptions") }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs("table", { id: "oidcStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsxs("th", { children: [" ", t$2("values")] }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$1("oidcStorageOptions") }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs("table", { id: "oidcStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsxs("th", { children: [" ", t$1("values")] }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                                                        return dispatch(newModuleOpt("oidcStorageOptions"));
 	                                                                                    }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "oidcStorageOptions", vars: config.oidcStorageOptions
 	                                                                        ? config.oidcStorageOptions
@@ -67662,7 +67662,7 @@ ${String(error)}`;
 	            });
 	        });
 	    };
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsxs("strong", { className: "title", children: [t$2("samlServiceMetaData"), jsxRuntimeExports.jsx(IconButton$1, { size: "large", color: "secondary", onClick: function () {
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsxs("strong", { className: "title", children: [t$1("samlServiceMetaData"), jsxRuntimeExports.jsx(IconButton$1, { size: "large", color: "secondary", onClick: function () {
 	                                    return __awaiter$1(this, void 0, void 0, function () {
 	                                        return __generator(this, function (_a) {
 	                                            switch (_a.label) {
@@ -67675,13 +67675,13 @@ ${String(error)}`;
 	                                    });
 	                                }, children: jsxRuntimeExports.jsx(DownloadIcon, {}) })] })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "basic" ? "selected" : ""), onClick: function () {
 	                                    setOption("basic");
-	                                }, children: t$2("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "samlServiceSecurity" ? "selected" : ""), onClick: function () { return setOption("samlServiceSecurity"); }, children: t$2("samlServiceSecurity") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "providerOptions" ? "selected" : ""), onClick: function () { return setOption("providerOptions"); }, children: t$2("providerOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "samlAdvanced" ? "selected" : ""), onClick: function () { return setOption("samlAdvanced"); }, children: t$2("samlAdvanced") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [option === "basic" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBSAMLActivation", value: Number(config.issuerDBSAMLActivation ||
+	                                }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "samlServiceSecurity" ? "selected" : ""), onClick: function () { return setOption("samlServiceSecurity"); }, children: t$1("samlServiceSecurity") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "providerOptions" ? "selected" : ""), onClick: function () { return setOption("providerOptions"); }, children: t$1("providerOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(option === "samlAdvanced" ? "selected" : ""), onClick: function () { return setOption("samlAdvanced"); }, children: t$1("samlAdvanced") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [option === "basic" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "issuerDBSAMLActivation", value: Number(config.issuerDBSAMLActivation ||
 	                                                        attributes.issuerDBSAMLActivation.default), updateFunc: function () { return dispatch(toggleSAML()); } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlEntityID", value: config.samlEntityID || "", updateFunc: function (e) {
 	                                                        return dispatch(updateConfigParams({
 	                                                            param: "samlEntityID",
 	                                                            value: e,
 	                                                        }));
-	                                                    } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlOrganization") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlOrganizationDisplayName", value: String(config.samlOrganizationDisplayName || ""), updateFunc: function (e) {
+	                                                    } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("td", { colSpan: 2, children: jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlOrganization") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlOrganizationDisplayName", value: String(config.samlOrganizationDisplayName || ""), updateFunc: function (e) {
 	                                                                                    return dispatch(updateConfigParams({
 	                                                                                        param: "samlOrganizationDisplayName",
 	                                                                                        value: e,
@@ -67696,26 +67696,26 @@ ${String(error)}`;
 	                                                                                        param: "samlOrganizationURL",
 	                                                                                        value: e,
 	                                                                                    }));
-	                                                                                } }) })] }) })] }) }) })] }) }) })), option === "samlServiceSecurity" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$2("samlServicePrivateKeySig") }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                                                                } }) })] }) })] }) }) })] }) }) })), option === "samlServiceSecurity" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$1("samlServicePrivateKeySig") }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                                        if (e.target instanceof HTMLInputElement) {
 	                                                                            handleChangeFile(e).then(function (fileContent) {
 	                                                                                console.debug("File content:", fileContent);
 	                                                                                dispatch(saveSAMLPrivSig(fileContent));
 	                                                                            });
 	                                                                        }
-	                                                                    } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$2("samlServicePrivateKeySig"), margin: "normal", multiline: true, fullWidth: true, rows: 4, className: "formInput", value: config.samlServicePrivateKeySig ||
+	                                                                    } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1("samlServicePrivateKeySig"), margin: "normal", multiline: true, fullWidth: true, rows: 4, className: "formInput", value: config.samlServicePrivateKeySig ||
 	                                                            attributes.samlServicePrivateKeySig.default, onChange: function (e) {
 	                                                            return dispatch(saveSAMLPrivSig(e.target.value));
 	                                                        } }) })] }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(PasswordForm, { fieldName: "samlServicePrivateKeySigPwd", value: config.samlServicePrivateKeySigPwd ||
-	                                                    attributes.samlServicePrivateKeySigPwd.default, updateFunc: function (e) { return dispatch(saveSAMLPrivIdSig(e)); } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$2("samlServicePublicKeySig") }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                                    attributes.samlServicePrivateKeySigPwd.default, updateFunc: function (e) { return dispatch(saveSAMLPrivIdSig(e)); } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$1("samlServicePublicKeySig") }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                                        if (e.target instanceof HTMLInputElement) {
 	                                                                            handleChangeFile(e).then(function (fileContent) {
 	                                                                                console.debug("File content:", fileContent);
 	                                                                                dispatch(saveSAMLPubSig(fileContent));
 	                                                                            });
 	                                                                        }
-	                                                                    } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, label: t$2("samlServicePublicKeySig"), fullWidth: true, rows: 4, className: "formInput", value: config.samlServicePublicKeySig ||
-	                                                            attributes.samlServicePublicKeySig.default, onChange: function (e) { return dispatch(saveSAMLPubSig(e.target.value)); } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", {}), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys(); }, children: t$2("newRSAKey") }) })] })] }) })), option === "providerOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs(Accordion$1, { expanded: true, children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlSPSSODescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPSSODescriptorAuthnRequestsSigned", value: Number(config.samlSPSSODescriptorAuthnRequestsSigned ||
+	                                                                    } })] })] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, label: t$1("samlServicePublicKeySig"), fullWidth: true, rows: 4, className: "formInput", value: config.samlServicePublicKeySig ||
+	                                                            attributes.samlServicePublicKeySig.default, onChange: function (e) { return dispatch(saveSAMLPubSig(e.target.value)); } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", {}), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys(); }, children: t$1("newRSAKey") }) })] })] }) })), option === "providerOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs(Accordion$1, { expanded: true, children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlSPSSODescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPSSODescriptorAuthnRequestsSigned", value: Number(config.samlSPSSODescriptorAuthnRequestsSigned ||
 	                                                                    attributes.samlSPSSODescriptorAuthnRequestsSigned
 	                                                                        .default), updateFunc: function (e) {
 	                                                                    return dispatch(updateConfigParams({
@@ -67729,7 +67729,7 @@ ${String(error)}`;
 	                                                                        param: "samlSPSSODescriptorWantAssertionsSigned",
 	                                                                        value: e,
 	                                                                    }));
-	                                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { expanded: true, children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("samlIDPSSODescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPSSODescriptorAuthnRequestsSigned", value: Number(config.samlSPSSODescriptorAuthnRequestsSigned ||
+	                                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { expanded: true, children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlIDPSSODescriptor") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPSSODescriptorAuthnRequestsSigned", value: Number(config.samlSPSSODescriptorAuthnRequestsSigned ||
 	                                                                attributes.samlSPSSODescriptorAuthnRequestsSigned
 	                                                                    .default), updateFunc: function (e) {
 	                                                                return dispatch(updateConfigParams({
@@ -67747,7 +67747,7 @@ ${String(error)}`;
 	                                                            param: "samlStorage",
 	                                                            value: e,
 	                                                        }));
-	                                                    } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [" ", t$2("samlStorageOptions")] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { className: "box", id: "samlStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () {
+	                                                    } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [" ", t$1("samlStorageOptions")] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { className: "box", id: "samlStorageOptions", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () {
 	                                                                                        return dispatch(newModuleOpt("samlStorageOptions"));
 	                                                                                    }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "samlStorageOptions", vars: config.samlStorageOptions
 	                                                                        ? config.samlStorageOptions
@@ -67782,7 +67782,7 @@ ${String(error)}`;
 	function ADSimpleView() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$2("adParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "ADPwdMaxAge", updateFunc: function (e) {
+	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("adParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "ADPwdMaxAge", updateFunc: function (e) {
 	                                    return dispatch(updateConfigParams({
 	                                        param: "ADPwdMaxAge",
 	                                        value: e,
@@ -67799,7 +67799,7 @@ ${String(error)}`;
 	function KerberosSimpleView() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$2("kerberosParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "krbKeytab", updateFunc: function (e) {
+	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("kerberosParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "krbKeytab", updateFunc: function (e) {
 	                                    return dispatch(updateConfigParams({
 	                                        param: "krbKeytab",
 	                                        value: e,
@@ -67831,13 +67831,13 @@ ${String(error)}`;
 	    var dispatch = useAppDispatch();
 	    var vars = useAppSelector(function (state) { return state.config.data.config[param]; });
 	    var id = String(param);
-	    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("exportedVars") }), jsxRuntimeExports.jsxs("table", { id: id, children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt(param)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: id, vars: vars || {}, tableID: id, dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })] }));
+	    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("exportedVars") }), jsxRuntimeExports.jsxs("table", { id: id, children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt(param)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: id, vars: vars || {}, tableID: id, dispatch: dispatch, delFunction: delModuleOpt, updateFunction: updateModuleOpt })] })] }));
 	}
 
 	function LDAPSimpleView() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$2("ldapParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, className: "title2", children: t$2("ldapConnection") }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "ldapBase", updateFunc: function (e) {
+	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("ldapParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { colSpan: 2, className: "title2", children: t$1("ldapConnection") }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "ldapBase", updateFunc: function (e) {
 	                                    return dispatch(updateConfigParams({
 	                                        param: "ldapBase",
 	                                        value: e,
@@ -67857,7 +67857,7 @@ ${String(error)}`;
 	                                        param: "LDAPFilter",
 	                                        value: e,
 	                                    }));
-	                                }, value: config.LDAPFilter || "" }) })] }) }), jsxRuntimeExports.jsx(ExportedVars, { param: "ldapExportedVars" }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("ldapGroups") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "ldapGroupBase", updateFunc: function (e) {
+	                                }, value: config.LDAPFilter || "" }) })] }) }), jsxRuntimeExports.jsx(ExportedVars, { param: "ldapExportedVars" }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("ldapGroups") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "ldapGroupBase", updateFunc: function (e) {
 	                                            return dispatch(updateConfigParams({
 	                                                param: "ldapGroupBase",
 	                                                value: e,
@@ -67909,7 +67909,7 @@ ${String(error)}`;
 	                                                value: e,
 	                                            }));
 	                                        }, value: config.ldapGroupAttributeNameGroup ||
-	                                            attributes.ldapGroupAttributeNameGroup.default }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("ldapPassword") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "ldapPpolicyControl", value: Number(config.ldapPpolicyControl ||
+	                                            attributes.ldapGroupAttributeNameGroup.default }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("ldapPassword") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "ldapPpolicyControl", value: Number(config.ldapPpolicyControl ||
 	                                            attributes.ldapPpolicyControl.default), updateFunc: function (e) {
 	                                            return dispatch(updateConfigParams({
 	                                                param: "ldapPpolicyControl",
@@ -68037,7 +68037,7 @@ ${String(error)}`;
 	    ]);
 	    var _b = reactExports.useState("AD"), ADKoptionSelected = _b[0], setADKOptionSelected = _b[1];
 	    try {
-	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "authOptionChoices", children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "authenticationLabel", children: t$2("authentication") }), jsxRuntimeExports.jsx(Select$1, { labelId: "authenticationLabel", label: t$2("authentication"), size: "small", value: optionSelected, onChange: function (e) {
+	        return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "authOptionChoices", children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { id: "authenticationLabel", children: t$1("authentication") }), jsxRuntimeExports.jsx(Select$1, { labelId: "authenticationLabel", label: t$1("authentication"), size: "small", value: optionSelected, onChange: function (e) {
 	                                        if (e.target.value === "AD+K") {
 	                                            dispatch(updateAuthParams({
 	                                                param: "authentication",
@@ -68084,8 +68084,8 @@ ${String(error)}`;
 	                                        }
 	                                        setOptionSelected(String(e.target.value));
 	                                    }, children: allOptChoices.map(function (el) {
-	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$2(el.v) }, "auth" + el.v));
-	                                    }) })] }), jsxRuntimeExports.jsx(FormControlLabel$1, { control: jsxRuntimeExports.jsx(Switch$1, {}), checked: passwordDB !== "Null", label: t$2("passwordDB"), onClick: function () {
+	                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, "auth" + el.v));
+	                                    }) })] }), jsxRuntimeExports.jsx(FormControlLabel$1, { control: jsxRuntimeExports.jsx(Switch$1, {}), checked: passwordDB !== "Null", label: t$1("passwordDB"), onClick: function () {
 	                                if (passwordDB === "Null") {
 	                                    if (authModule === "Kerberos") {
 	                                        dispatch(updateAuthParams({
@@ -68106,7 +68106,7 @@ ${String(error)}`;
 	                                        value: "Null",
 	                                    }));
 	                                }
-	                            } }), jsxRuntimeExports.jsx(FormControlLabel$1, { control: jsxRuntimeExports.jsx(Switch$1, {}), label: t$2("registerDB"), checked: registerDB !== "Null", onClick: function () {
+	                            } }), jsxRuntimeExports.jsx(FormControlLabel$1, { control: jsxRuntimeExports.jsx(Switch$1, {}), label: t$1("registerDB"), checked: registerDB !== "Null", onClick: function () {
 	                                if (registerDB === "Null") {
 	                                    if (authModule === "Kerberos") {
 	                                        dispatch(updateAuthParams({
@@ -68127,7 +68127,7 @@ ${String(error)}`;
 	                                        value: "Null",
 	                                    }));
 	                                }
-	                            } })] }), jsxRuntimeExports.jsxs("div", { className: "options", children: [optionSelected === "adv" && (jsxRuntimeExports.jsx("div", { children: "Use the Advanced Panel to manage your configuration." })), optionSelected === "LDAP" && jsxRuntimeExports.jsx(LDAPSimpleView, {}), optionSelected === "AD+K" && (jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "AD" ? "selected" : ""), onClick: function () { return setADKOptionSelected("AD"); }, children: t$2("AD") }), jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "Kerberos" ? "selected" : ""), onClick: function () { return setADKOptionSelected("Kerberos"); }, children: t$2("Kerberos") }), jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "LDAP" ? "selected" : ""), onClick: function () { return setADKOptionSelected("LDAP"); }, children: t$2("LDAP") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), ADKoptionSelected === "AD" && jsxRuntimeExports.jsx(ADSimpleView, {}), ADKoptionSelected === "Kerberos" && jsxRuntimeExports.jsx(KerberosSimpleView, {}), ADKoptionSelected === "LDAP" && jsxRuntimeExports.jsx(LDAPSimpleView, {})] })), optionSelected === "Demo" && (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$2("demoParams") }), jsxRuntimeExports.jsxs("table", { id: "demoExportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx("th", { children: t$2("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                            } })] }), jsxRuntimeExports.jsxs("div", { className: "options", children: [optionSelected === "adv" && (jsxRuntimeExports.jsx("div", { children: "Use the Advanced Panel to manage your configuration." })), optionSelected === "LDAP" && jsxRuntimeExports.jsx(LDAPSimpleView, {}), optionSelected === "AD+K" && (jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "AD" ? "selected" : ""), onClick: function () { return setADKOptionSelected("AD"); }, children: t$1("AD") }), jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "Kerberos" ? "selected" : ""), onClick: function () { return setADKOptionSelected("Kerberos"); }, children: t$1("Kerberos") }), jsxRuntimeExports.jsx("span", { className: "option ".concat(ADKoptionSelected === "LDAP" ? "selected" : ""), onClick: function () { return setADKOptionSelected("LDAP"); }, children: t$1("LDAP") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), ADKoptionSelected === "AD" && jsxRuntimeExports.jsx(ADSimpleView, {}), ADKoptionSelected === "Kerberos" && jsxRuntimeExports.jsx(KerberosSimpleView, {}), ADKoptionSelected === "LDAP" && jsxRuntimeExports.jsx(LDAPSimpleView, {})] })), optionSelected === "Demo" && (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("demoParams") }), jsxRuntimeExports.jsxs("table", { id: "demoExportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx("th", { children: t$1("values") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                                return dispatch(newModuleOpt("demoExportedVars"));
 	                                                            }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: "demoExportedVars", vars: config.data.config.demoExportedVars
 	                                                ? config.data.config.demoExportedVars
@@ -76825,14 +76825,14 @@ Use the data prop if you want to provide your own handlers.`);
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: typeof value === "number"
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: typeof value === "number"
 	                                    ? value
-	                                    : -1 , onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("specialRule") })] })] }), (value === -1 || typeof value === "string") && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, label: t$2(fieldName), variant: "filled", rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$2(fieldName), value: value || ("default" in attribute ? attribute.default : 0) }))] })] }));
+	                                    : -1 , onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("specialRule") })] })] }), (value === -1 || typeof value === "string") && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, label: t$1(fieldName), variant: "filled", rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value || ("default" in attribute ? attribute.default : 0) }))] })] }));
 	}
 
 	function CasAppMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("casAppName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("casAppName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("casAppName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("casAppName"), value: value || "" }) })] }));
 	}
 
 	function CasAppMetaDataNodeContainerForm(_a) {
@@ -76859,15 +76859,15 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "AppCas" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "AppCas" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function CasSrvMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("casSrvName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("casSrvName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("casSrvName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("casSrvName"), value: value || "" }) })] }));
 	}
 
 	function CasSrvMetaDataNodeContainerForm(_a) {
@@ -76897,12 +76897,12 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                    type: "SrvCas",
 	                                                }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            if (name) {
 	                                dispatch(newApp({ name: name, type: "SrvCas" }));
 	                            }
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function CatAndAppListForm(_a) {
@@ -76941,7 +76941,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                        }
 	                    });
 	                });
-	            }, variant: "contained", children: t$2("downloadMetadata") }) }));
+	            }, variant: "contained", children: t$1("downloadMetadata") }) }));
 	}
 
 	function DisplaySamlMetaDataForm(_a) {
@@ -76957,7 +76957,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                        }
 	                    });
 	                });
-	            }, variant: "contained", children: t$2("downloadMetadata") }) }));
+	            }, variant: "contained", children: t$1("downloadMetadata") }) }));
 	}
 
 	function updateGrant(tableID) {
@@ -76980,7 +76980,7 @@ Use the data prop if you want to provide your own handlers.`);
 	    var value = _a.value, fieldName = _a.fieldName, dispatch = _a.dispatch;
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: "grantTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("comments") }), jsxRuntimeExports.jsx("th", { children: t$2("rules") }), jsxRuntimeExports.jsx("th", { children: t$2("messages") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("grantSessionRules")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: "grantTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("comments") }), jsxRuntimeExports.jsx("th", { children: t$1("rules") }), jsxRuntimeExports.jsx("th", { children: t$1("messages") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("grantSessionRules")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
 	                                var _a = key.split("##"), message = _a[0], comments = _a[1];
 	                                return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) {
 	                                                    return dispatch(updateModuleOpt({
@@ -77006,7 +77006,7 @@ Use the data prop if you want to provide your own handlers.`);
 	function KeyTextContainerForm(_a) {
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    var i = 0;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$2(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedvalue", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldName] + "" }), children: jsxRuntimeExports.jsx("th", { children: t$2("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedvalue", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldName] + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
 	                                                    return updateFunc(addHeader("exportedvalue"));
 	                                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
 	                                    i++;
@@ -77106,7 +77106,7 @@ Use the data prop if you want to provide your own handlers.`);
 	            ? values.options.display
 	            : "specialRule");
 	    }, [values.options]);
-	    return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("h3", { children: t$2("application") }) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "name", value: values.options.name, updateFunc: function (e) {
+	    return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("h3", { children: t$1("application") }) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "name", value: values.options.name, updateFunc: function (e) {
 	                                        return dispatch(changeApplicationField({
 	                                            catid: catid,
 	                                            id: id,
@@ -77134,7 +77134,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                            field: "tooltip",
 	                                            value: e,
 	                                        }));
-	                                    } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("logo") }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(Select$1, { value: values.options.logo ||
+	                                    } }) }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("logo") }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(Select$1, { value: values.options.logo ||
 	                                                        "network.png", onChange: function (e) {
 	                                                        return dispatch(changeApplicationField({
 	                                                            catid: catid,
@@ -77142,7 +77142,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                            field: "logo",
 	                                                            value: e.target.value,
 	                                                        }));
-	                                                    }, children: logoOptions.map(function (option) { return (jsxRuntimeExports.jsx(MenuItem$1, { value: option, children: jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/common/apps/").concat(option), height: "30px", width: "30px", alt: option }) }, option)); }) }), jsxRuntimeExports.jsx(TextField$1, { value: values.options.logo })] }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("applicationDisplay") }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$2("applicationDisplay") }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: display, onChange: function (e) {
+	                                                    }, children: logoOptions.map(function (option) { return (jsxRuntimeExports.jsx(MenuItem$1, { value: option, children: jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/common/apps/").concat(option), height: "30px", width: "30px", alt: option }) }, option)); }) }), jsxRuntimeExports.jsx(TextField$1, { value: values.options.logo })] }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("applicationDisplay") }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1("applicationDisplay") }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: display, onChange: function (e) {
 	                                                            dispatch(changeApplicationField({
 	                                                                catid: catid,
 	                                                                id: id,
@@ -77150,7 +77150,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                                value: e.target.value,
 	                                                            }));
 	                                                            setDisplay(e.target.value);
-	                                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "on", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "off", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "auto", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("auto") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "specialRule", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("specialRule") })] })] }), display === "specialRule" && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, variant: "filled", rows: 4, onChange: function (e) {
+	                                                        }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "on", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "off", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "auto", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("auto") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "specialRule", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("specialRule") })] })] }), display === "specialRule" && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, variant: "filled", rows: 4, onChange: function (e) {
 	                                                    return dispatch(changeApplicationField({
 	                                                        catid: catid,
 	                                                        id: id,
@@ -77162,13 +77162,13 @@ Use the data prop if you want to provide your own handlers.`);
 
 	function MenuCatForm(_a) {
 	    var values = _a.values, id = _a.id, dispatch = _a.dispatch;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("h3", { children: [" ", t$2("menuCategory")] }) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("h3", { children: [" ", t$1("menuCategory")] }) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                            return dispatch(moveCat({ category: id, direction: "up" }));
 	                                        }, children: jsxRuntimeExports.jsx(ArrowUpwardOutlinedIcon, {}) }), jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                            return dispatch(moveCat({ category: id, direction: "down" }));
 	                                        }, children: jsxRuntimeExports.jsx(ArrowDownwardOutlinedIcon, {}) })] }), jsxRuntimeExports.jsx(TextForm, { value: typeof values.catname === "string" ? values.catname : "", fieldName: "categoryName", updateFunc: function (e) {
 	                                    return dispatch(renameCategory({ id: id, newname: e }));
-	                                } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () { return dispatch(delCategory(id)); }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }) }) }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("h4", { children: [" ", t$2("appsInThisCat")] }), jsxRuntimeExports.jsx("ul", { children: Object.keys(values)
+	                                } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () { return dispatch(delCategory(id)); }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }) }) }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("h4", { children: [" ", t$1("appsInThisCat")] }), jsxRuntimeExports.jsx("ul", { children: Object.keys(values)
 	                            .filter(function (key) { return typeof values[key] === "object"; })
 	                            .sort(function (key1, key2) {
 	                            var order1 = values[key1].order;
@@ -77193,7 +77193,7 @@ Use the data prop if you want to provide your own handlers.`);
 
 	function OidcOPMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("oidcOPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("oidcOPName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("oidcOPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("oidcOPName"), value: value || "" }) })] }));
 	}
 
 	function OidcOPMetaDataNodeContainerForm(_a) {
@@ -77220,15 +77220,15 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "OPoidc" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "OPoidc" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function OidcRPMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("oidcRPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("oidcRPName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("oidcRPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("oidcRPName"), value: value || "" }) })] }));
 	}
 
 	function OidcRPMetaDataNodeContainerForm(_a) {
@@ -77255,22 +77255,22 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "RPoidc" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "RPoidc" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function PortalskinForm(_a) {
 	    var value = _a.value, portal = _a.portal, dispatch = _a.dispatch;
 	    var _b = reactExports.useState(value === "bootstrap" ? value : "custom"), displayType = _b[0], setDisplayType = _b[1];
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("portalSkin") }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: displayType, onChange: function (e) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("portalSkin") }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: displayType, onChange: function (e) {
 	                                dispatch(updateConfigParams({
 	                                    param: "portalSkin",
 	                                    value: e.target.value,
 	                                }));
 	                                setDisplayType(e.target.value);
-	                            }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "bootstrap", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("bootstrap") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "custom", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$2("custom") })] }) }), value === "bootstrap" && (jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/logos/bootstrap.png"), width: "250px", alt: value })), value !== "bootstrap" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/logos/custom.png"), width: "250px", alt: value }), jsxRuntimeExports.jsx(TextField$1, { value: value || "", onChange: function (e) {
+	                            }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: "bootstrap", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("bootstrap") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: "custom", control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("custom") })] }) }), value === "bootstrap" && (jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/logos/bootstrap.png"), width: "250px", alt: value })), value !== "bootstrap" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("img", { src: "".concat(portal, "/static/logos/custom.png"), width: "250px", alt: value }), jsxRuntimeExports.jsx(TextField$1, { value: value || "", onChange: function (e) {
 	                                    dispatch(updateConfigParams({
 	                                        param: "portalSkin",
 	                                        value: e.target.value,
@@ -77280,7 +77280,7 @@ Use the data prop if you want to provide your own handlers.`);
 
 	function PortalskinbackgroundForm(_a) {
 	    var value = _a.value, portal = _a.portal, dispatch = _a.dispatch;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$2("portalSkinBackground") }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(Select$1, { value: value, onChange: function (e) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx("span", { children: t$1("portalSkinBackground") }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(Select$1, { value: value, onChange: function (e) {
 	                                return dispatch(updateConfigParams({
 	                                    param: "portalSkinBackground",
 	                                    value: e.target.value,
@@ -77292,7 +77292,7 @@ Use the data prop if you want to provide your own handlers.`);
 	    var value = _a.value, appName = _a.appName;
 	    var i = 0;
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$2("post") }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$2("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (link) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1("post") }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (link) {
 	                                    i++;
 	                                    return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: link, onChange: function () {
 	                                                        return dispatch(updateVhostPost({
@@ -77386,7 +77386,7 @@ Use the data prop if you want to provide your own handlers.`);
 	            }
 	        });
 	    }); };
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$2(fieldNames.priv) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$1(fieldNames.priv) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                            if (e.target instanceof HTMLInputElement) {
 	                                                                handleChangeFile(e).then(function (fileContent) {
 	                                                                    console.debug("File content:", fileContent);
@@ -77401,12 +77401,12 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                    param: fieldNames.priv,
 	                                                    value: e.target.value,
 	                                                });
-	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [" ", t$2(fieldNames.hash)] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "formInput", value: value.hash || "", onChange: function (e) {
+	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [" ", t$1(fieldNames.hash)] }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "formInput", value: value.hash || "", onChange: function (e) {
 	                                                return updateFunc({
 	                                                    param: fieldNames.hash,
 	                                                    value: e.target.value,
 	                                                });
-	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$2(fieldNames.pub) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsxs("th", { children: [jsxRuntimeExports.jsx("div", { children: t$1(fieldNames.pub) }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                                            if (e.target instanceof HTMLInputElement) {
 	                                                                handleChangeFile(e).then(function (fileContent) {
 	                                                                    console.debug("File content:", fileContent);
@@ -77421,17 +77421,17 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                    param: fieldNames.pub,
 	                                                    value: e.target.value,
 	                                                });
-	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", {}), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return setGenPopup(true); }, children: t$2("newRSAKey") }) })] })] }) }) }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: password, placeholder: t$2("enterPassword"), onChange: function (e) { return setPassword(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                            } }) })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", {}), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return setGenPopup(true); }, children: t$1("newRSAKey") }) })] })] }) }) }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: password, placeholder: t$1("enterPassword"), onChange: function (e) { return setPassword(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            handleGenerateKeys(password);
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function RuleContainerForm(_a) {
 	    var value = _a.value, appName = _a.appName;
 	    var i = 0;
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$2("locationRules") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: "locationRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("vhostComment") }), jsxRuntimeExports.jsx("th", { children: t$2("regexp") }), jsxRuntimeExports.jsx("th", { children: t$2("rules") }), jsxRuntimeExports.jsx("th", { children: t$2("rulesAuthnLevel") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newLocationRule(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsxs("tbody", { children: [Object.keys(value).map(function (group) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1("locationRules") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs("table", { id: "locationRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("vhostComment") }), jsxRuntimeExports.jsx("th", { children: t$1("regexp") }), jsxRuntimeExports.jsx("th", { children: t$1("rules") }), jsxRuntimeExports.jsx("th", { children: t$1("rulesAuthnLevel") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newLocationRule(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsxs("tbody", { children: [Object.keys(value).map(function (group) {
 	                                    i++;
 	                                    var _a = transformJsonToList(group), commentary = _a[0], regex = _a[1], authLevel = _a[2];
 	                                    if (regex === "default") {
@@ -77463,7 +77463,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                            key: "(?#".concat(commentary, ")").concat(regex).concat(authLevel ? "(?#AuthnLevel=".concat(authLevel, ")") : ""),
 	                                                        }));
 	                                                    }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                                }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function () {
+	                                }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("defaultRule") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", value: "default", disabled: true }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", type: "text", onChange: function () {
 	                                                    return dispatch(updateLocationRule({
 	                                                        appName: appName,
 	                                                        locationRules: updateRules("locationRules"),
@@ -77551,22 +77551,22 @@ Use the data prop if you want to provide your own handlers.`);
 	            });
 	        });
 	    };
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () { return setRecPopup(true); }, variant: "contained", children: t$2("sendTestMail") }), jsxRuntimeExports.jsxs(Dialog$1, { open: recPopup, children: [!result && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: recipient, placeholder: t$2("recipient"), onChange: function (e) { return setRecipient(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () { return setRecPopup(true); }, variant: "contained", children: t$1("sendTestMail") }), jsxRuntimeExports.jsxs(Dialog$1, { open: recPopup, children: [!result && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: recipient, placeholder: t$1("recipient"), onChange: function (e) { return setRecipient(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                    next();
-	                                }, children: t$2("send") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                }, children: t$1("send") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                    setRecPopup(false);
 	                                    setResult(undefined);
 	                                    setRecipient("");
-	                                }, children: t$2("cancel") })] })), result && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("h3", { children: result.success ? t$2("success") : t$2("error") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx("span", { children: result.error || "__sendTestMailSuccess__" }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                }, children: t$1("cancel") })] })), result && (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("h3", { children: result.success ? t$1("success") : t$1("error") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx("span", { children: result.error || "__sendTestMailSuccess__" }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                    setRecPopup(false);
 	                                    setResult(undefined);
 	                                    setRecipient("");
-	                                }, children: t$2("ok") })] }))] })] }));
+	                                }, children: t$1("ok") })] }))] })] }));
 	}
 
 	function SamlIDPMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("samlIDPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("samlIDPName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("samlIDPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("samlIDPName"), value: value || "" }) })] }));
 	}
 
 	function SamlIDPMetaDataContainerForm(_a) {
@@ -77593,15 +77593,15 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "IdPsaml" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "IdPsaml" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function SamlSPMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("samlSPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("samlSPName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("samlSPName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("samlSPName"), value: value || "" }) })] }));
 	}
 
 	function SamlSPMetaDataContainerForm(_a) {
@@ -77628,10 +77628,10 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "SPsaml" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "SPsaml" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function updateSfExtra(tableID, data, selectData, newkey) {
@@ -77695,16 +77695,16 @@ Use the data prop if you want to provide your own handlers.`);
 	function ContainerForm(_a) {
 	    var data = _a.data, dispatch = _a.dispatch;
 	    var i = 0;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "combTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("name") }), jsxRuntimeExports.jsx("th", { children: t$2("type") }), jsxRuntimeExports.jsx("th", { children: t$2("label") }), jsxRuntimeExports.jsx("th", { children: t$2("logo") }), jsxRuntimeExports.jsx("th", { children: t$2("level") }), jsxRuntimeExports.jsx("th", { children: t$2("activationrule") }), jsxRuntimeExports.jsx("th", { children: t$2("registerextra") }), jsxRuntimeExports.jsx("th", { children: t$2("registerrule") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("sfExtra")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data).map(function (key) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("table", { id: "combTable", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("name") }), jsxRuntimeExports.jsx("th", { children: t$1("type") }), jsxRuntimeExports.jsx("th", { children: t$1("label") }), jsxRuntimeExports.jsx("th", { children: t$1("logo") }), jsxRuntimeExports.jsx("th", { children: t$1("level") }), jsxRuntimeExports.jsx("th", { children: t$1("activationrule") }), jsxRuntimeExports.jsx("th", { children: t$1("registerextra") }), jsxRuntimeExports.jsx("th", { children: t$1("registerrule") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(Button$1, { className: "plus", onClick: function () { return dispatch(newModuleOpt("sfExtra")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(data).map(function (key) {
 	                            i++;
-	                            return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", placeholder: t$2(key), value: key || "", onChange: function (e) {
+	                            return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", placeholder: t$1(key), value: key || "", onChange: function (e) {
 	                                                return dispatch(updateModuleOpt({
 	                                                    name: "sfExtra",
 	                                                    data: updateSfExtra("combTable", data, {
 	                                                        name: key,
 	                                                    }, e.target.value),
 	                                                }));
-	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$2("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$2("type"), value: data[key].type || "Mail2F", onChange: function (e) {
+	                                            } }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1("type") }), jsxRuntimeExports.jsx(Select$1, { label: t$1("type"), value: data[key].type || "Mail2F", onChange: function (e) {
 	                                                        return dispatch(updateModuleOpt({
 	                                                            name: "sfExtra",
 	                                                            data: updateSfExtra("combTable", data, {
@@ -77713,7 +77713,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                            }),
 	                                                        }));
 	                                                    }, children: attributes.sfExtra.select.map(function (e) {
-	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$2(e.v) }, e.v));
+	                                                        return (jsxRuntimeExports.jsx(MenuItem$1, { value: e.k, children: t$1(e.v) }, e.v));
 	                                                    }) })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", value: data[key].label, onChange: function (e) {
 	                                                return dispatch(updateModuleOpt({
 	                                                    name: "sfExtra",
@@ -77761,13 +77761,13 @@ Use the data prop if you want to provide your own handlers.`);
 	                                            }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
 	                        }) })] }), jsxRuntimeExports.jsx("div", { children: Object.keys(data).map(function (key) {
 	                    i++;
-	                    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$2("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$2("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$2("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSfExtraOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (data[key].over ? data[key].over : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: deleteSfExtraOverParam, updateFunction: updateSfExtraOverParam })] })] }, i));
+	                    return (jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("overPrm") + " " + key }), jsxRuntimeExports.jsxs("table", { id: "overParam".concat(key), children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("overPrm") }), jsxRuntimeExports.jsx("th", { children: t$1("value") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSfExtraOverParam(key)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: key, vars: (data[key].over ? data[key].over : {}), tableID: "overParam".concat(key), dispatch: dispatch, delFunction: deleteSfExtraOverParam, updateFunction: updateSfExtraOverParam })] })] }, i));
 	                }) })] }));
 	}
 
 	function VirtualHostForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$2("vHostName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$2("vHostName"), value: value || "" }) })] }));
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("vHostName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("vHostName"), value: value || "" }) })] }));
 	}
 
 	function VirtualHostContainerForm(_a) {
@@ -77794,10 +77794,10 @@ Use the data prop if you want to provide your own handlers.`);
 	                                        } }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { onClick: function () {
 	                                                dispatch(delApp({ name: child.data.name || "", type: "native" }));
 	                                            }, className: "minus", children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$2("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                        }) })] }), jsxRuntimeExports.jsxs(Dialog$1, { open: genPopup, children: [jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", className: "formInput", value: name, placeholder: t$1("enterName"), onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                            dispatch(newApp({ name: name || "", type: "native" }));
 	                            setGenPopup(false);
-	                        }, children: t$2("close") })] })] }));
+	                        }, children: t$1("close") })] })] }));
 	}
 
 	function TreeNodeType(_a) {
@@ -78161,7 +78161,7 @@ Use the data prop if you want to provide your own handlers.`);
 	        }
 	    }, [selectedItem, tree, config]);
 	    if (tree) {
-	        return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("div", { className: "treeHeader", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("advancedConfiguration") }), ((_b = selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data) === null || _b === void 0 ? void 0 : _b.name) && (jsxRuntimeExports.jsx("span", { className: "treeBreadcrumb", children: selectedItem.data.name })), (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help) && (jsxRuntimeExports.jsx(Link$1, { className: "treeHelp", target: "blank", href: config.managerDn +
+	        return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("div", { className: "treeHeader", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("advancedConfiguration") }), ((_b = selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data) === null || _b === void 0 ? void 0 : _b.name) && (jsxRuntimeExports.jsx("span", { className: "treeBreadcrumb", children: selectedItem.data.name })), (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help) && (jsxRuntimeExports.jsx(Link$1, { className: "treeHelp", target: "blank", href: config.managerDn +
 	                                "/doc/pages/documentation/current/" +
 	                                (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help), children: jsxRuntimeExports.jsx(HelpOutlineIcon, {}) }))] }), jsxRuntimeExports.jsxs("div", { className: "treePage", children: [jsxRuntimeExports.jsx("div", { className: "tree", ref: ref, children: jsxRuntimeExports.jsx(Tree, { disableDrag: true, rowHeight: 34, ref: treeRef, onToggle: function (itemId) {
 	                                    ToggleConfTree(itemId, treeRef, tree, config, setItems);
@@ -78392,7 +78392,7 @@ Use the data prop if you want to provide your own handlers.`);
 	    var _d = reactExports.useState(attributes.virtualHostName.default), name = _d[0], setName = _d[1];
 	    var dispatch = useAppDispatch();
 	    var data = useAppSelector(function (state) { return state.config.data.config; });
-	    return (jsxRuntimeExports.jsx("div", { className: "modal", children: jsxRuntimeExports.jsxs("div", { className: "createAssistant", children: [page === 0 && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$2("type") }), jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 150 }, size: "small", id: "applicationType", children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$2("chooseType") }), jsxRuntimeExports.jsxs(Select$1, { "aria-label": t$2("chooseType"), label: t$2("chooseType"), value: appType, onChange: function (e) {
+	    return (jsxRuntimeExports.jsx("div", { className: "modal", children: jsxRuntimeExports.jsxs("div", { className: "createAssistant", children: [page === 0 && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("type") }), jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 150 }, size: "small", id: "applicationType", children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("chooseType") }), jsxRuntimeExports.jsxs(Select$1, { "aria-label": t$1("chooseType"), label: t$1("chooseType"), value: appType, onChange: function (e) {
 	                                                        setAppType(String(e.target.value));
 	                                                        if (e.target.value === "native") {
 	                                                            setName(attributes.virtualHostName.default);
@@ -78406,26 +78406,26 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                        if (e.target.value === "AppCas") {
 	                                                            setName("app-example");
 	                                                        }
-	                                                    }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "native", children: "Native" }), jsxRuntimeExports.jsx(MenuItem$1, { value: "SPsaml", children: t$2("saml") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "RPoidc", children: t$2("OpenIDConnect") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "AppCas", children: t$2("issuerDBCAS") })] })] })] }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$2("name"), " "] }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", type: "text", value: name, onChange: function (e) {
+	                                                    }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "native", children: "Native" }), jsxRuntimeExports.jsx(MenuItem$1, { value: "SPsaml", children: t$1("saml") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "RPoidc", children: t$1("OpenIDConnect") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "AppCas", children: t$1("issuerDBCAS") })] })] })] }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("name"), " "] }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", type: "text", value: name, onChange: function (e) {
 	                                                    setName(e.target.value);
 	                                                } })] }) })] }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function (e) {
 	                                            closeModal(e);
 	                                            setPage(page - 1);
 	                                            setAppType("native");
 	                                            dispatch(delApp({ name: name, type: "native" }));
-	                                        }, children: t$2("cancel") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                        }, children: t$1("cancel") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                            if (name && appType !== "None") {
 	                                                setPage(page + 1);
 	                                                dispatch(newApp({ name: name, type: appType }));
 	                                            }
-	                                        }, children: t$2("next") })] }) })] })), page === 1 && (appType === "SPsaml" || appType === "RPoidc") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(MandatoryFields, { type: appType, name: name }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function (e) {
+	                                        }, children: t$1("next") })] }) })] })), page === 1 && (appType === "SPsaml" || appType === "RPoidc") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(MandatoryFields, { type: appType, name: name }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function (e) {
 	                                            closeModal(e);
 	                                            setPage(page - 1);
 	                                            dispatch(delApp({ name: name, type: appType }));
-	                                        }, children: t$2("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () {
+	                                        }, children: t$1("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () {
 	                                            setPage(page - 1);
 	                                            dispatch(delApp({ name: name, type: appType }));
-	                                        }, children: t$2("previous") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () {
+	                                        }, children: t$1("previous") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () {
 	                                            if ((data.oidcRPMetaDataOptions
 	                                                ? data.oidcRPMetaDataOptions[name]
 	                                                    ? data.oidcRPMetaDataOptions[name]
@@ -78440,7 +78440,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                    : false)) {
 	                                                setPage(page + 1);
 	                                            }
-	                                        }, children: t$2("next") })] }) })] })), ((page === 1 && !(appType === "SPsaml" || appType === "RPoidc")) ||
+	                                        }, children: t$1("next") })] }) })] })), ((page === 1 && !(appType === "SPsaml" || appType === "RPoidc")) ||
 	                    (page === 2 && (appType === "SPsaml" || appType === "RPoidc"))) && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs("span", { children: ["Basic ", appType, " application setup, to customize further pls access it wia the manager dashboard"] }) }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: closeModal, children: "confirm" }) })] }))] }) }));
 	}
 
@@ -78451,11 +78451,11 @@ Use the data prop if you want to provide your own handlers.`);
 	    };
 	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs(Button$1, { className: "addButton", variant: "contained", color: "primary", onClick: function () {
 	                    setOpen(!open);
-	                }, children: [jsxRuntimeExports.jsx(AddIcon, { fontSize: "large" }), jsxRuntimeExports.jsx("span", { children: t$2("newApp") })] }), jsxRuntimeExports.jsxs(Dialog$1, { fullWidth: true, open: open, onClose: function (event, reason) {
+	                }, children: [jsxRuntimeExports.jsx(AddIcon, { fontSize: "large" }), jsxRuntimeExports.jsx("span", { children: t$1("newApp") })] }), jsxRuntimeExports.jsxs(Dialog$1, { fullWidth: true, open: open, onClose: function (event, reason) {
 	                    if (reason !== "backdropClick" && reason !== "escapeKeyDown") {
 	                        closeModal();
 	                    }
-	                }, disableEscapeKeyDown: true, children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$2("newApp") }), jsxRuntimeExports.jsx(DialogContent$1, { children: jsxRuntimeExports.jsx(CreationAssistant, { closeModal: closeModal }) })] })] }));
+	                }, disableEscapeKeyDown: true, children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$1("newApp") }), jsxRuntimeExports.jsx(DialogContent$1, { children: jsxRuntimeExports.jsx(CreationAssistant, { closeModal: closeModal }) })] })] }));
 	}
 
 	var ControlPointDuplicateOutlined = {};
@@ -78561,7 +78561,7 @@ Use the data prop if you want to provide your own handlers.`);
 	    var handleClick = function (event) {
 	        setAnchorEl(event.currentTarget);
 	    };
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { className: "card ".concat((!issuer && !(type === "native")) || !rule ? "issue" : "").concat(maintenanceToggled ? "Maintenance" : ""), "data-testid": info.name, role: "gridcell", onClick: function () { return dispatch(push("#app/".concat(type, "/").concat(info.name))); }, children: jsxRuntimeExports.jsxs("div", { className: "cardInfo", "data-testid": "appcard", children: [jsxRuntimeExports.jsx(Chip$1, { label: t$2(type), size: "small", className: "bottomRectangle type-".concat(type) }), jsxRuntimeExports.jsxs("strong", { className: "title2", children: [info.name, " ", jsxRuntimeExports.jsxs("span", { children: [" ", !rule ? "⚠️" : ""] })] }), jsxRuntimeExports.jsxs("div", { className: "name", children: [type === "native" ? (jsxRuntimeExports.jsxs("div", { className: "maintenanceToggle", children: [jsxRuntimeExports.jsx("p", { children: t$2("maintenance") }), jsxRuntimeExports.jsx("div", { "data-testid": "maintenanceButton.".concat(info.name), onClick: function (e) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { className: "card ".concat((!issuer && !(type === "native")) || !rule ? "issue" : "").concat(maintenanceToggled ? "Maintenance" : ""), "data-testid": info.name, role: "gridcell", onClick: function () { return dispatch(push("#app/".concat(type, "/").concat(info.name))); }, children: jsxRuntimeExports.jsxs("div", { className: "cardInfo", "data-testid": "appcard", children: [jsxRuntimeExports.jsx(Chip$1, { label: t$1(type), size: "small", className: "bottomRectangle type-".concat(type) }), jsxRuntimeExports.jsxs("strong", { className: "title2", children: [info.name, " ", jsxRuntimeExports.jsxs("span", { children: [" ", !rule ? "⚠️" : ""] })] }), jsxRuntimeExports.jsxs("div", { className: "name", children: [type === "native" ? (jsxRuntimeExports.jsxs("div", { className: "maintenanceToggle", children: [jsxRuntimeExports.jsx("p", { children: t$1("maintenance") }), jsxRuntimeExports.jsx("div", { "data-testid": "maintenanceButton.".concat(info.name), onClick: function (e) {
 	                                                e.stopPropagation();
 	                                            }, children: jsxRuntimeExports.jsx(ToggleButton, { inputProps: { role: "switch" }, "data-testid": "maintenance.".concat(info.name), color: "secondary", role: "switch", checked: maintenanceToggled, onChange: function () {
 	                                                    return dispatch(toggleMaintenance(String(info.name)));
@@ -78580,29 +78580,29 @@ Use the data prop if you want to provide your own handlers.`);
 	                                            }, children: jsxRuntimeExports.jsx(DeleteOutlineOutlinedIcon, {}) })] })] })] }) }), !info.partial && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Menu$1, { id: "name-menu", anchorEl: anchorEl, open: openName, onClose: function () {
 	                            setOpenName(false);
 	                            setAnchorEl(null);
-	                        }, children: jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx(TextField$1, { sx: { margin: "10px" }, placeholder: t$2("hostname"), size: "small", margin: "normal", variant: "filled", type: "text", onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { sx: { verticalAlign: "-28px", margin: "15px" }, variant: "outlined", onClick: function () {
+	                        }, children: jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx(TextField$1, { sx: { margin: "10px" }, placeholder: t$1("hostname"), size: "small", margin: "normal", variant: "filled", type: "text", onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { sx: { verticalAlign: "-28px", margin: "15px" }, variant: "outlined", onClick: function () {
 	                                        if (name) {
 	                                            dispatch(changeAppName({ name: info.name, newName: name }));
 	                                            setOpenName(false);
 	                                            setAnchorEl(null);
 	                                        }
-	                                    }, children: t$2("confirm") })] }) }), jsxRuntimeExports.jsxs(Menu$1, { id: "dup-menu", anchorEl: anchorEl, open: openDup, onClose: function () {
+	                                    }, children: t$1("confirm") })] }) }), jsxRuntimeExports.jsxs(Menu$1, { id: "dup-menu", anchorEl: anchorEl, open: openDup, onClose: function () {
 	                            setOpenDup(false);
 	                            setAnchorEl(null);
-	                        }, children: [jsxRuntimeExports.jsx(TextField$1, { sx: { margin: "10px" }, placeholder: t$2("hostname"), size: "small", margin: "normal", variant: "filled", type: "text", onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { sx: { verticalAlign: "-28px", margin: "10px" }, variant: "outlined", onClick: function () {
+	                        }, children: [jsxRuntimeExports.jsx(TextField$1, { sx: { margin: "10px" }, placeholder: t$1("hostname"), size: "small", margin: "normal", variant: "filled", type: "text", onChange: function (e) { return setName(e.target.value); } }), jsxRuntimeExports.jsx(Button$1, { sx: { verticalAlign: "-28px", margin: "10px" }, variant: "outlined", onClick: function () {
 	                                    if (name) {
 	                                        dispatch(dupApp({ oldName: info.name, newAppName: name }));
 	                                        setOpenDup(false);
 	                                        setAnchorEl(null);
 	                                    }
-	                                }, children: t$2("confirm") })] }), jsxRuntimeExports.jsx(Menu$1, { id: "del-menu", anchorEl: anchorEl, open: openDel, onClose: function () {
+	                                }, children: t$1("confirm") })] }), jsxRuntimeExports.jsx(Menu$1, { id: "del-menu", anchorEl: anchorEl, open: openDel, onClose: function () {
 	                            setOpenDel(false);
 	                            setAnchorEl(null);
 	                        }, children: jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("label", { style: { margin: "10px" }, children: "Are You Sure?" }), jsxRuntimeExports.jsx(Button$1, { sx: { margin: "10px" }, variant: "outlined", onClick: function () {
 	                                        dispatch(delApp({ name: info.name, type: type }));
 	                                        setOpenDel(false);
 	                                        setAnchorEl(null);
-	                                    }, children: t$2("confirm") })] }) })] }))] }));
+	                                    }, children: t$1("confirm") })] }) })] }))] }));
 	}
 
 	var SortByAlpha = {};
@@ -78631,7 +78631,7 @@ Use the data prop if you want to provide your own handlers.`);
 
 	function FilterToggle(_a) {
 	    var filters = _a.filters, setFilters = _a.setFilters;
-	    return (jsxRuntimeExports.jsxs("div", { className: "filters", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { className: "filter", size: "small", margin: "normal", variant: "outlined", label: t$2("search"), placeholder: t$2("search"), onChange: function (e) { return setFilters(__assign(__assign({}, filters), { search: e.target.value })); } }) }), jsxRuntimeExports.jsxs(ToggleButton$2, { className: "filter", "aria-labelledby": "alpha-label", "data-testid": "alpha-label", onClick: function () { return setFilters(__assign(__assign({}, filters), { alpha: !filters.alpha })); }, selected: filters.alpha, value: filters.alpha, color: filters.alpha ? "primary" : "secondary", size: "small", children: [jsxRuntimeExports.jsx(SortByAlphaIcon, {}), jsxRuntimeExports.jsx("label", { "aria-label": "alpha-label", hidden: true, children: "alpha-label" })] })] }));
+	    return (jsxRuntimeExports.jsxs("div", { className: "filters", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { className: "filter", size: "small", margin: "normal", variant: "outlined", label: t$1("search"), placeholder: t$1("search"), onChange: function (e) { return setFilters(__assign(__assign({}, filters), { search: e.target.value })); } }) }), jsxRuntimeExports.jsxs(ToggleButton$2, { className: "filter", "aria-labelledby": "alpha-label", "data-testid": "alpha-label", onClick: function () { return setFilters(__assign(__assign({}, filters), { alpha: !filters.alpha })); }, selected: filters.alpha, value: filters.alpha, color: filters.alpha ? "primary" : "secondary", size: "small", children: [jsxRuntimeExports.jsx(SortByAlphaIcon, {}), jsxRuntimeExports.jsx("label", { "aria-label": "alpha-label", hidden: true, children: "alpha-label" })] })] }));
 	}
 
 	var WarningTwoTone = {};
@@ -78720,34 +78720,34 @@ Use the data prop if you want to provide your own handlers.`);
 	            if (reason !== "backdropClick" && reason !== "escapeKeyDown") {
 	                setVisible(false);
 	            }
-	        }, style: { display: "flex", justifyContent: "center" }, disableEscapeKeyDown: true, children: [step === 0 && (jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("div", { className: "issuerInitials", children: t$2("incompleteForm") }), jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	        }, style: { display: "flex", justifyContent: "center" }, disableEscapeKeyDown: true, children: [step === 0 && (jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("div", { className: "issuerInitials", children: t$1("incompleteForm") }), jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                    console.debug("cancel");
 	                                    onIgnore();
 	                                    setStep(0);
-	                                }, children: t$2("ignore") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () { return handleNextStep(); }, children: t$2("doItTogether") })] })] })), step === 1 && type === "saml" && (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("span", { className: "text", children: t$2("samlServicePrivateKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, "data-testid": "private", rows: 4, className: "formInput", value: newKeysSAML.private || "", onChange: function (e) {
+	                                }, children: t$1("ignore") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () { return handleNextStep(); }, children: t$1("doItTogether") })] })] })), step === 1 && type === "saml" && (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("span", { className: "text", children: t$1("samlServicePrivateKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, "data-testid": "private", rows: 4, className: "formInput", value: newKeysSAML.private || "", onChange: function (e) {
 	                                return setNewKeysSAML(__assign(__assign({}, newKeysSAML), { private: e.target.value }));
-	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                        if (e.target instanceof HTMLInputElement) {
 	                                            handleChangeFile(e).then(function (fileContent) {
 	                                                console.debug("File content:", fileContent);
 	                                                setNewKeysSAML(__assign(__assign({}, newKeysSAML), { private: fileContent }));
 	                                            });
 	                                        }
-	                                    } })] }), jsxRuntimeExports.jsxs("div", { children: [t$2("samlServicePrivateKeySigPwd"), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", type: "password", autoComplete: "new-password", "data-testid": "hash", className: "formInput", value: newKeysSAML.hash || "", onChange: function (e) {
+	                                    } })] }), jsxRuntimeExports.jsxs("div", { children: [t$1("samlServicePrivateKeySigPwd"), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", type: "password", autoComplete: "new-password", "data-testid": "hash", className: "formInput", value: newKeysSAML.hash || "", onChange: function (e) {
 	                                        return setNewKeysSAML(__assign(__assign({}, newKeysSAML), { hash: e.target.value }));
-	                                    } })] }), jsxRuntimeExports.jsx("span", { className: "text", children: t$2("samlServicePublicKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 4, "data-testid": "public", className: "formInput", value: newKeysSAML.public || "", onChange: function (e) {
+	                                    } })] }), jsxRuntimeExports.jsx("span", { className: "text", children: t$1("samlServicePublicKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 4, "data-testid": "public", className: "formInput", value: newKeysSAML.public || "", onChange: function (e) {
 	                                return setNewKeysSAML(__assign(__assign({}, newKeysSAML), { public: e.target.value }));
-	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                        if (e.target instanceof HTMLInputElement) {
 	                                            handleChangeFile(e).then(function (fileContent) {
 	                                                console.debug("File content:", fileContent);
 	                                                setNewKeysSAML(__assign(__assign({}, newKeysSAML), { public: fileContent }));
 	                                            });
 	                                        }
-	                                    } })] }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys("saml"); }, children: t$2("newRSAKey") }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                    } })] }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys("saml"); }, children: t$1("newRSAKey") }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                            onIgnore();
 	                                            setStep(0);
-	                                        }, children: t$2("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () { return handlePreviousStep(); }, children: t$2("previous") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
+	                                        }, children: t$1("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", onClick: function () { return handlePreviousStep(); }, children: t$1("previous") }), jsxRuntimeExports.jsx(Button$1, { onClick: function () {
 	                                            if (newKeysSAML.private && newKeysSAML.public) {
 	                                                newKeysSAML.hash
 	                                                    ? dispatch(saveSAMLPrivIdSig(newKeysSAML.hash))
@@ -78756,30 +78756,30 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                dispatch(saveSAMLPubSig(newKeysSAML.public));
 	                                                setVisible(false);
 	                                            }
-	                                        }, children: t$2("finish") })] }) })] }) })), step === 1 && type === "oidc" && (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("span", { className: "text", children: t$2("oidcServicePrivateKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, variant: "filled", rows: 4, className: "formInput", value: newKeysOIDC.private || "", onChange: function (e) {
+	                                        }, children: t$1("finish") })] }) })] }) })), step === 1 && type === "oidc" && (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuerAssistant", children: [jsxRuntimeExports.jsx("span", { className: "text", children: t$1("oidcServicePrivateKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, variant: "filled", rows: 4, className: "formInput", value: newKeysOIDC.private || "", onChange: function (e) {
 	                                return setNewKeysOIDC(__assign(__assign({}, newKeysOIDC), { private: e.target.value }));
-	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                        if (e.target instanceof HTMLInputElement) {
 	                                            handleChangeFile(e).then(function (fileContent) {
 	                                                console.debug("File content:", fileContent);
 	                                                setNewKeysOIDC(__assign(__assign({}, newKeysOIDC), { private: fileContent }));
 	                                            });
 	                                        }
-	                                    } })] }), jsxRuntimeExports.jsxs("div", { children: [t$2("oidcServiceKeyIdSig"), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "formInput", value: newKeysOIDC.hash || "", onChange: function (e) {
+	                                    } })] }), jsxRuntimeExports.jsxs("div", { children: [t$1("oidcServiceKeyIdSig"), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "formInput", value: newKeysOIDC.hash || "", onChange: function (e) {
 	                                        return setNewKeysOIDC(__assign(__assign({}, newKeysOIDC), { hash: e.target.value }));
-	                                    } })] }), jsxRuntimeExports.jsx("span", { className: "text", children: t$2("oidcServicePublicKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 4, className: "formInput", value: newKeysOIDC.public || "", onChange: function (e) {
+	                                    } })] }), jsxRuntimeExports.jsx("span", { className: "text", children: t$1("oidcServicePublicKeySig") }), jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, variant: "filled", fullWidth: true, rows: 4, className: "formInput", value: newKeysOIDC.public || "", onChange: function (e) {
 	                                return setNewKeysOIDC(__assign(__assign({}, newKeysOIDC), { public: e.target.value }));
-	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$2("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                            } }), jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
 	                                        if (e.target instanceof HTMLInputElement) {
 	                                            handleChangeFile(e).then(function (fileContent) {
 	                                                console.debug("File content:", fileContent);
 	                                                setNewKeysOIDC(__assign(__assign({}, newKeysOIDC), { public: fileContent }));
 	                                            });
 	                                        }
-	                                    } })] }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys("oidc"); }, children: t$2("newRSAKey") }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "ignoreButton", onClick: function () {
+	                                    } })] }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "generateButton", onClick: function () { return handleGenerateKeys("oidc"); }, children: t$1("newRSAKey") }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(ButtonGroup$1, { variant: "outlined", children: [jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "ignoreButton", onClick: function () {
 	                                            onIgnore();
 	                                            setStep(0);
-	                                        }, children: t$2("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "nextButton", onClick: function () { return handlePreviousStep(); }, children: t$2("previous") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "nextButton", onClick: function () {
+	                                        }, children: t$1("cancel") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "nextButton", onClick: function () { return handlePreviousStep(); }, children: t$1("previous") }), jsxRuntimeExports.jsx(Button$1, { variant: "outlined", className: "nextButton", onClick: function () {
 	                                            if (newKeysOIDC.private && newKeysOIDC.public) {
 	                                                newKeysOIDC.hash
 	                                                    ? dispatch(saveOIDCPrivIdSig(newKeysOIDC.hash))
@@ -78788,7 +78788,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                dispatch(saveOIDCPubSig(newKeysOIDC.public));
 	                                                setVisible(false);
 	                                            }
-	                                        }, children: t$2("confirm") })] }) })] }) }))] }));
+	                                        }, children: t$1("confirm") })] }) })] }) }))] }));
 	}
 
 	function Issuers() {
@@ -78840,7 +78840,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                                dispatch(toggleSAML());
 	                            } }), jsxRuntimeExports.jsx("label", { onClick: function () {
 	                                dispatch(push("#issuer/saml"));
-	                            }, children: t$2("issuerDBSAML") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.samlSPMetaDataXML ? config.samlSPMetaDataXML : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: {
+	                            }, children: t$1("issuerDBSAML") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.samlSPMetaDataXML ? config.samlSPMetaDataXML : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: {
 	                                    visibility: warnings.samlWarning ? "visible" : "hidden",
 	                                } }) })] }), jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.oidc", children: [jsxRuntimeExports.jsx(ToggleButton, { inputProps: { role: "switch" }, color: "secondary", "data-testid": "issuer.toggle.oidc", checked: Boolean(config.issuerDBOpenIDConnectActivation), onChange: function () {
 	                                if (!config.issuerDBOpenIDConnectActivation &&
@@ -78862,14 +78862,14 @@ Use the data prop if you want to provide your own handlers.`);
 	                                dispatch(toggleOIDC());
 	                            } }), jsxRuntimeExports.jsx("label", { onClick: function () {
 	                                dispatch(push("#issuer/oidc"));
-	                            }, children: t$2("issuerDBOpenIDConnect") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.oidcRPMetaDataOptions ? config.oidcRPMetaDataOptions : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: {
+	                            }, children: t$1("issuerDBOpenIDConnect") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.oidcRPMetaDataOptions ? config.oidcRPMetaDataOptions : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: {
 	                                    visibility: warnings.oidcWarning ? "visible" : "hidden",
 	                                } }) })] }), jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.cas", children: [jsxRuntimeExports.jsx(ToggleButton, { inputProps: { role: "switch" }, color: "secondary", "data-testid": "issuer.toggle.cas", checked: Boolean(config.issuerDBCASActivation), onChange: function () {
 	                                setWarnings(__assign(__assign({}, warnings), { casWarning: !warnings.casWarning && Boolean(config.casAppMetaDataOptions) }));
 	                                dispatch(toggleCAS());
 	                            } }), jsxRuntimeExports.jsx("label", { onClick: function () {
 	                                dispatch(push("#issuer/cas"));
-	                            }, children: t$2("issuerDBCAS") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.casAppMetaDataOptions ? config.casAppMetaDataOptions : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: { visibility: warnings.casWarning ? "visible" : "hidden" } }) })] }), jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.others", children: [jsxRuntimeExports.jsx(IconButton$1, { size: "large", edge: "end", "aria-label": "account of current user", "aria-controls": "menu-appbar", "aria-haspopup": "true", onClick: handleClick, color: "inherit", sx: { flexGrow: 1 }, children: jsxRuntimeExports.jsx(MenuIcon, {}) }), jsxRuntimeExports.jsxs(Menu$1, { id: "menu-appbar", anchorOrigin: {
+	                            }, children: t$1("issuerDBCAS") }), jsxRuntimeExports.jsx(Tooltip$1, { title: Object.keys(config.casAppMetaDataOptions ? config.casAppMetaDataOptions : {}).map(function (name) { return (jsxRuntimeExports.jsx("div", { children: name }, name)); }), children: jsxRuntimeExports.jsx(WarningTwoToneIcon, { color: "primary", "data-testid": "warning", style: { visibility: warnings.casWarning ? "visible" : "hidden" } }) })] }), jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.others", children: [jsxRuntimeExports.jsx(IconButton$1, { size: "large", edge: "end", "aria-label": "account of current user", "aria-controls": "menu-appbar", "aria-haspopup": "true", onClick: handleClick, color: "inherit", sx: { flexGrow: 1 }, children: jsxRuntimeExports.jsx(MenuIcon, {}) }), jsxRuntimeExports.jsxs(Menu$1, { id: "menu-appbar", anchorOrigin: {
 	                                vertical: "top",
 	                                horizontal: "right",
 	                            }, keepMounted: true, transformOrigin: {
@@ -78877,9 +78877,9 @@ Use the data prop if you want to provide your own handlers.`);
 	                                horizontal: "right",
 	                            }, anchorEl: anchorEl, open: open, onClose: handleClose, children: [jsxRuntimeExports.jsxs(MenuItem$1, { children: [jsxRuntimeExports.jsx("span", { onClick: function () {
 	                                                dispatch(push("#issuer/get"));
-	                                            }, children: t$2("issuerDBGet") }), jsxRuntimeExports.jsx(Checkbox$1, { checked: Boolean(config.issuerDBGetActivation), onClick: function () { return dispatch(toggleGET()); } })] }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(MenuItem$1, { children: [jsxRuntimeExports.jsx("span", { onClick: function () {
+	                                            }, children: t$1("issuerDBGet") }), jsxRuntimeExports.jsx(Checkbox$1, { checked: Boolean(config.issuerDBGetActivation), onClick: function () { return dispatch(toggleGET()); } })] }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(MenuItem$1, { children: [jsxRuntimeExports.jsx("span", { onClick: function () {
 	                                                dispatch(push("#issuer/jitsi"));
-	                                            }, children: t$2("issuerJitsi") }), jsxRuntimeExports.jsx(Checkbox$1, { checked: Boolean(false) })] })] })] })] }) }));
+	                                            }, children: t$1("issuerJitsi") }), jsxRuntimeExports.jsx(Checkbox$1, { checked: Boolean(false) })] })] })] })] }) }));
 	}
 
 	function ruleSAML(samlData) {
@@ -79194,7 +79194,7 @@ Use the data prop if you want to provide your own handlers.`);
 	        setOpenConfirm(false);
 	        setOpenSavePopup(true);
 	    };
-	    return (jsxRuntimeExports.jsxs("div", { children: [sidebar ? (jsxRuntimeExports.jsx(Button$1, { className: "saveButtonSidebar", variant: "contained", color: "primary", fullWidth: true, startIcon: jsxRuntimeExports.jsx(SaveIcon, {}), onClick: attemptSave, children: t$2("save") })) : (jsxRuntimeExports.jsx(Fab$1, { className: "saveButton", color: "primary", onClick: attemptSave, children: jsxRuntimeExports.jsx(SaveIcon, { fontSize: "large" }) })), jsxRuntimeExports.jsxs(Dialog$1, { open: openConfirm, onClose: function () { return setOpenConfirm(false); }, fullWidth: true, maxWidth: "sm", children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$2("savingConfirmation") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(DialogContent$1, { children: jsxRuntimeExports.jsx(TextField$1, { autoFocus: true, fullWidth: true, multiline: true, minRows: 3, label: t$2("cfgLog"), value: logMessage, onChange: function (e) { return setLogMessage(e.target.value); } }) }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(DialogActions$1, { children: [jsxRuntimeExports.jsx(Button$1, { variant: "contained", color: "primary", onClick: confirmSave, children: t$2("ok") }), jsxRuntimeExports.jsx(Button$1, { color: "secondary", onClick: function () { return setOpenConfirm(false); }, children: t$2("cancel") })] })] }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup, partial: partial }), jsxRuntimeExports.jsx("div", { className: "notif red ".concat(openErrorPopup ? "visible" : "hidden"), children: t$2("saveWithWarnings") })] }));
+	    return (jsxRuntimeExports.jsxs("div", { children: [sidebar ? (jsxRuntimeExports.jsx(Button$1, { className: "saveButtonSidebar", variant: "contained", color: "primary", fullWidth: true, startIcon: jsxRuntimeExports.jsx(SaveIcon, {}), onClick: attemptSave, children: t$1("save") })) : (jsxRuntimeExports.jsx(Fab$1, { className: "saveButton", color: "primary", onClick: attemptSave, children: jsxRuntimeExports.jsx(SaveIcon, { fontSize: "large" }) })), jsxRuntimeExports.jsxs(Dialog$1, { open: openConfirm, onClose: function () { return setOpenConfirm(false); }, fullWidth: true, maxWidth: "sm", children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$1("savingConfirmation") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(DialogContent$1, { children: jsxRuntimeExports.jsx(TextField$1, { autoFocus: true, fullWidth: true, multiline: true, minRows: 3, label: t$1("cfgLog"), value: logMessage, onChange: function (e) { return setLogMessage(e.target.value); } }) }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(DialogActions$1, { children: [jsxRuntimeExports.jsx(Button$1, { variant: "contained", color: "primary", onClick: confirmSave, children: t$1("ok") }), jsxRuntimeExports.jsx(Button$1, { color: "secondary", onClick: function () { return setOpenConfirm(false); }, children: t$1("cancel") })] })] }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup, partial: partial }), jsxRuntimeExports.jsx("div", { className: "notif red ".concat(openErrorPopup ? "visible" : "hidden"), children: t$1("saveWithWarnings") })] }));
 	}
 
 	// Left navigation for the configuration app: the "dashboards" (applications,
@@ -79277,19 +79277,19 @@ Use the data prop if you want to provide your own handlers.`);
 	    var content = (function () {
 	        switch (location.type) {
 	            case "app":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.type }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.info.type }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: location.info.name })] }), jsxRuntimeExports.jsx(ApplicationDashboard, { name: location.info.name, type: location.info.type ? location.info.type : "" })] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.type }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.info.type }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: location.info.name })] }), jsxRuntimeExports.jsx(ApplicationDashboard, { name: location.info.name, type: location.info.type ? location.info.type : "" })] }));
 	            case "conf":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) })] }), jsxRuntimeExports.jsx(Manager, {})] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) })] }), jsxRuntimeExports.jsx(Manager, {})] }));
 	            case "authParams":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "text.primary", children: t$2(location.type) })] }), jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$2("authParams") }), jsxRuntimeExports.jsx(IconButton$1, { onClick: function () { return setAuthSimple(!authSimple); }, children: jsxRuntimeExports.jsx(TuneIcon, {}) })] }), authSimple && jsxRuntimeExports.jsx(SimpleAuthParams, {}), !authSimple && jsxRuntimeExports.jsx(AdvancedAuthParams, {})] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "text.primary", children: t$1(location.type) })] }), jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("authParams") }), jsxRuntimeExports.jsx(IconButton$1, { onClick: function () { return setAuthSimple(!authSimple); }, children: jsxRuntimeExports.jsx(TuneIcon, {}) })] }), authSimple && jsxRuntimeExports.jsx(SimpleAuthParams, {}), !authSimple && jsxRuntimeExports.jsx(AdvancedAuthParams, {})] }));
 	            case "issuer":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.type }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "text.primary", children: location.info.name })] }), jsxRuntimeExports.jsx(IssuerDashboard, { type: location.info.name })] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "inherit", children: location.type }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "text.primary", children: location.info.name })] }), jsxRuntimeExports.jsx(IssuerDashboard, { type: location.info.name })] }));
 	            case "tree":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "color.primary", children: t$2(location.type) })] }), jsxRuntimeExports.jsx(TreeRender, { tree: tree ? tree : undefined, config: config })] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "color.primary", children: t$1(location.type) })] }), jsxRuntimeExports.jsx(TreeRender, { tree: tree ? tree : undefined, config: config })] }));
 	            case "catandapp":
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "color.primary", children: t$2("applicationList") })] }), jsxRuntimeExports.jsx(CatAndAppList, {})] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsxs(Breadcrumbs$1, { className: "breadcrumbs", children: [jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }), jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "inherit", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("#conf/".concat(metadata.cfgNum))); }, children: metadata.cfgNum }) }), jsxRuntimeExports.jsx(Link$1, { underline: "none", color: "color.primary", children: t$1("applicationList") })] }), jsxRuntimeExports.jsx(CatAndAppList, {})] }));
 	            default:
-	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsx(Breadcrumbs$1, { className: "breadcrumbs", children: jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$2("conf") }) }) }), jsxRuntimeExports.jsx(HomePage, {})] }));
+	                return (jsxRuntimeExports.jsxs("div", { className: "main", children: [jsxRuntimeExports.jsx(Breadcrumbs$1, { className: "breadcrumbs", children: jsxRuntimeExports.jsx(Link$1, { underline: "hover", color: "text.primary", children: jsxRuntimeExports.jsx("span", { onClick: function () { return dispatch(push("")); }, children: t$1("conf") }) }) }), jsxRuntimeExports.jsx(HomePage, {})] }));
 	        }
 	    })();
 	    return (jsxRuntimeExports.jsxs("div", { className: "configLayout", children: [jsxRuntimeExports.jsx(ConfigNav, {}), jsxRuntimeExports.jsx("div", { className: "configMain", children: content })] }));
@@ -79503,19 +79503,6 @@ Use the data prop if you want to provide your own handlers.`);
 
 	var clientExports = requireClient();
 
-	var reportWebVitals = function (onPerfEntry) {
-	    if (onPerfEntry && onPerfEntry instanceof Function) {
-	        Promise.resolve().then(function () { return webVitals; }).then(function (_a) {
-	            var getCLS = _a.getCLS, getFID = _a.getFID, getFCP = _a.getFCP, getLCP = _a.getLCP, getTTFB = _a.getTTFB;
-	            getCLS(onPerfEntry);
-	            getFID(onPerfEntry);
-	            getFCP(onPerfEntry);
-	            getLCP(onPerfEntry);
-	            getTTFB(onPerfEntry);
-	        });
-	    }
-	};
-
 	// Authentication helpers.
 	//
 	// LemonLDAP::NG protects the manager backend with a handler that, for an
@@ -79607,7 +79594,6 @@ Use the data prop if you want to provide your own handlers.`);
 	    var root = clientExports.createRoot(container);
 	    var renderApp = function () {
 	        root.render(jsxRuntimeExports.jsx(ThemeProvider, { theme: theme, children: jsxRuntimeExports.jsx(StyledEngineProvider, { injectFirst: true, children: jsxRuntimeExports.jsx(React.StrictMode, { children: children }) }) }));
-	        reportWebVitals();
 	    };
 	    // psgi.js is loaded by a <script> tag placed before this bundle in the
 	    // template, so its globals are already set here. It used to be fetched and
@@ -79624,235 +79610,6 @@ Use the data prop if you want to provide your own handlers.`);
 	    .catch(function (e) { return console.error("Failed to load manager metadata", e); })
 	    .finally(function () {
 	    return mountApp(jsxRuntimeExports.jsx(Provider, { store: store, children: jsxRuntimeExports.jsx(App, { htmlName: "manager.html"  }) }));
-	});
-
-	var e,
-	  t,
-	  n,
-	  i,
-	  r = function (e, t) {
-	    return {
-	      name: e,
-	      value: void 0 === t ? -1 : t,
-	      delta: 0,
-	      entries: [],
-	      id: "v2-".concat(Date.now(), "-").concat(Math.floor(8999999999999 * Math.random()) + 1e12)
-	    };
-	  },
-	  a = function (e, t) {
-	    try {
-	      if (PerformanceObserver.supportedEntryTypes.includes(e)) {
-	        if ("first-input" === e && !("PerformanceEventTiming" in self)) return;
-	        var n = new PerformanceObserver(function (e) {
-	          return e.getEntries().map(t);
-	        });
-	        return n.observe({
-	          type: e,
-	          buffered: !0
-	        }), n;
-	      }
-	    } catch (e) {}
-	  },
-	  o = function (e, t) {
-	    var n = function n(i) {
-	      "pagehide" !== i.type && "hidden" !== document.visibilityState || (e(i), t && (removeEventListener("visibilitychange", n, !0), removeEventListener("pagehide", n, !0)));
-	    };
-	    addEventListener("visibilitychange", n, !0), addEventListener("pagehide", n, !0);
-	  },
-	  u = function (e) {
-	    addEventListener("pageshow", function (t) {
-	      t.persisted && e(t);
-	    }, !0);
-	  },
-	  c = function (e, t, n) {
-	    var i;
-	    return function (r) {
-	      t.value >= 0 && (r || n) && (t.delta = t.value - (i || 0), (t.delta || void 0 === i) && (i = t.value, e(t)));
-	    };
-	  },
-	  f = -1,
-	  s = function () {
-	    return "hidden" === document.visibilityState ? 0 : 1 / 0;
-	  },
-	  m = function () {
-	    o(function (e) {
-	      var t = e.timeStamp;
-	      f = t;
-	    }, !0);
-	  },
-	  v = function () {
-	    return f < 0 && (f = s(), m(), u(function () {
-	      setTimeout(function () {
-	        f = s(), m();
-	      }, 0);
-	    })), {
-	      get firstHiddenTime() {
-	        return f;
-	      }
-	    };
-	  },
-	  d = function (e, t) {
-	    var n,
-	      i = v(),
-	      o = r("FCP"),
-	      f = function (e) {
-	        "first-contentful-paint" === e.name && (m && m.disconnect(), e.startTime < i.firstHiddenTime && (o.value = e.startTime, o.entries.push(e), n(!0)));
-	      },
-	      s = window.performance && performance.getEntriesByName && performance.getEntriesByName("first-contentful-paint")[0],
-	      m = s ? null : a("paint", f);
-	    (s || m) && (n = c(e, o, t), s && f(s), u(function (i) {
-	      o = r("FCP"), n = c(e, o, t), requestAnimationFrame(function () {
-	        requestAnimationFrame(function () {
-	          o.value = performance.now() - i.timeStamp, n(!0);
-	        });
-	      });
-	    }));
-	  },
-	  p = !1,
-	  l = -1,
-	  h = function (e, t) {
-	    p || (d(function (e) {
-	      l = e.value;
-	    }), p = !0);
-	    var n,
-	      i = function (t) {
-	        l > -1 && e(t);
-	      },
-	      f = r("CLS", 0),
-	      s = 0,
-	      m = [],
-	      v = function (e) {
-	        if (!e.hadRecentInput) {
-	          var t = m[0],
-	            i = m[m.length - 1];
-	          s && e.startTime - i.startTime < 1e3 && e.startTime - t.startTime < 5e3 ? (s += e.value, m.push(e)) : (s = e.value, m = [e]), s > f.value && (f.value = s, f.entries = m, n());
-	        }
-	      },
-	      h = a("layout-shift", v);
-	    h && (n = c(i, f, t), o(function () {
-	      h.takeRecords().map(v), n(!0);
-	    }), u(function () {
-	      s = 0, l = -1, f = r("CLS", 0), n = c(i, f, t);
-	    }));
-	  },
-	  T = {
-	    passive: !0,
-	    capture: !0
-	  },
-	  y = new Date(),
-	  g = function (i, r) {
-	    e || (e = r, t = i, n = new Date(), w(removeEventListener), E());
-	  },
-	  E = function () {
-	    if (t >= 0 && t < n - y) {
-	      var r = {
-	        entryType: "first-input",
-	        name: e.type,
-	        target: e.target,
-	        cancelable: e.cancelable,
-	        startTime: e.timeStamp,
-	        processingStart: e.timeStamp + t
-	      };
-	      i.forEach(function (e) {
-	        e(r);
-	      }), i = [];
-	    }
-	  },
-	  S = function (e) {
-	    if (e.cancelable) {
-	      var t = (e.timeStamp > 1e12 ? new Date() : performance.now()) - e.timeStamp;
-	      "pointerdown" == e.type ? function (e, t) {
-	        var n = function () {
-	            g(e, t), r();
-	          },
-	          i = function () {
-	            r();
-	          },
-	          r = function () {
-	            removeEventListener("pointerup", n, T), removeEventListener("pointercancel", i, T);
-	          };
-	        addEventListener("pointerup", n, T), addEventListener("pointercancel", i, T);
-	      }(t, e) : g(t, e);
-	    }
-	  },
-	  w = function (e) {
-	    ["mousedown", "keydown", "touchstart", "pointerdown"].forEach(function (t) {
-	      return e(t, S, T);
-	    });
-	  },
-	  L = function (n, f) {
-	    var s,
-	      m = v(),
-	      d = r("FID"),
-	      p = function (e) {
-	        e.startTime < m.firstHiddenTime && (d.value = e.processingStart - e.startTime, d.entries.push(e), s(!0));
-	      },
-	      l = a("first-input", p);
-	    s = c(n, d, f), l && o(function () {
-	      l.takeRecords().map(p), l.disconnect();
-	    }, !0), l && u(function () {
-	      var a;
-	      d = r("FID"), s = c(n, d, f), i = [], t = -1, e = null, w(addEventListener), a = p, i.push(a), E();
-	    });
-	  },
-	  b = {},
-	  F = function (e, t) {
-	    var n,
-	      i = v(),
-	      f = r("LCP"),
-	      s = function (e) {
-	        var t = e.startTime;
-	        t < i.firstHiddenTime && (f.value = t, f.entries.push(e), n());
-	      },
-	      m = a("largest-contentful-paint", s);
-	    if (m) {
-	      n = c(e, f, t);
-	      var d = function () {
-	        b[f.id] || (m.takeRecords().map(s), m.disconnect(), b[f.id] = !0, n(!0));
-	      };
-	      ["keydown", "click"].forEach(function (e) {
-	        addEventListener(e, d, {
-	          once: !0,
-	          capture: !0
-	        });
-	      }), o(d, !0), u(function (i) {
-	        f = r("LCP"), n = c(e, f, t), requestAnimationFrame(function () {
-	          requestAnimationFrame(function () {
-	            f.value = performance.now() - i.timeStamp, b[f.id] = !0, n(!0);
-	          });
-	        });
-	      });
-	    }
-	  },
-	  P = function (e) {
-	    var t,
-	      n = r("TTFB");
-	    t = function () {
-	      try {
-	        var t = performance.getEntriesByType("navigation")[0] || function () {
-	          var e = performance.timing,
-	            t = {
-	              entryType: "navigation",
-	              startTime: 0
-	            };
-	          for (var n in e) "navigationStart" !== n && "toJSON" !== n && (t[n] = Math.max(e[n] - e.navigationStart, 0));
-	          return t;
-	        }();
-	        if (n.value = n.delta = t.responseStart, n.value < 0 || n.value > performance.now()) return;
-	        n.entries = [t], e(n);
-	      } catch (e) {}
-	    }, "complete" === document.readyState ? setTimeout(t, 0) : addEventListener("load", function () {
-	      return setTimeout(t, 0);
-	    });
-	  };
-
-	var webVitals = /*#__PURE__*/Object.freeze({
-		__proto__: null,
-		getCLS: h,
-		getFCP: d,
-		getFID: L,
-		getLCP: F,
-		getTTFB: P
 	});
 
 })();
