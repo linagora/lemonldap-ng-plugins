@@ -58,63 +58,54 @@
       "en": "Twake",
       "fr": "Twake",
       "es": "Twake",
-      "de": "Twake",
       "it": "Twake"
     },
     "twakeWellKnownActivation": {
       "en": "Activation",
       "fr": "Activation",
       "es": "Activación",
-      "de": "Aktivierung",
       "it": "Attivazione"
     },
     "twakeWellKnown": {
       "en": "Content",
       "fr": "Contenu",
       "es": "Contenido",
-      "de": "Inhalt",
       "it": "Contenuto"
     },
     "wellKnown": {
       "en": ".well-known/twake-configuration",
       "fr": ".well-known/twake-configuration",
       "es": ".well-known/twake-configuration",
-      "de": ".well-known/twake-configuration",
       "it": ".well-known/twake-configuration"
     },
     "twakeAppAccounts": {
       "en": "Activation",
       "fr": "Activation",
       "es": "Activación",
-      "de": "Aktivierung",
       "it": "Attivazione"
     },
     "twakeAppLdapBranch": {
       "en": "Accounts LDAP branch",
       "fr": "Branche LDAP des comptes",
       "es": "Rama LDAP de las cuentas",
-      "de": "LDAP-Zweig der Konten",
       "it": "Ramo LDAP degli account"
     },
     "twakeAppEntryFields": {
       "en": "Attributes to copy",
       "fr": "Attributs à recopier",
       "es": "Atributos que copiar",
-      "de": "Zu kopierende Attribute",
       "it": "Attributi da copiare"
     },
     "twakeAdminTokens": {
       "en": "Admin tokens",
       "fr": "Tokens d'administration",
       "es": "Tokens de administración",
-      "de": "Administrator-Tokens",
       "it": "Token di amministrazione"
     },
     "appAcounts": {
       "en": "Applicative accounts",
       "fr": "Comptes applicatifs",
       "es": "Cuentas de aplicación",
-      "de": "Anwendungskonten",
       "it": "Account applicativi"
     }
   }

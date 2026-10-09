@@ -68,28 +68,24 @@
       "en": "PAR endpoint URI",
       "fr": "URI de l'endpoint PAR",
       "es": "URI del endpoint PAR",
-      "de": "URI des PAR-Endpunkts",
       "it": "URI dell'endpoint PAR"
     },
     "oidcServicePushedAuthExpiration": {
       "en": "PAR request expiration (s)",
       "fr": "Expiration des requêtes PAR (s)",
       "es": "Caducidad de las solicitudes PAR (s)",
-      "de": "Ablaufzeit der PAR-Anfragen (s)",
       "it": "Scadenza delle richieste PAR (s)"
     },
     "oidcRPMetaDataOptionsPAR": {
       "en": "Pushed Authorization Requests (PAR)",
       "fr": "Requêtes d'autorisation poussées (PAR)",
       "es": "Solicitudes de autorización enviadas (PAR)",
-      "de": "Pushed Authorization Requests (PAR)",
       "it": "Richieste di autorizzazione inviate (PAR)"
     },
     "oidcOPMetaDataOptionsUsePAR": {
       "en": "Use PAR (Pushed Authorization Requests)",
       "fr": "Utiliser PAR (Pushed Authorization Requests)",
       "es": "Usar PAR (Pushed Authorization Requests)",
-      "de": "PAR verwenden (Pushed Authorization Requests)",
       "it": "Usa PAR (Pushed Authorization Requests)"
     }
   }

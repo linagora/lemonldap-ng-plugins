@@ -136,147 +136,126 @@
       "en": "PACC Configuration",
       "fr": "Configuration PACC",
       "es": "Configuración PACC",
-      "de": "PACC-Konfiguration",
       "it": "Configurazione PACC"
     },
     "paccEnabled": {
       "en": "Enable PACC endpoint",
       "fr": "Activer le point d'accès PACC",
       "es": "Activar el endpoint PACC",
-      "de": "PACC-Endpunkt aktivieren",
       "it": "Attiva l'endpoint PACC"
     },
     "paccAllowNativeClientRegistration": {
       "en": "Allow native client registration",
       "fr": "Autoriser l'enregistrement des clients natifs",
       "es": "Permitir el registro de clientes nativos",
-      "de": "Registrierung nativer Clients erlauben",
       "it": "Consenti la registrazione dei client nativi"
     },
     "paccStrictNativeClientOnly": {
       "en": "Strict native client only mode",
       "fr": "Mode strict clients natifs uniquement",
       "es": "Modo estricto solo clientes nativos",
-      "de": "Strikter Modus nur für native Clients",
       "it": "Modalità rigorosa solo client nativi"
     },
     "paccImapSettings": {
       "en": "IMAP Settings",
       "fr": "Paramètres IMAP",
       "es": "Ajustes IMAP",
-      "de": "IMAP-Einstellungen",
       "it": "Impostazioni IMAP"
     },
     "paccImapEnabled": {
       "en": "Enable IMAP configuration",
       "fr": "Activer la configuration IMAP",
       "es": "Activar la configuración IMAP",
-      "de": "IMAP-Konfiguration aktivieren",
       "it": "Attiva la configurazione IMAP"
     },
     "paccImapHostname": {
       "en": "IMAP server hostname",
       "fr": "Nom d'hôte du serveur IMAP",
       "es": "Nombre de host del servidor IMAP",
-      "de": "Hostname des IMAP-Servers",
       "it": "Nome host del server IMAP"
     },
     "paccImapPort": {
       "en": "IMAP server port",
       "fr": "Port du serveur IMAP",
       "es": "Puerto del servidor IMAP",
-      "de": "Port des IMAP-Servers",
       "it": "Porta del server IMAP"
     },
     "paccImapAuth": {
       "en": "IMAP authentication methods",
       "fr": "Méthodes d'authentification IMAP",
       "es": "Métodos de autenticación IMAP",
-      "de": "IMAP-Authentifizierungsmethoden",
       "it": "Metodi di autenticazione IMAP"
     },
     "paccSmtpSettings": {
       "en": "SMTP Settings",
       "fr": "Paramètres SMTP",
       "es": "Ajustes SMTP",
-      "de": "SMTP-Einstellungen",
       "it": "Impostazioni SMTP"
     },
     "paccSmtpEnabled": {
       "en": "Enable SMTP configuration",
       "fr": "Activer la configuration SMTP",
       "es": "Activar la configuración SMTP",
-      "de": "SMTP-Konfiguration aktivieren",
       "it": "Attiva la configurazione SMTP"
     },
     "paccSmtpHostname": {
       "en": "SMTP server hostname",
       "fr": "Nom d'hôte du serveur SMTP",
       "es": "Nombre de host del servidor SMTP",
-      "de": "Hostname des SMTP-Servers",
       "it": "Nome host del server SMTP"
     },
     "paccSmtpPort": {
       "en": "SMTP server port",
       "fr": "Port du serveur SMTP",
       "es": "Puerto del servidor SMTP",
-      "de": "Port des SMTP-Servers",
       "it": "Porta del server SMTP"
     },
     "paccSmtpAuth": {
       "en": "SMTP authentication methods",
       "fr": "Méthodes d'authentification SMTP",
       "es": "Métodos de autenticación SMTP",
-      "de": "SMTP-Authentifizierungsmethoden",
       "it": "Metodi di autenticazione SMTP"
     },
     "paccOtherProtocols": {
       "en": "Other Protocols",
       "fr": "Autres protocoles",
       "es": "Otros protocolos",
-      "de": "Andere Protokolle",
       "it": "Altri protocolli"
     },
     "paccJmapEnabled": {
       "en": "Enable JMAP configuration",
       "fr": "Activer la configuration JMAP",
       "es": "Activar la configuración JMAP",
-      "de": "JMAP-Konfiguration aktivieren",
       "it": "Attiva la configurazione JMAP"
     },
     "paccJmapUrl": {
       "en": "JMAP service URL",
       "fr": "URL du service JMAP",
       "es": "URL del servicio JMAP",
-      "de": "URL des JMAP-Dienstes",
       "it": "URL del servizio JMAP"
     },
     "paccCalDavEnabled": {
       "en": "Enable CalDAV configuration",
       "fr": "Activer la configuration CalDAV",
       "es": "Activar la configuración CalDAV",
-      "de": "CalDAV-Konfiguration aktivieren",
       "it": "Attiva la configurazione CalDAV"
     },
     "paccCalDavUrl": {
       "en": "CalDAV service URL",
       "fr": "URL du service CalDAV",
       "es": "URL del servicio CalDAV",
-      "de": "URL des CalDAV-Dienstes",
       "it": "URL del servizio CalDAV"
     },
     "paccCardDavEnabled": {
       "en": "Enable CardDAV configuration",
       "fr": "Activer la configuration CardDAV",
       "es": "Activar la configuración CardDAV",
-      "de": "CardDAV-Konfiguration aktivieren",
       "it": "Attiva la configurazione CardDAV"
     },
     "paccCardDavUrl": {
       "en": "CardDAV service URL",
       "fr": "URL du service CardDAV",
       "es": "URL del servicio CardDAV",
-      "de": "URL des CardDAV-Dienstes",
       "it": "URL del servizio CardDAV"
     }
   }

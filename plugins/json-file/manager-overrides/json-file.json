@@ -29,14 +29,12 @@
             "en": "JSON File parameters",
             "fr": "Paramètres JsonFile",
             "es": "Parámetros de JSON File",
-            "de": "JSON-File-Parameter",
             "it": "Parametri JSON File"
         },
         "jsonFileUserPath": {
             "en": "Path to JSON users file",
             "fr": "Chemin du fichier JSON des utilisateurs",
             "es": "Ruta del archivo JSON de usuarios",
-            "de": "Pfad zur JSON-Benutzerdatei",
             "it": "Percorso del file JSON degli utenti"
         }
     }

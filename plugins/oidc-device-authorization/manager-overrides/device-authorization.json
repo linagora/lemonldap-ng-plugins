@@ -73,49 +73,42 @@
       "en": "Device Authorization (RFC 8628)",
       "fr": "Autorisation d'appareil (RFC 8628)",
       "es": "Autorización de dispositivo (RFC 8628)",
-      "de": "Geräteautorisierung (RFC 8628)",
       "it": "Autorizzazione del dispositivo (RFC 8628)"
     },
     "oidcServiceDeviceAuthorizationExpiration": {
       "en": "Device code expiration",
       "fr": "Expiration du code appareil",
       "es": "Caducidad del código de dispositivo",
-      "de": "Ablaufzeit des Gerätecodes",
       "it": "Scadenza del codice dispositivo"
     },
     "oidcServiceDeviceAuthorizationPollingInterval": {
       "en": "Polling interval",
       "fr": "Intervalle de polling",
       "es": "Intervalo de sondeo",
-      "de": "Polling-Intervall",
       "it": "Intervallo di polling"
     },
     "oidcServiceDeviceAuthorizationUserCodeLength": {
       "en": "User code length",
       "fr": "Longueur du code utilisateur",
       "es": "Longitud del código de usuario",
-      "de": "Länge des Benutzercodes",
       "it": "Lunghezza del codice utente"
     },
     "oidcServiceDeviceAuthorizationMaxFailures": {
       "en": "Invalid codes before lockout",
       "fr": "Codes invalides avant blocage",
       "es": "Códigos no válidos antes del bloqueo",
-      "de": "Ungültige Codes vor der Sperre",
       "it": "Codici non validi prima del blocco"
     },
     "oidcServiceDeviceAuthorizationLockoutDelay": {
       "en": "Lockout duration (s)",
       "fr": "Durée du blocage (s)",
       "es": "Duración del bloqueo (s)",
-      "de": "Sperrdauer (s)",
       "it": "Durata del blocco (s)"
     },
     "oidcRPMetaDataOptionsAllowDeviceAuthorization": {
       "en": "Allow Device Authorization Grant (RFC 8628)",
       "fr": "Autoriser le Device Authorization Grant (RFC 8628)",
       "es": "Permitir Device Authorization Grant (RFC 8628)",
-      "de": "Device Authorization Grant erlauben (RFC 8628)",
       "it": "Consenti il Device Authorization Grant (RFC 8628)"
     }
   }

@@ -28,14 +28,12 @@
       "en": "Global extra scopes",
       "fr": "Scopes supplémentaires globaux",
       "es": "Scopes adicionales globales",
-      "de": "Globale zusätzliche Scopes",
       "it": "Scope aggiuntivi globali"
     },
     "oidcServiceGlobalClaimMapping": {
       "en": "Global claim mapping (fallback)",
       "fr": "Correspondance globale des claims (repli)",
       "es": "Correspondencia global de claims (respaldo)",
-      "de": "Globale Claim-Zuordnung (Fallback)",
       "it": "Mappatura globale dei claim (fallback)"
     }
   }

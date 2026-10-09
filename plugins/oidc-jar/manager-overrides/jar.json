@@ -111,63 +111,54 @@
       "en": "JAR request_uri fetch timeout (s)",
       "fr": "Délai de récupération de request_uri JAR (s)",
       "es": "Tiempo de espera para obtener request_uri JAR (s)",
-      "de": "Timeout beim Abrufen von request_uri (JAR) (s)",
       "it": "Timeout di recupero di request_uri JAR (s)"
     },
     "oidcJarRequestUriMaxSize": {
       "en": "JAR request_uri max size (bytes)",
       "fr": "Taille max de la réponse request_uri JAR (octets)",
       "es": "Tamaño máximo de request_uri JAR (bytes)",
-      "de": "Maximale Größe von request_uri (JAR) (Bytes)",
       "it": "Dimensione massima di request_uri JAR (byte)"
     },
     "oidcJarClockSkew": {
       "en": "JAR clock skew tolerance (s)",
       "fr": "Tolérance de dérive d'horloge JAR (s)",
       "es": "Tolerancia de desfase de reloj JAR (s)",
-      "de": "Toleranz für Uhrabweichung (JAR) (s)",
       "it": "Tolleranza di scostamento dell'orologio JAR (s)"
     },
     "oidcJarJtiTtl": {
       "en": "JAR jti replay cache fallback TTL (s)",
       "fr": "TTL de repli du cache anti-rejeu jti JAR (s)",
       "es": "TTL de respaldo de la caché antirrepetición jti JAR (s)",
-      "de": "Fallback-TTL des jti-Replay-Caches (JAR) (s)",
       "it": "TTL di fallback della cache anti-replay jti JAR (s)"
     },
     "oidcRPMetaDataOptionsRequireSignedRequestObject": {
       "en": "Require signed request object (JAR)",
       "fr": "Exiger un request object signé (JAR)",
       "es": "Exigir un request object firmado (JAR)",
-      "de": "Signiertes Request Object verlangen (JAR)",
       "it": "Richiedi un request object firmato (JAR)"
     },
     "oidcRPMetaDataOptionsJarMaxAge": {
       "en": "JAR request object max age (s)",
       "fr": "Âge maximal du request object JAR (s)",
       "es": "Antigüedad máxima del request object JAR (s)",
-      "de": "Maximales Alter des Request Objects (JAR) (s)",
       "it": "Età massima del request object JAR (s)"
     },
     "oidcRPMetaDataOptionsJarSigAlg": {
       "en": "JAR signing algorithm",
       "fr": "Algorithme de signature JAR",
       "es": "Algoritmo de firma JAR",
-      "de": "JAR-Signaturalgorithmus",
       "it": "Algoritmo di firma JAR"
     },
     "oidcRPMetaDataOptionsJarEncAlg": {
       "en": "JAR encryption key management algorithm",
       "fr": "Algorithme de gestion de clé de chiffrement JAR",
       "es": "Algoritmo de gestión de claves de cifrado JAR",
-      "de": "JAR-Algorithmus für die Verwaltung des Verschlüsselungsschlüssels",
       "it": "Algoritmo di gestione della chiave di cifratura JAR"
     },
     "oidcRPMetaDataOptionsJarEncEnc": {
       "en": "JAR content encryption algorithm",
       "fr": "Algorithme de chiffrement du contenu JAR",
       "es": "Algoritmo de cifrado del contenido JAR",
-      "de": "JAR-Algorithmus für die Inhaltsverschlüsselung",
       "it": "Algoritmo di cifratura del contenuto JAR"
     }
   }

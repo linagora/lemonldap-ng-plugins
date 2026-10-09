@@ -42,35 +42,30 @@
       "en": "Enable Resource Indicators (RFC 8707)",
       "fr": "Activer les Resource Indicators (RFC 8707)",
       "es": "Activar Resource Indicators (RFC 8707)",
-      "de": "Resource Indicators aktivieren (RFC 8707)",
       "it": "Attiva i Resource Indicators (RFC 8707)"
     },
     "oidcRPMetaDataOptionsRIIdentifier": {
       "en": "Resource Server identifier (audience)",
       "fr": "Identifiant du Resource Server (audience)",
       "es": "Identificador del Resource Server (audience)",
-      "de": "Kennung des Resource Servers (Audience)",
       "it": "Identificatore del Resource Server (audience)"
     },
     "oidcRPMetaDataOptionsRIScopes": {
       "en": "RS scopes (JSON: scope → description)",
       "fr": "Scopes du RS (JSON : scope → description)",
       "es": "Scopes del RS (JSON: scope → descripción)",
-      "de": "Scopes des RS (JSON: Scope → Beschreibung)",
       "it": "Scope del RS (JSON: scope → descrizione)"
     },
     "oidcRPMetaDataOptionsRIScopeRules": {
       "en": "RS scope authorization rules (JSON: scope → Perl expr)",
       "fr": "Règles d'autorisation des scopes RS (JSON : scope → expr. Perl)",
       "es": "Reglas de autorización de los scopes del RS (JSON: scope → expr. Perl)",
-      "de": "Autorisierungsregeln für RS-Scopes (JSON: Scope → Perl-Ausdruck)",
       "it": "Regole di autorizzazione degli scope RS (JSON: scope → espr. Perl)"
     },
     "oidcRPMetaDataOptionsResourceIndicators": {
       "en": "Resource Indicators",
       "fr": "Resource Indicators",
       "es": "Resource Indicators",
-      "de": "Resource Indicators",
       "it": "Resource Indicators"
     }
   }
