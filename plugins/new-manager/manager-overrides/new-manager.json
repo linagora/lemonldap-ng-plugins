@@ -40,10 +40,6 @@
          "en" : "Download last configuration",
          "fr" : "Télécharger la dernière configuration"
       },
-      "ext2fTimeout" : {
-         "en" : "Command timeout",
-         "fr" : "Durée maximale d'exécution"
-      },
       "home" : {
          "en" : "Home",
          "fr" : "Accueil"
@@ -52,10 +48,6 @@
          "en" : "Running version",
          "fr" : "Version en cours d'execution"
       },
-      "mtls" : {
-         "en" : "Mutual TLS",
-         "fr" : "TLS Mutuel"
-      },
       "newManager" : {
          "en" : "New manager (beta)",
          "fr" : "Nouveau manager (bêta)"
@@ -63,14 +55,6 @@
       "noSession" : {
          "en" : "No session",
          "fr" : "Aucune session"
-      },
-      "oidcRPMetaDataOptionsMtlsCertIdentifier" : {
-         "en" : "Expected certificate identifier",
-         "fr" : "Identifiant attendu du certificat"
-      },
-      "oidcRPMetaDataOptionsMtlsCertIdentifierType" : {
-         "en" : "Certificate identifier type",
-         "fr" : "Type d'identifiant du certificat"
       },
       "oldManager" : {
          "en" : "Old Manager",

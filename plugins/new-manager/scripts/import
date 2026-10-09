@@ -171,19 +171,41 @@ for my $file ( glob("$src/templates/new/*.tpl") ) {
 
 # 4. Translations of the new interface missing in the base tag
 
-# Keys not to ship: installed by other means (the CrowdSec metrics labels come
-# with the crowdsec-stats patch), they would collide on install
-my $skipKeys = qr/^crowdsecMetrics/;
-
+# Only the strings of the interface itself: the labels of configuration
+# parameters and tree nodes (attributes and node titles of the LLNG Build
+# modules) belong to the features that define them, not to this plugin.
 {
     my $json = JSON->new->utf8;
+    my %conf;
+    {
+        local @INC = (
+            map( {"$llng/lemonldap-ng-$_/lib"} qw(manager common handler portal) ),
+            @INC
+        );
+        require Lemonldap::NG::Manager::Build::Attributes;
+        require Lemonldap::NG::Manager::Build::Tree;
+        require Lemonldap::NG::Manager::Build::CTrees;
+        %conf = map { $_ => 1 }
+          keys %{ Lemonldap::NG::Manager::Build::Attributes::attributes() };
+        my $walk;
+        $walk = sub {
+            my ($n) = @_;
+            if ( ref $n eq 'HASH' ) {
+                $conf{ $n->{title} } = 1 if defined $n->{title};
+                $walk->($_) for values %$n;
+            }
+            elsif ( ref $n eq 'ARRAY' ) { $walk->($_) for @$n }
+        };
+        $walk->( Lemonldap::NG::Manager::Build::Tree::tree() );
+        $walk->( Lemonldap::NG::Manager::Build::CTrees::cTrees() );
+    }
     my %lang;
     for my $l (qw(en fr)) {
         my $file = "lemonldap-ng-manager/site/htdocs/static/languages/$l.json";
         my $old  = $json->decode( git( 'show', "$base:$file" ) );
         my $new  = $json->decode( slurp("$llng/$file") );
         for my $k ( keys %$new ) {
-            next if $k =~ $skipKeys;
+            next if $conf{$k};
             $lang{$k}{$l} = $new->{$k} unless exists $old->{$k};
         }
     }
