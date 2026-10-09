@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.5.3 - unreleased
+## v0.5.3 - 2026-10-09
 
 Touched plugins bumped to **0.5.3** in lockstep: `new-manager` (new).
 
