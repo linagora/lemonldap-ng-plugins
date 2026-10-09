@@ -131,14 +131,22 @@ register_autoloader() {
     fi
     "$cli" --yes 1 set customPlugins "$new" >/dev/null 2>&1 || true
 }
-case "$1" in
-  configure)
-    register_autoloader
-    ;;
-  triggered)
+rebuild() {
     if [ -x /usr/share/lemonldap-ng/bin/lemonldap-ng-store ]; then
       /usr/share/lemonldap-ng/bin/lemonldap-ng-store rebuild || true
     fi
+}
+case "$1" in
+  configure)
+    register_autoloader
+    # Triggers activated in the same dpkg run as this configure (store
+    # upgraded together with a plugin) are not run separately: rebuild here
+    if ls /etc/lemonldap-ng/manager-overrides.d/*.json >/dev/null 2>&1; then
+      rebuild
+    fi
+    ;;
+  triggered)
+    rebuild
     ;;
   abort-upgrade|abort-remove|abort-deconfigure)
     ;;
@@ -185,15 +193,15 @@ install_dir "${BMF_BUILD}/DEBIAN"
 # llng-build-manager-files at that same directory since 2.23.0, and dpkg would
 # refuse to unpack two packages shipping the same path. lemonldap-ng-store
 # prefers this one when present (see Store::Install::_findBuildScript).
-# Self-retiring: the Conflicts drops it as soon as a manager carrying the fix
-# is installed.
+# Self-retiring: the Conflicts drops it as soon as a manager generating the
+# new (React) manager metadata itself (3.0) is installed.
 cat > "${BMF_BUILD}/DEBIAN/control" <<EOF
 Package: linagora-llng-build-manager-files
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
 Depends: liblemonldap-ng-manager-perl (>= 2.23.2~)
-Conflicts: liblemonldap-ng-manager-perl (>= 2.23.4~)
+Conflicts: liblemonldap-ng-manager-perl (>= 3.0.0~)
 Section: web
 Priority: optional
 Description: llng-build-manager-files with test/keyTest compilation
@@ -201,7 +209,11 @@ Description: llng-build-manager-files with test/keyTest compilation
  test and keyTest regexps of manager overrides into qr// before handing
  them to Build.pm. Without it, LemonLDAP::NG 2.23.0 to 2.23.3 write those
  tests to Manager/Attributes.pm as plain strings and every configuration
- save fails with "Malformed test". Obsolete once 2.23.4 is out.
+ save fails with "Malformed test".
+ .
+ It also generates the configuration metadata of the new (React) manager
+ (nstruct.json, new/*.json), backported to 2.23 by
+ linagora-lemonldap-ng-plugin-new-manager. Obsolete with LemonLDAP::NG 3.0.
 EOF
 
 install -D -m 0755 "${REPO_ROOT}/store/scripts/llng-build-manager-files" \
@@ -348,6 +360,15 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     fi
   fi
 
+  # Extra Debian relations (plugin.json "debian": {"depends": [...],
+  # "conflicts": [...]}), e.g. a plugin backporting a feature that a later
+  # LLNG version ships itself
+  while IFS= read -r dep; do
+    [ -z "$dep" ] && continue
+    depends="${depends:+${depends}, }${dep}"
+  done < <(jq -r '.debian.depends // [] | .[]' "$plugin_json")
+  conflicts="$(jq -r '.debian.conflicts // [] | join(", ")' "$plugin_json")"
+
   # Add inter-plugin dependencies
   while IFS= read -r dep; do
     [ -z "$dep" ] && continue
@@ -366,6 +387,7 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     echo "Maintainer: ${maintainer}"
     echo "Pre-Depends: ${pre_depends}"
     [ -n "$depends" ] && echo "Depends: ${depends}"
+    [ -n "$conflicts" ] && echo "Conflicts: ${conflicts}"
     echo "Section: web"
     echo "Priority: optional"
     echo "Description: ${summary}"
@@ -450,6 +472,22 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
       rel="${static_file#${plugin_dir}/portal-static/}"
       install_file "$static_file" "${PKG_BUILD}/usr/share/lemonldap-ng/portal/htdocs/static/${rel}"
     done < <(find "${plugin_dir}/portal-static" -type f)
+  fi
+
+  # Install manager-static/ -> /usr/share/lemonldap-ng/manager/htdocs/static/
+  if [ -d "${plugin_dir}/manager-static" ]; then
+    while IFS= read -r static_file; do
+      rel="${static_file#${plugin_dir}/manager-static/}"
+      install_file "$static_file" "${PKG_BUILD}/usr/share/lemonldap-ng/manager/htdocs/static/${rel}"
+    done < <(find "${plugin_dir}/manager-static" -type f)
+  fi
+
+  # Install manager-templates/ -> /usr/share/lemonldap-ng/manager/htdocs/templates/
+  if [ -d "${plugin_dir}/manager-templates" ]; then
+    while IFS= read -r tpl_file; do
+      rel="${tpl_file#${plugin_dir}/manager-templates/}"
+      install_file "$tpl_file" "${PKG_BUILD}/usr/share/lemonldap-ng/manager/htdocs/templates/${rel}"
+    done < <(find "${plugin_dir}/manager-templates" -type f)
   fi
 
   # Install portal-translations/*.json: merge into portal language files
