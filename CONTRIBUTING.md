@@ -142,6 +142,7 @@ plugins/<your-plugin>/
 ├── portal-templates/      # *.tpl, typically under bootstrap/
 ├── portal-static/         # JS/CSS under common/...
 ├── manager-static/        # optional, if you extend the manager UI
+├── manager-templates/     # optional, manager HTML templates (*.tpl)
 ├── portal-translations/   # {en,fr,…}.json — additive merge into static/languages/
 ├── manager-overrides/     # not linked by the test tooling
 └── README.md
