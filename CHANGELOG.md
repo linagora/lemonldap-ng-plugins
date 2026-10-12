@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## v0.5.4 - 2026-10-12
+
+Touched plugins bumped to **0.5.4** in lockstep: `lang-mn` (new),
+`new-manager`.
 
 ### new-manager
 
@@ -14,6 +17,12 @@
   next to the core languages in the portal static directory (not merged into
   an existing file). Enabled by adding `mn` to `languages` in the `[portal]`
   section of `lemonldap-ng.ini`.
+
+### Packaging
+
+- **Fix — portal-only plugins no longer pull the store**: a package shipping
+  only portal files (static, templates, translations) has no `Pre-Depends`
+  on `linagora-lemonldap-ng-store` and installs on any LLNG version.
 
 ## v0.5.3 - 2026-10-09
 
