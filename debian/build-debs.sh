@@ -325,8 +325,16 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
 
   # Build Depends
   # Pre-Depends ensures the store (and its triggers) is fully configured
-  # before the plugin installs files into the overrides directory
-  pre_depends="liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store"
+  # before the plugin installs files into the overrides directory. A plugin
+  # shipping only portal files (static, templates, translations) uses
+  # nothing from the store and can be installed on any LLNG version.
+  pre_depends=""
+  if [ -d "${plugin_dir}/lib" ] || [ -d "${plugin_dir}/manager-overrides" ] \
+    || [ -d "${plugin_dir}/manager-static" ] \
+    || [ -d "${plugin_dir}/manager-templates" ] \
+    || [ "$(jq -r '(.autoload // .customPlugins) != null' "$plugin_json")" = true ]; then
+    pre_depends="liblemonldap-ng-common-perl (>= 2.24.0) | linagora-lemonldap-ng-store"
+  fi
   depends="$(build_perl_depends "$perl_requires" "")"
   # Remove leading ", " from depends if base was empty
   depends="${depends#, }"
@@ -385,7 +393,7 @@ for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
     echo "Version: ${version}"
     echo "Architecture: all"
     echo "Maintainer: ${maintainer}"
-    echo "Pre-Depends: ${pre_depends}"
+    [ -n "$pre_depends" ] && echo "Pre-Depends: ${pre_depends}"
     [ -n "$depends" ] && echo "Depends: ${depends}"
     [ -n "$conflicts" ] && echo "Conflicts: ${conflicts}"
     echo "Section: web"
