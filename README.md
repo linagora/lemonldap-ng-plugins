@@ -137,6 +137,7 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [external-menu](plugins/external-menu)                       | Redirect authenticated users to an external menu URL       | beta   |
 | [custom-functions](plugins/custom-functions)                 | Extra `customFunctions` for rules, macros and headers      | beta   |
 | [new-manager](plugins/new-manager)                           | New (React) manager interface, backported to LLNG 2.23     | beta   |
+| [lang-mn](plugins/lang-mn)                                   | Mongolian (mn) translation of the portal                   | beta   |
 
 #### OIDC extensions
 

@@ -8,6 +8,13 @@
   (`static/new/*.licenses.txt`), and the unused `web-vitals` module
   (Apache-2.0) is no longer bundled.
 
+### lang-mn (new)
+
+- **Feature — Mongolian portal**: `mn.json` and the `mn.png` flag, installed
+  next to the core languages in the portal static directory (not merged into
+  an existing file). Enabled by adding `mn` to `languages` in the `[portal]`
+  section of `lemonldap-ng.ini`.
+
 ## v0.5.3 - 2026-10-09
 
 Touched plugins bumped to **0.5.3** in lockstep: `new-manager` (new).
