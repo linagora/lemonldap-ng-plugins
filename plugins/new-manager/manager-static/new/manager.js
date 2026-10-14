@@ -28064,6 +28064,21 @@ ${String(error)}`;
 	                delete state.data.config.oidcRPMetaDataExportedVars[action.payload.appName][action.payload.key];
 	            }
 	        },
+	        // Set a per-application parameter: config[key][name][option], or the
+	        // whole config[key][name] (hashes like macros) when no option is given.
+	        updateAppParam: function (state, action) {
+	            var _a = action.payload, key = _a.key, name = _a.name, option = _a.option, value = _a.value;
+	            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+	            var conf = state.data.config;
+	            conf[key] = conf[key] || {};
+	            if (option === undefined) {
+	                conf[key][name] = value;
+	            }
+	            else {
+	                conf[key][name] = conf[key][name] || {};
+	                conf[key][name][option] = value;
+	            }
+	        },
 	        updateOidcMetaDataOptions: function (state, action) {
 	            if (!state.data.config.oidcRPMetaDataOptions) {
 	                state.data.config.samlSPMetaDataOptions = {};
@@ -28497,7 +28512,7 @@ ${String(error)}`;
 	        });
 	    },
 	});
-	var setError = (_a$1 = configSlice.actions, _a$1.setError), removeError = _a$1.removeError, toggleMaintenance = _a$1.toggleMaintenance, toggleCAS = _a$1.toggleCAS, toggleOIDC = _a$1.toggleOIDC, toggleSAML = _a$1.toggleSAML, toggleGET = _a$1.toggleGET, saveOIDCPrivSig = _a$1.saveOIDCPrivSig, saveOIDCPrivIdSig = _a$1.saveOIDCPrivIdSig, saveOIDCPubSig = _a$1.saveOIDCPubSig, saveSAMLPrivIdSig = _a$1.saveSAMLPrivIdSig, saveSAMLPrivSig = _a$1.saveSAMLPrivSig, saveSAMLPubSig = _a$1.saveSAMLPubSig, updateLocationRule = _a$1.updateLocationRule, updateDefaultLocationRule = _a$1.updateDefaultLocationRule, newLocationRule = _a$1.newLocationRule, delLocationRule = _a$1.delLocationRule, newVhostHeaders = _a$1.newVhostHeaders, delVhostHeader = _a$1.delVhostHeader, updateVhostHeaders = _a$1.updateVhostHeaders, updateVhostPost = _a$1.updateVhostPost, delVhostPost = _a$1.delVhostPost, newVhostPost = _a$1.newVhostPost, updateVhostOptions = _a$1.updateVhostOptions, changeAppName = _a$1.changeAppName, delApp = _a$1.delApp, dupApp = _a$1.dupApp, newApp = _a$1.newApp, updateOIDCclientID = _a$1.updateOIDCclientID, updateOIDCPrivateClient = _a$1.updateOIDCPrivateClient, updateOIDCPublicClient = _a$1.updateOIDCPublicClient, updateCASexportedVars = _a$1.updateCASexportedVars, newCASexportedVars = _a$1.newCASexportedVars, delCASexportedVars = _a$1.delCASexportedVars, delCASAppMetaDataMacros = _a$1.delCASAppMetaDataMacros, updateCASAppMetaDataMacros = _a$1.updateCASAppMetaDataMacros, newCASAppMetaDataMacros = _a$1.newCASAppMetaDataMacros, updateCASOptions = _a$1.updateCASOptions, updateSamlSPMetadata = _a$1.updateSamlSPMetadata, newSAMLSPMetaDataMacros = _a$1.newSAMLSPMetaDataMacros, updateSAMLSPMetaDataMacros = _a$1.updateSAMLSPMetaDataMacros, delSAMLSPMetaDataMacros = _a$1.delSAMLSPMetaDataMacros, updateSamlMetadataExportedAttribute = _a$1.updateSamlMetadataExportedAttribute, newSamlMetadataExportedAttribute = _a$1.newSamlMetadataExportedAttribute, delSamlMetadataExportedAttribute = _a$1.delSamlMetadataExportedAttribute, updateSamlMetaDataOptions = _a$1.updateSamlMetaDataOptions, newOIDCRPMetaDataMacros = _a$1.newOIDCRPMetaDataMacros, updateOIDCRPMetaDataMacros = _a$1.updateOIDCRPMetaDataMacros, delOIDCRPMetaDataMacros = _a$1.delOIDCRPMetaDataMacros, updateOidcRPMetaDataExportedVars = _a$1.updateOidcRPMetaDataExportedVars, newOidcRPMetaDataExportedVars = _a$1.newOidcRPMetaDataExportedVars, delOidcRPMetaDataExportedVars = _a$1.delOidcRPMetaDataExportedVars, updateOidcMetaDataOptions = _a$1.updateOidcMetaDataOptions, delOidcRPMetaDataOptionsExtraClaims = _a$1.delOidcRPMetaDataOptionsExtraClaims, newOidcRPMetaDataOptionsExtraClaims = _a$1.newOidcRPMetaDataOptionsExtraClaims, updateOidcRPMetaDataOptionsExtraClaims = _a$1.updateOidcRPMetaDataOptionsExtraClaims, newOidcRPMetaDataScopeRules = _a$1.newOidcRPMetaDataScopeRules, delOidcRPMetaDataScopeRules = _a$1.delOidcRPMetaDataScopeRules, updateOidcRPMetaDataScopeRules = _a$1.updateOidcRPMetaDataScopeRules; _a$1.updateOidcRPMetaDataOptionsJwks; var updateAuthParams = _a$1.updateAuthParams, updateConfigParams = _a$1.updateConfigParams, delCombParam = _a$1.delCombParam, newCombParam = _a$1.newCombParam, updateCombParam = _a$1.updateCombParam, newCombOverParam = _a$1.newCombOverParam, delCombOverParam = _a$1.delCombOverParam, updateCombOverParam = _a$1.updateCombOverParam, newChoiceParam = _a$1.newChoiceParam, delChoiceParam = _a$1.delChoiceParam, updateChoiceParam = _a$1.updateChoiceParam, newChoiceOverParam = _a$1.newChoiceOverParam, delChoiceOverParam = _a$1.delChoiceOverParam, updateChoiceOverParam = _a$1.updateChoiceOverParam, newModuleOpt = _a$1.newModuleOpt, delModuleOpt = _a$1.delModuleOpt, updateModuleOpt = _a$1.updateModuleOpt, updateGetParamHostname = _a$1.updateGetParamHostname, delGetParam = _a$1.delGetParam, updateGetParamOption = _a$1.updateGetParamOption, newGetParam = _a$1.newGetParam, delGetParamOption = _a$1.delGetParamOption, newGetParamOption = _a$1.newGetParamOption, changeConf = _a$1.changeConf, newSfExtraOverParam = _a$1.newSfExtraOverParam, updateSfExtraOverParam = _a$1.updateSfExtraOverParam, deleteSfExtraOverParam = _a$1.deleteSfExtraOverParam, newCategory = _a$1.newCategory, renameCategory = _a$1.renameCategory, delCategory = _a$1.delCategory, newApplication = _a$1.newApplication, changeApplicationField = _a$1.changeApplicationField, delApplication = _a$1.delApplication, moveCat = _a$1.moveCat, moveApp = _a$1.moveApp;
+	var setError = (_a$1 = configSlice.actions, _a$1.setError), removeError = _a$1.removeError, toggleMaintenance = _a$1.toggleMaintenance, toggleCAS = _a$1.toggleCAS, toggleOIDC = _a$1.toggleOIDC, toggleSAML = _a$1.toggleSAML, toggleGET = _a$1.toggleGET, saveOIDCPrivSig = _a$1.saveOIDCPrivSig, saveOIDCPrivIdSig = _a$1.saveOIDCPrivIdSig, saveOIDCPubSig = _a$1.saveOIDCPubSig, saveSAMLPrivIdSig = _a$1.saveSAMLPrivIdSig, saveSAMLPrivSig = _a$1.saveSAMLPrivSig, saveSAMLPubSig = _a$1.saveSAMLPubSig, updateLocationRule = _a$1.updateLocationRule, updateDefaultLocationRule = _a$1.updateDefaultLocationRule, newLocationRule = _a$1.newLocationRule, delLocationRule = _a$1.delLocationRule, newVhostHeaders = _a$1.newVhostHeaders, delVhostHeader = _a$1.delVhostHeader, updateVhostHeaders = _a$1.updateVhostHeaders, updateVhostPost = _a$1.updateVhostPost, delVhostPost = _a$1.delVhostPost, newVhostPost = _a$1.newVhostPost, updateVhostOptions = _a$1.updateVhostOptions, changeAppName = _a$1.changeAppName, delApp = _a$1.delApp, dupApp = _a$1.dupApp, newApp = _a$1.newApp, updateOIDCclientID = _a$1.updateOIDCclientID, updateOIDCPrivateClient = _a$1.updateOIDCPrivateClient, updateOIDCPublicClient = _a$1.updateOIDCPublicClient; _a$1.updateCASexportedVars; _a$1.newCASexportedVars; _a$1.delCASexportedVars; _a$1.delCASAppMetaDataMacros; _a$1.updateCASAppMetaDataMacros; _a$1.newCASAppMetaDataMacros; _a$1.updateCASOptions; var updateSamlSPMetadata = _a$1.updateSamlSPMetadata; _a$1.newSAMLSPMetaDataMacros; _a$1.updateSAMLSPMetaDataMacros; _a$1.delSAMLSPMetaDataMacros; var updateSamlMetadataExportedAttribute = _a$1.updateSamlMetadataExportedAttribute, newSamlMetadataExportedAttribute = _a$1.newSamlMetadataExportedAttribute, delSamlMetadataExportedAttribute = _a$1.delSamlMetadataExportedAttribute; _a$1.updateSamlMetaDataOptions; _a$1.newOIDCRPMetaDataMacros; _a$1.updateOIDCRPMetaDataMacros; _a$1.delOIDCRPMetaDataMacros; var updateOidcRPMetaDataExportedVars = _a$1.updateOidcRPMetaDataExportedVars, newOidcRPMetaDataExportedVars = _a$1.newOidcRPMetaDataExportedVars, delOidcRPMetaDataExportedVars = _a$1.delOidcRPMetaDataExportedVars, updateAppParam = _a$1.updateAppParam; _a$1.updateOidcMetaDataOptions; _a$1.delOidcRPMetaDataOptionsExtraClaims; _a$1.newOidcRPMetaDataOptionsExtraClaims; _a$1.updateOidcRPMetaDataOptionsExtraClaims; _a$1.newOidcRPMetaDataScopeRules; _a$1.delOidcRPMetaDataScopeRules; _a$1.updateOidcRPMetaDataScopeRules; _a$1.updateOidcRPMetaDataOptionsJwks; var updateAuthParams = _a$1.updateAuthParams, updateConfigParams = _a$1.updateConfigParams, delCombParam = _a$1.delCombParam, newCombParam = _a$1.newCombParam, updateCombParam = _a$1.updateCombParam, newCombOverParam = _a$1.newCombOverParam, delCombOverParam = _a$1.delCombOverParam, updateCombOverParam = _a$1.updateCombOverParam, newChoiceParam = _a$1.newChoiceParam, delChoiceParam = _a$1.delChoiceParam, updateChoiceParam = _a$1.updateChoiceParam, newChoiceOverParam = _a$1.newChoiceOverParam, delChoiceOverParam = _a$1.delChoiceOverParam, updateChoiceOverParam = _a$1.updateChoiceOverParam, newModuleOpt = _a$1.newModuleOpt, delModuleOpt = _a$1.delModuleOpt, updateModuleOpt = _a$1.updateModuleOpt, updateGetParamHostname = _a$1.updateGetParamHostname, delGetParam = _a$1.delGetParam, updateGetParamOption = _a$1.updateGetParamOption, newGetParam = _a$1.newGetParam, delGetParamOption = _a$1.delGetParamOption, newGetParamOption = _a$1.newGetParamOption, changeConf = _a$1.changeConf, newSfExtraOverParam = _a$1.newSfExtraOverParam, updateSfExtraOverParam = _a$1.updateSfExtraOverParam, deleteSfExtraOverParam = _a$1.deleteSfExtraOverParam, newCategory = _a$1.newCategory, renameCategory = _a$1.renameCategory, delCategory = _a$1.delCategory, newApplication = _a$1.newApplication, changeApplicationField = _a$1.changeApplicationField, delApplication = _a$1.delApplication, moveCat = _a$1.moveCat, moveApp = _a$1.moveApp;
 	var configReducer = configSlice.reducer;
 
 	const CALL_HISTORY_METHOD = '@@router/CALL_HISTORY_METHOD';
@@ -29965,7 +29980,7 @@ ${String(error)}`;
 	  return resolveProps(theme.components[name].defaultProps, props);
 	}
 
-	const _excluded$1A = ["values", "unit", "step"];
+	const _excluded$1z = ["values", "unit", "step"];
 	const sortBreakpointsValues = values => {
 	  const breakpointsAsArray = Object.keys(values).map(key => ({
 	    key,
@@ -29999,7 +30014,7 @@ ${String(error)}`;
 	      unit = 'px',
 	      step = 5
 	    } = breakpoints,
-	    other = _objectWithoutPropertiesLoose$1(breakpoints, _excluded$1A);
+	    other = _objectWithoutPropertiesLoose$1(breakpoints, _excluded$1z);
 	  const sortedValues = sortBreakpointsValues(values);
 	  const keys = Object.keys(sortedValues);
 	  function up(key) {
@@ -31104,7 +31119,7 @@ ${String(error)}`;
 	  return {};
 	}
 
-	const _excluded$1z = ["breakpoints", "palette", "spacing", "shape"];
+	const _excluded$1y = ["breakpoints", "palette", "spacing", "shape"];
 	function createTheme$2(options = {}, ...args) {
 	  const {
 	      breakpoints: breakpointsInput = {},
@@ -31112,7 +31127,7 @@ ${String(error)}`;
 	      spacing: spacingInput,
 	      shape: shapeInput = {}
 	    } = options,
-	    other = _objectWithoutPropertiesLoose$1(options, _excluded$1z);
+	    other = _objectWithoutPropertiesLoose$1(options, _excluded$1y);
 	  const breakpoints = createBreakpoints(breakpointsInput);
 	  const spacing = createSpacing(spacingInput);
 	  let muiTheme = deepmerge$1({
@@ -32913,7 +32928,7 @@ ${String(error)}`;
 	  return mergedProps;
 	}
 
-	const _excluded$1y = ["sx"];
+	const _excluded$1x = ["sx"];
 	const splitProps = props => {
 	  var _props$theme$unstable, _props$theme;
 	  const result = {
@@ -32934,7 +32949,7 @@ ${String(error)}`;
 	  const {
 	      sx: inSx
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1y);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1x);
 	  const {
 	    systemProps,
 	    otherProps
@@ -33494,7 +33509,7 @@ ${String(error)}`;
 	};
 	var green$1 = green;
 
-	const _excluded$1x = ["mode", "contrastThreshold", "tonalOffset"];
+	const _excluded$1w = ["mode", "contrastThreshold", "tonalOffset"];
 	const light = {
 	  // The colors used to style the text.
 	  text: {
@@ -33663,7 +33678,7 @@ ${String(error)}`;
 	      contrastThreshold = 3,
 	      tonalOffset = 0.2
 	    } = palette,
-	    other = _objectWithoutPropertiesLoose$1(palette, _excluded$1x);
+	    other = _objectWithoutPropertiesLoose$1(palette, _excluded$1w);
 	  const primary = palette.primary || getDefaultPrimary(mode);
 	  const secondary = palette.secondary || getDefaultSecondary(mode);
 	  const error = palette.error || getDefaultError(mode);
@@ -33762,7 +33777,7 @@ ${String(error)}`;
 	  return paletteOutput;
 	}
 
-	const _excluded$1w = ["fontFamily", "fontSize", "fontWeightLight", "fontWeightRegular", "fontWeightMedium", "fontWeightBold", "htmlFontSize", "allVariants", "pxToRem"];
+	const _excluded$1v = ["fontFamily", "fontSize", "fontWeightLight", "fontWeightRegular", "fontWeightMedium", "fontWeightBold", "htmlFontSize", "allVariants", "pxToRem"];
 	function round$2(value) {
 	  return Math.round(value * 1e5) / 1e5;
 	}
@@ -33793,7 +33808,7 @@ ${String(error)}`;
 	      allVariants,
 	      pxToRem: pxToRem2
 	    } = _ref,
-	    other = _objectWithoutPropertiesLoose$1(_ref, _excluded$1w);
+	    other = _objectWithoutPropertiesLoose$1(_ref, _excluded$1v);
 	  const coef = fontSize / 14;
 	  const pxToRem = pxToRem2 || (size => `${size / htmlFontSize * coef}rem`);
 	  const buildVariant = (fontWeight, size, lineHeight, letterSpacing, casing) => _extends$1({
@@ -33853,7 +33868,7 @@ ${String(error)}`;
 	const shadows = ['none', createShadow(0, 2, 1, -1, 0, 1, 1, 0, 0, 1, 3, 0), createShadow(0, 3, 1, -2, 0, 2, 2, 0, 0, 1, 5, 0), createShadow(0, 3, 3, -2, 0, 3, 4, 0, 0, 1, 8, 0), createShadow(0, 2, 4, -1, 0, 4, 5, 0, 0, 1, 10, 0), createShadow(0, 3, 5, -1, 0, 5, 8, 0, 0, 1, 14, 0), createShadow(0, 3, 5, -1, 0, 6, 10, 0, 0, 1, 18, 0), createShadow(0, 4, 5, -2, 0, 7, 10, 1, 0, 2, 16, 1), createShadow(0, 5, 5, -3, 0, 8, 10, 1, 0, 3, 14, 2), createShadow(0, 5, 6, -3, 0, 9, 12, 1, 0, 3, 16, 2), createShadow(0, 6, 6, -3, 0, 10, 14, 1, 0, 4, 18, 3), createShadow(0, 6, 7, -4, 0, 11, 15, 1, 0, 4, 20, 3), createShadow(0, 7, 8, -4, 0, 12, 17, 2, 0, 5, 22, 4), createShadow(0, 7, 8, -4, 0, 13, 19, 2, 0, 5, 24, 4), createShadow(0, 7, 9, -4, 0, 14, 21, 2, 0, 5, 26, 4), createShadow(0, 8, 9, -5, 0, 15, 22, 2, 0, 6, 28, 5), createShadow(0, 8, 10, -5, 0, 16, 24, 2, 0, 6, 30, 5), createShadow(0, 8, 11, -5, 0, 17, 26, 2, 0, 6, 32, 5), createShadow(0, 9, 11, -5, 0, 18, 28, 2, 0, 7, 34, 6), createShadow(0, 9, 12, -6, 0, 19, 29, 2, 0, 7, 36, 6), createShadow(0, 10, 13, -6, 0, 20, 31, 3, 0, 8, 38, 7), createShadow(0, 10, 13, -6, 0, 21, 33, 3, 0, 8, 40, 7), createShadow(0, 10, 14, -6, 0, 22, 35, 3, 0, 8, 42, 7), createShadow(0, 11, 14, -7, 0, 23, 36, 3, 0, 9, 44, 8), createShadow(0, 11, 15, -7, 0, 24, 38, 3, 0, 9, 46, 8)];
 	var shadows$1 = shadows;
 
-	const _excluded$1v = ["duration", "easing", "delay"];
+	const _excluded$1u = ["duration", "easing", "delay"];
 	// Follow https://material.google.com/motion/duration-easing.html#duration-easing-natural-easing-curves
 	// to learn the context in which each easing should be used.
 	const easing = {
@@ -33904,7 +33919,7 @@ ${String(error)}`;
 	        easing: easingOption = mergedEasing.easeInOut,
 	        delay = 0
 	      } = options;
-	      _objectWithoutPropertiesLoose$1(options, _excluded$1v);
+	      _objectWithoutPropertiesLoose$1(options, _excluded$1u);
 	    return (Array.isArray(props) ? props : [props]).map(animatedProp => `${animatedProp} ${typeof durationOption === 'string' ? durationOption : formatMs(durationOption)} ${easingOption} ${typeof delay === 'string' ? delay : formatMs(delay)}`).join(',');
 	  };
 	  return _extends$1({
@@ -33930,7 +33945,7 @@ ${String(error)}`;
 	};
 	var zIndex$1 = zIndex;
 
-	const _excluded$1u = ["breakpoints", "mixins", "spacing", "palette", "transitions", "typography", "shape"];
+	const _excluded$1t = ["breakpoints", "mixins", "spacing", "palette", "transitions", "typography", "shape"];
 	function createTheme(options = {}, ...args) {
 	  const {
 	      mixins: mixinsInput = {},
@@ -33938,7 +33953,7 @@ ${String(error)}`;
 	      transitions: transitionsInput = {},
 	      typography: typographyInput = {}
 	    } = options,
-	    other = _objectWithoutPropertiesLoose$1(options, _excluded$1u);
+	    other = _objectWithoutPropertiesLoose$1(options, _excluded$1t);
 	  if (options.vars) {
 	    throw new Error(formatMuiErrorMessage$1(18));
 	  }
@@ -34327,8 +34342,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiSvgIcon', ['root', 'colorPrimary', 'colorSecondary', 'colorAction', 'colorError', 'colorDisabled', 'fontSizeInherit', 'fontSizeSmall', 'fontSizeMedium', 'fontSizeLarge']);
 
-	const _excluded$1t = ["children", "className", "color", "component", "fontSize", "htmlColor", "inheritViewBox", "titleAccess", "viewBox"];
-	const useUtilityClasses$10 = ownerState => {
+	const _excluded$1s = ["children", "className", "color", "component", "fontSize", "htmlColor", "inheritViewBox", "titleAccess", "viewBox"];
+	const useUtilityClasses$$ = ownerState => {
 	  const {
 	    color,
 	    fontSize,
@@ -34395,7 +34410,7 @@ ${String(error)}`;
 	      titleAccess,
 	      viewBox = '0 0 24 24'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1t);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1s);
 	  const hasSvgAsChild = /*#__PURE__*/ /*#__PURE__*/reactExports.isValidElement(children) && children.type === 'svg';
 	  const ownerState = _extends$1({}, props, {
 	    color,
@@ -34410,7 +34425,7 @@ ${String(error)}`;
 	  if (!inheritViewBox) {
 	    more.viewBox = viewBox;
 	  }
-	  const classes = useUtilityClasses$10(ownerState);
+	  const classes = useUtilityClasses$$(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsxs(SvgIconRoot, _extends$1({
 	    as: component,
 	    className: clsx(classes.root, className),
@@ -34668,7 +34683,7 @@ ${String(error)}`;
 	  });
 	}
 
-	const _excluded$1s = ["className", "component"];
+	const _excluded$1r = ["className", "component"];
 	function createBox(options = {}) {
 	  const {
 	    themeId,
@@ -34686,7 +34701,7 @@ ${String(error)}`;
 	        className,
 	        component = 'div'
 	      } = _extendSxProp,
-	      other = _objectWithoutPropertiesLoose$1(_extendSxProp, _excluded$1s);
+	      other = _objectWithoutPropertiesLoose$1(_extendSxProp, _excluded$1r);
 	    return /*#__PURE__*/jsxRuntimeExports.jsx(BoxRoot, _extends$1({
 	      as: component,
 	      ref: ref,
@@ -34697,7 +34712,7 @@ ${String(error)}`;
 	  return Box;
 	}
 
-	const _excluded$1r = ["ownerState"],
+	const _excluded$1q = ["ownerState"],
 	  _excluded2$9 = ["variants"],
 	  _excluded3$2 = ["name", "slot", "skipVariantsResolver", "skipSx", "overridesResolver"];
 	function isEmpty$2(obj) {
@@ -34741,7 +34756,7 @@ ${String(error)}`;
 	  let {
 	      ownerState
 	    } = _ref,
-	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1r);
+	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1q);
 	  const resolvedStylesArg = typeof callableStyle === 'function' ? callableStyle(_extends$1({
 	    ownerState
 	  }, props)) : callableStyle;
@@ -35079,13 +35094,13 @@ ${String(error)}`;
 	  });
 	}
 
-	const _excluded$1q = ["value"];
+	const _excluded$1p = ["value"];
 	const RtlContext = /*#__PURE__*/reactExports.createContext();
 	function RtlProvider(_ref) {
 	  let {
 	      value
 	    } = _ref,
-	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1q);
+	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1p);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(RtlContext.Provider, _extends$1({
 	    value: value != null ? value : true
 	  }, props));
@@ -35173,7 +35188,7 @@ ${String(error)}`;
 	  return "symbol" == _typeof$4(i) ? i : i + "";
 	}
 
-	const _excluded$1p = ["component", "direction", "spacing", "divider", "children", "className", "useFlexGap"];
+	const _excluded$1o = ["component", "direction", "spacing", "divider", "children", "className", "useFlexGap"];
 	const defaultTheme$1 = createTheme$2();
 	// widening Theme to any so that the consumer can own the theme structure.
 	const defaultCreateStyledComponent = systemStyled('div', {
@@ -35306,7 +35321,7 @@ ${String(error)}`;
 	        className,
 	        useFlexGap = false
 	      } = props,
-	      other = _objectWithoutPropertiesLoose$1(props, _excluded$1p);
+	      other = _objectWithoutPropertiesLoose$1(props, _excluded$1o);
 	    const ownerState = {
 	      direction,
 	      spacing,
@@ -35330,12 +35345,12 @@ ${String(error)}`;
 	  return theme[THEME_ID] || theme;
 	}
 
-	const _excluded$1o = ["theme"];
+	const _excluded$1n = ["theme"];
 	function ThemeProvider(_ref) {
 	  let {
 	      theme: themeInput
 	    } = _ref,
-	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1o);
+	    props = _objectWithoutPropertiesLoose$1(_ref, _excluded$1n);
 	  const scopedTheme = themeInput[THEME_ID];
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(ThemeProvider$1, _extends$1({}, props, {
 	    themeId: scopedTheme ? THEME_ID : undefined,
@@ -36019,8 +36034,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiCollapse', ['root', 'horizontal', 'vertical', 'entered', 'hidden', 'wrapper', 'wrapperInner']);
 
-	const _excluded$1n = ["addEndListener", "children", "className", "collapsedSize", "component", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "orientation", "style", "timeout", "TransitionComponent"];
-	const useUtilityClasses$$ = ownerState => {
+	const _excluded$1m = ["addEndListener", "children", "className", "collapsedSize", "component", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "orientation", "style", "timeout", "TransitionComponent"];
+	const useUtilityClasses$_ = ownerState => {
 	  const {
 	    orientation,
 	    classes
@@ -36119,12 +36134,12 @@ ${String(error)}`;
 	      // eslint-disable-next-line react/prop-types
 	      TransitionComponent = Transition$1
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1n);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1m);
 	  const ownerState = _extends$1({}, props, {
 	    orientation,
 	    collapsedSize: collapsedSizeProp
 	  });
-	  const classes = useUtilityClasses$$(ownerState);
+	  const classes = useUtilityClasses$_(ownerState);
 	  const theme = useTheme$1();
 	  const timer = useTimeout();
 	  const wrapperRef = reactExports.useRef(null);
@@ -36288,8 +36303,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiPaper', ['root', 'rounded', 'outlined', 'elevation', 'elevation0', 'elevation1', 'elevation2', 'elevation3', 'elevation4', 'elevation5', 'elevation6', 'elevation7', 'elevation8', 'elevation9', 'elevation10', 'elevation11', 'elevation12', 'elevation13', 'elevation14', 'elevation15', 'elevation16', 'elevation17', 'elevation18', 'elevation19', 'elevation20', 'elevation21', 'elevation22', 'elevation23', 'elevation24']);
 
-	const _excluded$1m = ["className", "component", "elevation", "square", "variant"];
-	const useUtilityClasses$_ = ownerState => {
+	const _excluded$1l = ["className", "component", "elevation", "square", "variant"];
+	const useUtilityClasses$Z = ownerState => {
 	  const {
 	    square,
 	    elevation,
@@ -36343,14 +36358,14 @@ ${String(error)}`;
 	      square = false,
 	      variant = 'elevation'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1m);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1l);
 	  const ownerState = _extends$1({}, props, {
 	    component,
 	    elevation,
 	    square,
 	    variant
 	  });
-	  const classes = useUtilityClasses$_(ownerState);
+	  const classes = useUtilityClasses$Z(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(PaperRoot, _extends$1({
 	    as: component,
 	    ownerState: ownerState,
@@ -36533,7 +36548,7 @@ ${String(error)}`;
 	  };
 	}
 
-	const _excluded$1l = ["elementType", "externalSlotProps", "ownerState", "skipResolvingSlotProps"];
+	const _excluded$1k = ["elementType", "externalSlotProps", "ownerState", "skipResolvingSlotProps"];
 	/**
 	 * @ignore - do not document.
 	 * Builds the props to be passed into the slot of an unstyled component.
@@ -36550,7 +36565,7 @@ ${String(error)}`;
 	      ownerState,
 	      skipResolvingSlotProps = false
 	    } = parameters,
-	    rest = _objectWithoutPropertiesLoose$1(parameters, _excluded$1l);
+	    rest = _objectWithoutPropertiesLoose$1(parameters, _excluded$1k);
 	  const resolvedComponentsProps = skipResolvingSlotProps ? {} : resolveComponentProps$1(externalSlotProps, ownerState);
 	  const {
 	    props: mergedProps,
@@ -36565,7 +36580,7 @@ ${String(error)}`;
 	  return props;
 	}
 
-	const _excluded$1k = ["className", "elementType", "ownerState", "externalForwardedProps", "getSlotOwnerState", "internalForwardedProps"],
+	const _excluded$1j = ["className", "elementType", "ownerState", "externalForwardedProps", "getSlotOwnerState", "internalForwardedProps"],
 	  _excluded2$8 = ["component", "slots", "slotProps"],
 	  _excluded3$1 = ["component"];
 	/**
@@ -36598,7 +36613,7 @@ ${String(error)}`;
 	      getSlotOwnerState,
 	      internalForwardedProps
 	    } = parameters,
-	    useSlotPropsParams = _objectWithoutPropertiesLoose$1(parameters, _excluded$1k);
+	    useSlotPropsParams = _objectWithoutPropertiesLoose$1(parameters, _excluded$1j);
 	  const {
 	      component: rootComponent,
 	      slots = {
@@ -36648,9 +36663,9 @@ ${String(error)}`;
 	const accordionClasses = generateUtilityClasses$2('MuiAccordion', ['root', 'rounded', 'expanded', 'disabled', 'gutters', 'region']);
 	var accordionClasses$1 = accordionClasses;
 
-	const _excluded$1j = ["children", "className", "defaultExpanded", "disabled", "disableGutters", "expanded", "onChange", "square", "slots", "slotProps", "TransitionComponent", "TransitionProps"];
+	const _excluded$1i = ["children", "className", "defaultExpanded", "disabled", "disableGutters", "expanded", "onChange", "square", "slots", "slotProps", "TransitionComponent", "TransitionProps"];
 	const useThemeProps$3 = createUseThemeProps();
-	const useUtilityClasses$Z = ownerState => {
+	const useUtilityClasses$Y = ownerState => {
 	  const {
 	    classes,
 	    square,
@@ -36771,7 +36786,7 @@ ${String(error)}`;
 	      TransitionComponent: TransitionComponentProp,
 	      TransitionProps: TransitionPropsProp
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1j);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1i);
 	  const [expanded, setExpandedState] = useControlled$1({
 	    controlled: expandedProp,
 	    default: defaultExpanded,
@@ -36797,7 +36812,7 @@ ${String(error)}`;
 	    disableGutters,
 	    expanded
 	  });
-	  const classes = useUtilityClasses$Z(ownerState);
+	  const classes = useUtilityClasses$Y(ownerState);
 	  const backwardCompatibleSlots = _extends$1({
 	    transition: TransitionComponentProp
 	  }, slots);
@@ -36842,9 +36857,9 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiAccordionDetails', ['root']);
 
-	const _excluded$1i = ["className"];
+	const _excluded$1h = ["className"];
 	const useThemeProps$2 = createUseThemeProps();
-	const useUtilityClasses$Y = ownerState => {
+	const useUtilityClasses$X = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -36870,9 +36885,9 @@ ${String(error)}`;
 	  const {
 	      className
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1i);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1h);
 	  const ownerState = props;
-	  const classes = useUtilityClasses$Y(ownerState);
+	  const classes = useUtilityClasses$X(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(AccordionDetailsRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    ref: ref,
@@ -36927,7 +36942,7 @@ ${String(error)}`;
 	const touchRippleClasses = generateUtilityClasses$2('MuiTouchRipple', ['root', 'ripple', 'rippleVisible', 'ripplePulsate', 'child', 'childLeaving', 'childPulsate']);
 	var touchRippleClasses$1 = touchRippleClasses;
 
-	const _excluded$1h = ["center", "classes", "className"];
+	const _excluded$1g = ["center", "classes", "className"];
 	let _$2 = t => t,
 	  _t$1,
 	  _t2$1,
@@ -37056,7 +37071,7 @@ ${String(error)}`;
 	      classes = {},
 	      className
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1h);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1g);
 	  const [ripples, setRipples] = reactExports.useState([]);
 	  const nextKey = reactExports.useRef(0);
 	  const rippleCallback = reactExports.useRef(null);
@@ -37237,8 +37252,8 @@ ${String(error)}`;
 	const buttonBaseClasses = generateUtilityClasses$2('MuiButtonBase', ['root', 'disabled', 'focusVisible']);
 	var buttonBaseClasses$1 = buttonBaseClasses;
 
-	const _excluded$1g = ["action", "centerRipple", "children", "className", "component", "disabled", "disableRipple", "disableTouchRipple", "focusRipple", "focusVisibleClassName", "LinkComponent", "onBlur", "onClick", "onContextMenu", "onDragLeave", "onFocus", "onFocusVisible", "onKeyDown", "onKeyUp", "onMouseDown", "onMouseLeave", "onMouseUp", "onTouchEnd", "onTouchMove", "onTouchStart", "tabIndex", "TouchRippleProps", "touchRippleRef", "type"];
-	const useUtilityClasses$X = ownerState => {
+	const _excluded$1f = ["action", "centerRipple", "children", "className", "component", "disabled", "disableRipple", "disableTouchRipple", "focusRipple", "focusVisibleClassName", "LinkComponent", "onBlur", "onClick", "onContextMenu", "onDragLeave", "onFocus", "onFocusVisible", "onKeyDown", "onKeyUp", "onMouseDown", "onMouseLeave", "onMouseUp", "onTouchEnd", "onTouchMove", "onTouchStart", "tabIndex", "TouchRippleProps", "touchRippleRef", "type"];
+	const useUtilityClasses$W = ownerState => {
 	  const {
 	    disabled,
 	    focusVisible,
@@ -37338,7 +37353,7 @@ ${String(error)}`;
 	      touchRippleRef,
 	      type
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1g);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1f);
 	  const buttonRef = reactExports.useRef(null);
 	  const rippleRef = reactExports.useRef(null);
 	  const handleRippleRef = useForkRef$1(rippleRef, touchRippleRef);
@@ -37497,7 +37512,7 @@ ${String(error)}`;
 	    tabIndex,
 	    focusVisible
 	  });
-	  const classes = useUtilityClasses$X(ownerState);
+	  const classes = useUtilityClasses$W(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsxs(ButtonBaseRoot, _extends$1({
 	    as: ComponentProp,
 	    className: clsx(classes.root, className),
@@ -37535,9 +37550,9 @@ ${String(error)}`;
 	const accordionSummaryClasses = generateUtilityClasses$2('MuiAccordionSummary', ['root', 'expanded', 'focusVisible', 'disabled', 'gutters', 'contentGutters', 'content', 'expandIconWrapper']);
 	var accordionSummaryClasses$1 = accordionSummaryClasses;
 
-	const _excluded$1f = ["children", "className", "expandIcon", "focusVisibleClassName", "onClick"];
+	const _excluded$1e = ["children", "className", "expandIcon", "focusVisibleClassName", "onClick"];
 	const useThemeProps$1 = createUseThemeProps();
-	const useUtilityClasses$W = ownerState => {
+	const useUtilityClasses$V = ownerState => {
 	  const {
 	    classes,
 	    expanded,
@@ -37637,7 +37652,7 @@ ${String(error)}`;
 	      focusVisibleClassName,
 	      onClick
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1f);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1e);
 	  const {
 	    disabled = false,
 	    disableGutters,
@@ -37657,7 +37672,7 @@ ${String(error)}`;
 	    disabled,
 	    disableGutters
 	  });
-	  const classes = useUtilityClasses$W(ownerState);
+	  const classes = useUtilityClasses$V(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsxs(AccordionSummaryRoot, _extends$1({
 	    focusRipple: false,
 	    disableRipple: true,
@@ -37689,8 +37704,8 @@ ${String(error)}`;
 	const iconButtonClasses = generateUtilityClasses$2('MuiIconButton', ['root', 'disabled', 'colorInherit', 'colorPrimary', 'colorSecondary', 'colorError', 'colorInfo', 'colorSuccess', 'colorWarning', 'edgeStart', 'edgeEnd', 'sizeSmall', 'sizeMedium', 'sizeLarge']);
 	var iconButtonClasses$1 = iconButtonClasses;
 
-	const _excluded$1e = ["edge", "children", "className", "color", "disabled", "disableFocusRipple", "size"];
-	const useUtilityClasses$V = ownerState => {
+	const _excluded$1d = ["edge", "children", "className", "color", "disabled", "disableFocusRipple", "size"];
+	const useUtilityClasses$U = ownerState => {
 	  const {
 	    classes,
 	    disabled,
@@ -37790,7 +37805,7 @@ ${String(error)}`;
 	      disableFocusRipple = false,
 	      size = 'medium'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1e);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1d);
 	  const ownerState = _extends$1({}, props, {
 	    edge,
 	    color,
@@ -37798,7 +37813,7 @@ ${String(error)}`;
 	    disableFocusRipple,
 	    size
 	  });
-	  const classes = useUtilityClasses$V(ownerState);
+	  const classes = useUtilityClasses$U(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(IconButtonRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    centerRipple: true,
@@ -37817,8 +37832,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiTypography', ['root', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'subtitle1', 'subtitle2', 'body1', 'body2', 'inherit', 'button', 'caption', 'overline', 'alignLeft', 'alignRight', 'alignCenter', 'alignJustify', 'noWrap', 'gutterBottom', 'paragraph']);
 
-	const _excluded$1d = ["align", "className", "component", "gutterBottom", "noWrap", "paragraph", "variant", "variantMapping"];
-	const useUtilityClasses$U = ownerState => {
+	const _excluded$1c = ["align", "className", "component", "gutterBottom", "noWrap", "paragraph", "variant", "variantMapping"];
+	const useUtilityClasses$T = ownerState => {
 	  const {
 	    align,
 	    gutterBottom,
@@ -37904,7 +37919,7 @@ ${String(error)}`;
 	      variant = 'body1',
 	      variantMapping = defaultVariantMapping
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1d);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1c);
 	  const ownerState = _extends$1({}, props, {
 	    align,
 	    color,
@@ -37917,7 +37932,7 @@ ${String(error)}`;
 	    variantMapping
 	  });
 	  const Component = component || (paragraph ? 'p' : variantMapping[variant] || defaultVariantMapping[variant]) || 'span';
-	  const classes = useUtilityClasses$U(ownerState);
+	  const classes = useUtilityClasses$T(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(TypographyRoot, _extends$1({
 	    as: Component,
 	    ref: ref,
@@ -37932,8 +37947,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiAppBar', ['root', 'positionFixed', 'positionAbsolute', 'positionSticky', 'positionStatic', 'positionRelative', 'colorDefault', 'colorPrimary', 'colorSecondary', 'colorInherit', 'colorTransparent', 'colorError', 'colorInfo', 'colorSuccess', 'colorWarning']);
 
-	const _excluded$1c = ["className", "color", "enableColorOnDark", "position"];
-	const useUtilityClasses$T = ownerState => {
+	const _excluded$1b = ["className", "color", "enableColorOnDark", "position"];
+	const useUtilityClasses$S = ownerState => {
 	  const {
 	    color,
 	    position,
@@ -38038,13 +38053,13 @@ ${String(error)}`;
 	      enableColorOnDark = false,
 	      position = 'fixed'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1c);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1b);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    position,
 	    enableColorOnDark
 	  });
-	  const classes = useUtilityClasses$T(ownerState);
+	  const classes = useUtilityClasses$S(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(AppBarRoot, _extends$1({
 	    square: true,
 	    component: "header",
@@ -40468,7 +40483,7 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$1(COMPONENT_NAME, ['root']);
 
-	const _excluded$1b = ["anchorEl", "children", "direction", "disablePortal", "modifiers", "open", "placement", "popperOptions", "popperRef", "slotProps", "slots", "TransitionProps", "ownerState"],
+	const _excluded$1a = ["anchorEl", "children", "direction", "disablePortal", "modifiers", "open", "placement", "popperOptions", "popperRef", "slotProps", "slots", "TransitionProps", "ownerState"],
 	  _excluded2$7 = ["anchorEl", "children", "container", "direction", "disablePortal", "keepMounted", "modifiers", "open", "placement", "popperOptions", "popperRef", "style", "transition", "slotProps", "slots"];
 	function flipPlacement(placement, direction) {
 	  if (direction === 'ltr') {
@@ -40493,7 +40508,7 @@ ${String(error)}`;
 	function isHTMLElement(element) {
 	  return element.nodeType !== undefined;
 	}
-	const useUtilityClasses$S = () => {
+	const useUtilityClasses$R = () => {
 	  const slots = {
 	    root: ['root']
 	  };
@@ -40518,7 +40533,7 @@ ${String(error)}`;
 	      // @ts-ignore internal logic
 	      // prevent from spreading to DOM, it can come from the parent component e.g. Select.
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1b);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1a);
 	  const tooltipRef = reactExports.useRef(null);
 	  const ownRef = useForkRef$1(tooltipRef, forwardedRef);
 	  const popperRef = reactExports.useRef(null);
@@ -40595,7 +40610,7 @@ ${String(error)}`;
 	  if (TransitionProps !== null) {
 	    childProps.TransitionProps = TransitionProps;
 	  }
-	  const classes = useUtilityClasses$S();
+	  const classes = useUtilityClasses$R();
 	  const Root = (_slots$root = slots.root) != null ? _slots$root : 'div';
 	  const rootProps = useSlotProps$1({
 	    elementType: Root,
@@ -40700,7 +40715,7 @@ ${String(error)}`;
 	  });
 	});
 
-	const _excluded$1a = ["onChange", "maxRows", "minRows", "style", "value"];
+	const _excluded$19 = ["onChange", "maxRows", "minRows", "style", "value"];
 	function getStyleValue(value) {
 	  return parseInt(value, 10) || 0;
 	}
@@ -40742,7 +40757,7 @@ ${String(error)}`;
 	      style,
 	      value
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$1a);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$19);
 	  const {
 	    current: isControlled
 	  } = reactExports.useRef(value != null);
@@ -40923,7 +40938,7 @@ ${String(error)}`;
 	var useThemeWithoutDefaultExports = /*@__PURE__*/ requireUseThemeWithoutDefault();
 	var useTheme = /*@__PURE__*/getDefaultExportFromCjs(useThemeWithoutDefaultExports);
 
-	const _excluded$19 = ["anchorEl", "component", "components", "componentsProps", "container", "disablePortal", "keepMounted", "modifiers", "open", "placement", "popperOptions", "popperRef", "transition", "slots", "slotProps"];
+	const _excluded$18 = ["anchorEl", "component", "components", "componentsProps", "container", "disablePortal", "keepMounted", "modifiers", "open", "placement", "popperOptions", "popperRef", "transition", "slots", "slotProps"];
 	const PopperRoot = styled$2(Popper$2, {
 	  name: 'MuiPopper',
 	  slot: 'Root',
@@ -40966,7 +40981,7 @@ ${String(error)}`;
 	      slots,
 	      slotProps
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$19);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$18);
 	  const RootComponent = (_slots$root = slots == null ? void 0 : slots.root) != null ? _slots$root : components == null ? void 0 : components.Root;
 	  const otherProps = _extends$1({
 	    anchorEl,
@@ -41003,8 +41018,8 @@ ${String(error)}`;
 	const chipClasses = generateUtilityClasses$2('MuiChip', ['root', 'sizeSmall', 'sizeMedium', 'colorError', 'colorInfo', 'colorPrimary', 'colorSecondary', 'colorSuccess', 'colorWarning', 'disabled', 'clickable', 'clickableColorPrimary', 'clickableColorSecondary', 'deletable', 'deletableColorPrimary', 'deletableColorSecondary', 'outlined', 'filled', 'outlinedPrimary', 'outlinedSecondary', 'filledPrimary', 'filledSecondary', 'avatar', 'avatarSmall', 'avatarMedium', 'avatarColorPrimary', 'avatarColorSecondary', 'icon', 'iconSmall', 'iconMedium', 'iconColorPrimary', 'iconColorSecondary', 'label', 'labelSmall', 'labelMedium', 'deleteIcon', 'deleteIconSmall', 'deleteIconMedium', 'deleteIconColorPrimary', 'deleteIconColorSecondary', 'deleteIconOutlinedColorPrimary', 'deleteIconOutlinedColorSecondary', 'deleteIconFilledColorPrimary', 'deleteIconFilledColorSecondary', 'focusVisible']);
 	var chipClasses$1 = chipClasses;
 
-	const _excluded$18 = ["avatar", "className", "clickable", "color", "component", "deleteIcon", "disabled", "icon", "label", "onClick", "onDelete", "onKeyDown", "onKeyUp", "size", "variant", "tabIndex", "skipFocusWhenDisabled"];
-	const useUtilityClasses$R = ownerState => {
+	const _excluded$17 = ["avatar", "className", "clickable", "color", "component", "deleteIcon", "disabled", "icon", "label", "onClick", "onDelete", "onKeyDown", "onKeyUp", "size", "variant", "tabIndex", "skipFocusWhenDisabled"];
+	const useUtilityClasses$Q = ownerState => {
 	  const {
 	    classes,
 	    disabled,
@@ -41289,7 +41304,7 @@ ${String(error)}`;
 	      tabIndex,
 	      skipFocusWhenDisabled = false // TODO v6: Rename to `focusableWhenDisabled`.
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$18);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$17);
 	  const chipRef = reactExports.useRef(null);
 	  const handleRef = useForkRef$1(chipRef, ref);
 	  const handleDeleteIconClick = event => {
@@ -41335,7 +41350,7 @@ ${String(error)}`;
 	    clickable,
 	    variant
 	  });
-	  const classes = useUtilityClasses$R(ownerState);
+	  const classes = useUtilityClasses$Q(ownerState);
 	  const moreProps = component === ButtonBase$1 ? _extends$1({
 	    component: ComponentProp || 'div',
 	    focusVisibleClassName: classes.focusVisible
@@ -41454,7 +41469,7 @@ ${String(error)}`;
 	const inputBaseClasses = generateUtilityClasses$2('MuiInputBase', ['root', 'formControl', 'focused', 'disabled', 'adornedStart', 'adornedEnd', 'error', 'sizeSmall', 'multiline', 'colorSecondary', 'fullWidth', 'hiddenLabel', 'readOnly', 'input', 'inputSizeSmall', 'inputMultiline', 'inputTypeSearch', 'inputAdornedStart', 'inputAdornedEnd', 'inputHiddenLabel']);
 	var inputBaseClasses$1 = inputBaseClasses;
 
-	const _excluded$17 = ["aria-describedby", "autoComplete", "autoFocus", "className", "color", "components", "componentsProps", "defaultValue", "disabled", "disableInjectingGlobalStyles", "endAdornment", "error", "fullWidth", "id", "inputComponent", "inputProps", "inputRef", "margin", "maxRows", "minRows", "multiline", "name", "onBlur", "onChange", "onClick", "onFocus", "onKeyDown", "onKeyUp", "placeholder", "readOnly", "renderSuffix", "rows", "size", "slotProps", "slots", "startAdornment", "type", "value"];
+	const _excluded$16 = ["aria-describedby", "autoComplete", "autoFocus", "className", "color", "components", "componentsProps", "defaultValue", "disabled", "disableInjectingGlobalStyles", "endAdornment", "error", "fullWidth", "id", "inputComponent", "inputProps", "inputRef", "margin", "maxRows", "minRows", "multiline", "name", "onBlur", "onChange", "onClick", "onFocus", "onKeyDown", "onKeyUp", "placeholder", "readOnly", "renderSuffix", "rows", "size", "slotProps", "slots", "startAdornment", "type", "value"];
 	const rootOverridesResolver = (props, styles) => {
 	  const {
 	    ownerState
@@ -41467,7 +41482,7 @@ ${String(error)}`;
 	  } = props;
 	  return [styles.input, ownerState.size === 'small' && styles.inputSizeSmall, ownerState.multiline && styles.inputMultiline, ownerState.type === 'search' && styles.inputTypeSearch, ownerState.startAdornment && styles.inputAdornedStart, ownerState.endAdornment && styles.inputAdornedEnd, ownerState.hiddenLabel && styles.inputHiddenLabel];
 	};
-	const useUtilityClasses$Q = ownerState => {
+	const useUtilityClasses$P = ownerState => {
 	  const {
 	    classes,
 	    color,
@@ -41683,7 +41698,7 @@ ${String(error)}`;
 	      type = 'text',
 	      value: valueProp
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$17);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$16);
 	  const value = inputPropsProp.value != null ? inputPropsProp.value : valueProp;
 	  const {
 	    current: isControlled
@@ -41838,7 +41853,7 @@ ${String(error)}`;
 	    startAdornment,
 	    type
 	  });
-	  const classes = useUtilityClasses$Q(ownerState);
+	  const classes = useUtilityClasses$P(ownerState);
 	  const Root = slots.root || components.Root || InputBaseRoot;
 	  const rootProps = slotProps.root || componentsProps.root || {};
 	  const Input = slots.input || components.Input || InputBaseComponent;
@@ -41912,7 +41927,7 @@ ${String(error)}`;
 	  d: "M7 10l5 5 5-5z"
 	}), 'ArrowDropDown');
 
-	const _excluded$16 = ["addEndListener", "appear", "children", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
+	const _excluded$15 = ["addEndListener", "appear", "children", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
 	const styles$1 = {
 	  entering: {
 	    opacity: 1
@@ -41949,7 +41964,7 @@ ${String(error)}`;
 	      // eslint-disable-next-line react/prop-types
 	      TransitionComponent = Transition$1
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$16);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$15);
 	  const nodeRef = reactExports.useRef(null);
 	  const handleRef = useForkRef$1(nodeRef, children.ref, ref);
 	  const normalizedTransitionCallback = callback => maybeIsAppearing => {
@@ -42035,8 +42050,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiBackdrop', ['root', 'invisible']);
 
-	const _excluded$15 = ["children", "className", "component", "components", "componentsProps", "invisible", "open", "slotProps", "slots", "TransitionComponent", "transitionDuration"];
-	const useUtilityClasses$P = ownerState => {
+	const _excluded$14 = ["children", "className", "component", "components", "componentsProps", "invisible", "open", "slotProps", "slots", "TransitionComponent", "transitionDuration"];
+	const useUtilityClasses$O = ownerState => {
 	  const {
 	    classes,
 	    invisible
@@ -42090,12 +42105,12 @@ ${String(error)}`;
 	      TransitionComponent = Fade$1,
 	      transitionDuration
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$15);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$14);
 	  const ownerState = _extends$1({}, props, {
 	    component,
 	    invisible
 	  });
-	  const classes = useUtilityClasses$P(ownerState);
+	  const classes = useUtilityClasses$O(ownerState);
 	  const rootSlotProps = (_slotProps$root = slotProps.root) != null ? _slotProps$root : componentsProps.root;
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(TransitionComponent, _extends$1({
 	    in: open,
@@ -42131,7 +42146,7 @@ ${String(error)}`;
 	  d: "M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
 	}), 'MoreHoriz');
 
-	const _excluded$14 = ["slots", "slotProps"];
+	const _excluded$13 = ["slots", "slotProps"];
 	const BreadcrumbCollapsedButton = styled$2(ButtonBase$1)(({
 	  theme
 	}) => _extends$1({
@@ -42172,7 +42187,7 @@ ${String(error)}`;
 	      slots = {},
 	      slotProps = {}
 	    } = props,
-	    otherProps = _objectWithoutPropertiesLoose$1(props, _excluded$14);
+	    otherProps = _objectWithoutPropertiesLoose$1(props, _excluded$13);
 	  const ownerState = props;
 	  return /*#__PURE__*/jsxRuntimeExports.jsx("li", {
 	    children: /*#__PURE__*/jsxRuntimeExports.jsx(BreadcrumbCollapsedButton, _extends$1({
@@ -42193,8 +42208,8 @@ ${String(error)}`;
 	const breadcrumbsClasses = generateUtilityClasses$2('MuiBreadcrumbs', ['root', 'ol', 'li', 'separator']);
 	var breadcrumbsClasses$1 = breadcrumbsClasses;
 
-	const _excluded$13 = ["children", "className", "component", "slots", "slotProps", "expandText", "itemsAfterCollapse", "itemsBeforeCollapse", "maxItems", "separator"];
-	const useUtilityClasses$O = ownerState => {
+	const _excluded$12 = ["children", "className", "component", "slots", "slotProps", "expandText", "itemsAfterCollapse", "itemsBeforeCollapse", "maxItems", "separator"];
+	const useUtilityClasses$N = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -42269,7 +42284,7 @@ ${String(error)}`;
 	      maxItems = 8,
 	      separator = '/'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$13);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$12);
 	  const [expanded, setExpanded] = reactExports.useState(false);
 	  const ownerState = _extends$1({}, props, {
 	    component,
@@ -42280,7 +42295,7 @@ ${String(error)}`;
 	    maxItems,
 	    separator
 	  });
-	  const classes = useUtilityClasses$O(ownerState);
+	  const classes = useUtilityClasses$N(ownerState);
 	  const collapsedIconSlotProps = useSlotProps$1({
 	    elementType: slots.CollapsedIcon,
 	    externalSlotProps: slotProps.collapsedIcon,
@@ -42358,8 +42373,8 @@ ${String(error)}`;
 	const ButtonGroupButtonContext = /*#__PURE__*/reactExports.createContext(undefined);
 	var ButtonGroupButtonContext$1 = ButtonGroupButtonContext;
 
-	const _excluded$12 = ["children", "color", "component", "className", "disabled", "disableElevation", "disableFocusRipple", "endIcon", "focusVisibleClassName", "fullWidth", "size", "startIcon", "type", "variant"];
-	const useUtilityClasses$N = ownerState => {
+	const _excluded$11 = ["children", "color", "component", "className", "disabled", "disableElevation", "disableFocusRipple", "endIcon", "focusVisibleClassName", "fullWidth", "size", "startIcon", "type", "variant"];
+	const useUtilityClasses$M = ownerState => {
 	  const {
 	    color,
 	    disableElevation,
@@ -42585,7 +42600,7 @@ ${String(error)}`;
 	      type,
 	      variant = 'text'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$12);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$11);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    component,
@@ -42597,7 +42612,7 @@ ${String(error)}`;
 	    type,
 	    variant
 	  });
-	  const classes = useUtilityClasses$N(ownerState);
+	  const classes = useUtilityClasses$M(ownerState);
 	  const startIcon = startIconProp && /*#__PURE__*/jsxRuntimeExports.jsx(ButtonStartIcon, {
 	    className: classes.startIcon,
 	    ownerState: ownerState,
@@ -42631,7 +42646,7 @@ ${String(error)}`;
 	const buttonGroupClasses = generateUtilityClasses$2('MuiButtonGroup', ['root', 'contained', 'outlined', 'text', 'disableElevation', 'disabled', 'firstButton', 'fullWidth', 'vertical', 'grouped', 'groupedHorizontal', 'groupedVertical', 'groupedText', 'groupedTextHorizontal', 'groupedTextVertical', 'groupedTextPrimary', 'groupedTextSecondary', 'groupedOutlined', 'groupedOutlinedHorizontal', 'groupedOutlinedVertical', 'groupedOutlinedPrimary', 'groupedOutlinedSecondary', 'groupedContained', 'groupedContainedHorizontal', 'groupedContainedVertical', 'groupedContainedPrimary', 'groupedContainedSecondary', 'lastButton', 'middleButton']);
 	var buttonGroupClasses$1 = buttonGroupClasses;
 
-	const _excluded$11 = ["children", "className", "color", "component", "disabled", "disableElevation", "disableFocusRipple", "disableRipple", "fullWidth", "orientation", "size", "variant"];
+	const _excluded$10 = ["children", "className", "color", "component", "disabled", "disableElevation", "disableFocusRipple", "disableRipple", "fullWidth", "orientation", "size", "variant"];
 	const overridesResolver$3 = (props, styles) => {
 	  const {
 	    ownerState
@@ -42654,7 +42669,7 @@ ${String(error)}`;
 	    [`& .${buttonGroupClasses$1.middleButton}`]: styles.middleButton
 	  }, styles.root, styles[ownerState.variant], ownerState.disableElevation === true && styles.disableElevation, ownerState.fullWidth && styles.fullWidth, ownerState.orientation === 'vertical' && styles.vertical];
 	};
-	const useUtilityClasses$M = ownerState => {
+	const useUtilityClasses$L = ownerState => {
 	  const {
 	    classes,
 	    color,
@@ -42772,7 +42787,7 @@ ${String(error)}`;
 	      size = 'medium',
 	      variant = 'outlined'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$11);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$10);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    component,
@@ -42785,7 +42800,7 @@ ${String(error)}`;
 	    size,
 	    variant
 	  });
-	  const classes = useUtilityClasses$M(ownerState);
+	  const classes = useUtilityClasses$L(ownerState);
 	  const context = reactExports.useMemo(() => ({
 	    className: classes.grouped,
 	    color,
@@ -42838,8 +42853,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiCard', ['root']);
 
-	const _excluded$10 = ["className", "raised"];
-	const useUtilityClasses$L = ownerState => {
+	const _excluded$$ = ["className", "raised"];
+	const useUtilityClasses$K = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -42866,11 +42881,11 @@ ${String(error)}`;
 	      className,
 	      raised = false
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$10);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$$);
 	  const ownerState = _extends$1({}, props, {
 	    raised
 	  });
-	  const classes = useUtilityClasses$L(ownerState);
+	  const classes = useUtilityClasses$K(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(CardRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    elevation: raised ? 8 : undefined,
@@ -42885,8 +42900,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiCardContent', ['root']);
 
-	const _excluded$$ = ["className", "component"];
-	const useUtilityClasses$K = ownerState => {
+	const _excluded$_ = ["className", "component"];
+	const useUtilityClasses$J = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -42916,11 +42931,11 @@ ${String(error)}`;
 	      className,
 	      component = 'div'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$$);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$_);
 	  const ownerState = _extends$1({}, props, {
 	    component
 	  });
-	  const classes = useUtilityClasses$K(ownerState);
+	  const classes = useUtilityClasses$J(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(CardContentRoot, _extends$1({
 	    as: component,
 	    className: clsx(classes.root, className),
@@ -42936,8 +42951,8 @@ ${String(error)}`;
 	const cardHeaderClasses = generateUtilityClasses$2('MuiCardHeader', ['root', 'avatar', 'action', 'content', 'title', 'subheader']);
 	var cardHeaderClasses$1 = cardHeaderClasses;
 
-	const _excluded$_ = ["action", "avatar", "className", "component", "disableTypography", "subheader", "subheaderTypographyProps", "title", "titleTypographyProps"];
-	const useUtilityClasses$J = ownerState => {
+	const _excluded$Z = ["action", "avatar", "className", "component", "disableTypography", "subheader", "subheaderTypographyProps", "title", "titleTypographyProps"];
+	const useUtilityClasses$I = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -43006,12 +43021,12 @@ ${String(error)}`;
 	      title: titleProp,
 	      titleTypographyProps
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$_);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Z);
 	  const ownerState = _extends$1({}, props, {
 	    component,
 	    disableTypography
 	  });
-	  const classes = useUtilityClasses$J(ownerState);
+	  const classes = useUtilityClasses$I(ownerState);
 	  let title = titleProp;
 	  if (title != null && title.type !== Typography$1 && !disableTypography) {
 	    title = /*#__PURE__*/jsxRuntimeExports.jsx(Typography$1, _extends$1({
@@ -43063,8 +43078,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('PrivateSwitchBase', ['root', 'checked', 'disabled', 'input', 'edgeStart', 'edgeEnd']);
 
-	const _excluded$Z = ["autoFocus", "checked", "checkedIcon", "className", "defaultChecked", "disabled", "disableFocusRipple", "edge", "icon", "id", "inputProps", "inputRef", "name", "onBlur", "onChange", "onFocus", "readOnly", "required", "tabIndex", "type", "value"];
-	const useUtilityClasses$I = ownerState => {
+	const _excluded$Y = ["autoFocus", "checked", "checkedIcon", "className", "defaultChecked", "disabled", "disableFocusRipple", "edge", "icon", "id", "inputProps", "inputRef", "name", "onBlur", "onChange", "onFocus", "readOnly", "required", "tabIndex", "type", "value"];
+	const useUtilityClasses$H = ownerState => {
 	  const {
 	    classes,
 	    checked,
@@ -43129,7 +43144,7 @@ ${String(error)}`;
 	      type,
 	      value
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Z);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Y);
 	  const [checked, setCheckedState] = useControlled$1({
 	    controlled: checkedProp,
 	    default: Boolean(defaultChecked),
@@ -43178,7 +43193,7 @@ ${String(error)}`;
 	    disableFocusRipple,
 	    edge
 	  });
-	  const classes = useUtilityClasses$I(ownerState);
+	  const classes = useUtilityClasses$H(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsxs(SwitchBaseRoot, _extends$1({
 	    component: "span",
 	    className: clsx(classes.root, className),
@@ -43232,8 +43247,8 @@ ${String(error)}`;
 	const checkboxClasses = generateUtilityClasses$2('MuiCheckbox', ['root', 'checked', 'disabled', 'indeterminate', 'colorPrimary', 'colorSecondary', 'sizeSmall', 'sizeMedium']);
 	var checkboxClasses$1 = checkboxClasses;
 
-	const _excluded$Y = ["checkedIcon", "color", "icon", "indeterminate", "indeterminateIcon", "inputProps", "size", "className"];
-	const useUtilityClasses$H = ownerState => {
+	const _excluded$X = ["checkedIcon", "color", "icon", "indeterminate", "indeterminateIcon", "inputProps", "size", "className"];
+	const useUtilityClasses$G = ownerState => {
 	  const {
 	    classes,
 	    indeterminate,
@@ -43296,7 +43311,7 @@ ${String(error)}`;
 	      size = 'medium',
 	      className
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Y);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$X);
 	  const icon = indeterminate ? indeterminateIconProp : iconProp;
 	  const indeterminateIcon = indeterminate ? indeterminateIconProp : checkedIcon;
 	  const ownerState = _extends$1({}, props, {
@@ -43304,7 +43319,7 @@ ${String(error)}`;
 	    indeterminate,
 	    size
 	  });
-	  const classes = useUtilityClasses$H(ownerState);
+	  const classes = useUtilityClasses$G(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(CheckboxRoot, _extends$1({
 	    type: "checkbox",
 	    inputProps: _extends$1({
@@ -43330,7 +43345,7 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiCircularProgress', ['root', 'determinate', 'indeterminate', 'colorPrimary', 'colorSecondary', 'svg', 'circle', 'circleDeterminate', 'circleIndeterminate', 'circleDisableShrink']);
 
-	const _excluded$X = ["className", "color", "disableShrink", "size", "style", "thickness", "value", "variant"];
+	const _excluded$W = ["className", "color", "disableShrink", "size", "style", "thickness", "value", "variant"];
 	let _$1 = t => t,
 	  _t,
 	  _t2,
@@ -43362,7 +43377,7 @@ ${String(error)}`;
     stroke-dashoffset: -125px;
   }
 `));
-	const useUtilityClasses$G = ownerState => {
+	const useUtilityClasses$F = ownerState => {
 	  const {
 	    classes,
 	    variant,
@@ -43454,7 +43469,7 @@ ${String(error)}`;
 	      value = 0,
 	      variant = 'indeterminate'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$X);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$W);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    disableShrink,
@@ -43463,7 +43478,7 @@ ${String(error)}`;
 	    value,
 	    variant
 	  });
-	  const classes = useUtilityClasses$G(ownerState);
+	  const classes = useUtilityClasses$F(ownerState);
 	  const circleStyle = {};
 	  const rootStyle = {};
 	  const rootProps = {};
@@ -43508,8 +43523,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiModal', ['root', 'hidden', 'backdrop']);
 
-	const _excluded$W = ["BackdropComponent", "BackdropProps", "classes", "className", "closeAfterTransition", "children", "container", "component", "components", "componentsProps", "disableAutoFocus", "disableEnforceFocus", "disableEscapeKeyDown", "disablePortal", "disableRestoreFocus", "disableScrollLock", "hideBackdrop", "keepMounted", "onBackdropClick", "onClose", "onTransitionEnter", "onTransitionExited", "open", "slotProps", "slots", "theme"];
-	const useUtilityClasses$F = ownerState => {
+	const _excluded$V = ["BackdropComponent", "BackdropProps", "classes", "className", "closeAfterTransition", "children", "container", "component", "components", "componentsProps", "disableAutoFocus", "disableEnforceFocus", "disableEscapeKeyDown", "disablePortal", "disableRestoreFocus", "disableScrollLock", "hideBackdrop", "keepMounted", "onBackdropClick", "onClose", "onTransitionEnter", "onTransitionExited", "open", "slotProps", "slots", "theme"];
+	const useUtilityClasses$E = ownerState => {
 	  const {
 	    open,
 	    exited,
@@ -43596,7 +43611,7 @@ ${String(error)}`;
 	      slots
 	      // eslint-disable-next-line react/prop-types
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$W);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$V);
 	  const propsWithDefaults = _extends$1({}, props, {
 	    closeAfterTransition,
 	    disableAutoFocus,
@@ -43622,7 +43637,7 @@ ${String(error)}`;
 	  const ownerState = _extends$1({}, propsWithDefaults, {
 	    exited
 	  });
-	  const classes = useUtilityClasses$F(ownerState);
+	  const classes = useUtilityClasses$E(ownerState);
 	  const childProps = {};
 	  if (children.props.tabIndex === undefined) {
 	    childProps.tabIndex = '-1';
@@ -43702,7 +43717,7 @@ ${String(error)}`;
 	const DialogContext = /*#__PURE__*/reactExports.createContext({});
 	var DialogContext$1 = DialogContext;
 
-	const _excluded$V = ["aria-describedby", "aria-labelledby", "BackdropComponent", "BackdropProps", "children", "className", "disableEscapeKeyDown", "fullScreen", "fullWidth", "maxWidth", "onBackdropClick", "onClick", "onClose", "open", "PaperComponent", "PaperProps", "scroll", "TransitionComponent", "transitionDuration", "TransitionProps"];
+	const _excluded$U = ["aria-describedby", "aria-labelledby", "BackdropComponent", "BackdropProps", "children", "className", "disableEscapeKeyDown", "fullScreen", "fullWidth", "maxWidth", "onBackdropClick", "onClick", "onClose", "open", "PaperComponent", "PaperProps", "scroll", "TransitionComponent", "transitionDuration", "TransitionProps"];
 	const DialogBackdrop = styled$2(Backdrop$1, {
 	  name: 'MuiDialog',
 	  slot: 'Backdrop',
@@ -43711,7 +43726,7 @@ ${String(error)}`;
 	  // Improve scrollable dialog support.
 	  zIndex: -1
 	});
-	const useUtilityClasses$E = ownerState => {
+	const useUtilityClasses$D = ownerState => {
 	  const {
 	    classes,
 	    scroll,
@@ -43865,7 +43880,7 @@ ${String(error)}`;
 	      transitionDuration = defaultTransitionDuration,
 	      TransitionProps
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$V);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$U);
 	  const ownerState = _extends$1({}, props, {
 	    disableEscapeKeyDown,
 	    fullScreen,
@@ -43873,7 +43888,7 @@ ${String(error)}`;
 	    maxWidth,
 	    scroll
 	  });
-	  const classes = useUtilityClasses$E(ownerState);
+	  const classes = useUtilityClasses$D(ownerState);
 	  const backdropClick = reactExports.useRef();
 	  const handleMouseDown = event => {
 	    // We don't want to close the dialog when clicking the dialog content.
@@ -43957,8 +43972,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiDialogActions', ['root', 'spacing']);
 
-	const _excluded$U = ["className", "disableSpacing"];
-	const useUtilityClasses$D = ownerState => {
+	const _excluded$T = ["className", "disableSpacing"];
+	const useUtilityClasses$C = ownerState => {
 	  const {
 	    classes,
 	    disableSpacing
@@ -43999,11 +44014,11 @@ ${String(error)}`;
 	      className,
 	      disableSpacing = false
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$U);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$T);
 	  const ownerState = _extends$1({}, props, {
 	    disableSpacing
 	  });
-	  const classes = useUtilityClasses$D(ownerState);
+	  const classes = useUtilityClasses$C(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(DialogActionsRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    ownerState: ownerState,
@@ -44023,8 +44038,8 @@ ${String(error)}`;
 	const dialogTitleClasses = generateUtilityClasses$2('MuiDialogTitle', ['root']);
 	var dialogTitleClasses$1 = dialogTitleClasses;
 
-	const _excluded$T = ["className", "dividers"];
-	const useUtilityClasses$C = ownerState => {
+	const _excluded$S = ["className", "dividers"];
+	const useUtilityClasses$B = ownerState => {
 	  const {
 	    classes,
 	    dividers
@@ -44070,11 +44085,11 @@ ${String(error)}`;
 	      className,
 	      dividers = false
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$T);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$S);
 	  const ownerState = _extends$1({}, props, {
 	    dividers
 	  });
-	  const classes = useUtilityClasses$C(ownerState);
+	  const classes = useUtilityClasses$B(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(DialogContentRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    ownerState: ownerState,
@@ -44083,8 +44098,8 @@ ${String(error)}`;
 	});
 	var DialogContent$1 = DialogContent;
 
-	const _excluded$S = ["className", "id"];
-	const useUtilityClasses$B = ownerState => {
+	const _excluded$R = ["className", "id"];
+	const useUtilityClasses$A = ownerState => {
 	  const {
 	    classes
 	  } = ownerState;
@@ -44110,9 +44125,9 @@ ${String(error)}`;
 	      className,
 	      id: idProp
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$S);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$R);
 	  const ownerState = props;
-	  const classes = useUtilityClasses$B(ownerState);
+	  const classes = useUtilityClasses$A(ownerState);
 	  const {
 	    titleId = idProp
 	  } = reactExports.useContext(DialogContext$1);
@@ -44133,8 +44148,8 @@ ${String(error)}`;
 	const dividerClasses = generateUtilityClasses$2('MuiDivider', ['root', 'absolute', 'fullWidth', 'inset', 'middle', 'flexItem', 'light', 'vertical', 'withChildren', 'withChildrenVertical', 'textAlignRight', 'textAlignLeft', 'wrapper', 'wrapperVertical']);
 	var dividerClasses$1 = dividerClasses;
 
-	const _excluded$R = ["absolute", "children", "className", "component", "flexItem", "light", "orientation", "role", "textAlign", "variant"];
-	const useUtilityClasses$A = ownerState => {
+	const _excluded$Q = ["absolute", "children", "className", "component", "flexItem", "light", "orientation", "role", "textAlign", "variant"];
+	const useUtilityClasses$z = ownerState => {
 	  const {
 	    absolute,
 	    children,
@@ -44275,7 +44290,7 @@ ${String(error)}`;
 	      textAlign = 'center',
 	      variant = 'fullWidth'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$R);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Q);
 	  const ownerState = _extends$1({}, props, {
 	    absolute,
 	    component,
@@ -44286,7 +44301,7 @@ ${String(error)}`;
 	    textAlign,
 	    variant
 	  });
-	  const classes = useUtilityClasses$A(ownerState);
+	  const classes = useUtilityClasses$z(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(DividerRoot, _extends$1({
 	    as: component,
 	    className: clsx(classes.root, className),
@@ -44309,7 +44324,7 @@ ${String(error)}`;
 	Divider.muiSkipListHighlight = true;
 	var Divider$1 = Divider;
 
-	const _excluded$Q = ["addEndListener", "appear", "children", "container", "direction", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
+	const _excluded$P = ["addEndListener", "appear", "children", "container", "direction", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
 	function getTranslateValue(direction, node, resolvedContainer) {
 	  const rect = node.getBoundingClientRect();
 	  const containerRect = resolvedContainer && resolvedContainer.getBoundingClientRect();
@@ -44398,7 +44413,7 @@ ${String(error)}`;
 	      // eslint-disable-next-line react/prop-types
 	      TransitionComponent = Transition$1
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$Q);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$P);
 	  const childrenRef = reactExports.useRef(null);
 	  const handleRef = useForkRef$1(children.ref, childrenRef, ref);
 	  const normalizedTransitionCallback = callback => isAppearing => {
@@ -44524,7 +44539,7 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiDrawer', ['root', 'docked', 'paper', 'paperAnchorLeft', 'paperAnchorRight', 'paperAnchorTop', 'paperAnchorBottom', 'paperAnchorDockedLeft', 'paperAnchorDockedRight', 'paperAnchorDockedTop', 'paperAnchorDockedBottom', 'modal']);
 
-	const _excluded$P = ["BackdropProps"],
+	const _excluded$O = ["BackdropProps"],
 	  _excluded2$6 = ["anchor", "BackdropProps", "children", "className", "elevation", "hideBackdrop", "ModalProps", "onClose", "open", "PaperProps", "SlideProps", "TransitionComponent", "transitionDuration", "variant"];
 	const overridesResolver$2 = (props, styles) => {
 	  const {
@@ -44532,7 +44547,7 @@ ${String(error)}`;
 	  } = props;
 	  return [styles.root, (ownerState.variant === 'permanent' || ownerState.variant === 'persistent') && styles.docked, styles.modal];
 	};
-	const useUtilityClasses$z = ownerState => {
+	const useUtilityClasses$y = ownerState => {
 	  const {
 	    classes,
 	    anchor,
@@ -44667,7 +44682,7 @@ ${String(error)}`;
 	      transitionDuration = defaultTransitionDuration,
 	      variant = 'temporary'
 	    } = props,
-	    ModalProps = _objectWithoutPropertiesLoose$1(props.ModalProps, _excluded$P),
+	    ModalProps = _objectWithoutPropertiesLoose$1(props.ModalProps, _excluded$O),
 	    other = _objectWithoutPropertiesLoose$1(props, _excluded2$6);
 
 	  // Let's assume that the Drawer will always be rendered on user space.
@@ -44687,7 +44702,7 @@ ${String(error)}`;
 	    open,
 	    variant
 	  }, other);
-	  const classes = useUtilityClasses$z(ownerState);
+	  const classes = useUtilityClasses$y(ownerState);
 	  const drawer = /*#__PURE__*/jsxRuntimeExports.jsx(DrawerPaper, _extends$1({
 	    elevation: variant === 'temporary' ? elevation : 0,
 	    square: true
@@ -44746,8 +44761,8 @@ ${String(error)}`;
 	const fabClasses = generateUtilityClasses$2('MuiFab', ['root', 'primary', 'secondary', 'extended', 'circular', 'focusVisible', 'disabled', 'colorInherit', 'sizeSmall', 'sizeMedium', 'sizeLarge', 'info', 'error', 'warning', 'success']);
 	var fabClasses$1 = fabClasses;
 
-	const _excluded$O = ["children", "className", "color", "component", "disabled", "disableFocusRipple", "focusVisibleClassName", "size", "variant"];
-	const useUtilityClasses$y = ownerState => {
+	const _excluded$N = ["children", "className", "color", "component", "disabled", "disableFocusRipple", "focusVisibleClassName", "size", "variant"];
+	const useUtilityClasses$x = ownerState => {
 	  const {
 	    color,
 	    variant,
@@ -44869,7 +44884,7 @@ ${String(error)}`;
 	      size = 'large',
 	      variant = 'circular'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$O);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$N);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    component,
@@ -44878,7 +44893,7 @@ ${String(error)}`;
 	    size,
 	    variant
 	  });
-	  const classes = useUtilityClasses$y(ownerState);
+	  const classes = useUtilityClasses$x(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(FabRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    component: component,
@@ -44894,8 +44909,8 @@ ${String(error)}`;
 	});
 	var Fab$1 = Fab;
 
-	const _excluded$N = ["disableUnderline", "components", "componentsProps", "fullWidth", "hiddenLabel", "inputComponent", "multiline", "slotProps", "slots", "type"];
-	const useUtilityClasses$x = ownerState => {
+	const _excluded$M = ["disableUnderline", "components", "componentsProps", "fullWidth", "hiddenLabel", "inputComponent", "multiline", "slotProps", "slots", "type"];
+	const useUtilityClasses$w = ownerState => {
 	  const {
 	    classes,
 	    disableUnderline
@@ -45079,14 +45094,14 @@ ${String(error)}`;
 	      slots = {},
 	      type = 'text'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$N);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$M);
 	  const ownerState = _extends$1({}, props, {
 	    fullWidth,
 	    inputComponent,
 	    multiline,
 	    type
 	  });
-	  const classes = useUtilityClasses$x(props);
+	  const classes = useUtilityClasses$w(props);
 	  const filledInputComponentsProps = {
 	    root: {
 	      ownerState
@@ -45121,8 +45136,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiFormControl', ['root', 'marginNone', 'marginNormal', 'marginDense', 'fullWidth', 'disabled']);
 
-	const _excluded$M = ["children", "className", "color", "component", "disabled", "error", "focused", "fullWidth", "hiddenLabel", "margin", "required", "size", "variant"];
-	const useUtilityClasses$w = ownerState => {
+	const _excluded$L = ["children", "className", "color", "component", "disabled", "error", "focused", "fullWidth", "hiddenLabel", "margin", "required", "size", "variant"];
+	const useUtilityClasses$v = ownerState => {
 	  const {
 	    classes,
 	    margin,
@@ -45207,7 +45222,7 @@ ${String(error)}`;
 	      size = 'medium',
 	      variant = 'outlined'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$M);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$L);
 	  const ownerState = _extends$1({}, props, {
 	    color,
 	    component,
@@ -45220,7 +45235,7 @@ ${String(error)}`;
 	    size,
 	    variant
 	  });
-	  const classes = useUtilityClasses$w(ownerState);
+	  const classes = useUtilityClasses$v(ownerState);
 	  const [adornedStart, setAdornedStart] = reactExports.useState(() => {
 	    // We need to iterate through the children and find the Input in order
 	    // to fully support server-side rendering.
@@ -45322,8 +45337,8 @@ ${String(error)}`;
 	const formControlLabelClasses = generateUtilityClasses$2('MuiFormControlLabel', ['root', 'labelPlacementStart', 'labelPlacementTop', 'labelPlacementBottom', 'disabled', 'label', 'error', 'required', 'asterisk']);
 	var formControlLabelClasses$1 = formControlLabelClasses;
 
-	const _excluded$L = ["checked", "className", "componentsProps", "control", "disabled", "disableTypography", "inputRef", "label", "labelPlacement", "name", "onChange", "required", "slotProps", "value"];
-	const useUtilityClasses$v = ownerState => {
+	const _excluded$K = ["checked", "className", "componentsProps", "control", "disabled", "disableTypography", "inputRef", "label", "labelPlacement", "name", "onChange", "required", "slotProps", "value"];
+	const useUtilityClasses$u = ownerState => {
 	  const {
 	    classes,
 	    disabled,
@@ -45416,7 +45431,7 @@ ${String(error)}`;
 	      required: requiredProp,
 	      slotProps = {}
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$L);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$K);
 	  const muiFormControl = useFormControl();
 	  const disabled = (_ref = disabledProp != null ? disabledProp : control.props.disabled) != null ? _ref : muiFormControl == null ? void 0 : muiFormControl.disabled;
 	  const required = requiredProp != null ? requiredProp : control.props.required;
@@ -45440,7 +45455,7 @@ ${String(error)}`;
 	    required,
 	    error: fcs.error
 	  });
-	  const classes = useUtilityClasses$v(ownerState);
+	  const classes = useUtilityClasses$u(ownerState);
 	  const typographySlotProps = (_slotProps$typography = slotProps.typography) != null ? _slotProps$typography : componentsProps.typography;
 	  let label = labelProp;
 	  if (label != null && label.type !== Typography$1 && !disableTypography) {
@@ -45474,8 +45489,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiFormGroup', ['root', 'row', 'error']);
 
-	const _excluded$K = ["className", "row"];
-	const useUtilityClasses$u = ownerState => {
+	const _excluded$J = ["className", "row"];
+	const useUtilityClasses$t = ownerState => {
 	  const {
 	    classes,
 	    row,
@@ -45519,7 +45534,7 @@ ${String(error)}`;
 	      className,
 	      row = false
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$K);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$J);
 	  const muiFormControl = useFormControl();
 	  const fcs = formControlState({
 	    props,
@@ -45530,7 +45545,7 @@ ${String(error)}`;
 	    row,
 	    error: fcs.error
 	  });
-	  const classes = useUtilityClasses$u(ownerState);
+	  const classes = useUtilityClasses$t(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(FormGroupRoot, _extends$1({
 	    className: clsx(classes.root, className),
 	    ownerState: ownerState,
@@ -45546,8 +45561,8 @@ ${String(error)}`;
 	var formHelperTextClasses$1 = formHelperTextClasses;
 
 	var _span$2;
-	const _excluded$J = ["children", "className", "component", "disabled", "error", "filled", "focused", "margin", "required", "variant"];
-	const useUtilityClasses$t = ownerState => {
+	const _excluded$I = ["children", "className", "component", "disabled", "error", "filled", "focused", "margin", "required", "variant"];
+	const useUtilityClasses$s = ownerState => {
 	  const {
 	    classes,
 	    contained,
@@ -45605,7 +45620,7 @@ ${String(error)}`;
 	      className,
 	      component = 'p'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$J);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$I);
 	  const muiFormControl = useFormControl();
 	  const fcs = formControlState({
 	    props,
@@ -45623,7 +45638,7 @@ ${String(error)}`;
 	    focused: fcs.focused,
 	    required: fcs.required
 	  });
-	  const classes = useUtilityClasses$t(ownerState);
+	  const classes = useUtilityClasses$s(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(FormHelperTextRoot, _extends$1({
 	    as: component,
 	    ownerState: ownerState,
@@ -45646,8 +45661,8 @@ ${String(error)}`;
 	const formLabelClasses = generateUtilityClasses$2('MuiFormLabel', ['root', 'colorSecondary', 'focused', 'disabled', 'error', 'filled', 'required', 'asterisk']);
 	var formLabelClasses$1 = formLabelClasses;
 
-	const _excluded$I = ["children", "className", "color", "component", "disabled", "error", "filled", "focused", "required"];
-	const useUtilityClasses$s = ownerState => {
+	const _excluded$H = ["children", "className", "color", "component", "disabled", "error", "filled", "focused", "required"];
+	const useUtilityClasses$r = ownerState => {
 	  const {
 	    classes,
 	    color,
@@ -45711,7 +45726,7 @@ ${String(error)}`;
 	      className,
 	      component = 'label'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$I);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$H);
 	  const muiFormControl = useFormControl();
 	  const fcs = formControlState({
 	    props,
@@ -45727,7 +45742,7 @@ ${String(error)}`;
 	    focused: fcs.focused,
 	    required: fcs.required
 	  });
-	  const classes = useUtilityClasses$s(ownerState);
+	  const classes = useUtilityClasses$r(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsxs(FormLabelRoot, _extends$1({
 	    as: component,
 	    ownerState: ownerState,
@@ -45744,7 +45759,7 @@ ${String(error)}`;
 	});
 	var FormLabel$1 = FormLabel;
 
-	const _excluded$H = ["addEndListener", "appear", "children", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
+	const _excluded$G = ["addEndListener", "appear", "children", "easing", "in", "onEnter", "onEntered", "onEntering", "onExit", "onExited", "onExiting", "style", "timeout", "TransitionComponent"];
 	function getScale$1(value) {
 	  return `scale(${value}, ${value ** 2})`;
 	}
@@ -45788,7 +45803,7 @@ ${String(error)}`;
 	      // eslint-disable-next-line react/prop-types
 	      TransitionComponent = Transition$1
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$H);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$G);
 	  const timer = useTimeout();
 	  const autoTimeout = reactExports.useRef();
 	  const theme = useTheme$1();
@@ -45913,8 +45928,8 @@ ${String(error)}`;
 	Grow.muiSupportAuto = true;
 	var Grow$1 = Grow;
 
-	const _excluded$G = ["disableUnderline", "components", "componentsProps", "fullWidth", "inputComponent", "multiline", "slotProps", "slots", "type"];
-	const useUtilityClasses$r = ownerState => {
+	const _excluded$F = ["disableUnderline", "components", "componentsProps", "fullWidth", "inputComponent", "multiline", "slotProps", "slots", "type"];
+	const useUtilityClasses$q = ownerState => {
 	  const {
 	    classes,
 	    disableUnderline
@@ -46024,8 +46039,8 @@ ${String(error)}`;
 	      slots = {},
 	      type = 'text'
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$G);
-	  const classes = useUtilityClasses$r(props);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$F);
+	  const classes = useUtilityClasses$q(props);
 	  const ownerState = {
 	    disableUnderline
 	  };
@@ -46060,8 +46075,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiInputLabel', ['root', 'focused', 'disabled', 'error', 'required', 'asterisk', 'formControl', 'sizeSmall', 'shrink', 'animated', 'standard', 'filled', 'outlined']);
 
-	const _excluded$F = ["disableAnimation", "margin", "shrink", "variant", "className"];
-	const useUtilityClasses$q = ownerState => {
+	const _excluded$E = ["disableAnimation", "margin", "shrink", "variant", "className"];
+	const useUtilityClasses$p = ownerState => {
 	  const {
 	    classes,
 	    formControl,
@@ -46162,7 +46177,7 @@ ${String(error)}`;
 	      shrink: shrinkProp,
 	      className
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$F);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$E);
 	  const muiFormControl = useFormControl();
 	  let shrink = shrinkProp;
 	  if (typeof shrink === 'undefined' && muiFormControl) {
@@ -46182,7 +46197,7 @@ ${String(error)}`;
 	    required: fcs.required,
 	    focused: fcs.focused
 	  });
-	  const classes = useUtilityClasses$q(ownerState);
+	  const classes = useUtilityClasses$p(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(InputLabelRoot, _extends$1({
 	    "data-shrink": shrink,
 	    ownerState: ownerState,
@@ -46224,8 +46239,8 @@ ${String(error)}`;
 	};
 	var getTextDecoration$1 = getTextDecoration;
 
-	const _excluded$E = ["className", "color", "component", "onBlur", "onFocus", "TypographyClasses", "underline", "variant", "sx"];
-	const useUtilityClasses$p = ownerState => {
+	const _excluded$D = ["className", "color", "component", "onBlur", "onFocus", "TypographyClasses", "underline", "variant", "sx"];
+	const useUtilityClasses$o = ownerState => {
 	  const {
 	    classes,
 	    component,
@@ -46312,7 +46327,7 @@ ${String(error)}`;
 	      variant = 'inherit',
 	      sx
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$E);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$D);
 	  const {
 	    isFocusVisibleRef,
 	    onBlur: handleBlurVisible,
@@ -46346,7 +46361,7 @@ ${String(error)}`;
 	    underline,
 	    variant
 	  });
-	  const classes = useUtilityClasses$p(ownerState);
+	  const classes = useUtilityClasses$o(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(LinkRoot, _extends$1({
 	    color: color,
 	    className: clsx(classes.root, className),
@@ -46375,8 +46390,8 @@ ${String(error)}`;
 	}
 	generateUtilityClasses$2('MuiList', ['root', 'padding', 'dense', 'subheader']);
 
-	const _excluded$D = ["children", "className", "component", "dense", "disablePadding", "subheader"];
-	const useUtilityClasses$o = ownerState => {
+	const _excluded$C = ["children", "className", "component", "dense", "disablePadding", "subheader"];
+	const useUtilityClasses$n = ownerState => {
 	  const {
 	    classes,
 	    disablePadding,
@@ -46423,7 +46438,7 @@ ${String(error)}`;
 	      disablePadding = false,
 	      subheader
 	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$D);
+	    other = _objectWithoutPropertiesLoose$1(props, _excluded$C);
 	  const context = reactExports.useMemo(() => ({
 	    dense
 	  }), [dense]);
@@ -46432,7 +46447,7 @@ ${String(error)}`;
 	    dense,
 	    disablePadding
 	  });
-	  const classes = useUtilityClasses$o(ownerState);
+	  const classes = useUtilityClasses$n(ownerState);
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(ListContext$1.Provider, {
 	    value: context,
 	    children: /*#__PURE__*/jsxRuntimeExports.jsxs(ListRoot, _extends$1({
@@ -46450,112 +46465,8 @@ ${String(error)}`;
 	const listItemIconClasses = generateUtilityClasses$2('MuiListItemIcon', ['root', 'alignItemsFlexStart']);
 	var listItemIconClasses$1 = listItemIconClasses;
 
-	function getListItemTextUtilityClass(slot) {
-	  return generateUtilityClass$2('MuiListItemText', slot);
-	}
 	const listItemTextClasses = generateUtilityClasses$2('MuiListItemText', ['root', 'multiline', 'dense', 'inset', 'primary', 'secondary']);
 	var listItemTextClasses$1 = listItemTextClasses;
-
-	const _excluded$C = ["children", "className", "disableTypography", "inset", "primary", "primaryTypographyProps", "secondary", "secondaryTypographyProps"];
-	const useUtilityClasses$n = ownerState => {
-	  const {
-	    classes,
-	    inset,
-	    primary,
-	    secondary,
-	    dense
-	  } = ownerState;
-	  const slots = {
-	    root: ['root', inset && 'inset', dense && 'dense', primary && secondary && 'multiline'],
-	    primary: ['primary'],
-	    secondary: ['secondary']
-	  };
-	  return composeClasses$1(slots, getListItemTextUtilityClass, classes);
-	};
-	const ListItemTextRoot = styled$2('div', {
-	  name: 'MuiListItemText',
-	  slot: 'Root',
-	  overridesResolver: (props, styles) => {
-	    const {
-	      ownerState
-	    } = props;
-	    return [{
-	      [`& .${listItemTextClasses$1.primary}`]: styles.primary
-	    }, {
-	      [`& .${listItemTextClasses$1.secondary}`]: styles.secondary
-	    }, styles.root, ownerState.inset && styles.inset, ownerState.primary && ownerState.secondary && styles.multiline, ownerState.dense && styles.dense];
-	  }
-	})(({
-	  ownerState
-	}) => _extends$1({
-	  flex: '1 1 auto',
-	  minWidth: 0,
-	  marginTop: 4,
-	  marginBottom: 4
-	}, ownerState.primary && ownerState.secondary && {
-	  marginTop: 6,
-	  marginBottom: 6
-	}, ownerState.inset && {
-	  paddingLeft: 56
-	}));
-	const ListItemText = /*#__PURE__*/reactExports.forwardRef(function ListItemText(inProps, ref) {
-	  const props = useThemeProps$4({
-	    props: inProps,
-	    name: 'MuiListItemText'
-	  });
-	  const {
-	      children,
-	      className,
-	      disableTypography = false,
-	      inset = false,
-	      primary: primaryProp,
-	      primaryTypographyProps,
-	      secondary: secondaryProp,
-	      secondaryTypographyProps
-	    } = props,
-	    other = _objectWithoutPropertiesLoose$1(props, _excluded$C);
-	  const {
-	    dense
-	  } = reactExports.useContext(ListContext$1);
-	  let primary = primaryProp != null ? primaryProp : children;
-	  let secondary = secondaryProp;
-	  const ownerState = _extends$1({}, props, {
-	    disableTypography,
-	    inset,
-	    primary: !!primary,
-	    secondary: !!secondary,
-	    dense
-	  });
-	  const classes = useUtilityClasses$n(ownerState);
-	  if (primary != null && primary.type !== Typography$1 && !disableTypography) {
-	    primary = /*#__PURE__*/jsxRuntimeExports.jsx(Typography$1, _extends$1({
-	      variant: dense ? 'body2' : 'body1',
-	      className: classes.primary,
-	      component: primaryTypographyProps != null && primaryTypographyProps.variant ? undefined : 'span',
-	      display: "block"
-	    }, primaryTypographyProps, {
-	      children: primary
-	    }));
-	  }
-	  if (secondary != null && secondary.type !== Typography$1 && !disableTypography) {
-	    secondary = /*#__PURE__*/jsxRuntimeExports.jsx(Typography$1, _extends$1({
-	      variant: "body2",
-	      className: classes.secondary,
-	      color: "text.secondary",
-	      display: "block"
-	    }, secondaryTypographyProps, {
-	      children: secondary
-	    }));
-	  }
-	  return /*#__PURE__*/jsxRuntimeExports.jsxs(ListItemTextRoot, _extends$1({
-	    className: clsx(classes.root, className),
-	    ownerState: ownerState,
-	    ref: ref
-	  }, other, {
-	    children: [primary, secondary]
-	  }));
-	});
-	var ListItemText$1 = ListItemText;
 
 	const _excluded$B = ["actions", "autoFocus", "autoFocusItem", "children", "className", "disabledItemsFocusable", "disableListWrap", "onKeyDown", "variant"];
 	function nextItem$1(list, item, disableListWrap) {
@@ -52425,7 +52336,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "text", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", inputProps: { "aria-label": t$1(fieldName) }, type: "text", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52434,12 +52345,12 @@ ${String(error)}`;
 	                            : "" }) })] }));
 	}
 
-	function IntForm(_a) {
+	function IntForm$1(_a) {
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    var attribute = attributes[fieldName] || {};
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "number", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: !isNaN(value)
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", inputProps: { "aria-label": t$1(fieldName) }, type: "number", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: !isNaN(value)
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52453,13 +52364,13 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName] || {};
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: !isNaN(value)
-	                                ? value
-	                                : attribute
-	                                    ? "default" in attribute
-	                                        ? attribute.default
-	                                        : 0
-	                                    : 0, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") })] })] }) })] }));
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { "aria-label": t$1(fieldName), row: true, value: !isNaN(value)
+	                            ? value
+	                            : attribute
+	                                ? "default" in attribute
+	                                    ? attribute.default
+	                                    : 0
+	                                : 0, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") })] }) }) })] }));
 	}
 
 	function SAMLRenderer() {
@@ -52493,28 +52404,28 @@ ${String(error)}`;
 	                                                        param: "samlNameIDFormatMapKerberos",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAuthnContextMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapPassword", value: Number(config.samlAuthnContextMapPassword
+	                                                } }) })] }) })] }), jsxRuntimeExports.jsxs(Accordion$1, { children: [jsxRuntimeExports.jsx(AccordionSummary$1, { expandIcon: jsxRuntimeExports.jsx(ExpandMoreIcon, {}), children: t$1("samlAuthnContextMap") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "samlAuthnContextMapPassword", value: Number(config.samlAuthnContextMapPassword
 	                                                    ? config.samlAuthnContextMapPassword
 	                                                    : ""), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
 	                                                        param: "samlAuthnContextMapPassword",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapPasswordProtectedTransport", value: Number(config.samlAuthnContextMapPasswordProtectedTransport
+	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "samlAuthnContextMapPasswordProtectedTransport", value: Number(config.samlAuthnContextMapPasswordProtectedTransport
 	                                                    ? config.samlAuthnContextMapPasswordProtectedTransport
 	                                                    : ""), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
 	                                                        param: "samlAuthnContextMapPasswordProtectedTransport",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapKerberos", value: Number(config.samlAuthnContextMapKerberos
+	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "samlAuthnContextMapKerberos", value: Number(config.samlAuthnContextMapKerberos
 	                                                    ? config.samlAuthnContextMapKerberos
 	                                                    : ""), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
 	                                                        param: "samlAuthnContextMapKerberos",
 	                                                        value: e,
 	                                                    }));
-	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "samlAuthnContextMapTLSClient", value: Number(config.samlAuthnContextMapTLSClient
+	                                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "samlAuthnContextMapTLSClient", value: Number(config.samlAuthnContextMapTLSClient
 	                                                    ? config.samlAuthnContextMapTLSClient
 	                                                    : ""), updateFunc: function (e) {
 	                                                    return dispatch(updateConfigParams({
@@ -52622,7 +52533,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", label: t$1(fieldName), type: "password", autoComplete: "new-password", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", inputProps: { "aria-label": t$1(fieldName) }, type: "password", autoComplete: "new-password", onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52640,9 +52551,9 @@ ${String(error)}`;
 	        var currentValue = isValidValue ? selectedValue_1 : "";
 	        return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                            ? definitions[fieldName]
-	                            : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(InputLabel$1, { shrink: true, children: t$1(fieldName) }), jsxRuntimeExports.jsx(Select$1, { labelId: fieldName, size: "small", label: t$1(fieldName), placeholder: t$1(fieldName), value: currentValue, displayEmpty: true, sx: { m: 1, minWidth: 120 }, onChange: function (e) { return updateFunc(e.target.value); }, children: attribute.select.map(function (el) {
-	                                    return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, el.v));
-	                                }) })] }) })] }));
+	                            : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsx(Select$1, { size: "small", inputProps: { "aria-label": t$1(fieldName) }, placeholder: t$1(fieldName), value: currentValue, displayEmpty: true, sx: { m: 1, minWidth: 120 }, onChange: function (e) { return updateFunc(e.target.value); }, children: attribute.select.map(function (el) {
+	                                return (jsxRuntimeExports.jsx(MenuItem$1, { value: el.k, children: t$1(el.v) }, el.v));
+	                            }) }) }) })] }));
 	    }
 	    return jsxRuntimeExports.jsxs("td", { children: ["type issue : ", fieldName] });
 	}
@@ -52652,7 +52563,7 @@ ${String(error)}`;
 	    var attribute = attributes[fieldName];
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "url", onChange: function (e) { return updateFunc(e.target.value); }, label: t$1(fieldName), placeholder: t$1(fieldName), value: value !== undefined && value !== null
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "url", onChange: function (e) { return updateFunc(e.target.value); }, inputProps: { "aria-label": t$1(fieldName) }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
 	                        ? value
 	                        : attribute
 	                            ? "default" in attribute
@@ -52692,7 +52603,7 @@ ${String(error)}`;
 	        }
 	        switch (attributes[el].type) {
 	            case "int":
-	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: el, updateFunc: function (e) {
+	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: el, updateFunc: function (e) {
 	                            return param.dispatch(updateConfigParams({
 	                                param: el,
 	                                value: Number(e),
@@ -52720,7 +52631,7 @@ ${String(error)}`;
 	                            }));
 	                        }, value: String(param.config[el] || "") }) }, el));
 	            case "intOrNull":
-	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: el, updateFunc: function (e) {
+	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: el, updateFunc: function (e) {
 	                            return param.dispatch(updateConfigParams({
 	                                param: el,
 	                                value: e,
@@ -52878,18 +52789,25 @@ ${String(error)}`;
 	    }
 	}
 
-	function LongtextForm(_a) {
-	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
-	    var attribute = attributes[fieldName];
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
-	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", label: t$1(fieldName), multiline: true, rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
-	                        ? value
-	                        : attribute
-	                            ? "default" in attribute
-	                                ? attribute.default
-	                                : ""
-	                            : "" }) })] }));
+	function transformJsonToList(key) {
+	    var regex = /(?:\(\?#([\w|\s?]+)\))?([^()]+)(?:\(\?#AuthnLevel=(\d+)\))?/;
+	    var matches = key.match(regex);
+	    if (matches) {
+	        var result = [matches[1], matches[2], matches[3] || ""];
+	        return result;
+	    }
+	    else {
+	        console.debug("No match found.");
+	        return ["", "default", ""];
+	    }
+	}
+	function transformListToJson(list) {
+	    var locationRules = {};
+	    list.forEach(function (part) {
+	        var formattedString = "".concat(part.comment ? "(?#".concat(part.comment, ")") : "").concat(part.regex).concat(part.authLevel ? "(?#AuthnLevel=".concat(part.authLevel, ")") : "");
+	        locationRules[formattedString] = part.rule;
+	    });
+	    return locationRules;
 	}
 
 	function TroolForm(_a) {
@@ -52898,7 +52816,7 @@ ${String(error)}`;
 	    var fieldValue = value === 1 || value === 0 ? value : -1;
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
 	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: fieldValue, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("default") })] })] }) })] }));
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { "aria-label": t$1(fieldName), row: true, value: fieldValue, onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("default") })] }) }) })] }));
 	}
 
 	var Home = {};
@@ -52930,101 +52848,6 @@ ${String(error)}`;
 	    return (jsxRuntimeExports.jsx(IconButton$1, { size: "large", onClick: function () {
 	            dispatch(push("#conf/latest"));
 	        }, children: jsxRuntimeExports.jsx(HomeIcon, {}) }));
-	}
-
-	function CasApp(_a) {
-	    var name = _a.name;
-	    var vars = useAppSelector(function (state) {
-	        if (state.config.data.config.casAppMetaDataExportedVars) {
-	            return state.config.data.config.casAppMetaDataExportedVars[name];
-	        }
-	    }) || {};
-	    var casAppMetaDataMacros = useAppSelector(function (state) {
-	        if (state.config.data.config.casAppMetaDataMacros) {
-	            return state.config.data.config.casAppMetaDataMacros[name];
-	        }
-	    }) || {};
-	    var casAppMetaDataOptions = useAppSelector(function (state) {
-	        if (state.config.data.config.casAppMetaDataOptions) {
-	            return state.config.data.config.casAppMetaDataOptions[name];
-	        }
-	    }) || {};
-	    var _b = reactExports.useState("basic"), optionSelected = _b[0], setOptionSelected = _b[1];
-	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs("div", { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () { return setOptionSelected("basic"); }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataExportedVars" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataExportedVars"); }, children: t$1("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataMacros" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataMacros"); }, children: t$1("casAppMetaDataMacros") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "casAppMetaDataOptions" ? "selected" : ""), onClick: function () { return setOptionSelected("casAppMetaDataOptions"); }, children: t$1("casAppMetaDataOptions") })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [(optionSelected === "casAppMetaDataExportedVars" ||
-	                                optionSelected === "basic") && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataExportedVars") }), jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataExportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: vars, tableID: "exportedVars", dispatch: dispatch, delFunction: delCASexportedVars, updateFunction: updateCASexportedVars })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASexportedVars(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "macros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.casAppMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: casAppMetaDataMacros, tableID: "macros", dispatch: dispatch, delFunction: delCASAppMetaDataMacros, updateFunction: updateCASAppMetaDataMacros })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newCASAppMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "casAppMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("casAppMetaDataOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsDisplayName
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsDisplayName
-	                                                            : ""), fieldName: "casAppMetaDataOptionsDisplayName", updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsDisplayName",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsService
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsService
-	                                                            : ""), fieldName: "casAppMetaDataOptionsService", updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsService",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TroolForm, { fieldName: "casAppMetaDataOptionsLogout", value: Number(casAppMetaDataOptions.casAppMetaDataOptionsLogout !==
-	                                                            undefined &&
-	                                                            casAppMetaDataOptions.casAppMetaDataOptionsLogout !==
-	                                                                null
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsLogout
-	                                                            : attributes.casAppMetaDataOptionsLogout.default), updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsLogout",
-	                                                                value: Number(e),
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(casAppMetaDataOptions.casAppMetaDataOptionsAuthnLevel
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsAuthnLevel
-	                                                            : 0), fieldName: "casAppMetaDataOptionsAuthnLevel", updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsAuthnLevel",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsRule
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsRule
-	                                                            : ""), fieldName: "casAppMetaDataOptionsRule", updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsRule",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(LongtextForm, { value: String(casAppMetaDataOptions.casAppMetaDataOptionsComment
-	                                                            ? casAppMetaDataOptions.casAppMetaDataOptionsComment
-	                                                            : ""), fieldName: "casAppMetaDataOptionsComment", updateFunc: function (e) {
-	                                                            dispatch(updateCASOptions({
-	                                                                name: name,
-	                                                                option: "casAppMetaDataOptionsComment",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) })] }) })] }))] })] })] }));
-	}
-
-	function transformJsonToList(key) {
-	    var regex = /(?:\(\?#([\w|\s?]+)\))?([^()]+)(?:\(\?#AuthnLevel=(\d+)\))?/;
-	    var matches = key.match(regex);
-	    if (matches) {
-	        var result = [matches[1], matches[2], matches[3] || ""];
-	        return result;
-	    }
-	    else {
-	        console.debug("No match found.");
-	        return ["", "default", ""];
-	    }
-	}
-	function transformListToJson(list) {
-	    var locationRules = {};
-	    list.forEach(function (part) {
-	        var formattedString = "".concat(part.comment ? "(?#".concat(part.comment, ")") : "").concat(part.regex).concat(part.authLevel ? "(?#AuthnLevel=".concat(part.authLevel, ")") : "");
-	        locationRules[formattedString] = part.rule;
-	    });
-	    return locationRules;
 	}
 
 	function updateRules$1(tableID) {
@@ -53200,7 +53023,7 @@ ${String(error)}`;
 	                                                                value: Number(e),
 	                                                            }));
 	                                                        } }), jsxRuntimeExports.jsx("td", {}), jsxRuntimeExports.jsx("td", {})] })] }) })), optionSelected === "locationRules" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("locationRules") }), jsxRuntimeExports.jsxs("table", { id: "locationRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("vhostComment") }), jsxRuntimeExports.jsx("th", { children: t$1("regexp") }), jsxRuntimeExports.jsx("th", { children: t$1("rules") }), jsxRuntimeExports.jsx("th", { children: t$1("rulesAuthnLevel") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newLocationRule(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativeRule(name, locationRules, dispatch)] })] })), (optionSelected === "exportedHeaders" ||
-	                                    optionSelected === "basic") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("exportedHeaders") }) }), jsxRuntimeExports.jsxs("table", { id: "exportedHeaders", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedHeaders }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: exportedHeaders ? exportedHeaders : {}, tableID: "exportedHeaders", dispatch: dispatch, delFunction: delVhostHeader, updateFunction: updateVhostHeaders })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "post" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("post") }), jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativPost(name, post ? post : {}, dispatch)] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "vhostOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("vhostOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(options
+	                                    optionSelected === "basic") && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("exportedHeaders") }) }), jsxRuntimeExports.jsxs("table", { id: "exportedHeaders", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedHeaders }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: exportedHeaders ? exportedHeaders : {}, tableID: "exportedHeaders", dispatch: dispatch, delFunction: delVhostHeader, updateFunction: updateVhostHeaders })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostHeaders(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "post" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("post") }), jsxRuntimeExports.jsxs("table", { id: "post", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("postTargetUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryUrl") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryFormSelector") }) }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.test }), children: jsxRuntimeExports.jsx("th", { children: t$1("jqueryButtonSelector") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), NativPost(name, post ? post : {}, dispatch)] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newVhostPost(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "vhostOptions" && (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("vhostOptions") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { value: Number(options
 	                                                                ? options.vhostPort
 	                                                                : attributes.vhostPort.default), fieldName: "port", updateFunc: function (el) {
 	                                                                dispatch(updateVhostOptions({
@@ -53248,7 +53071,7 @@ ${String(error)}`;
 	                                                                    option: "vhostType",
 	                                                                    value: el,
 	                                                                }));
-	                                                            } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: (options === null || options === void 0 ? void 0 : options.vhostAuthnLevel)
+	                                                            } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { value: (options === null || options === void 0 ? void 0 : options.vhostAuthnLevel)
 	                                                                ? Number(options.vhostAuthnLevel)
 	                                                                : 0, fieldName: "vhostAuthnLevel", updateFunc: function (el) {
 	                                                                dispatch(updateVhostOptions({
@@ -53256,7 +53079,7 @@ ${String(error)}`;
 	                                                                    option: "vhostAuthnLevel",
 	                                                                    value: el,
 	                                                                }));
-	                                                            } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: (options === null || options === void 0 ? void 0 : options.vhostServiceTokenTTL)
+	                                                            } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { value: (options === null || options === void 0 ? void 0 : options.vhostServiceTokenTTL)
 	                                                                ? Number(options.vhostServiceTokenTTL)
 	                                                                : 0, fieldName: "vhostServiceTokenTTL", updateFunc: function (el) {
 	                                                                dispatch(updateVhostOptions({
@@ -53267,70 +53090,38 @@ ${String(error)}`;
 	                                                            } }) })] }) })] }))] }) })] })] }));
 	}
 
-	function OidcAttributeContainerForm(_a) {
-	    var value = _a.value, fieldName = _a.fieldName, appName = _a.appName;
-	    var i = 0;
-	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$1("claimName") }) }), jsxRuntimeExports.jsx("th", { children: t$1("variableName") }), jsxRuntimeExports.jsx("th", { children: t$1("type") }), jsxRuntimeExports.jsx("th", { children: t$1("array") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
-	                                                        return dispatch(newOidcRPMetaDataExportedVars(appName));
-	                                                    }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
-	                                        i++;
-	                                        var _a = value[key].split(";"), name = _a[0], type = _a[1], table = _a[2];
-	                                        return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
-	                                                            return dispatch(updateOidcRPMetaDataExportedVars({
-	                                                                appName: appName,
-	                                                                data: updateExpAttr$1("exportedVars"),
-	                                                            }));
-	                                                        }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
-	                                                            return dispatch(updateOidcRPMetaDataExportedVars({
-	                                                                appName: appName,
-	                                                                data: updateExpAttr$1("exportedVars"),
-	                                                            }));
-	                                                        }, type: "text", value: name }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("type") }), jsxRuntimeExports.jsxs(Select$1, { value: type ? type : "string", label: t$1("type"), onChange: function (e) {
-	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
-	                                                                        appName: appName,
-	                                                                        data: updateExpAttr$1("exportedVars", key, {
-	                                                                            type: e.target.value,
-	                                                                        }),
-	                                                                    }));
-	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "string", children: t$1("string") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "int", children: t$1("int") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "bool", children: t$1("bool") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("array") }), jsxRuntimeExports.jsxs(Select$1, { value: table ? table : "auto", label: t$1("array"), onChange: function (e) {
-	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
-	                                                                        appName: appName,
-	                                                                        data: updateExpAttr$1("exportedVars", key, {
-	                                                                            array: e.target.value,
-	                                                                        }),
-	                                                                    }));
-	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "auto", children: t$1("auto") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "always", children: t$1("always") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "never", children: t$1("never") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
-	                                                            return dispatch(delOidcRPMetaDataExportedVars({ appName: appName, key: key }));
-	                                                        }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
-	                                    }) })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOidcRPMetaDataExportedVars(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }) })] }));
+	var ExpandLess$1 = {};
+
+	var hasRequiredExpandLess;
+
+	function requireExpandLess () {
+		if (hasRequiredExpandLess) return ExpandLess$1;
+		hasRequiredExpandLess = 1;
+
+		var _interopRequireDefault = requireInteropRequireDefault();
+		Object.defineProperty(ExpandLess$1, "__esModule", {
+		  value: true
+		});
+		ExpandLess$1.default = void 0;
+		var _createSvgIcon = _interopRequireDefault(/*@__PURE__*/ requireCreateSvgIcon());
+		var _jsxRuntime = requireJsxRuntime();
+		ExpandLess$1.default = (0, _createSvgIcon.default)(/*#__PURE__*/(0, _jsxRuntime.jsx)("path", {
+		  d: "m12 8-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"
+		}), 'ExpandLess');
+		return ExpandLess$1;
 	}
-	function updateExpAttr$1(tableID, key, selectData) {
-	    var _a, _b, _c, _d, _e, _f;
-	    var attrList = {};
-	    var table = document.getElementById(tableID);
-	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
-	    if (rows) {
-	        for (var i = 1; i < rows.length; i++) {
-	            var cells = rows[i].getElementsByTagName("td");
-	            var name_1 = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
-	            var varName = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
-	            if (key === name_1 && (selectData === null || selectData === void 0 ? void 0 : selectData.type)) {
-	                var array = (_c = cells[3].querySelector("input")) === null || _c === void 0 ? void 0 : _c.value;
-	                attrList[key ? key : ""] = "".concat(varName, ";").concat(selectData.type, ";").concat(array);
-	            }
-	            else if (key === name_1 && (selectData === null || selectData === void 0 ? void 0 : selectData.array)) {
-	                var type = (_d = cells[2].querySelector("input")) === null || _d === void 0 ? void 0 : _d.value;
-	                attrList[key ? key : ""] = "".concat(varName, ";").concat(type, ";").concat(selectData.array);
-	            }
-	            else {
-	                var type = (_e = cells[2].querySelector("input")) === null || _e === void 0 ? void 0 : _e.value;
-	                var array = (_f = cells[3].querySelector("input")) === null || _f === void 0 ? void 0 : _f.value;
-	                attrList[name_1 ? name_1 : ""] = "".concat(varName, ";").concat(type, ";").concat(array);
-	            }
-	        }
-	    }
-	    return attrList;
+
+	var ExpandLessExports = /*@__PURE__*/ requireExpandLess();
+	var ExpandLess = /*@__PURE__*/getDefaultExportFromCjs(ExpandLessExports);
+
+	function BoolOrExprForm(_a) {
+	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
+	    var attribute = attributes[fieldName];
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
+	                        ? definitions[fieldName]
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx(FormControl$1, { children: jsxRuntimeExports.jsxs(RadioGroup$1, { "aria-label": t$1(fieldName), row: true, value: typeof value === "number"
+	                                ? value
+	                                : -1 , onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("specialRule") })] }) }), (value === -1 || typeof value === "string") && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, inputProps: { "aria-label": t$1(fieldName) }, variant: "filled", rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value || ("default" in attribute ? attribute.default : 0) }))] })] }));
 	}
 
 	var CloudUpload = {};
@@ -53356,6 +53147,30 @@ ${String(error)}`;
 
 	var CloudUploadExports = /*@__PURE__*/ requireCloudUpload();
 	var CloudUploadIcon = /*@__PURE__*/getDefaultExportFromCjs(CloudUploadExports);
+
+	var FormatIndentIncrease = {};
+
+	var hasRequiredFormatIndentIncrease;
+
+	function requireFormatIndentIncrease () {
+		if (hasRequiredFormatIndentIncrease) return FormatIndentIncrease;
+		hasRequiredFormatIndentIncrease = 1;
+
+		var _interopRequireDefault = requireInteropRequireDefault();
+		Object.defineProperty(FormatIndentIncrease, "__esModule", {
+		  value: true
+		});
+		FormatIndentIncrease.default = void 0;
+		var _createSvgIcon = _interopRequireDefault(/*@__PURE__*/ requireCreateSvgIcon());
+		var _jsxRuntime = requireJsxRuntime();
+		FormatIndentIncrease.default = (0, _createSvgIcon.default)(/*#__PURE__*/(0, _jsxRuntime.jsx)("path", {
+		  d: "M3 21h18v-2H3zM3 8v8l4-4zm8 9h10v-2H11zM3 3v2h18V3zm8 6h10V7H11zm0 4h10v-2H11z"
+		}), 'FormatIndentIncrease');
+		return FormatIndentIncrease;
+	}
+
+	var FormatIndentIncreaseExports = /*@__PURE__*/ requireFormatIndentIncrease();
+	var FormatIndentIncreaseIcon = /*@__PURE__*/getDefaultExportFromCjs(FormatIndentIncreaseExports);
 
 	function getFromURL(url) {
 	    return __awaiter$1(this, void 0, void 0, function () {
@@ -53439,6 +53254,51 @@ ${String(error)}`;
 	    width: 1,
 	});
 
+	// Indent an XML or JSON document (SAML metadata, JWKS...) so its structure
+	// shows. Returns null when the text is neither valid XML nor valid JSON.
+	function indentDocument(text) {
+	    var trimmed = text.trim();
+	    if (/^[[{]/.test(trimmed)) {
+	        try {
+	            return JSON.stringify(JSON.parse(trimmed), null, 2);
+	        }
+	        catch (_a) {
+	            return null;
+	        }
+	    }
+	    if (trimmed.startsWith("<")) {
+	        var doc = new DOMParser().parseFromString(trimmed, "application/xml");
+	        if (doc.getElementsByTagName("parsererror").length)
+	            return null;
+	        return indentXml(trimmed);
+	    }
+	    return null;
+	}
+	// Only whitespace between tags is changed: text content (certificates...) is
+	// kept as is.
+	function indentXml(xml) {
+	    var depth = 0;
+	    return xml
+	        .replace(/>\s*</g, ">\0<")
+	        // keep empty elements (<a ...></a>) on one line
+	        .replace(/(<([\w:.-]+)(?:\s[^<>]*[^/<>])?)>\0<\/\2>/g, "$1></$2>")
+	        .split("\0")
+	        .map(function (node) {
+	        var isClosing = node.startsWith("</");
+	        var isOpening = !isClosing &&
+	            !/^<[?!]/.test(node) &&
+	            !node.endsWith("/>") &&
+	            !node.includes("</");
+	        if (isClosing)
+	            depth = Math.max(depth - 1, 0);
+	        var line = "  ".repeat(depth) + node;
+	        if (isOpening)
+	            depth++;
+	        return line;
+	    })
+	        .join("\n");
+	}
+
 	function handleChangeFile(e) {
 	    return new Promise(function (resolve, reject) {
 	        if (e.target.files && e.target.files[0]) {
@@ -53467,573 +53327,187 @@ ${String(error)}`;
 	function FileForm(_a) {
 	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
 	    attributes[fieldName];
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, rows: 12, label: t$1(fieldName), placeholder: t$1(fieldName), onChange: function (e) { return updateFunc(e.target.value); }, value: value || "" }) }), jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
-	                                        if (e.target instanceof HTMLInputElement) {
-	                                            handleChangeFile(e).then(function (fileContent) {
-	                                                console.debug("File content:", fileContent);
-	                                                updateFunc(fileContent);
-	                                            });
-	                                        }
-	                                    } })] }) }), jsxRuntimeExports.jsx(URLLoader, { appName: fieldName, loadFunction: updateFunc })] })] }));
+	    // Explicit action: indenting changes the stored text (and would break a
+	    // signed metadata document)
+	    var indented = value ? indentDocument(value) : null;
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", multiline: true, fullWidth: true, rows: 12, 
+	                            // XML/JSON/PEM documents: keep their layout, like <pre>
+	                            inputProps: { "aria-label": t$1(fieldName), wrap: "off" }, sx: {
+	                                "& textarea": {
+	                                    fontFamily: "monospace",
+	                                    whiteSpace: "pre",
+	                                    overflowX: "auto",
+	                                },
+	                            }, placeholder: t$1(fieldName), onChange: function (e) { return updateFunc(e.target.value); }, value: value || "" }) }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs(Button$1, { sx: { margin: "5px" }, component: "label", role: undefined, variant: "contained", tabIndex: -1, startIcon: jsxRuntimeExports.jsx(CloudUploadIcon, {}), children: [t$1("upload"), jsxRuntimeExports.jsx(VisuallyHiddenInput, { type: "file", onChange: function (e) {
+	                                            if (e.target instanceof HTMLInputElement) {
+	                                                handleChangeFile(e).then(function (fileContent) {
+	                                                    console.debug("File content:", fileContent);
+	                                                    updateFunc(fileContent);
+	                                                });
+	                                            }
+	                                        } })] }), jsxRuntimeExports.jsx(Button$1, { sx: { margin: "5px" }, variant: "outlined", startIcon: jsxRuntimeExports.jsx(FormatIndentIncreaseIcon, {}), disabled: indented === null || indented === value, onClick: function () { return updateFunc(indented); }, children: t$1("indent") })] }), jsxRuntimeExports.jsx(URLLoader, { appName: fieldName, loadFunction: updateFunc })] })] }));
 	}
 
-	function OptionOidc(_a) {
-	    var name = _a.name, optionSelect = _a.optionSelect;
-	    var data = useAppSelector(function (state) { return state.config.data.config; });
-	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [optionSelect === "advanced" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsBypassConsent", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsBypassConsent
-	                                    : attributes.oidcRPMetaDataOptionsBypassConsent.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsBypassConsent",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsIDTokenForceClaims", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsIDTokenForceClaims
-	                                    : attributes.oidcRPMetaDataOptionsIDTokenForceClaims.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsIDTokenForceClaims",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsAccessTokenJWT", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenJWT
-	                                    : attributes.oidcRPMetaDataOptionsAccessTokenJWT.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenJWT",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsAccessTokenClaims", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenClaims
-	                                    : attributes.oidcRPMetaDataOptionsAccessTokenClaims.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenClaims",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsRefreshToken", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsRefreshToken
-	                                    : attributes.oidcRPMetaDataOptionsRefreshToken.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsRefreshToken",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsUserIDAttr
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsUserIDAttr
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsUserIDAttr", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsUserIDAttr",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAdditionalAudiences
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsAdditionalAudiences
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsAdditionalAudiences", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAdditionalAudiences",
-	                                        value: e,
-	                                    }));
-	                                } }) })] }) })), optionSelect === "scope" && (jsxRuntimeExports.jsxs("div", { className: "scopes", children: [jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$1("oidcRPMetaDataOptionsExtraClaims") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataOptionsExtraClaims", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataOptionsExtraClaims
-	                                                            ? definitions.oidcRPMetaDataOptionsExtraClaims
-	                                                            : "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
-	                                                            return dispatch(newOidcRPMetaDataOptionsExtraClaims(name));
-	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataOptionsExtraClaims
-	                                            ? data.oidcRPMetaDataOptionsExtraClaims[name]
-	                                            : {}, tableID: "oidcRPMetaDataOptionsExtraClaims", dispatch: dispatch, delFunction: delOidcRPMetaDataOptionsExtraClaims, updateFunction: updateOidcRPMetaDataOptionsExtraClaims })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
-	                                    return dispatch(newOidcRPMetaDataOptionsExtraClaims(name));
-	                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }), jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsx("strong", { className: "title3", children: t$1("oidcRPMetaDataScopeRules") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataScopeRules", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataScopeRules }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
-	                                                            return dispatch(newOidcRPMetaDataScopeRules(name));
-	                                                        }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataScopeRules
-	                                            ? data.oidcRPMetaDataScopeRules[name]
-	                                            : {}, tableID: "oidcRPMetaDataScopeRules", dispatch: dispatch, delFunction: delOidcRPMetaDataScopeRules, updateFunction: updateOidcRPMetaDataScopeRules })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOidcRPMetaDataScopeRules(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })] })), optionSelect === "security" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsIDTokenSignAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsIDTokenSignAlg
-	                                    : attributes.oidcRPMetaDataOptionsIDTokenSignAlg.default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsIDTokenSignAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsAccessTokenSignAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenSignAlg
-	                                    : attributes.oidcRPMetaDataOptionsAccessTokenSignAlg.default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenSignAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsUserInfoSignAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsUserInfoSignAlg
-	                                    : attributes.oidcRPMetaDataOptionsUserInfoSignAlg.default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsUserInfoSignAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsRequirePKCE", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsRequirePKCE
-	                                    : attributes.oidcRPMetaDataOptionsRequirePKCE.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsRequirePKCE",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsAllowOffline", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAllowOffline
-	                                    : attributes.oidcRPMetaDataOptionsAllowOffline.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAllowOffline",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsAllowPasswordGrant", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAllowPasswordGrant
-	                                    : attributes.oidcRPMetaDataOptionsAllowPasswordGrant.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAllowPasswordGrant",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsAllowClientCredentialsGrant", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAllowClientCredentialsGrant
-	                                    : attributes
-	                                        .oidcRPMetaDataOptionsAllowClientCredentialsGrant
-	                                        .default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAllowClientCredentialsGrant",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsRequestUris
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsRequestUris
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsRequestUris", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsRequestUris",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAuthnLevel
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsAuthnLevel
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsAuthnLevel", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAuthnLevel",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name].oidcRPMetaDataOptionsRule
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsRule
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsRule", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsRule",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsAccessTokenEncKeyMgtAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenEncKeyMgtAlg
-	                                    : ""), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenEncKeyMgtAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsAccessTokenEncContentEncAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenEncContentEncAlg
-	                                    : attributes
-	                                        .oidcRPMetaDataOptionsAccessTokenEncContentEncAlg
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenEncContentEncAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsIdTokenEncKeyMgtAlg", value: String((data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsIdTokenEncKeyMgtAlg
-	                                    : "") || ""), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsIdTokenEncKeyMgtAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsIdTokenEncContentEncAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsIdTokenEncContentEncAlg
-	                                    : attributes.oidcRPMetaDataOptionsIdTokenEncContentEncAlg
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsIdTokenEncContentEncAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsUserInfoEncKeyMgtAlg", value: String((data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsUserInfoEncKeyMgtAlg
-	                                    : "") || ""), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsUserInfoEncKeyMgtAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsUserInfoEncContentEncAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsUserInfoEncContentEncAlg
-	                                    : attributes.oidcRPMetaDataOptionsUserInfoEncContentEncAlg
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsUserInfoEncContentEncAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsLogoutEncKeyMgtAlg", value: String((data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutEncKeyMgtAlg
-	                                    : "") || ""), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutEncKeyMgtAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsLogoutEncContentEncAlg", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutEncContentEncAlg
-	                                    : attributes.oidcRPMetaDataOptionsLogoutEncContentEncAlg
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutEncContentEncAlg",
-	                                        value: e,
-	                                    }));
-	                                } }) })] }) })), optionSelect === "keys" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsJwksUri
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsJwksUri
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsJwksUri", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsJwksUri",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(FileForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name].oidcRPMetaDataOptionsJwks
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsJwks
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsJwks", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsJwks",
-	                                        value: e,
-	                                    }));
-	                                } }) })] }) })), optionSelect === "timouts" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAuthorizationCodeExpiration
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsAuthorizationCodeExpiration
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsAuthorizationCodeExpiration", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAuthorizationCodeExpiration",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsIDTokenExpiration
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsIDTokenExpiration
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsIDTokenExpiration", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsIDTokenExpiration",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsAccessTokenExpiration
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsAccessTokenExpiration
-	                                        : 0
-	                                    : 0), fieldName: "oidcRPMetaDataOptionsAccessTokenExpiration", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsAccessTokenExpiration",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsOfflineSessionExpiration
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsOfflineSessionExpiration
-	                                        : 0
-	                                    : 0), fieldName: "oidcRPMetaDataOptionsOfflineSessionExpiration", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsOfflineSessionExpiration",
-	                                        value: e,
-	                                    }));
-	                                } }) })] }) })), optionSelect === "logout" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsLogoutBypassConfirm", value: Number((data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutBypassConfirm
-	                                    : attributes.oidcRPMetaDataOptionsLogoutBypassConfirm
-	                                        .default) ||
-	                                    attributes.oidcRPMetaDataOptionsLogoutBypassConfirm.default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutBypassConfirm",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "oidcRPMetaDataOptionsLogoutSessionRequired", value: Number(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutSessionRequired
-	                                    : attributes.oidcRPMetaDataOptionsLogoutSessionRequired
-	                                        .default), updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutSessionRequired",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "oidcRPMetaDataOptionsLogoutType", value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutType
-	                                    : attributes.oidcRPMetaDataOptionsLogoutType.default), updateFunc: function (e) {
-	                                    return dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutType",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsLogoutUrl
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsLogoutUrl
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsLogoutUrl", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsLogoutUrl",
-	                                        value: e,
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                    ? data.oidcRPMetaDataOptions[name]
-	                                        .oidcRPMetaDataOptionsPostLogoutRedirectUris
-	                                        ? data.oidcRPMetaDataOptions[name]
-	                                            .oidcRPMetaDataOptionsPostLogoutRedirectUris
-	                                        : ""
-	                                    : ""), fieldName: "oidcRPMetaDataOptionsPostLogoutRedirectUris", updateFunc: function (e) {
-	                                    dispatch(updateOidcMetaDataOptions({
-	                                        name: name,
-	                                        option: "oidcRPMetaDataOptionsPostLogoutRedirectUris",
-	                                        value: e,
-	                                    }));
-	                                } }) })] }) })), optionSelect === "comment" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(LongtextForm, { value: String(data.oidcRPMetaDataOptions
-	                            ? data.oidcRPMetaDataOptions[name]
-	                                .oidcRPMetaDataOptionsComment
-	                                ? data.oidcRPMetaDataOptions[name]
-	                                    .oidcRPMetaDataOptionsComment
+	function IntForm(_a) {
+	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
+	    var attribute = attributes[fieldName];
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
+	                        ? definitions[fieldName]
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "number", inputProps: { "aria-label": t$1(fieldName) }, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value || attribute
+	                        ? "default" in attribute
+	                            ? attribute.default
+	                            : 0
+	                        : 0 }) })] }));
+	}
+
+	function KeyTextContainerForm(_a) {
+	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: fieldName, children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldName] + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                    return updateFunc(addHeader(fieldName));
+	                                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key, index) {
+	                                    var i = index + 1;
+	                                    return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
+	                                                        return updateFunc(updateHeaders(fieldName));
+	                                                    }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
+	                                                        return updateFunc(updateHeaders(fieldName));
+	                                                    }, type: "text", value: value[key] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
+	                                                        return updateFunc(removeHeader(fieldName, i));
+	                                                    }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, fieldName + i));
+	                                }) })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return updateFunc(addHeader(fieldName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })] }));
+	}
+	function updateHeaders(tableID) {
+	    var _a, _b;
+	    var headerList = {};
+	    var table = document.getElementById(tableID);
+	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
+	    if (rows) {
+	        for (var i = 1; i < rows.length; i++) {
+	            var cells = rows[i].getElementsByTagName("td");
+	            var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
+	            var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
+	            if (key) {
+	                headerList[key] = values ? values : "";
+	            }
+	        }
+	    }
+	    return headerList;
+	}
+	function addHeader(tableID, fieldName) {
+	    var _a, _b;
+	    var headerList = {};
+	    var table = document.getElementById(tableID);
+	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
+	    if (rows) {
+	        for (var i = 1; i < rows.length; i++) {
+	            var cells = rows[i].getElementsByTagName("td");
+	            var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
+	            var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
+	            if (key) {
+	                headerList[key] = values ? values : "";
+	            }
+	        }
+	    }
+	    headerList["new"] = "";
+	    return headerList;
+	}
+	function removeHeader(tableID, id) {
+	    var _a, _b;
+	    var headerList = {};
+	    var table = document.getElementById(tableID);
+	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
+	    if (rows) {
+	        for (var i = 1; i < rows.length; i++) {
+	            if (i !== id) {
+	                var cells = rows[i].getElementsByTagName("td");
+	                var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
+	                var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
+	                if (key) {
+	                    headerList[key] = values ? values : "";
+	                }
+	            }
+	        }
+	    }
+	    return headerList;
+	}
+
+	function LongtextForm(_a) {
+	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
+	    var attribute = attributes[fieldName];
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
+	                        ? definitions[fieldName]
+	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", inputProps: { "aria-label": t$1(fieldName) }, multiline: true, rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value !== undefined && value !== null
+	                        ? value
+	                        : attribute
+	                            ? "default" in attribute
+	                                ? attribute.default
 	                                : ""
-	                            : ""), fieldName: "oidcRPMetaDataOptionsComment", updateFunc: function (e) {
-	                            dispatch(updateOidcMetaDataOptions({
-	                                name: name,
-	                                option: "oidcRPMetaDataOptionsComment",
-	                                value: e,
-	                            }));
-	                        } }) }) }))] }));
-	}
-	function OidcOptionSelection(_a) {
-	    var optionSelect = _a.optionSelect, setOptionSelected = _a.setOptionSelected;
-	    return (jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsAdvanced", className: "suboption ".concat(optionSelect === "advanced" ? "selected" : ""), onClick: function () { return setOptionSelected("advanced"); }, children: t$1("oidcRPMetaDataOptionsAdvanced") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsScopes", className: "suboption ".concat(optionSelect === "scope" ? "selected" : ""), onClick: function () { return setOptionSelected("scope"); }, children: t$1("oidcRPMetaDataOptionsScopes") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "security", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$1("security") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "keys", className: "suboption ".concat(optionSelect === "keys" ? "selected" : ""), onClick: function () { return setOptionSelected("keys"); }, children: t$1("keys") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsTimeouts", className: "suboption ".concat(optionSelect === "timouts" ? "selected" : ""), onClick: function () { return setOptionSelected("timouts"); }, children: t$1("oidcRPMetaDataOptionsTimeouts") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "logout", className: "suboption ".concat(optionSelect === "logout" ? "selected" : ""), onClick: function () { return setOptionSelected("logout"); }, children: t$1("logout") }), jsxRuntimeExports.jsx(ListItemText$1, { "data-testid": "oidcRPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$1("oidcRPMetaDataOptionsComment") })] }));
+	                            : "" }) })] }));
 	}
 
-	var ExpandLess$1 = {};
-
-	var hasRequiredExpandLess;
-
-	function requireExpandLess () {
-		if (hasRequiredExpandLess) return ExpandLess$1;
-		hasRequiredExpandLess = 1;
-
-		var _interopRequireDefault = requireInteropRequireDefault();
-		Object.defineProperty(ExpandLess$1, "__esModule", {
-		  value: true
-		});
-		ExpandLess$1.default = void 0;
-		var _createSvgIcon = _interopRequireDefault(/*@__PURE__*/ requireCreateSvgIcon());
-		var _jsxRuntime = requireJsxRuntime();
-		ExpandLess$1.default = (0, _createSvgIcon.default)(/*#__PURE__*/(0, _jsxRuntime.jsx)("path", {
-		  d: "m12 8-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"
-		}), 'ExpandLess');
-		return ExpandLess$1;
-	}
-
-	var ExpandLessExports = /*@__PURE__*/ requireExpandLess();
-	var ExpandLess = /*@__PURE__*/getDefaultExportFromCjs(ExpandLessExports);
-
-	function OIDCApp(_a) {
-	    var name = _a.name;
-	    var data = useAppSelector(function (state) { return state.config.data.config; });
-	    var _b = reactExports.useState("oidcRPMetaDataOptionsBasic"), optionSelected = _b[0], setOptionSelected = _b[1];
-	    var _c = reactExports.useState("advanced"), secondOptionSelect = _c[0], setSecondOptionSelected = _c[1];
-	    var _d = reactExports.useState(false), open = _d[0], setOpen = _d[1];
+	function OidcAttributeContainerForm(_a) {
+	    var value = _a.value, fieldName = _a.fieldName, appName = _a.appName;
+	    var i = 0;
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar", component: "nav", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataOptionsBasic" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("oidcRPMetaDataOptionsBasic");
-	                                    setOpen(false);
-	                                }, children: t$1("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataExportedVars" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("oidcRPMetaDataExportedVars");
-	                                    setOpen(false);
-	                                }, children: t$1("oidcRPMetaDataExportedVars") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataMacros" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("oidcRPMetaDataMacros");
-	                                    setOpen(false);
-	                                }, children: t$1("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("oidcRPMetaDataOptions");
-	                                    setOpen(!open);
-	                                }, "data-testid": "oidcOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsx("span", { children: t$1("oidcRPMetaDataOptions") })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "oidcRPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(OidcOptionSelection, { optionSelect: secondOptionSelect, setOptionSelected: function (e) {
-	                                        setOptionSelected("oidcRPMetaDataOptions");
-	                                        setSecondOptionSelected(e);
-	                                    } }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "oidcRPMetaDataOptionsBasic" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("oidcRPMetaDataOptionsBasic") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsClientID
-	                                                                : ""), fieldName: "oidcRPMetaDataOptionsClientID", updateFunc: function (e) {
-	                                                                dispatch(updateOidcMetaDataOptions({
-	                                                                    name: name,
-	                                                                    option: "oidcRPMetaDataOptionsClientID",
-	                                                                    value: e,
-	                                                                }));
-	                                                            } }), jsxRuntimeExports.jsx("td", { children: data.oidcRPMetaDataOptions
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsClientID === ""
-	                                                                    ? "⚠️"
-	                                                                    : ""
-	                                                                : "" })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(BoolForm, { value: data.oidcRPMetaDataOptions
-	                                                                ? Number(data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsPublic)
-	                                                                : 0, fieldName: "oidcRPMetaDataOptionsPublic", updateFunc: function (e) {
-	                                                                dispatch(updateOidcMetaDataOptions({
-	                                                                    name: name,
-	                                                                    option: "oidcRPMetaDataOptionsPublic",
-	                                                                    value: e,
-	                                                                }));
-	                                                            } }), jsxRuntimeExports.jsx("td", { children: data.oidcRPMetaDataOptions
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    ? data.oidcRPMetaDataOptions[name]
-	                                                                        .oidcRPMetaDataOptionsPublic ||
-	                                                                        (data.oidcRPMetaDataOptions[name]
-	                                                                            .oidcRPMetaDataOptionsClientSecret &&
-	                                                                            data.oidcRPMetaDataOptions[name]
-	                                                                                .oidcRPMetaDataOptionsClientSecret !== "")
-	                                                                        ? ""
-	                                                                        : "⚠️"
-	                                                                    : "⚠️"
-	                                                                : "⚠️" })] }), jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(PasswordForm, { value: data.oidcRPMetaDataOptions
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsClientSecret
-	                                                                    ? String(data.oidcRPMetaDataOptions[name]
-	                                                                        .oidcRPMetaDataOptionsClientSecret)
-	                                                                    : ""
-	                                                                : "", fieldName: "oidcRPMetaDataOptionsClientSecret", updateFunc: function (e) {
-	                                                                dispatch(updateOidcMetaDataOptions({
-	                                                                    name: name,
-	                                                                    option: "oidcRPMetaDataOptionsClientSecret",
-	                                                                    value: e,
-	                                                                }));
-	                                                            } }), jsxRuntimeExports.jsx("td", { children: data.oidcRPMetaDataOptions
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    ? data.oidcRPMetaDataOptions[name]
-	                                                                        .oidcRPMetaDataOptionsPublic ||
-	                                                                        (data.oidcRPMetaDataOptions[name]
-	                                                                            .oidcRPMetaDataOptionsClientSecret &&
-	                                                                            data.oidcRPMetaDataOptions[name]
-	                                                                                .oidcRPMetaDataOptionsClientSecret !== "")
-	                                                                        ? ""
-	                                                                        : "⚠️"
-	                                                                    : "⚠️"
-	                                                                : "⚠️" })] }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                                            ? data.oidcRPMetaDataOptions[name]
-	                                                                .oidcRPMetaDataOptionsRedirectUris
-	                                                            : ""), fieldName: "oidcRPMetaDataOptionsRedirectUris", updateFunc: function (e) {
-	                                                            dispatch(updateOidcMetaDataOptions({
-	                                                                name: name,
-	                                                                option: "oidcRPMetaDataOptionsRedirectUris",
-	                                                                value: e,
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedVars", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.exportedVars }), children: jsxRuntimeExports.jsx("th", { children: t$1("claimName") }) }), jsxRuntimeExports.jsx("th", { children: t$1("variableName") }), jsxRuntimeExports.jsx("th", { children: t$1("type") }), jsxRuntimeExports.jsx("th", { children: t$1("array") }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
+	                                                        return dispatch(newOidcRPMetaDataExportedVars(appName));
+	                                                    }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
+	                                        i++;
+	                                        var _a = value[key].split(";"), name = _a[0], type = _a[1], table = _a[2];
+	                                        return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
+	                                                            return dispatch(updateOidcRPMetaDataExportedVars({
+	                                                                appName: appName,
+	                                                                data: updateExpAttr$1("exportedVars"),
 	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                                            ? data.oidcRPMetaDataOptions[name]
-	                                                                .oidcRPMetaDataOptionsAuthMethod
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsAuthMethod
-	                                                                : ""
-	                                                            : ""), fieldName: "oidcRPMetaDataOptionsAuthMethod", updateFunc: function (e) {
-	                                                            dispatch(updateOidcMetaDataOptions({
-	                                                                name: name,
-	                                                                option: "oidcRPMetaDataOptionsAuthMethod",
-	                                                                value: e,
+	                                                        }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
+	                                                            return dispatch(updateOidcRPMetaDataExportedVars({
+	                                                                appName: appName,
+	                                                                data: updateExpAttr$1("exportedVars"),
 	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                                            ? data.oidcRPMetaDataOptions[name]
-	                                                                .oidcRPMetaDataOptionsDisplay
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsDisplay
-	                                                                : ""
-	                                                            : ""), fieldName: "oidcRPMetaDataOptionsDisplay", updateFunc: function (e) {
-	                                                            dispatch(updateOidcMetaDataOptions({
-	                                                                name: name,
-	                                                                option: "oidcRPMetaDataOptionsDisplay",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { value: String(data.oidcRPMetaDataOptions
-	                                                            ? data.oidcRPMetaDataOptions[name]
-	                                                                .oidcRPMetaDataOptionsIcon
-	                                                                ? data.oidcRPMetaDataOptions[name]
-	                                                                    .oidcRPMetaDataOptionsIcon
-	                                                                : ""
-	                                                            : ""), fieldName: "oidcRPMetaDataOptionsIcon", updateFunc: function (e) {
-	                                                            dispatch(updateOidcMetaDataOptions({
-	                                                                name: name,
-	                                                                option: "oidcRPMetaDataOptionsIcon",
-	                                                                value: e,
-	                                                            }));
-	                                                        } }) })] }) })] })), optionSelected === "oidcRPMetaDataExportedVars" && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(OidcAttributeContainerForm, { appName: name, value: data.oidcRPMetaDataExportedVars
-	                                                ? data.oidcRPMetaDataExportedVars[name]
-	                                                : {}, fieldName: "oidcRPMetaDataExportedVars" }) }) }) })), optionSelected === "oidcRPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("oidcRPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "oidcRPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.oidcRPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.oidcRPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.oidcRPMetaDataMacros[name], tableID: "oidcRPMetaDataMacros", dispatch: dispatch, delFunction: delOIDCRPMetaDataMacros, updateFunction: updateOIDCRPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOIDCRPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "oidcRPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("oidcRPMetaDataOptions"), " / ", t$1(secondOptionSelect)] }), jsxRuntimeExports.jsx(OptionOidc, { name: name, optionSelect: secondOptionSelect })] }))] })] })] }));
+	                                                        }, type: "text", value: name }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("type") }), jsxRuntimeExports.jsxs(Select$1, { value: type ? type : "string", label: t$1("type"), onChange: function (e) {
+	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
+	                                                                        appName: appName,
+	                                                                        data: updateExpAttr$1("exportedVars", key, {
+	                                                                            type: e.target.value,
+	                                                                        }),
+	                                                                    }));
+	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "string", children: t$1("string") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "int", children: t$1("int") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "bool", children: t$1("bool") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsxs(FormControl$1, { sx: { m: 1, minWidth: 120 }, children: [jsxRuntimeExports.jsx(InputLabel$1, { children: t$1("array") }), jsxRuntimeExports.jsxs(Select$1, { value: table ? table : "auto", label: t$1("array"), onChange: function (e) {
+	                                                                    return dispatch(updateOidcRPMetaDataExportedVars({
+	                                                                        appName: appName,
+	                                                                        data: updateExpAttr$1("exportedVars", key, {
+	                                                                            array: e.target.value,
+	                                                                        }),
+	                                                                    }));
+	                                                                }, children: [jsxRuntimeExports.jsx(MenuItem$1, { value: "auto", children: t$1("auto") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "always", children: t$1("always") }), jsxRuntimeExports.jsx(MenuItem$1, { value: "never", children: t$1("never") })] })] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
+	                                                            return dispatch(delOidcRPMetaDataExportedVars({ appName: appName, key: key }));
+	                                                        }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, i));
+	                                    }) })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newOidcRPMetaDataExportedVars(appName)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] }) })] }));
+	}
+	function updateExpAttr$1(tableID, key, selectData) {
+	    var _a, _b, _c, _d, _e, _f;
+	    var attrList = {};
+	    var table = document.getElementById(tableID);
+	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
+	    if (rows) {
+	        for (var i = 1; i < rows.length; i++) {
+	            var cells = rows[i].getElementsByTagName("td");
+	            var name_1 = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
+	            var varName = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
+	            if (key === name_1 && (selectData === null || selectData === void 0 ? void 0 : selectData.type)) {
+	                var array = (_c = cells[3].querySelector("input")) === null || _c === void 0 ? void 0 : _c.value;
+	                attrList[key ? key : ""] = "".concat(varName, ";").concat(selectData.type, ";").concat(array);
+	            }
+	            else if (key === name_1 && (selectData === null || selectData === void 0 ? void 0 : selectData.array)) {
+	                var type = (_d = cells[2].querySelector("input")) === null || _d === void 0 ? void 0 : _d.value;
+	                attrList[key ? key : ""] = "".concat(varName, ";").concat(type, ";").concat(selectData.array);
+	            }
+	            else {
+	                var type = (_e = cells[2].querySelector("input")) === null || _e === void 0 ? void 0 : _e.value;
+	                var array = (_f = cells[3].querySelector("input")) === null || _f === void 0 ? void 0 : _f.value;
+	                attrList[name_1 ? name_1 : ""] = "".concat(varName, ";").concat(type, ";").concat(array);
+	            }
+	        }
+	    }
+	    return attrList;
 	}
 
 	function SamlAttributeContainerForm(_a) {
@@ -54126,215 +53600,193 @@ ${String(error)}`;
 	    return attrList;
 	}
 
-	function OptionSaml(_a) {
-	    var name = _a.name, dispatch = _a.dispatch, optionSelect = _a.optionSelect;
-	    var data = useAppSelector(function (state) {
-	        if (state.config.data.config.samlSPMetaDataOptions) {
-	            return state.config.data.config.samlSPMetaDataOptions[name];
-	        }
-	    }) || {};
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [optionSelect === "authResponse" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "samlSPMetaDataOptionsNameIDFormat", value: String(data.samlSPMetaDataOptionsNameIDFormat ||
-	                                    attributes.samlSPMetaDataOptionsNameIDFormat.default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsNameIDFormat",
-	                                        value: String(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsNameIDSessionKey", value: String(data.samlSPMetaDataOptionsNameIDSessionKey
-	                                    ? data.samlSPMetaDataOptionsNameIDSessionKey
-	                                    : ""), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsNameIDSessionKey",
-	                                        value: e || "",
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPMetaDataOptionsOneTimeUse", value: Number(data.samlSPMetaDataOptionsOneTimeUse) ||
-	                                    attributes.samlSPMetaDataOptionsOneTimeUse.default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsOneTimeUse",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsSessionNotOnOrAfterTimeout", value: String(data.samlSPMetaDataOptionsSessionNotOnOrAfterTimeout
-	                                    ? data.samlSPMetaDataOptionsSessionNotOnOrAfterTimeout
-	                                    : attributes.samlSPMetaDataOptionsSessionNotOnOrAfterTimeout
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsSessionNotOnOrAfterTimeout",
-	                                        value: e || "",
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsNotOnOrAfterTimeout", value: String(data.samlSPMetaDataOptionsNotOnOrAfterTimeout
-	                                    ? data.samlSPMetaDataOptionsNotOnOrAfterTimeout
-	                                    : attributes.samlSPMetaDataOptionsNotOnOrAfterTimeout
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsNotOnOrAfterTimeout",
-	                                        value: e || "",
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPMetaDataOptionsForceUTF8", value: Number(data.samlSPMetaDataOptionsForceUTF8) ||
-	                                    attributes.samlMetadataForceUTF8.default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsForceUTF8",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) })] }) })), optionSelect === "signature" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "samlSPMetaDataOptionsSignatureMethod", value: String(data.samlSPMetaDataOptionsSignatureMethod ||
-	                                    attributes.samlSPMetaDataOptionsSignatureMethod.default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsSignatureMethod",
-	                                        value: String(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TroolForm, { fieldName: "samlSPMetaDataOptionsSignSSOMessage", value: data.samlSPMetaDataOptionsSignSSOMessage !== undefined &&
-	                                    data.samlSPMetaDataOptionsSignSSOMessage !== null
-	                                    ? Number(data.samlSPMetaDataOptionsSignSSOMessage)
-	                                    : attributes.samlSPMetaDataOptionsSignSSOMessage.default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsSignSSOMessage",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPMetaDataOptionsCheckSSOMessageSignature", value: Number(data.samlSPMetaDataOptionsCheckSSOMessageSignature) ||
-	                                    attributes.samlSPMetaDataOptionsCheckSSOMessageSignature
-	                                        .default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsCheckSSOMessageSignature",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TroolForm, { fieldName: "samlSPMetaDataOptionsSignSLOMessage", value: data.samlSPMetaDataOptionsSignSLOMessage !== undefined &&
-	                                    data.samlSPMetaDataOptionsSignSLOMessage !== null
-	                                    ? Number(data.samlSPMetaDataOptionsSignSLOMessage)
-	                                    : attributes.samlSPMetaDataOptionsSignSLOMessage.default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsSignSLOMessage",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPMetaDataOptionsCheckSLOMessageSignature", value: Number(data.samlSPMetaDataOptionsCheckSLOMessageSignature) ||
-	                                    attributes.samlSPMetaDataOptionsCheckSLOMessageSignature
-	                                        .default, updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsCheckSLOMessageSignature",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) })] }) })), optionSelect === "security" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "samlSPMetaDataOptionsEncryptionMode", value: String(data.samlSPMetaDataOptionsEncryptionMode ||
-	                                    attributes.samlSPMetaDataOptionsEncryptionMode.default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsEncryptionMode",
-	                                        value: String(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(BoolForm, { fieldName: "samlSPMetaDataOptionsEnableIDPInitiatedURL", value: Number(data.samlSPMetaDataOptionsEnableIDPInitiatedURL ||
-	                                    attributes.samlSPMetaDataOptionsEnableIDPInitiatedURL
-	                                        .default), updateFunc: function (e) {
-	                                    dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsEnableIDPInitiatedURL",
-	                                        value: Number(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsAuthnLevel", value: String(data.samlSPMetaDataOptionsAuthnLevel || ""), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsAuthnLevel",
-	                                        value: e || "",
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsRule", value: String(data.samlSPMetaDataOptionsRule || ""), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsRule",
-	                                        value: e || "",
-	                                    }));
-	                                } }) })] }) })), optionSelect === "federation" && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(TextForm, { fieldName: "samlSPMetaDataOptionsFederationEntityID", value: String(data.samlSPMetaDataOptionsFederationEntityID
-	                                    ? data.samlSPMetaDataOptionsFederationEntityID
-	                                    : ""), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsFederationEntityID",
-	                                        value: e || "",
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "samlSPMetaDataOptionsFederationOptionalAttributes", value: String(data.samlSPMetaDataOptionsFederationOptionalAttributes ||
-	                                    attributes.samlSPMetaDataOptionsFederationOptionalAttributes
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsFederationOptionalAttributes",
-	                                        value: String(e || ""),
-	                                    }));
-	                                } }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SelectForm, { fieldName: "samlSPMetaDataOptionsFederationRequiredAttributes", value: String(data.samlSPMetaDataOptionsFederationRequiredAttributes ||
-	                                    attributes.samlSPMetaDataOptionsFederationRequiredAttributes
-	                                        .default), updateFunc: function (e) {
-	                                    return dispatch(updateSamlMetaDataOptions({
-	                                        name: name,
-	                                        option: "samlSPMetaDataOptionsFederationRequiredAttributes",
-	                                        value: String(e || ""),
-	                                    }));
-	                                } }) })] }) })), optionSelect === "comment" && (jsxRuntimeExports.jsx(LongtextForm, { fieldName: "samlSPMetaDataOptionsComment", value: String(data.samlSPMetaDataOptionsComment
-	                    ? data.samlSPMetaDataOptionsComment
-	                    : ""), updateFunc: function (e) {
-	                    return dispatch(updateSamlMetaDataOptions({
-	                        name: name,
-	                        option: "samlSPMetaDataOptionsComment",
-	                        value: e || "",
-	                    }));
-	                } }))] }));
-	}
-	function SubObtionSelector(_a) {
-	    var optionSelect = _a.optionSelect, setOptionSelected = _a.setOptionSelected;
-	    return (jsxRuntimeExports.jsxs("div", { className: "optionNavbar sub", children: [jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsAuthnResponse", className: "suboption ".concat(optionSelect === "authResponse" ? "selected" : ""), onClick: function () { return setOptionSelected("authResponse"); }, children: t$1("samlSPMetaDataOptionsAuthnResponse") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSignature", className: "suboption ".concat(optionSelect === "signature" ? "selected" : ""), onClick: function () { return setOptionSelected("signature"); }, children: t$1("samlSPMetaDataOptionsSignature") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsSecurity", className: "suboption ".concat(optionSelect === "security" ? "selected" : ""), onClick: function () { return setOptionSelected("security"); }, children: t$1("samlSPMetaDataOptionsSecurity") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsFederation", className: "suboption ".concat(optionSelect === "federation" ? "selected" : ""), onClick: function () { return setOptionSelected("federation"); }, children: t$1("samlSPMetaDataOptionsFederation") }), jsxRuntimeExports.jsx("label", { "data-testid": "samlSPMetaDataOptionsComment", className: "suboption ".concat(optionSelect === "comment" ? "selected" : ""), onClick: function () { return setOptionSelected("comment"); }, children: t$1("samlSPMetaDataOptionsComment") })] }));
+	function getTree() {
+	    try {
+	        var response = fetch(staticUrl("nstruct.json"));
+	        return response;
+	    }
+	    catch (error) {
+	        throw new Error(JSON.stringify(error));
+	    }
 	}
 
-	function SAMLApp(_a) {
-	    var name = _a.name, dispatch = _a.dispatch;
-	    var data = useAppSelector(function (state) { return state.config.data.config; });
-	    var _b = reactExports.useState("basic"), optionSelected = _b[0], setOptionSelected = _b[1];
-	    var _c = reactExports.useState("authResponse"), suboptionSelect = _c[0], setSubOptionSelected = _c[1];
-	    var _d = reactExports.useState(false), open = _d[0], setOpen = _d[1];
-	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsxs(List$1, { className: "optionNavbar", children: [jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "basic" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("basic");
-	                                    setOpen(false);
-	                                }, children: t$1("basicOptions") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataXML" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("samlSPMetaDataXML");
-	                                    setOpen(false);
-	                                }, children: t$1("samlSPMetaDataXML") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataExportedAttributes"
-	                                    ? "selected"
-	                                    : ""), onClick: function () {
-	                                    setOptionSelected("samlSPMetaDataExportedAttributes");
-	                                    setOpen(false);
-	                                }, children: t$1("samlSPMetaDataExportedAttributes") }), jsxRuntimeExports.jsx("label", { className: "option ".concat(optionSelected === "samlSPMetaDataMacros" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("samlSPMetaDataMacros");
-	                                    setOpen(false);
-	                                }, children: t$1("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("label", { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), onClick: function () {
-	                                    setOptionSelected("samlSPMetaDataOptions");
-	                                    setOpen(!open);
-	                                }, "data-testid": "samlSPMetaDataOptions", children: [jsxRuntimeExports.jsx("div", { children: open ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsxs("span", { children: [" ", t$1("samlSPMetaDataOptions")] })] }), jsxRuntimeExports.jsx(Collapse$1, { className: "option ".concat(optionSelected === "samlSPMetaDataOptions" ? "selected" : ""), in: open, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(SubObtionSelector, { optionSelect: suboptionSelect, setOptionSelected: setSubOptionSelected }) })] }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle", flexItem: true }), jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [optionSelected === "samlSPMetaDataXML" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("samlSPMetaDataXML"), name
-	                                                ? data.samlSPMetaDataXML
-	                                                    ? data.samlSPMetaDataXML[name]
-	                                                        ? data.samlSPMetaDataXML[name].samlSPMetaDataXML === ""
-	                                                            ? "⚠️"
-	                                                            : ""
-	                                                        : "⚠️"
-	                                                    : ""
-	                                                : "⚠️"] }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(FileForm, { value: (name
-	                                                        ? data.samlSPMetaDataXML
-	                                                            ? data.samlSPMetaDataXML[name]
-	                                                                ? data.samlSPMetaDataXML[name].samlSPMetaDataXML
-	                                                                : undefined
-	                                                            : undefined
-	                                                        : undefined) || "", fieldName: "samlSPMetaDataXML", updateFunc: function (e) {
-	                                                        dispatch(updateSamlSPMetadata({
-	                                                            name: name ? name : "",
-	                                                            data: e,
-	                                                        }));
-	                                                    } }) }) }) })] })), (optionSelected === "samlSPMetaDataExportedAttributes" ||
-	                                optionSelected === "basic") && (jsxRuntimeExports.jsx("div", { className: "box", children: jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SamlAttributeContainerForm, { value: data.samlSPMetaDataExportedAttributes
-	                                                    ? data.samlSPMetaDataExportedAttributes[name]
-	                                                        ? data.samlSPMetaDataExportedAttributes[name]
-	                                                        : {}
-	                                                    : {}, appName: name, fieldName: "samlSPMetaDataExportedAttributes" }) }) }) }) })), optionSelected === "samlSPMetaDataMacros" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsx("strong", { className: "title2", children: t$1("samlSPMetaDataMacros") }), jsxRuntimeExports.jsxs("table", { id: "samlSPMetaDataMacros", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions.samlSPMetaDataMacros }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), data.samlSPMetaDataMacros ? (jsxRuntimeExports.jsx(TableVars, { appName: name, vars: data.samlSPMetaDataMacros[name], tableID: "samlSPMetaDataMacros", dispatch: dispatch, delFunction: delSAMLSPMetaDataMacros, updateFunction: updateSAMLSPMetaDataMacros })) : ("")] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return dispatch(newSAMLSPMetaDataMacros(name)); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })), optionSelected === "samlSPMetaDataOptions" && (jsxRuntimeExports.jsxs("div", { className: "box", children: [jsxRuntimeExports.jsxs("strong", { className: "title2", children: [t$1("samlSPMetaDataOptions"), " / ", t$1(suboptionSelect)] }), jsxRuntimeExports.jsx(OptionSaml, { name: name, dispatch: dispatch, optionSelect: suboptionSelect })] }))] })] })] }));
+	var struct;
+	function loadStruct() {
+	    if (!struct) {
+	        struct = getTree()
+	            .then(function (r) { return r.json(); })
+	            .catch(function (e) {
+	            struct = undefined;
+	            throw e;
+	        });
+	    }
+	    return struct;
+	}
+	// The ctree of `<type>s` (e.g. "oidcRPMetaDataNodes"), wherever it sits.
+	function findCtree(nodes, type) {
+	    for (var _i = 0, nodes_1 = nodes; _i < nodes_1.length; _i++) {
+	        var node = nodes_1[_i];
+	        if (!node || typeof node !== "object")
+	            continue;
+	        if (node.title === "".concat(type, "s") && Array.isArray(node.cnodes)) {
+	            return node.cnodes;
+	        }
+	        for (var _a = 0, _b = [node._nodes, node._nodes_cond, node.cnodes]; _a < _b.length; _a++) {
+	            var sub = _b[_a];
+	            if (Array.isArray(sub)) {
+	                var found = findCtree(sub, type);
+	                if (found)
+	                    return found;
+	            }
+	        }
+	    }
+	    return undefined;
+	}
+	function children(node) {
+	    return __spreadArray(__spreadArray([], (node._nodes || []), true), (node._nodes_cond || []), true);
+	}
+	function isGroup(node) {
+	    return Array.isArray(node._nodes);
+	}
+
+	// Groups listed in the side menu: those of a plain container. The groups of a
+	// "simpleInputContainer" (e.g. mTLS inside security) are shown inline.
+	function navGroups(node) {
+	    return node.type === "simpleInputContainer" ? [] : children(node).filter(isGroup);
+	}
+	function findByPath(nodes, path) {
+	    var node;
+	    var level = nodes;
+	    var _loop_1 = function (title) {
+	        node = level.find(function (n) { return n.title === title; });
+	        if (!node)
+	            return { value: undefined };
+	        level = children(node);
+	    };
+	    for (var _i = 0, path_1 = path; _i < path_1.length; _i++) {
+	        var title = path_1[_i];
+	        var state_1 = _loop_1(title);
+	        if (typeof state_1 === "object")
+	            return state_1.value;
+	    }
+	    return node;
+	}
+	// One parameter of the application, stored like Manager::Conf::Parser does:
+	// options in config[<type>Options][name][param], other leaves (SAML metadata
+	// XML) in config[param][name][param], hashes (macros...) in config[param][name].
+	function AppField(_a) {
+	    var _b, _c, _d, _e;
+	    var node = _a.node, name = _a.name, optionsKey = _a.optionsKey;
+	    var config = useAppSelector(function (state) { return state.config.data.config; });
+	    var dispatch = useAppDispatch();
+	    var title = node.title;
+	    var type = node.type || ((_b = attributes[title]) === null || _b === void 0 ? void 0 : _b.type) || "text";
+	    if (typeof node.cnodes === "string") {
+	        var value_1 = ((_c = config[title]) === null || _c === void 0 ? void 0 : _c[name]) || {};
+	        switch (type) {
+	            case "oidcAttributeContainer":
+	                return jsxRuntimeExports.jsx(OidcAttributeContainerForm, { value: value_1, fieldName: title, appName: name });
+	            case "samlAttributeContainer":
+	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(SamlAttributeContainerForm, { value: value_1, fieldName: title, appName: name }) }));
+	            case "keyTextContainer":
+	                return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(KeyTextContainerForm, { value: value_1, fieldName: title, updateFunc: function (v) { return dispatch(updateAppParam({ key: title, name: name, value: v })); } }) }));
+	            default:
+	                return null;
+	        }
+	    }
+	    var key = title.startsWith(optionsKey) ? optionsKey : title;
+	    var value = (_e = (_d = config[key]) === null || _d === void 0 ? void 0 : _d[name]) === null || _e === void 0 ? void 0 : _e[title];
+	    var update = function (v) { return dispatch(updateAppParam({ key: key, name: name, option: title, value: v })); };
+	    var updateInt = function (v) { return update(v === "" ? "" : Number(v)); };
+	    var props = { fieldName: title, updateFunc: update };
+	    var field;
+	    switch (type) {
+	        case "bool":
+	            field = jsxRuntimeExports.jsx(BoolForm, __assign({}, props, { value: Number(value) }));
+	            break;
+	        case "trool":
+	            field = jsxRuntimeExports.jsx(TroolForm, __assign({}, props, { value: Number(value) }));
+	            break;
+	        case "boolOrExpr":
+	            field = jsxRuntimeExports.jsx(BoolOrExprForm, __assign({}, props, { value: value }));
+	            break;
+	        case "select":
+	            field = jsxRuntimeExports.jsx(SelectForm, __assign({}, props, { value: value !== null && value !== void 0 ? value : "" }));
+	            break;
+	        case "int":
+	            field = jsxRuntimeExports.jsx(IntForm$1, __assign({}, props, { updateFunc: updateInt, value: Number(value) }));
+	            break;
+	        case "intOrNull":
+	            field = jsxRuntimeExports.jsx(IntForm, __assign({}, props, { updateFunc: updateInt, value: value }));
+	            break;
+	        case "password":
+	            field = jsxRuntimeExports.jsx(PasswordForm, __assign({}, props, { value: value }));
+	            break;
+	        case "longtext":
+	            field = jsxRuntimeExports.jsx(LongtextForm, __assign({}, props, { value: value }));
+	            break;
+	        case "url":
+	            field = jsxRuntimeExports.jsx(UrlForm, __assign({}, props, { value: value }));
+	            break;
+	        case "file":
+	            field = jsxRuntimeExports.jsx(FileForm, __assign({}, props, { value: value }));
+	            break;
+	        default:
+	            field = jsxRuntimeExports.jsx(TextForm, __assign({}, props, { value: value }));
+	    }
+	    return jsxRuntimeExports.jsx("tr", { children: field });
+	}
+	// Parameters of a section; inline groups get a sub-heading.
+	function SectionFields(_a) {
+	    var node = _a.node, name = _a.name, optionsKey = _a.optionsKey;
+	    if (!isGroup(node)) {
+	        return jsxRuntimeExports.jsx(AppField, { node: node, name: name, optionsKey: optionsKey });
+	    }
+	    var inNav = new Set(navGroups(node));
+	    return (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: children(node)
+	            .filter(function (child) { return !inNav.has(child); })
+	            .map(function (child) {
+	            return isGroup(child) ? (jsxRuntimeExports.jsx(SectionGroup, { node: child, name: name, optionsKey: optionsKey }, child.title)) : (jsxRuntimeExports.jsx(AppField, { node: child, name: name, optionsKey: optionsKey }, child.title));
+	        }) }));
+	}
+	function SectionGroup(props) {
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("tr", { className: "subsection", children: jsxRuntimeExports.jsx("th", { colSpan: 2, children: t$1(props.node.title) }) }), jsxRuntimeExports.jsx(SectionFields, __assign({}, props))] }));
+	}
+	function NavItem(_a) {
+	    var node = _a.node, path = _a.path, selected = _a.selected, select = _a.select, depth = _a.depth;
+	    var groups = navGroups(node);
+	    var key = path.join("/");
+	    var isSelected = selected.join("/") === key;
+	    var isOpen = selected.slice(0, path.length).join("/") === key;
+	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("label", { className: "".concat(depth ? "suboption" : "option", " ").concat(isSelected ? "selected" : ""), "data-testid": node.title, onClick: function () { return select(path); }, children: [groups.length > 0 && jsxRuntimeExports.jsx("div", { children: isOpen ? jsxRuntimeExports.jsx(ExpandLess, {}) : jsxRuntimeExports.jsx(ExpandMoreIcon, {}) }), jsxRuntimeExports.jsx("span", { children: t$1(node.title) })] }), groups.length > 0 && (jsxRuntimeExports.jsx(Collapse$1, { in: isOpen, timeout: "auto", unmountOnExit: true, children: jsxRuntimeExports.jsx(List$1, { className: "optionNavbar sub", children: groups.map(function (group) { return (jsxRuntimeExports.jsx(NavItem, { node: group, path: __spreadArray(__spreadArray([], path, true), [group.title], false), selected: selected, select: select, depth: depth + 1 }, group.title)); }) }) }))] }));
+	}
+	// Page of a configured object (OIDC RP...), generated from its ctree in
+	// nstruct.json: one menu entry per top-level node, sub-entries for groups.
+	function AppCtree(_a) {
+	    var type = _a.type, name = _a.name;
+	    var _b = reactExports.useState(), ctree = _b[0], setCtree = _b[1];
+	    var _c = reactExports.useState([]), selected = _c[0], setSelected = _c[1];
+	    var optionsKey = type.replace(/Node$/, "Options");
+	    reactExports.useEffect(function () {
+	        var active = true;
+	        loadStruct()
+	            .then(function (struct) { return findCtree(struct, type) || []; })
+	            .catch(function () { return []; })
+	            .then(function (nodes) {
+	            if (!active)
+	                return;
+	            setCtree(nodes);
+	            setSelected(function (cur) { return (cur.length || !nodes.length ? cur : [nodes[0].title]); });
+	        });
+	        return function () {
+	            active = false;
+	        };
+	    }, [type]);
+	    if (!ctree) {
+	        return (jsxRuntimeExports.jsx(Box$1, { sx: { display: "flex" }, children: jsxRuntimeExports.jsx(CircularProgress$1, {}) }));
+	    }
+	    var section = findByPath(ctree, selected);
+	    return (jsxRuntimeExports.jsxs("div", { children: [jsxRuntimeExports.jsxs("div", { className: "top", children: [jsxRuntimeExports.jsx(HomeButton, {}), jsxRuntimeExports.jsx("strong", { className: "title", children: name })] }), jsxRuntimeExports.jsxs("div", { className: "app", children: [jsxRuntimeExports.jsx(List$1, { className: "optionNavbar", component: "nav", children: ctree.map(function (node) { return (jsxRuntimeExports.jsx(NavItem, { node: node, path: [node.title], selected: selected, select: setSelected, depth: 0 }, node.title)); }) }), jsxRuntimeExports.jsx(Divider$1, { className: "divider", orientation: "vertical", variant: "middle" }), jsxRuntimeExports.jsx("div", { className: "appDesc", children: section && (jsxRuntimeExports.jsxs("div", { className: "box", children: [isGroup(section) && jsxRuntimeExports.jsx("strong", { className: "title", children: t$1(section.title) }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(SectionFields, { node: section, name: name, optionsKey: optionsKey }) }) })] })) })] })] }));
 	}
 
 	function ApplicationDashboard(_a) {
@@ -54345,11 +53797,11 @@ ${String(error)}`;
 	            case "native":
 	                return jsxRuntimeExports.jsx(NativeApp, { name: name });
 	            case "AppCas":
-	                return jsxRuntimeExports.jsx(CasApp, { name: name });
+	                return jsxRuntimeExports.jsx(AppCtree, { type: "casAppMetaDataNode", name: name });
 	            case "SPsaml":
-	                return jsxRuntimeExports.jsx(SAMLApp, { dispatch: dispatch, name: name });
+	                return jsxRuntimeExports.jsx(AppCtree, { type: "samlSPMetaDataNode", name: name });
 	            case "RPoidc":
-	                return jsxRuntimeExports.jsx(OIDCApp, { name: name });
+	                return jsxRuntimeExports.jsx(AppCtree, { type: "oidcRPMetaDataNode", name: name });
 	            default:
 	                return jsxRuntimeExports.jsx("div", { children: "\u00AF\\_(\u30C4)_/\u00AF" });
 	        }
@@ -67784,12 +67236,12 @@ ${String(error)}`;
 	function ADSimpleView() {
 	    var config = useAppSelector(function (state) { return state.config.data.config; });
 	    var dispatch = useAppDispatch();
-	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("adParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "ADPwdMaxAge", updateFunc: function (e) {
+	    return (jsxRuntimeExports.jsxs("div", { className: "appDesc", children: [jsxRuntimeExports.jsx("span", { className: "title2", children: t$1("adParams") }), jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsxs("tbody", { children: [jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "ADPwdMaxAge", updateFunc: function (e) {
 	                                    return dispatch(updateConfigParams({
 	                                        param: "ADPwdMaxAge",
 	                                        value: e,
 	                                    }));
-	                                }, value: Number(config.ADPwdMaxAge || attributes.ADPwdMaxAge.default) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { fieldName: "ADPwdExpireWarning", updateFunc: function (e) {
+	                                }, value: Number(config.ADPwdMaxAge || attributes.ADPwdMaxAge.default) }) }), jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { fieldName: "ADPwdExpireWarning", updateFunc: function (e) {
 	                                    return dispatch(updateConfigParams({
 	                                        param: "ADPwdExpireWarning",
 	                                        value: e,
@@ -76822,16 +76274,6 @@ Use the data prop if you want to provide your own handlers.`);
 	  }, [refCallback, size.width, size.height]);
 	}
 
-	function BoolOrExprForm(_a) {
-	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
-	    var attribute = attributes[fieldName];
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: (definitions[fieldName]
-	                        ? definitions[fieldName]
-	                        : "") + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1(fieldName) }) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs(FormControl$1, { children: [jsxRuntimeExports.jsx(FormLabel$1, { children: t$1(fieldName) }), jsxRuntimeExports.jsxs(RadioGroup$1, { row: true, value: typeof value === "number"
-	                                    ? value
-	                                    : -1 , onChange: function (e) { return updateFunc(Number(e.target.value)); }, children: [jsxRuntimeExports.jsx(FormControlLabel$1, { value: 1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("on") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: 0, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("off") }), jsxRuntimeExports.jsx(FormControlLabel$1, { value: -1, control: jsxRuntimeExports.jsx(Radio$1, {}), label: t$1("specialRule") })] })] }), (value === -1 || typeof value === "string") && (jsxRuntimeExports.jsx(TextField$1, { size: "small", multiline: true, label: t$1(fieldName), variant: "filled", rows: 4, onChange: function (e) { return updateFunc(e.target.value); }, placeholder: t$1(fieldName), value: value || ("default" in attribute ? attribute.default : 0) }))] })] }));
-	}
-
 	function CasAppMetaDataNodeForm(_a) {
 	    var value = _a.value, updateFunc = _a.updateFunc;
 	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { children: t$1("casAppName") }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", type: "text", onChange: function (e) { return updateFunc({ name: value, newName: e.target.value }); }, placeholder: t$1("casAppName"), value: value || "" }) })] }));
@@ -77003,77 +76445,6 @@ Use the data prop if you want to provide your own handlers.`);
 	                                                    return dispatch(delModuleOpt({ name: "grantSessionRules", key: key }));
 	                                                }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }));
 	                            }) })] }) })] }));
-	}
-
-	function KeyTextContainerForm(_a) {
-	    var value = _a.value, fieldName = _a.fieldName, updateFunc = _a.updateFunc;
-	    var i = 0;
-	    return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsx("th", { className: "title2", children: t$1(fieldName) }), jsxRuntimeExports.jsxs("td", { children: [jsxRuntimeExports.jsxs("table", { id: "exportedvalue", children: [jsxRuntimeExports.jsx("thead", { children: jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("th", { children: t$1("keys") }), jsxRuntimeExports.jsx(Tooltip$1, { title: jsxRuntimeExports.jsx(Markdown, { children: definitions[fieldName] + "" }), children: jsxRuntimeExports.jsx("th", { children: t$1("values") }) }), jsxRuntimeExports.jsx("th", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () {
-	                                                    return updateFunc(addHeader("exportedvalue"));
-	                                                }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) }) })] }) }), jsxRuntimeExports.jsx("tbody", { children: Object.keys(value).map(function (key) {
-	                                    i++;
-	                                    return (jsxRuntimeExports.jsxs("tr", { children: [jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
-	                                                        return updateFunc(updateHeaders("exportedvalue"));
-	                                                    }, type: "text", value: key }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(TextField$1, { size: "small", margin: "normal", variant: "filled", className: "form", onChange: function () {
-	                                                        return updateFunc(updateHeaders("exportedvalue"));
-	                                                    }, type: "text", value: value[key] }) }), jsxRuntimeExports.jsx("td", { children: jsxRuntimeExports.jsx(IconButton$1, { className: "minus", onClick: function () {
-	                                                        return updateFunc(removeHeader("exportedvalue", i));
-	                                                    }, children: jsxRuntimeExports.jsx(RemoveCircleIcon, { color: "error" }) }) })] }, fieldName + i));
-	                                }) })] }), jsxRuntimeExports.jsx(IconButton$1, { className: "plus", onClick: function () { return updateFunc(addHeader("exportedvalue")); }, children: jsxRuntimeExports.jsx(AddCircleIcon, { color: "success" }) })] })] }));
-	}
-	function updateHeaders(tableID) {
-	    var _a, _b;
-	    var headerList = {};
-	    var table = document.getElementById(tableID);
-	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
-	    if (rows) {
-	        for (var i = 1; i < rows.length; i++) {
-	            var cells = rows[i].getElementsByTagName("td");
-	            var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
-	            var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
-	            if (key) {
-	                headerList[key] = values ? values : "";
-	            }
-	        }
-	    }
-	    return headerList;
-	}
-	function addHeader(tableID, fieldName) {
-	    var _a, _b;
-	    var headerList = {};
-	    var table = document.getElementById(tableID);
-	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
-	    if (rows) {
-	        for (var i = 1; i < rows.length; i++) {
-	            var cells = rows[i].getElementsByTagName("td");
-	            var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
-	            var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
-	            if (key) {
-	                headerList[key] = values ? values : "";
-	            }
-	        }
-	    }
-	    headerList["new"] = "";
-	    return headerList;
-	}
-	function removeHeader(tableID, id) {
-	    var _a, _b;
-	    var headerList = {};
-	    var table = document.getElementById(tableID);
-	    var rows = table === null || table === void 0 ? void 0 : table.getElementsByTagName("tr");
-	    if (rows) {
-	        for (var i = 1; i < rows.length; i++) {
-	            if (i + 1 !== id) {
-	                var cells = rows[i].getElementsByTagName("td");
-	                var key = (_a = cells[0].querySelector("input")) === null || _a === void 0 ? void 0 : _a.value;
-	                var values = (_b = cells[1].querySelector("input")) === null || _b === void 0 ? void 0 : _b.value;
-	                if (key) {
-	                    headerList[key] = values ? values : "";
-	                }
-	            }
-	        }
-	    }
-	    return headerList;
 	}
 
 	function MenuAppForm(_a) {
@@ -77879,11 +77250,11 @@ Use the data prop if you want to provide your own handlers.`);
 	                        return dispatch(changeConf({ node: node.data, newValue: e }));
 	                    } }) }));
 	        case "int":
-	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(data), fieldName: node.data.id.split(";").at(-1) || "", updateFunc: function (e) {
+	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { value: Number(data), fieldName: node.data.id.split(";").at(-1) || "", updateFunc: function (e) {
 	                        return dispatch(changeConf({ node: node.data, newValue: e }));
 	                    } }) }));
 	        case "intOrNull":
-	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm, { value: Number(data), fieldName: node.data.id.split(";").at(-1) || "", updateFunc: function (e) {
+	            return (jsxRuntimeExports.jsx("tr", { children: jsxRuntimeExports.jsx(IntForm$1, { value: Number(data), fieldName: node.data.id.split(";").at(-1) || "", updateFunc: function (e) {
 	                        return dispatch(changeConf({ node: node.data, newValue: e }));
 	                    } }) }));
 	        case "grantContainer":
@@ -78216,16 +77587,6 @@ Use the data prop if you want to provide your own handlers.`);
 	                        : isLeaf
 	                            ? "treeLeafIcon"
 	                            : "treeToggleIcon" }), jsxRuntimeExports.jsx("span", { className: "treeitemLabel", children: node === null || node === void 0 ? void 0 : node.data.name })] }) }));
-	}
-
-	function getTree() {
-	    try {
-	        var response = fetch(staticUrl("nstruct.json"));
-	        return response;
-	    }
-	    catch (error) {
-	        throw new Error(JSON.stringify(error));
-	    }
 	}
 
 	var ArrowBack = {};
@@ -79257,10 +78618,12 @@ Use the data prop if you want to provide your own handlers.`);
 	                return __generator(this, function (_b) {
 	                    switch (_b.label) {
 	                        case 0:
-	                            if (!(location.type === "tree")) return [3 /*break*/, 3];
-	                            if (!config.cfgNum) {
+	                            // Pages reached directly (reload, shared link) have no config loaded yet
+	                            if (!metadata.cfgNum &&
+	                                ["app", "issuer", "catandapp", "tree"].includes(location.type)) {
 	                                dispatch(getConfigAsync());
 	                            }
+	                            if (!(location.type === "tree")) return [3 /*break*/, 3];
 	                            return [4 /*yield*/, getTree()];
 	                        case 1:
 	                            tree_1 = _b.sent();
@@ -79275,7 +78638,7 @@ Use the data prop if you want to provide your own handlers.`);
 	            });
 	        }
 	        fetchData();
-	    }, [config, dispatch, location.type]);
+	    }, [config, metadata.cfgNum, dispatch, location.type]);
 	    var content = (function () {
 	        switch (location.type) {
 	            case "app":

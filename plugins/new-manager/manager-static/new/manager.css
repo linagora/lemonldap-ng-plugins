@@ -324,6 +324,41 @@ textarea {
   padding: 20px;
 }
 
+.box th,
+.box td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.box tr.subsection th {
+  padding-top: 20px;
+  font-size: larger;
+}
+
+/* Key/value tables nested in a parameter row (exported attributes, macros,
+   scopes...): use the whole cell and leave the text inputs room for values */
+.appDesc td > table {
+  width: 100%;
+}
+
+.appDesc td > table .MuiTextField-root {
+  min-width: 9em;
+  width: 100%;
+}
+
+/* Rows holding such a table or a document (XML/JSON, see FileForm): label
+   above, content across the whole width */
+.box > table:has(td > table),
+.box > table:has(textarea[wrap="off"]) {
+  width: 100%;
+}
+
+.box tr:has(> td > table),
+.box tr:has(textarea[wrap="off"]) {
+  display: flex;
+  flex-direction: column;
+}
+
 /* Bottom-right floating action button: out of the top toolbar, so it never
    overlaps the header actions. */
 .saveButton {

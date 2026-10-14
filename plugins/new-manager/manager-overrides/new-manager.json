@@ -44,6 +44,10 @@
          "en" : "Home",
          "fr" : "Accueil"
       },
+      "indent" : {
+         "en" : "Indent",
+         "fr" : "Indenter"
+      },
       "llngVersion" : {
          "en" : "Running version",
          "fr" : "Version en cours d'execution"
