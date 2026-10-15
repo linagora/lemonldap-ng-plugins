@@ -27126,127 +27126,109 @@ ${String(error)}`;
 	    samlSPMetaDataNode: "samlSPMetaDataXML",
 	    virtualHost: "locationRules",
 	};
+	// Children are built on first access: a large configuration (hundreds of
+	// applications, each with its own subtree) would otherwise cost tens of
+	// thousands of nodes up front, most of which are never opened. The property is
+	// not enumerable so that serializing a node (Redux action payloads) does not
+	// walk the whole subtree.
+	function withChildren(node, build) {
+	    var children;
+	    Object.defineProperty(node, "children", {
+	        enumerable: false,
+	        configurable: true,
+	        get: function () { return (children !== null && children !== void 0 ? children : (children = build())); },
+	        set: function (value) {
+	            children = value;
+	        },
+	    });
+	    return node;
+	}
+	function nodeType(tree) {
+	    var _a;
+	    return tree.type || ((_a = attributes[tree.title]) === null || _a === void 0 ? void 0 : _a.type);
+	}
 	function recursTree(tree, config, parentId, app) {
-	    var _a, _b, _c, _d, _e, _f;
+	    var _a, _b;
+	    var id = "".concat(parentId, ";").concat(tree.title);
 	    if (tree.cnodes && typeof tree.cnodes === "object") {
-	        var id_1 = ((_a = tree.title) === null || _a === void 0 ? void 0 : _a.slice(0, -1)) || "";
-	        if (Object.keys(confFieldsEq).includes(id_1)) {
-	            return {
+	        var nodeName_1 = ((_a = tree.title) === null || _a === void 0 ? void 0 : _a.slice(0, -1)) || "";
+	        if (Object.keys(confFieldsEq).includes(nodeName_1)) {
+	            var cnodes_1 = tree.cnodes;
+	            return withChildren({
 	                name: t$1(tree.title),
 	                help: tree.help,
 	                type: (_b = attributes[tree.title]) === null || _b === void 0 ? void 0 : _b.type,
-	                id: "".concat(parentId, ";").concat(tree.title),
-	                children: Object.keys((config[confFieldsEq[id_1]] || {})).map(function (el) {
-	                    var _a;
-	                    return {
-	                        name: t$1(el),
-	                        type: id_1,
-	                        app: el,
-	                        id: "".concat(parentId, ";").concat(tree.title, ";").concat(el),
-	                        children: (_a = tree.cnodes) === null || _a === void 0 ? void 0 : _a.map(function (node) {
-	                            return recursTree(node, config, "".concat(parentId, ";").concat(tree.title, ";").concat(el), el);
-	                        }),
-	                    };
-	                }),
+	                id: id,
 	                app: app,
-	            };
+	                parent: parentId,
+	            }, function () {
+	                return Object.keys((config[confFieldsEq[nodeName_1]] || {})).map(function (el) {
+	                    return withChildren({
+	                        name: t$1(el),
+	                        type: nodeName_1,
+	                        app: el,
+	                        id: "".concat(id, ";").concat(el),
+	                        parent: id,
+	                    }, function () {
+	                        return cnodes_1.map(function (node) {
+	                            return recursTree(node, config, "".concat(id, ";").concat(el), el);
+	                        });
+	                    });
+	                });
+	            });
 	        }
 	    }
 	    else if (tree.cnodes === "applicationList") {
-	        return {
+	        var list_1 = (config[tree.title] || {});
+	        return withChildren({
 	            name: t$1(tree.title),
 	            help: tree.help,
-	            type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_c = attributes[tree.title]) === null || _c === void 0 ? void 0 : _c.type),
-	            id: "".concat(parentId, ";").concat(tree.title),
-	            children: Object.keys(config[tree.title])
-	                .sort(function (key1, key2) {
-	                return config[tree.title][key1].order -
-	                    config[tree.title][key2].order;
-	            })
-	                .map(function (el) {
-	                return {
-	                    name: config[tree.title][el].catname,
-	                    id: "".concat(tree.title, ";").concat(el),
-	                    type: config[tree.title][el].type,
-	                    children: Object.keys(config[tree.title][el])
-	                        .filter(function (key) { return key !== "type" && key !== "catname" && key !== "order"; })
-	                        .sort(function (key1, key2) {
-	                        return config[tree.title][el][key1].order -
-	                            config[tree.title][el][key2].order;
-	                    })
-	                        .map(function (key) {
-	                        return {
-	                            name: config[tree.title][el][key].options.name,
-	                            id: "".concat(tree.title, ";").concat(el, ";").concat(key),
-	                            type: "application",
-	                        };
-	                    }),
-	                };
-	            }),
-	        };
+	            type: nodeType(tree),
+	            id: id,
+	            parent: parentId,
+	        }, function () {
+	            return Object.keys(list_1)
+	                .sort(function (key1, key2) { return list_1[key1].order - list_1[key2].order; })
+	                .map(function (el) { return ({
+	                name: list_1[el].catname,
+	                id: "".concat(tree.title, ";").concat(el),
+	                type: list_1[el].type,
+	                parent: id,
+	                children: Object.keys(list_1[el])
+	                    .filter(function (key) { return key !== "type" && key !== "catname" && key !== "order"; })
+	                    .sort(function (key1, key2) { return list_1[el][key1].order - list_1[el][key2].order; })
+	                    .map(function (key) { return ({
+	                    name: list_1[el][key].options.name,
+	                    id: "".concat(tree.title, ";").concat(el, ";").concat(key),
+	                    type: "application",
+	                    parent: "".concat(tree.title, ";").concat(el),
+	                }); }),
+	            }); });
+	        });
 	    }
 	    else if (tree._nodes) {
-	        if (tree._nodes_cond) {
-	            tree._nodes = tree._nodes.concat(tree._nodes_cond);
-	        }
-	        return {
+	        var nodes_1 = tree._nodes_cond
+	            ? tree._nodes.concat(tree._nodes_cond)
+	            : tree._nodes;
+	        return withChildren({
 	            name: t$1(tree.title),
 	            help: tree.help,
-	            type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_d = attributes[tree.title]) === null || _d === void 0 ? void 0 : _d.type),
-	            id: "".concat(parentId, ";").concat(tree.title),
-	            children: (_e = tree._nodes) === null || _e === void 0 ? void 0 : _e.map(function (node) {
-	                var _a;
-	                return {
-	                    name: t$1(node.title),
-	                    type: node.type ||
-	                        ((_a = attributes[node.title]) === null || _a === void 0 ? void 0 : _a.type),
-	                    id: "".concat(parentId, ";").concat(tree.title, ";").concat(node.title),
-	                    app: app,
-	                    help: node.help,
-	                };
-	            }),
+	            type: nodeType(tree),
+	            id: id,
 	            app: app,
-	        };
+	            parent: parentId,
+	        }, function () { return nodes_1.map(function (node) { return recursTree(node, config, id, app); }); });
 	    }
 	    return {
 	        name: t$1(tree.title),
-	        type: (tree === null || tree === void 0 ? void 0 : tree.type) || ((_f = attributes[tree.title]) === null || _f === void 0 ? void 0 : _f.type),
-	        id: "".concat(parentId, ";").concat(tree.title),
+	        type: nodeType(tree),
+	        id: id,
 	        app: app,
 	        help: tree.help,
+	        parent: parentId,
 	    };
 	}
 
-	function findElementByTitleOrValue(arr, searchTerm, parent) {
-	    for (var _i = 0, arr_1 = arr; _i < arr_1.length; _i++) {
-	        var element = arr_1[_i];
-	        if (element) {
-	            if (element.id === parent) {
-	                for (var _a = 0, _b = element._nodes || []; _a < _b.length; _a++) {
-	                    var child = _b[_a];
-	                    if (child.id === searchTerm) {
-	                        return child;
-	                    }
-	                }
-	            }
-	            if (element._nodes) {
-	                var result = findElementByTitleOrValue(element._nodes, searchTerm, parent) ||
-	                    (element._nodes_cond
-	                        ? findElementByTitleOrValue(element._nodes_cond, searchTerm, parent)
-	                        : undefined);
-	                if (result) {
-	                    return result;
-	                }
-	            }
-	            if (element.cnodes) {
-	                var result = findElementByTitleOrValue(element.cnodes, searchTerm, parent);
-	                if (result) {
-	                    return result;
-	                }
-	            }
-	        }
-	    }
-	}
 	function findElementInConf(config, node) {
 	    var searchedId = node.id.split(";").at(-1) || "";
 	    var result;
@@ -28479,6 +28461,7 @@ ${String(error)}`;
 	            .addCase(getConfigAsync.fulfilled, function (state, action) {
 	            state.loading = false;
 	            state.data = action.payload;
+	            state.original = action.payload.config;
 	        })
 	            .addCase(getConfigAsync.rejected, function (state, action) {
 	            state.loading = false;
@@ -28509,6 +28492,7 @@ ${String(error)}`;
 	            .addCase(getPartialConfigAsync.fulfilled, function (state, action) {
 	            state.loading = false;
 	            state.data = action.payload;
+	            state.original = action.payload.config;
 	        });
 	    },
 	});
@@ -32851,7 +32835,7 @@ ${String(error)}`;
 	  }) : children;
 	}
 
-	function isEmpty$3(obj) {
+	function isEmpty$4(obj) {
 	  return obj === undefined || obj === null || Object.keys(obj).length === 0;
 	}
 	function GlobalStyles$2(props) {
@@ -32859,7 +32843,7 @@ ${String(error)}`;
 	    styles,
 	    defaultTheme = {}
 	  } = props;
-	  const globalStyles = typeof styles === 'function' ? themeInput => styles(isEmpty$3(themeInput) ? defaultTheme : themeInput) : styles;
+	  const globalStyles = typeof styles === 'function' ? themeInput => styles(isEmpty$4(themeInput) ? defaultTheme : themeInput) : styles;
 	  return /*#__PURE__*/jsxRuntimeExports.jsx(Global, {
 	    styles: globalStyles
 	  });
@@ -34715,7 +34699,7 @@ ${String(error)}`;
 	const _excluded$1q = ["ownerState"],
 	  _excluded2$9 = ["variants"],
 	  _excluded3$2 = ["name", "slot", "skipVariantsResolver", "skipSx", "overridesResolver"];
-	function isEmpty$2(obj) {
+	function isEmpty$3(obj) {
 	  return Object.keys(obj).length === 0;
 	}
 
@@ -34744,7 +34728,7 @@ ${String(error)}`;
 	  theme,
 	  themeId
 	}) {
-	  return isEmpty$2(theme) ? defaultTheme : theme[themeId] || theme;
+	  return isEmpty$3(theme) ? defaultTheme : theme[themeId] || theme;
 	}
 	function defaultOverridesResolver(slot) {
 	  if (!slot) {
@@ -40734,7 +40718,7 @@ ${String(error)}`;
 	    transform: 'translateZ(0)'
 	  }
 	};
-	function isEmpty$1(obj) {
+	function isEmpty$2(obj) {
 	  return obj === undefined || obj === null || Object.keys(obj).length === 0 || obj.outerHeightStyle === 0 && !obj.overflowing;
 	}
 
@@ -40816,7 +40800,7 @@ ${String(error)}`;
 	  }, [maxRows, minRows, props.placeholder]);
 	  const syncHeight = reactExports.useCallback(() => {
 	    const textareaStyles = calculateTextareaStyles();
-	    if (isEmpty$1(textareaStyles)) {
+	    if (isEmpty$2(textareaStyles)) {
 	      return;
 	    }
 	    const input = inputRef.current;
@@ -48625,7 +48609,7 @@ ${String(error)}`;
 	  // The value could be a number, the DOM will stringify it anyway.
 	  return String(a) === String(b);
 	}
-	function isEmpty(display) {
+	function isEmpty$1(display) {
 	  return display == null || typeof display === 'string' && !display.trim();
 	}
 	const useUtilityClasses$d = ownerState => {
@@ -48979,7 +48963,7 @@ ${String(error)}`;
 	      ,
 
 	      id: buttonId,
-	      children: isEmpty(display) ?
+	      children: isEmpty$1(display) ?
 	      // notranslate needed while Google Translate will not fix zero-width space issue
 	      _span || (_span = /*#__PURE__*/jsxRuntimeExports.jsx("span", {
 	        className: "notranslate",
@@ -67779,11 +67763,11 @@ ${String(error)}`;
 	  }
 	  return null;
 	}
-	function walk(node, fn) {
+	function walk$1(node, fn) {
 	  fn(node);
 	  if (node.children) {
 	    for (let child of node.children) {
-	      walk(child, fn);
+	      walk$1(child, fn);
 	    }
 	  }
 	}
@@ -67902,7 +67886,7 @@ ${String(error)}`;
 		noop: noop,
 		safeRun: safeRun$1,
 		waitFor: waitFor,
-		walk: walk
+		walk: walk$1
 	});
 
 	const placeholderStyle = {
@@ -69378,7 +69362,7 @@ ${String(error)}`;
 	 * @param input
 	 */
 
-	function isObject(input) {
+	function isObject$1(input) {
 	  return _typeof$3(input) === 'object';
 	}
 	/**
@@ -69485,7 +69469,7 @@ ${String(error)}`;
 	  invariant(typeof getSourceClientOffset === 'function', 'When clientOffset is provided, getSourceClientOffset must be a function.');
 	}
 	function verifyItemIsObject(item) {
-	  invariant(isObject(item), 'Item must be an object.');
+	  invariant(isObject$1(item), 'Item must be an object.');
 	}
 	function getDraggableSource(sourceIds, monitor) {
 	  var sourceId = null;
@@ -69649,7 +69633,7 @@ ${String(error)}`;
 	  return dropResult;
 	}
 	function verifyDropResultType(dropResult) {
-	  invariant(typeof dropResult === 'undefined' || isObject(dropResult), 'Drop result must either be an object or undefined.');
+	  invariant(typeof dropResult === 'undefined' || isObject$1(dropResult), 'Drop result must either be an object or undefined.');
 	}
 	function getDroppableTargets(monitor) {
 	  var targetIds = monitor.getTargetIds().filter(monitor.canDropOnTarget, monitor);
@@ -75389,12 +75373,12 @@ ${String(error)}`;
 	    }
 	  }
 	  openAll() {
-	    walk(this.root, node => {
+	    walk$1(this.root, node => {
 	      if (node.isInternal) node.open();
 	    });
 	  }
 	  closeAll() {
-	    walk(this.root, node => {
+	    walk$1(this.root, node => {
 	      if (node.isInternal) node.close();
 	    });
 	  }
@@ -77475,72 +77459,41 @@ Use the data prop if you want to provide your own handlers.`);
 	    }
 	}
 
-	function ToggleConfTree(itemId, treeRef, tree, config, setItems) {
-	    var _a, _b, _c;
-	    var item = (_b = (_a = treeRef.current) === null || _a === void 0 ? void 0 : _a.get(itemId)) === null || _b === void 0 ? void 0 : _b.data;
-	    if (item) {
-	        var updateChildren_1 = function (node) {
-	            if (node === null || node === void 0 ? void 0 : node.children) {
-	                node.children = node.children.map(function (child) {
-	                    var childId = child.id.split(";").at(-1) || "";
-	                    var foundElement = findElementByTitleOrValue(tree, childId, child.id.split(";").at(-2));
-	                    if (foundElement) {
-	                        child = recursTree(foundElement, config, node.id, node.app);
-	                    }
-	                    child = updateChildren_1(child);
-	                    return child;
-	                });
-	            }
-	            else {
-	                var id = node.id.split(";").at(-1) || "";
-	                var foundElement = findElementByTitleOrValue(tree, id, node.id.split(";").at(-2));
-	                if (foundElement) {
-	                    return recursTree(foundElement, config, item.id, item.app);
-	                }
-	            }
-	            return node;
-	        };
-	        item.children = (_c = item.children) === null || _c === void 0 ? void 0 : _c.map(updateChildren_1);
-	        setItems(function (prevItems) {
-	            return prevItems === null || prevItems === void 0 ? void 0 : prevItems.map(function (el) { return (el.id === itemId ? __assign({}, item) : el); });
-	        });
-	    }
-	}
 	function TreeRender(_a) {
 	    var _b, _c;
 	    var tree = _a.tree, config = _a.config;
 	    var treeRef = reactExports.useRef(null);
-	    var _d = reactExports.useState(tree === null || tree === void 0 ? void 0 : tree.map(function (el) { return recursTree(el, config, "root"); })), ITEMS = _d[0], setItems = _d[1];
-	    var _e = reactExports.useState(null), selectedItem = _e[0], setSelectedItem = _e[1];
-	    var _f = useResizeObserver(), ref = _f.ref, width = _f.width, _g = _f.height, height = _g === void 0 ? 1 : _g;
+	    // Children are built lazily (see recursTree), so rebuilding the roots on a
+	    // configuration change is cheap. Open state is kept by react-arborist, keyed
+	    // by node id.
+	    var items = reactExports.useMemo(function () { return tree === null || tree === void 0 ? void 0 : tree.map(function (el) { return recursTree(el, config, "root"); }); }, [tree, config]);
+	    var _d = reactExports.useState(null), selectedItem = _d[0], setSelectedItem = _d[1];
+	    var _e = useResizeObserver(), ref = _e.ref, width = _e.width, _f = _e.height, height = _f === void 0 ? 1 : _f;
+	    // A configuration change rebuilds the nodes: point the detail pane at the
+	    // new instance of the selected one (react-arborist has updated by now).
 	    reactExports.useEffect(function () {
-	        var _a;
-	        setItems(tree === null || tree === void 0 ? void 0 : tree.map(function (el) { return recursTree(el, config, "root"); }));
-	        (_a = treeRef.current) === null || _a === void 0 ? void 0 : _a.closeAll();
-	    }, [tree, config]);
-	    reactExports.useEffect(function () {
-	        if (selectedItem) {
-	            var node = selectedItem;
-	            var parents = [];
-	            while (node === null || node === void 0 ? void 0 : node.parent) {
-	                node = node.parent;
-	                parents.push(node);
-	            }
-	            parents.reverse().forEach(function (parent) {
-	                var _a, _b;
-	                ToggleConfTree(parent.id, treeRef, tree || [], config, setItems);
-	                (_b = (_a = treeRef.current) === null || _a === void 0 ? void 0 : _a.get(parent.id)) === null || _b === void 0 ? void 0 : _b.open();
-	            });
+	        setSelectedItem(function (prev) { var _a; return (prev && ((_a = treeRef.current) === null || _a === void 0 ? void 0 : _a.get(prev.id))) || prev; });
+	    }, [items]);
+	    // react-arborist rebuilds its whole node tree on each update (every
+	    // open/close). Only hand it the children of visible nodes: those of an open
+	    // node, and one level more so that the selected node's children are known
+	    // to the detail pane (simpleInputContainer, container forms). Closed
+	    // internal nodes get an empty list, which keeps them displayed as folders.
+	    var childrenAccessor = reactExports.useCallback(function (d) {
+	        if (!("children" in d))
+	            return null;
+	        var api = treeRef.current;
+	        if (d.parent === "root" ||
+	            (api && (api.isOpen(d.id) || (d.parent && api.isOpen(d.parent))))) {
+	            return d.children || [];
 	        }
-	    }, [selectedItem, tree, config]);
+	        return [];
+	    }, []);
+	    var onFocus = reactExports.useCallback(function (node) { return setSelectedItem(node); }, []);
 	    if (tree) {
 	        return (jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [jsxRuntimeExports.jsxs("div", { className: "treeHeader", children: [jsxRuntimeExports.jsx("strong", { className: "title", children: t$1("advancedConfiguration") }), ((_b = selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data) === null || _b === void 0 ? void 0 : _b.name) && (jsxRuntimeExports.jsx("span", { className: "treeBreadcrumb", children: selectedItem.data.name })), (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help) && (jsxRuntimeExports.jsx(Link$1, { className: "treeHelp", target: "blank", href: config.managerDn +
 	                                "/doc/pages/documentation/current/" +
-	                                (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help), children: jsxRuntimeExports.jsx(HelpOutlineIcon, {}) }))] }), jsxRuntimeExports.jsxs("div", { className: "treePage", children: [jsxRuntimeExports.jsx("div", { className: "tree", ref: ref, children: jsxRuntimeExports.jsx(Tree, { disableDrag: true, rowHeight: 34, ref: treeRef, onToggle: function (itemId) {
-	                                    ToggleConfTree(itemId, treeRef, tree, config, setItems);
-	                                }, height: height, width: width, onFocus: function (node) {
-	                                    setSelectedItem(node);
-	                                }, data: ITEMS, openByDefault: false, children: Node }) }), jsxRuntimeExports.jsx("div", { className: "treeDetail", children: jsxRuntimeExports.jsx("div", { className: "nodeContent", children: ((_c = selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data) === null || _c === void 0 ? void 0 : _c.type) && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(TreeNodeType, { node: selectedItem, config: config }) }) })) }) })] })] }));
+	                                (selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data.help), children: jsxRuntimeExports.jsx(HelpOutlineIcon, {}) }))] }), jsxRuntimeExports.jsxs("div", { className: "treePage", children: [jsxRuntimeExports.jsx("div", { className: "tree", ref: ref, children: jsxRuntimeExports.jsx(Tree, { disableDrag: true, rowHeight: 34, ref: treeRef, height: height, width: width, onFocus: onFocus, data: items, childrenAccessor: childrenAccessor, openByDefault: false, children: Node }) }), jsxRuntimeExports.jsx("div", { className: "treeDetail", children: jsxRuntimeExports.jsx("div", { className: "nodeContent", children: ((_c = selectedItem === null || selectedItem === void 0 ? void 0 : selectedItem.data) === null || _c === void 0 ? void 0 : _c.type) && (jsxRuntimeExports.jsx("table", { children: jsxRuntimeExports.jsx("tbody", { children: jsxRuntimeExports.jsx(TreeNodeType, { node: selectedItem, config: config }) }) })) }) })] })] }));
 	    }
 	    else {
 	        return (jsxRuntimeExports.jsx(Box$1, { sx: { display: "flex" }, children: jsxRuntimeExports.jsx(CircularProgress$1, {}) }));
@@ -78184,7 +78137,7 @@ Use the data prop if you want to provide your own handlers.`);
 	                Boolean(Object.keys(config.casAppMetaDataOptions ? config.casAppMetaDataOptions : {}).length),
 	        });
 	    }, [config]);
-	    return (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuersList", children: [jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.saml", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(ToggleButton, { inputProps: { role: "switch" }, "data-testid": "issuer.toggle.saml", color: "secondary", className: "switch", checked: Boolean(config.issuerDBSAMLActivation), onChange: function () {
+	    return (jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: jsxRuntimeExports.jsxs("div", { className: "issuersList", children: [jsxRuntimeExports.jsx("span", { className: "issuersCaption", children: t$1("activeIssuers") }), jsxRuntimeExports.jsxs("div", { className: "issuers", "data-testid": "issuer.saml", children: [jsxRuntimeExports.jsx("div", { children: jsxRuntimeExports.jsx(ToggleButton, { inputProps: { role: "switch" }, "data-testid": "issuer.toggle.saml", color: "secondary", className: "switch", checked: Boolean(config.issuerDBSAMLActivation), onChange: function () {
 	                                    if (!config.issuerDBSAMLActivation &&
 	                                        !config.samlServicePrivateKeySig &&
 	                                        !config.samlServicePublicKeySig) {
@@ -78513,6 +78466,93 @@ Use the data prop if you want to provide your own handlers.`);
 	var SaveExports = /*@__PURE__*/ requireSave();
 	var SaveIcon = /*@__PURE__*/getDefaultExportFromCjs(SaveExports);
 
+	// Metadata rewritten by the server on each save, never a user change
+	var IGNORED_KEYS = new Set([
+	    "cfgNum",
+	    "cfgLog",
+	    "cfgDate",
+	    "cfgAuthor",
+	    "cfgAuthorIP",
+	    "cfgVersion",
+	    "prev",
+	    "next",
+	]);
+	function isObject(value) {
+	    return typeof value === "object" && value !== null && !Array.isArray(value);
+	}
+	function isEmpty(value) {
+	    return value === undefined || value === null || value === "";
+	}
+	// Forms do not always keep the original type ("1" vs 1): compare scalars by
+	// their string form, and arrays by their JSON form.
+	function sameValue(a, b) {
+	    if (isEmpty(a) && isEmpty(b))
+	        return true;
+	    if (Array.isArray(a) || Array.isArray(b)) {
+	        return JSON.stringify(a) === JSON.stringify(b);
+	    }
+	    return String(a) === String(b);
+	}
+	function walk(before, after, path, changes) {
+	    // Recurse into hashes (an added or removed hash lists its leaves)
+	    if ((isObject(before) || isEmpty(before)) &&
+	        (isObject(after) || isEmpty(after)) &&
+	        (isObject(before) || isObject(after))) {
+	        var b_1 = isObject(before) ? before : {};
+	        var a_1 = isObject(after) ? after : {};
+	        var keys = Object.keys(b_1).concat(Object.keys(a_1).filter(function (key) { return !Object.prototype.hasOwnProperty.call(b_1, key); }));
+	        keys.sort().forEach(function (key) {
+	            if (path.length === 0 && IGNORED_KEYS.has(key))
+	                return;
+	            walk(b_1[key], a_1[key], __spreadArray(__spreadArray([], path, true), [key], false), changes);
+	        });
+	        return;
+	    }
+	    if (sameValue(before, after))
+	        return;
+	    if (isEmpty(before)) {
+	        changes.push({ path: path, kind: "added", after: after });
+	    }
+	    else if (isEmpty(after)) {
+	        changes.push({ path: path, kind: "removed", before: before });
+	    }
+	    else {
+	        changes.push({ path: path, kind: "changed", before: before, after: after });
+	    }
+	}
+	// Leaf-level differences between the loaded configuration and the edited one
+	function configDiff(before, after) {
+	    var changes = [];
+	    walk(before, after, [], changes);
+	    return changes;
+	}
+
+	// Above this, the list is cut (a restored configuration changes everything)
+	var MAX_DISPLAYED = 300;
+	function isSecret(path) {
+	    return path.some(function (key) { var _a; return ((_a = attributes[key]) === null || _a === void 0 ? void 0 : _a.type) === "password"; });
+	}
+	function Value(_a) {
+	    var value = _a.value, secret = _a.secret, className = _a.className;
+	    if (secret)
+	        return jsxRuntimeExports.jsx("span", { className: className, children: "\u2022\u2022\u2022\u2022\u2022\u2022" });
+	    var text = typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+	    if (text.length > 80 || text.includes("\n")) {
+	        return (jsxRuntimeExports.jsxs("details", { className: className, children: [jsxRuntimeExports.jsxs("summary", { children: [text.split("\n")[0].slice(0, 60), "\u2026"] }), jsxRuntimeExports.jsx("pre", { children: text })] }));
+	    }
+	    return jsxRuntimeExports.jsx("span", { className: className, children: text });
+	}
+	function ConfigChanges(_a) {
+	    var changes = _a.changes;
+	    if (!changes.length) {
+	        return jsxRuntimeExports.jsx("p", { className: "configChangesEmpty", children: t$1("noChanges") });
+	    }
+	    return (jsxRuntimeExports.jsxs("div", { className: "configChanges", children: [jsxRuntimeExports.jsxs("strong", { children: [t$1("pendingChanges"), " (", changes.length, ")"] }), jsxRuntimeExports.jsx("ul", { children: changes.slice(0, MAX_DISPLAYED).map(function (change) {
+	                    var secret = isSecret(change.path);
+	                    return (jsxRuntimeExports.jsxs("li", { className: change.kind, children: [jsxRuntimeExports.jsx("code", { className: "configChangePath", title: t$1(change.path[change.path.length - 1]), children: change.path.join(" › ") }), jsxRuntimeExports.jsxs("span", { className: "configChangeValues", children: [change.kind !== "added" && (jsxRuntimeExports.jsx(Value, { value: change.before, secret: secret, className: "before" })), change.kind === "changed" && (jsxRuntimeExports.jsx("span", { className: "arrow", children: "\u2192" })), change.kind !== "removed" && (jsxRuntimeExports.jsx(Value, { value: change.after, secret: secret, className: "after" }))] })] }, change.path.join("\u0000")));
+	                }) }), changes.length > MAX_DISPLAYED && (jsxRuntimeExports.jsxs("p", { className: "configChangesMore", children: ["+ ", changes.length - MAX_DISPLAYED, " ", t$1("otherChanges")] }))] }));
+	}
+
 	function SaveButton(_a) {
 	    var partial = _a.partial, sidebar = _a.sidebar;
 	    var _b = reactExports.useState(false), openSavePopup = _b[0], setOpenSavePopup = _b[1];
@@ -78522,8 +78562,12 @@ Use the data prop if you want to provide your own handlers.`);
 	    var dispatch = useAppDispatch();
 	    var config = useAppSelector(function (state) { return state.config; });
 	    var data = useAppSelector(function (state) { return state.config.data.config; });
+	    var original = useAppSelector(function (state) { return state.config.original; });
+	    // Only computed while the confirmation dialog is open
+	    var changes = reactExports.useMemo(function () { return (openConfirm ? configDiff(original, data) : []); }, [openConfirm, original, data]);
 	    // Rule validation first; a valid config opens the confirmation dialog that
-	    // asks for a summary (cfgLog), like the legacy manager, before saving.
+	    // lists the pending changes and asks for a summary (cfgLog), like the legacy
+	    // manager, before saving.
 	    var attemptSave = function () {
 	        var stateOk = true;
 	        if (data.oidcRPMetaDataOptions) {
@@ -78557,7 +78601,7 @@ Use the data prop if you want to provide your own handlers.`);
 	        setOpenConfirm(false);
 	        setOpenSavePopup(true);
 	    };
-	    return (jsxRuntimeExports.jsxs("div", { children: [sidebar ? (jsxRuntimeExports.jsx(Button$1, { className: "saveButtonSidebar", variant: "contained", color: "primary", fullWidth: true, startIcon: jsxRuntimeExports.jsx(SaveIcon, {}), onClick: attemptSave, children: t$1("save") })) : (jsxRuntimeExports.jsx(Fab$1, { className: "saveButton", color: "primary", onClick: attemptSave, children: jsxRuntimeExports.jsx(SaveIcon, { fontSize: "large" }) })), jsxRuntimeExports.jsxs(Dialog$1, { open: openConfirm, onClose: function () { return setOpenConfirm(false); }, fullWidth: true, maxWidth: "sm", children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$1("savingConfirmation") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsx(DialogContent$1, { children: jsxRuntimeExports.jsx(TextField$1, { autoFocus: true, fullWidth: true, multiline: true, minRows: 3, label: t$1("cfgLog"), value: logMessage, onChange: function (e) { return setLogMessage(e.target.value); } }) }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(DialogActions$1, { children: [jsxRuntimeExports.jsx(Button$1, { variant: "contained", color: "primary", onClick: confirmSave, children: t$1("ok") }), jsxRuntimeExports.jsx(Button$1, { color: "secondary", onClick: function () { return setOpenConfirm(false); }, children: t$1("cancel") })] })] }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup, partial: partial }), jsxRuntimeExports.jsx("div", { className: "notif red ".concat(openErrorPopup ? "visible" : "hidden"), children: t$1("saveWithWarnings") })] }));
+	    return (jsxRuntimeExports.jsxs("div", { children: [sidebar ? (jsxRuntimeExports.jsx(Button$1, { className: "saveButtonSidebar", variant: "contained", color: "primary", fullWidth: true, startIcon: jsxRuntimeExports.jsx(SaveIcon, {}), onClick: attemptSave, children: t$1("save") })) : (jsxRuntimeExports.jsx(Fab$1, { className: "saveButton", color: "primary", onClick: attemptSave, children: jsxRuntimeExports.jsx(SaveIcon, { fontSize: "large" }) })), jsxRuntimeExports.jsxs(Dialog$1, { open: openConfirm, onClose: function () { return setOpenConfirm(false); }, fullWidth: true, maxWidth: changes.length ? "md" : "sm", children: [jsxRuntimeExports.jsx(DialogTitle$1, { children: t$1("savingConfirmation") }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(DialogContent$1, { children: [jsxRuntimeExports.jsx(ConfigChanges, { changes: changes }), jsxRuntimeExports.jsx(TextField$1, { autoFocus: true, fullWidth: true, multiline: true, minRows: 3, label: t$1("cfgLog"), value: logMessage, onChange: function (e) { return setLogMessage(e.target.value); } })] }), jsxRuntimeExports.jsx(Divider$1, {}), jsxRuntimeExports.jsxs(DialogActions$1, { children: [jsxRuntimeExports.jsx(Button$1, { variant: "contained", color: "primary", onClick: confirmSave, children: t$1("ok") }), jsxRuntimeExports.jsx(Button$1, { color: "secondary", onClick: function () { return setOpenConfirm(false); }, children: t$1("cancel") })] })] }), jsxRuntimeExports.jsx(SavePopup, { config: config, dispatch: dispatch, openSavePopup: openSavePopup, setOpenSavePopup: setOpenSavePopup, partial: partial }), jsxRuntimeExports.jsx("div", { className: "notif red ".concat(openErrorPopup ? "visible" : "hidden"), children: t$1("saveWithWarnings") })] }));
 	}
 
 	// Left navigation for the configuration app: the "dashboards" (applications,
@@ -78612,33 +78656,20 @@ Use the data prop if you want to provide your own handlers.`);
 	    var _b = reactExports.useState(true), authSimple = _b[0], setAuthSimple = _b[1];
 	    var _c = reactExports.useState(null), tree = _c[0], setTree = _c[1];
 	    reactExports.useEffect(function () {
-	        function fetchData() {
-	            return __awaiter$1(this, void 0, void 0, function () {
-	                var tree_1, _a;
-	                return __generator(this, function (_b) {
-	                    switch (_b.label) {
-	                        case 0:
-	                            // Pages reached directly (reload, shared link) have no config loaded yet
-	                            if (!metadata.cfgNum &&
-	                                ["app", "issuer", "catandapp", "tree"].includes(location.type)) {
-	                                dispatch(getConfigAsync());
-	                            }
-	                            if (!(location.type === "tree")) return [3 /*break*/, 3];
-	                            return [4 /*yield*/, getTree()];
-	                        case 1:
-	                            tree_1 = _b.sent();
-	                            _a = setTree;
-	                            return [4 /*yield*/, tree_1.json()];
-	                        case 2:
-	                            _a.apply(void 0, [_b.sent()]);
-	                            _b.label = 3;
-	                        case 3: return [2 /*return*/];
-	                    }
-	                });
-	            });
+	        // Pages reached directly (reload, shared link) have no config loaded yet
+	        if (!metadata.cfgNum &&
+	            ["app", "issuer", "catandapp", "tree"].includes(location.type)) {
+	            dispatch(getConfigAsync());
 	        }
-	        fetchData();
-	    }, [config, metadata.cfgNum, dispatch, location.type]);
+	    }, [metadata.cfgNum, dispatch, location.type]);
+	    // The parameter tree is static: fetch it once, not on every config change
+	    reactExports.useEffect(function () {
+	        if (location.type === "tree" && !tree) {
+	            getTree()
+	                .then(function (response) { return response.json(); })
+	                .then(setTree);
+	        }
+	    }, [location.type, tree]);
 	    var content = (function () {
 	        switch (location.type) {
 	            case "app":

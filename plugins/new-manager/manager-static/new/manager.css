@@ -1082,6 +1082,15 @@ textarea {
   border-bottom: 1px solid #e0e0e0;
 }
 
+.issuersCaption {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-right: -12px;
+}
+
 .issuers {
   font-size: 0.95rem;
   display: flex;
@@ -1220,6 +1229,97 @@ textarea {
 .title3 {
   font-size: large;
   padding: 15px;
+}
+
+.configChanges {
+  margin-bottom: 16px;
+}
+
+.configChanges ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 40vh;
+  overflow: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.configChanges li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 10px;
+  border-left: 3px solid transparent;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 0.85rem;
+}
+
+.configChanges li:last-child {
+  border-bottom: none;
+}
+
+.configChanges li.added {
+  border-left-color: #2e7d32;
+}
+
+.configChanges li.removed {
+  border-left-color: #c62828;
+}
+
+.configChanges li.changed {
+  border-left-color: #ed6c02;
+}
+
+.configChangePath {
+  color: #334155;
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.configChangeValues {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.configChangeValues .before {
+  color: #c62828;
+  text-decoration: line-through;
+}
+
+.configChangeValues .after {
+  color: #2e7d32;
+}
+
+.configChangeValues details {
+  text-decoration: none;
+}
+
+.configChangeValues details summary {
+  cursor: pointer;
+}
+
+.configChangeValues details pre {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  background: #f8fafc;
+  padding: 6px;
+  margin: 4px 0 0;
+}
+
+.configChangeValues .arrow {
+  color: #64748b;
+}
+
+.configChangesEmpty,
+.configChangesMore {
+  color: #64748b;
+  font-style: italic;
 }
 
 /* Configuration app left rail, matching the sessions explorer look

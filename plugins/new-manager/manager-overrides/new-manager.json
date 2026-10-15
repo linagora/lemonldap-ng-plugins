@@ -1,5 +1,9 @@
 {
    "lang" : {
+      "activeIssuers" : {
+         "en" : "Active identity providers",
+         "fr" : "Fournisseurs d'identité actifs"
+      },
       "activeNotifications" : {
          "en" : "Active notifications",
          "fr" : "Notifications actives"
@@ -56,6 +60,10 @@
          "en" : "New manager (beta)",
          "fr" : "Nouveau manager (bêta)"
       },
+      "noChanges" : {
+         "en" : "No changes",
+         "fr" : "Aucune modification"
+      },
       "noSession" : {
          "en" : "No session",
          "fr" : "Aucune session"
@@ -63,6 +71,14 @@
       "oldManager" : {
          "en" : "Old Manager",
          "fr" : "Ancien Manager"
+      },
+      "otherChanges" : {
+         "en" : "other changes",
+         "fr" : "autres modifications"
+      },
+      "pendingChanges" : {
+         "en" : "Pending changes",
+         "fr" : "Modifications en attente"
       },
       "rename" : {
          "en" : "Rename",
