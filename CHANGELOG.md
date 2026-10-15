@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.5 - 2026-10-15
+
+Update new manager
+
 ## v0.5.4 - 2026-10-12
 
 Touched plugins bumped to **0.5.4** in lockstep: `lang-mn` (new),
