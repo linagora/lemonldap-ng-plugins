@@ -12,8 +12,8 @@ It takes care of:
    (needed because `Common` ships autosplit modules).
 3. **Symlinking** the plugin's `lib/` files into the correct LLNG component
    (Portal / Handler / Manager / Common), its `t/` files into that
-   component's `t/` directory, its `portal-templates/`, `portal-static/`
-   and `manager-static/` into the matching site trees.
+   component's `t/` directory, its `portal-templates/`, `portal-static/`,
+   `manager-static/` and `manager-templates/` into the matching site trees.
 4. **Merging** `portal-translations/{en,fr,…}.json` into
    `lemonldap-ng-portal/site/htdocs/static/languages/` additively
    (never overwrites a core key; un-merge is tracked per plugin).
@@ -82,6 +82,7 @@ registration, add to `~/.claude.json`:
 | `portal-templates/`            | `lemonldap-ng-portal/site/templates/`                                                                                                |
 | `portal-static/`               | `lemonldap-ng-portal/site/htdocs/static/`                                                                                            |
 | `manager-static/`              | `lemonldap-ng-manager/site/htdocs/static/`                                                                                           |
+| `manager-templates/`           | `lemonldap-ng-manager/site/templates/`                                                                                               |
 | `portal-translations/*.json`   | **merged** into `.../static/languages/*.json` (added keys are tracked in `.llng-test/state/<plugin>/translations.json` for un-merge) |
 
 A plugin's primary component is picked by scanning its `.pm` files,

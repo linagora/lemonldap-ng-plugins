@@ -30,6 +30,7 @@ const ASSET_TREES = [
   { src: "portal-templates", dst: ["lemonldap-ng-portal", "site", "templates"] },
   { src: "portal-static", dst: ["lemonldap-ng-portal", "site", "htdocs", "static"] },
   { src: "manager-static", dst: ["lemonldap-ng-manager", "site", "htdocs", "static"] },
+  { src: "manager-templates", dst: ["lemonldap-ng-manager", "site", "templates"] },
 ];
 
 const TRANSLATIONS_DIR = [

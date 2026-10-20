@@ -28,7 +28,8 @@ const TOOLS = [
     description:
       "Clone LemonLDAP::NG into .llng-test/ (if needed), run `make common`, " +
       "and symlink the plugin's lib/, t/, portal-templates/, portal-static/, " +
-      "manager-static/ into the LLNG tree, and merge portal-translations/ " +
+      "manager-static/, manager-templates/ into the LLNG tree, and merge " +
+      "portal-translations/ " +
       "into the portal's languages/ directory. Plugins declared in " +
       "`depends` (plugin.json) are linked transitively before the primary " +
       "plugin; use `with` to add extra dependencies and `noDeps` to disable " +

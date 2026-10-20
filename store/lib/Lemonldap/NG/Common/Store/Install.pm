@@ -16,6 +16,8 @@ our $VERSION = '2.23.0';
 my $DEFAULT_PORTALTEMPLATESDIR = '/usr/share/lemonldap-ng/portal/templates';
 my $DEFAULT_PORTALSTATICDIR    = '/usr/share/lemonldap-ng/portal/htdocs/static';
 my $DEFAULT_MANAGERSTATICDIR   = '/usr/share/lemonldap-ng/manager/htdocs/static';
+my $DEFAULT_MANAGERTEMPLATESDIR =
+  '/usr/share/lemonldap-ng/manager/htdocs/templates';
 my $DEFAULT_CONFDIR            = '/etc/lemonldap-ng';
 
 # Derive INSTALLSITELIB from where this module was loaded
@@ -33,6 +35,7 @@ my %DIR_MAP = (
     'portal-templates'  => \$DEFAULT_PORTALTEMPLATESDIR,
     'portal-static'     => \$DEFAULT_PORTALSTATICDIR,
     'manager-static'    => \$DEFAULT_MANAGERSTATICDIR,
+    'manager-templates' => \$DEFAULT_MANAGERTEMPLATESDIR,
 );
 
 sub new {

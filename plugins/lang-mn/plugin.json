@@ -1,0 +1,16 @@
+{
+  "name": "lang-mn",
+  "version": "0.5.4",
+  "summary": "Mongolian (mn) translation of the portal",
+  "description": "Adds the Mongolian language to the LemonLDAP::NG portal: the mn.json language file and the mn.png flag, installed in the portal static directory next to the core languages. Add mn to the portal languages list to enable it.",
+  "author": "Linagora <https://linagora.com>",
+  "license": "GPL-2.0",
+  "llng_compat": ">=2.0.0",
+  "perl_requires": {},
+  "tags": [
+    "i18n",
+    "translation"
+  ],
+  "homepage": "https://github.com/linagora/lemonldap-ng-plugins",
+  "post_install": "Add 'mn' to the 'languages' parameter of the [portal] section of lemonldap-ng.ini (e.g. 'languages = en, fr, mn'), then reload the portal."
+}

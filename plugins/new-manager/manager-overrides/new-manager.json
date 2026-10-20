@@ -1,0 +1,104 @@
+{
+   "lang" : {
+      "activeIssuers" : {
+         "en" : "Active identity providers",
+         "fr" : "Fournisseurs d'identité actifs"
+      },
+      "activeNotifications" : {
+         "en" : "Active notifications",
+         "fr" : "Notifications actives"
+      },
+      "advancedConfiguration" : {
+         "en" : "Advanced configuration",
+         "fr" : "Configuration avancée"
+      },
+      "appNum" : {
+         "en" : "Number of app",
+         "fr" : "Nombre d'applications"
+      },
+      "applications" : {
+         "en" : "Applications",
+         "fr" : "Applications"
+      },
+      "backToLegacyManager" : {
+         "en" : "Back to the classic manager",
+         "fr" : "Retour au manager classique"
+      },
+      "basicOptions" : {
+         "en" : "Basic Options",
+         "fr" : "Options basiques"
+      },
+      "clickToDisplay" : {
+         "en" : "Click on a session to display it",
+         "fr" : "Cliquez sur une session pour l'afficher"
+      },
+      "configurationManager" : {
+         "en" : "Configuration Manager",
+         "fr" : "Gestionnaire de configuration"
+      },
+      "delete" : {
+         "en" : "Delete",
+         "fr" : "Supprimer"
+      },
+      "downloadLastConf" : {
+         "en" : "Download last configuration",
+         "fr" : "Télécharger la dernière configuration"
+      },
+      "home" : {
+         "en" : "Home",
+         "fr" : "Accueil"
+      },
+      "indent" : {
+         "en" : "Indent",
+         "fr" : "Indenter"
+      },
+      "llngVersion" : {
+         "en" : "Running version",
+         "fr" : "Version en cours d'execution"
+      },
+      "newManager" : {
+         "en" : "New manager (beta)",
+         "fr" : "Nouveau manager (bêta)"
+      },
+      "noChanges" : {
+         "en" : "No changes",
+         "fr" : "Aucune modification"
+      },
+      "noSession" : {
+         "en" : "No session",
+         "fr" : "Aucune session"
+      },
+      "oldManager" : {
+         "en" : "Old Manager",
+         "fr" : "Ancien Manager"
+      },
+      "otherChanges" : {
+         "en" : "other changes",
+         "fr" : "autres modifications"
+      },
+      "pendingChanges" : {
+         "en" : "Pending changes",
+         "fr" : "Modifications en attente"
+      },
+      "rename" : {
+         "en" : "Rename",
+         "fr" : "Renomer"
+      },
+      "saveWithWarnings" : {
+         "en" : "Cannot save with app warnings",
+         "fr" : "On ne peut pas sauvegarder avec des avertissements dans la configuration"
+      },
+      "tryNewManager" : {
+         "en" : "Try the new manager (beta)",
+         "fr" : "Essayer le nouveau manager (bêta)"
+      },
+      "unavailable" : {
+         "en" : "Unavailable",
+         "fr" : "Indisponible"
+      },
+      "usersWith2F" : {
+         "en" : "Users with second factors",
+         "fr" : "Utilisateurs avec un second facteur"
+      }
+   }
+}

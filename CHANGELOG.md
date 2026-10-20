@@ -225,6 +225,67 @@ fleet down.
   branch, which had let jobs pinned to a release report green after testing
   `master`.
 
+## v0.5.5 - 2026-10-15
+
+Update new manager
+
+## v0.5.4 - 2026-10-12
+
+Touched plugins bumped to **0.5.4** in lockstep: `lang-mn` (new),
+`new-manager`.
+
+### new-manager
+
+- **Third-party license notices are shipped with the bundles**
+  (`static/new/*.licenses.txt`), and the unused `web-vitals` module
+  (Apache-2.0) is no longer bundled.
+
+### lang-mn (new)
+
+- **Feature — Mongolian portal**: `mn.json` and the `mn.png` flag, installed
+  next to the core languages in the portal static directory (not merged into
+  an existing file). Enabled by adding `mn` to `languages` in the `[portal]`
+  section of `lemonldap-ng.ini`.
+
+### Packaging
+
+- **Fix — portal-only plugins no longer pull the store**: a package shipping
+  only portal files (static, templates, translations) has no `Pre-Depends`
+  on `linagora-lemonldap-ng-store` and installs on any LLNG version.
+
+## v0.5.3 - 2026-10-09
+
+Touched plugins bumped to **0.5.3** in lockstep: `new-manager` (new).
+
+### new-manager (new)
+
+- **Feature — the new LemonLDAP::NG 3.0 manager interface on 2.23**:
+  configuration, sessions, notifications and second factors explorers, and a
+  home page summarizing the enabled modules. Append `newManager` to
+  `enabledModules`: the historical interface stays the default and gets a
+  "New manager (beta)" tab, the new one a link back. The bundles are the
+  readable build of the LLNG new manager, patched for the 2.23 APIs.
+- The Debian package conflicts with `liblemonldap-ng-manager-perl (>= 3.0.0~)`,
+  which ships this interface.
+
+### store
+
+- **Feature — plugins can ship manager templates** (`manager-templates/`).
+- **Feature — `nstruct.json` for the new manager on LLNG < 3.0**:
+  `llng-build-manager-files` builds it (with the plugin overrides) when the
+  installed `Build.pm` can not.
+- **Fix — upgrading the store together with a plugin did not rebuild the
+  manager files**: dpkg runs no trigger for a package configured in the same
+  run, the store now also rebuilds on configure.
+
+### Packaging
+
+- Plugin Debian packages now install `manager-static/` and
+  `manager-templates/`, and `plugin.json` accepts extra Debian relations
+  (`"debian": {"depends": [...], "conflicts": [...]}`).
+- `linagora-llng-build-manager-files` is kept until LemonLDAP::NG 3.0 (it
+  generates the new manager metadata).
+
 ## v0.5.2 - 2026-08-31
 
 Touched plugins bumped to **0.5.2** in lockstep: `pam-access`.

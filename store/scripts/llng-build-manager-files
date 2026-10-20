@@ -475,6 +475,22 @@ Lemonldap::NG::Manager::Build->run(
     docConstantsFile           => $doc_constants_file,
 );
 
+# 6b. LLNG < 3.0: Build.pm ignores newStructFile, build nstruct.json here
+# (from the struct.json just written and the merged ctrees). Only when the
+# new manager is installed, like its other metadata files (see 6c).
+if (   $new_struct_file ne '/dev/null'
+    && $struct_file ne '/dev/null'
+    && -d dirname($new_manager_tree_file)
+    && do { require Lemonldap::NG::Common::Store::NStruct; 1 }
+    && Lemonldap::NG::Common::Store::NStruct->needed )
+{
+    verbose "Generating $new_struct_file...\n";
+    Lemonldap::NG::Common::Store::NStruct->build(
+        structFile    => $struct_file,
+        newStructFile => $new_struct_file,
+    );
+}
+
 # 6c. Generate the new (React) manager metadata files, fetched at runtime by
 # that UI instead of being bundled: the attribute list without documentation,
 # the documentation strings alone, and the configuration tree in the React
