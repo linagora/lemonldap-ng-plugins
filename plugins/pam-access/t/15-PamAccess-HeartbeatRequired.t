@@ -143,7 +143,8 @@ count(5);
 # ===========================================================================
 
 my $old = time() - 5000;
-$oidc->updateToken( $atSession->id, { _pamLastSeen => $old } );
+my $update = $oidc->can('updateState') || $oidc->can('updateToken');
+$oidc->$update( $atSession->id, { _pamLastSeen => $old } );
 ok( $res = authorize_with($minted),
     'POST /pam/authorize with an old token but a live server' );
 expectOK($res);

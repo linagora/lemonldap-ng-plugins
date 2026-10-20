@@ -82,11 +82,14 @@ jobs:
               tag="v$max"
               if tag_exists "$tag"; then
                 refs+=("$tag")
-                skip_main=true
-                echo "  $name: max tag $tag found -> skipping $DEFAULT_BRANCH"
+                echo "  $name: max tag $tag found"
               else
                 echo "  $name: max tag $tag not in remote"
               fi
+              # The default branch is the next unreleased major, beyond any
+              # declared upper bound
+              skip_main=true
+              echo "  $name: max $max declared -> skipping $DEFAULT_BRANCH"
             fi
 
             if [ "$skip_main" = "false" ]; then
