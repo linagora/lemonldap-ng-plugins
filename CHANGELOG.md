@@ -1,229 +1,112 @@
 # Changelog
 
-## Unreleased (v0.6.0)
+## v0.6.0 - 2026-10-20
 
 Touched plugins bumped to **0.6.0** in lockstep: `ldap-rest` (new),
-`oidc-device-authorization`, `oidc-device-organization`, `pam-access`,
-`ssh-ca`.
+`krb-provisioning`, `oidc-device-authorization`, `oidc-device-organization`,
+`oidc-jarm`, `pam-access`, `ssh-ca`, plus 17 plugins whose only change is the
+new translations.
 Theme: the security audit of the open-bastion SSO chain — ssh-ca, pam-access
 and the device grant. **This round changes behaviour operators may rely on:
-read [UPGRADING.md](UPGRADING.md) before deploying.**
-
-`pam-access` 0.6.0 requires **open-bastion 0.7.0 or later**: `/pam/bastion-token`
-is gone, so `ob-bastion-id` from an older client answers 404 and a new bastion
-cannot be brought into service. See upgrade note 6.
-
-### Upgrade notes
-
-Moved to [UPGRADING.md](UPGRADING.md) — everything an operator has to do or
-check before deploying this round, including the one change that can take a
-fleet down.
+read [UPGRADING.md](UPGRADING.md) before deploying.** In particular,
+`pam-access` now requires **open-bastion 0.7.0 or later** (upgrade note 6).
 
 ### ssh-ca
 
 - **Security fix — the administration endpoints performed no authorization**
-  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)). Any SSO
-  user could list and revoke everyone's certificates. New `sshCaAdminRule`
-  (boolOrExpr), **denying while unset**, audited as `SSH_CA_ADMIN_DENIED`.
+  ([#58](https://github.com/linagora/lemonldap-ng-plugins/issues/58)): any SSO
+  user could list and revoke every certificate. New `sshCaAdminRule`,
+  **denying while unset**.
+- **Security fix — cross-site POSTs** (#62): `/ssh/sign`, `/ssh/myrevoke` and
+  `/ssh/revoke` now require `application/json` and refuse a foreign `Origin`.
 - **Security fix — the CA private key no longer lingers in `/tmp`** (#60).
-  `tempdir(CLEANUP => 1)` cleans at *program* exit, so every `/ssh/sign` left
-  a copy for the worker's lifetime.
-- **Fix — a KRL write could truncate the live file and lock every host out of
-  SSH** (#59). sshd fails closed on an unparsable `RevokedKeys`. Writes are
-  now atomic (temp file + `rename()`) under an `flock` shared by the portal,
-  the broker handler and `sshca-rebuild-krl`.
-- **Fix — `/ssh/revoked` served whatever was on disk** (#59, #64). The KRL
-  framing is validated before serving (a truncated file keeps a valid magic);
-  an absent or empty KRL is regenerated as a valid empty one.
-- **Fix — the broker revocation handler did not validate its serial** (#65).
-  A newline injected arbitrary directives into the `ssh-keygen` spec file.
-- **Feature — key type and size policy** (#61), `sshCaAllowedKeyTypes` and
-  `sshCaMinKeyBits`, decided from the decoded key blob rather than the
-  textual prefix.
-- **Fix — input validation and dead parameters** (#67). `validity_days`,
-  `limit`/`offset` and the revocation `reason` are checked; `sshCaKeyType`,
-  `sshCaCertDefaultValidity` and `sshCaSerialPath` are gone; the POD said
-  minutes where the code means days.
-- **Security fix — the POST routes accepted a cross-site form body** (#62).
-  `/ssh/sign`, `/ssh/myrevoke` and `/ssh/revoke` parsed the body themselves,
-  bypassing the core's `application/json` requirement, so a page on another
-  origin could re-sign a victim's public key and KRL-revoke their live
-  certificate. The content type is now enforced and a foreign `Origin` is
-  refused. Reachable only where the SSO cookie is `SameSite=None` (SAML
-  deployments); no shipped configuration was affected.
-- **Fix — `/ssh/sign` had no rate limit and nothing capped the KRL** (#63).
-  Each re-signature appends a serial and rewrites the whole KRL, so a loop was
-  a cheap authenticated denial of service against every `sshd` in the fleet.
-  New `sshCaSignMaxPerHour` (20, 429 + `Retry-After`) and
-  `sshCaMaxCertsPerUser` (20, 409); a re-signature replaces a record and is
-  not counted. `0` disables either.
-- **Fix — concurrent signatures and revocations lost records** (#66).
-  `_sshCerts` was one JSON array rebuilt in full on every write; certificates
-  now live one key per fingerprint (`_sshCert::<fp>`). Pre-upgrade sessions
-  are drained automatically on the next signature or revocation.
-
-  Two limits, stated rather than implied: the first write on a pre-upgrade
-  session still rewrites the array wholesale, so two concurrent writes there
-  can lose one (once per session, self-healing); and the fix narrows the
-  collision window rather than closing it — no plugin has a compare-and-swap,
-  and nothing here claims atomicity.
+- **Fix — KRL robustness** (#59, #64, #65): atomic writes under a shared lock
+  (a truncated KRL locked every host out of SSH), framing checked before
+  `/ssh/revoked` serves it, serial validated by the broker revocation handler.
+- **Fix — no rate limit on `/ssh/sign`** (#63): `sshCaSignMaxPerHour` and
+  `sshCaMaxCertsPerUser` (20 each, `0` disables).
+- **Fix — concurrent writes lost certificates** (#66): one session key per
+  certificate; older sessions are migrated on their next write.
+- **Feature — key type and size policy** (#61): `sshCaAllowedKeyTypes`,
+  `sshCaMinKeyBits`.
+- **Input validation** (#67); the unused `sshCaKeyType`,
+  `sshCaCertDefaultValidity` and `sshCaSerialPath` are gone.
 
 ### pam-access
 
-- **Feature — signed answers of the `/pam/*` endpoints** (#100,
-  open-bastion#339). Nothing but TLS vouched for `valid: true` or a sudo
-  grant: a host accepting a too-broad CA, or running with `verify_ssl` off,
-  could be told anything. With `Accept: application/ob-pam-response+jwt`,
-  `authorize`, `verify`, `userinfo`, `whoami` and `heartbeat` answer a JWS
-  (`typ: ob-pam-response+jwt`) signed with the key published at
-  `/oauth2/jwks?client_id=`, refusals included. `req_nonce` and `req_sha256`
-  bind it to one request, so an `X-Nonce` is required (`400
-  nonce_required`); the heartbeat also carries the current `jwks` so hosts
-  can follow a key rotation (procedure in the README). Never `none` nor
-  `HS*`; an answer that cannot be signed is an unsigned `500
-  response_signing_unavailable`. Optional `pamAccessResponseSigningAlg`.
-  Nothing changes without the header.
+- **Feature — signed answers** (#100, open-bastion#339): with
+  `Accept: application/ob-pam-response+jwt`, the `/pam/*` endpoints answer a
+  JWS bound to the request (`X-Nonce` required) and signed with the key
+  published at `/oauth2/jwks?client_id=`. Nothing changes without the header.
+- **Feature — `X-Signature-256` request verification** (#81, open-bastion#188):
+  `pamAccessRequestSigningMode` (`off` / `optional` / `required`), off by
+  default. Read upgrade note 10 before choosing `required`.
 - **Security fix — `/pam/verify` and `/pam/userinfo` did not check the
-  caller's scope** (#51). Any device-grant token could enumerate users or
-  burn a one-time token. One gate now fronts the six endpoints, matching the
-  scope exactly instead of a regex that also accepted `pam-x` and `x-pam`.
-- **Feature — the `X-Signature-256` request verifier** (#81,
-  open-bastion#188). The PAM client has been signing some of its calls for a
-  while and nothing read the headers. `pamAccessRequestSigningMode` (`off` /
-  `optional` / `required`), `...Secret` and `...Window`: timestamp window,
-  single-use nonce in shared storage, constant-time HMAC over the raw body.
-  Checked in that order so an unauthenticated caller never reaches the step
-  that writes. Off by default, and see upgrade note 10 before considering
-  `required`: `optional` already refuses a *bad* signature on the two
-  endpoints the client actually signs.
-- **Security fix — `/pam/*` accepted any device-grant token, and any host
-  could declare itself a bastion** (#50). New `pamAccessAllowedRps` binds the
-  token to a PAM relying party and, once set, refuses a self-declared bastion
-  `server_group`. Empty by default: an upgrade changes nothing until the list
-  is filled in.
-- **New — `POST /pam/whoami`**: an enrolled server reads back the per-device
-  id the portal assigned it at enrollment. That id is the `bastion=<id>` in
-  every hop certificate's key-id, which the backends match against their
-  allowlist, so an operator has to be able to read it — and nothing served it
-  once `/pam/bastion-token`'s probe mode was removed: no other endpoint
-  exposes the caller's identity, which the tests pin as tripwires. A pure read
-  behind the standard caller gate: no session write, no `_pamSeen` stamp, and
-  `pamAccessAllowedRps` plus request signing apply to it unchanged.
-- **Removed the deprecated `/pam/bastion-token`** (#57). Superseded by
-  `/pam/bastion-cert`, its transport already purged from open-bastion, and it
-  signed a JWT even when the user lookup had failed. Gone with it:
+  caller's scope** (#51); the scope is now matched exactly on every endpoint.
+- **Security fix — any device-grant token was accepted and any host could
+  declare itself a bastion** (#50): new `pamAccessAllowedRps`, empty by
+  default.
+- **New — `POST /pam/whoami`**: an enrolled server reads back the device id
+  it was assigned (the `bastion=<id>` of hop certificates).
+- **Removed — the deprecated `/pam/bastion-token`** (#57), with
   `pamAccessBastionJwtTtl` and `pamAccessBastionMaxSeenAge`.
-- **Fix — the source-address pin was silently skipped** (#56). When
-  `pamAccessBastionCertPinSourceAddress` was set and the observed address was
-  unusable, `/pam/bastion-cert` minted an unpinned certificate that nothing
-  distinguished from a pinned one. It now refuses.
-- **Fix — a voucher minted without a fingerprint got the full 12h TTL** (#55),
-  so "revoking the SSO invalidates the voucher" depended on an optional
-  binding. Unbound vouchers are capped by the new
-  `pamAccessBastionVoucherUnboundTtl` (15 min), and the new
-  `pamAccessRequireFingerprint` refuses the unbound case outright.
-- **Fix — two concurrent logins could lose a bastion voucher** (#54). The
-  vouchers shared one `_pamBastionVouchers` map in the user's persistent
-  session, rewritten wholesale on every mint. Each voucher now has **its own
-  session record** (`kind => PAMVOUCHER`, id derived from user and
-  `bastion_id`), stored the way the core stores an authorization code: on the
-  global store with its TTL in `_utime`, pinned there and to `hashStore => 0`
-  regardless of `tokenUseGlobalStorage` and `hashedSessionStore` — a voucher
-  is minted on the node that answered `/pam/authorize` and spent on whichever
-  node answers `/pam/bastion-cert`.
-
-  Both previous shapes are still read and are carried into a record by the
-  next `/pam/authorize`; neither is deleted, so a cluster can be upgraded node
-  by node — at the cost of a voucher minted during that window possibly
-  needing one reconnection to the bastion. One limit remains: two concurrent
-  `/pam/authorize` for the same `(user, bastion_id)` with no live nonce yet
-  both mint, and the loser's shell gets `voucher_mismatch` on its next hop,
-  recovering at the following `/pam/authorize`.
-- **Fix — concurrent `/pam/verify` calls could both accept one token** (#53).
-  The one-time token was consumed ~145 lines and one store round-trip after it
-  was read. It is now consumed before any check runs, and a verify that did
-  not win the delete answers invalid.
-- **`pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` are no
-  longer inert** (#52). They were Manager-exposed and read by no code;
-  `/pam/authorize` now refuses a caller that has stopped beating. Defaults
-  unchanged, so deployments that never ticked the box are unaffected.
+- **Fix — bastion vouchers** (#54, #55, #56): one session record per voucher,
+  so concurrent logins no longer lose one; unbound vouchers capped by
+  `pamAccessBastionVoucherUnboundTtl` (or refused with
+  `pamAccessRequireFingerprint`); an unusable source address now refuses
+  instead of minting an unpinned certificate.
+- **Fix — a one-time token could be accepted twice** (#53).
+- **Fix — `pamAccessHeartbeatRequired` and `pamAccessInactiveThreshold` were
+  ignored** (#52).
 
 ### oidc-device-authorization
 
-- **Fix — a poll could overwrite an admin approval or denial** (#69). The
-  polling path wrote `status => 'pending'` on every poll, so a clobbered
-  denial let a second approver grant what an admin had refused. Polls now
-  write their bookkeeping only.
-- **Fix — the user code was stored in cleartext and logged** (#73). It is no
-  longer persisted in either session record, and the logs carry its digest.
-- **Fix — a device_code could be exchanged twice** (#68). Consumption is now
-  conditional on winning the delete, and both consumed sessions are evicted
-  from every node's cache (`unlog`) instead of only the writing node's — which
-  had turned a millisecond race into the whole code TTL.
-- **Feature — bounds and a lockout on the user code** (#70). Manager bounds
-  on length, interval and TTL, plus
-  `oidcServiceDeviceAuthorizationMaxFailures` (5) and
-  `...LockoutDelay` (300 s), independent of CrowdSec.
-- **Security fix — the user code lookup index is now keyed** (#83). It was
-  `sha256_hex(user_code)`: 20^8 is seconds on a GPU, so a reader of the session
-  backend could recover every pending code. It is now
-  `hmac_sha256_hex(user_code, key)`, with a fallback read on the old index so
-  authorizations in flight across the upgrade still resolve.
-- **Security fix — the audit trail no longer carries a live user code** (#84).
-  `INITIATED` and `INVALID_CODE` record the index; approve and deny keep the
-  code itself, where it is already spent.
-- **Robustness and docs** (#74, #75). Dead `$max_expected` removed, the error
-  page sanitises the reflected code, and the README documents the real
-  verification route (`/device`) and the boolOrExpr form of
-  `AllowDeviceAuthorization` — `1` lets *any* authenticated user approve.
+- **Fix — a poll could overwrite an admin approval or denial** (#69), and
+  **a device_code could be exchanged twice** (#68).
+- **Security fix — the user code is no longer stored nor logged in clear**
+  (#73, #83, #84): keyed (HMAC) lookup index, digest in logs and audit records.
+- **Feature — user code bounds and lockout** (#70):
+  `oidcServiceDeviceAuthorizationMaxFailures`, `...LockoutDelay`.
+- Error page sanitised, README corrected (#74, #75).
 
 ### oidc-device-organization
 
-- **Tests — the identity-critical paths are now pinned** (#71). `_deviceId`
-  stability across a `/pam/heartbeat` refresh, the `AllowOffline=0` +
-  `ownership=organization` combination (access token, no refresh token), the
-  identity swap itself (no admin attribute survives the session copy, the
-  device outlives the admin's SSO session), and the fact that the core
-  `refresh_token` grant does *not* serve these tokens — a constraint the
-  plugin's design leans on. 52 → 125 assertions.
-- **Fix — the plugin failed OPEN when the synthetic device session could not
-  be created** (#72). The enrollment completed against the approving admin's
-  session, with no `_deviceId` at all; it now answers `server_error`.
-- **Fix — the synthetic session outlived its refresh token by `timeout`**
-  (#75), and ignored the per-RP offline expiration.
-- **First test suite**, partial answer to #71.
+- **Fix — the enrollment failed open when the device session could not be
+  created** (#72); it now answers `server_error`.
+- **Fix — the device session outlived its refresh token** (#75).
+- **Tests** for the identity-critical paths (#71).
 
 ### ldap-rest (new)
 
-- **Feature — directory writes delegated to
-  [ldap-rest](https://github.com/linagora/ldap-rest)**, for portals not
-  allowed to write into the directory. `Password::LdapRest` (reads stay on
-  LDAP, the write is a `PUT`) and `Register::LdapRest` (no LDAP connection at
-  all). Authentication `none`, `token` or `hmac`, optional RFC 3112 client
-  side hashing.
-
-### oidc-jarm
-
-- **Fix — the manager rejected RPs without JARM encryption**:
-  `oidcRPMetaDataOptionsJarmEncKeyMgtAlg: Invalid value '' for this select`.
-  The select now offers `None` (`''`), like the core `*EncKeyMgtAlg` options;
-  the portal already treated an empty value as "do not encrypt".
+- **Feature — password change and registration through
+  [ldap-rest](https://github.com/linagora/ldap-rest)**
+  (`Password::LdapRest`, `Register::LdapRest`), for portals not allowed to
+  write into the directory.
 
 ### krb-provisioning
 
-- **Feature — a password changed on the portal reaches Kerberos at once.**
-  The plugin also hooks `passwordAfterChange`, in the password tab as in the
-  change forced after a reset. The key used to follow only at the next
-  password login, which never comes for users who sign in by Kerberos SSO.
+- **Feature — a password changed on the portal reaches Kerberos at once**,
+  instead of at the next password login.
 
-### Tooling
+### oidc-jarm
 
-- **The LLNG clone is retried** (5 attempts over ~45 s) when `gitlab.ow2.org`
-  answers 403 or the transport fails — a recurring cause of red jobs on
-  plugins unrelated to the change under test. A `--ref` clone that fails for a
-  transport reason now raises instead of silently falling back to the default
-  branch, which had let jobs pinned to a release report green after testing
-  `master`.
+- **Fix — the manager rejected RPs without JARM encryption**: the key
+  management algorithm select now offers `None`.
+
+### Translations
+
+- **Spanish and Italian**: manager strings of every plugin above and of 17
+  others, portal strings of `oidc-device-authorization`, `pam-access` and
+  `ssh-ca`.
+
+### Packaging and tooling
+
+- A plugin's `debian/NEWS` is shipped as `NEWS.Debian`, shown by
+  apt-listchanges on upgrade.
+- `open-bastion-plugins-autoconfig` writes the denying `sshCaAdminRule`
+  explicitly and logs the rule to set.
+- The LLNG test clone is retried on transport failures, which no longer fall
+  back silently to the default branch.
 
 ## v0.5.5 - 2026-10-15
 
