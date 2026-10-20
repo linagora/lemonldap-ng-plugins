@@ -308,6 +308,8 @@ jobs:
 
       - name: Build APT repository
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apt-utils dpkg-dev
           chmod +x debian/build-repo.sh
           GPG_PASSPHRASE="${{ secrets.GPG_PASSPHRASE }}" debian/build-repo.sh _debs _site/debian
 
