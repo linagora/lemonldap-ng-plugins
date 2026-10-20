@@ -316,7 +316,9 @@ sub addToAccessToken {
 
     $payload->{authorization_details} = $d;
     if ( my $jti = $payload->{jti} ) {
-        $self->oidc->updateToken( $jti, { &SESSION_KEY => $d } );
+        my $update =
+          $self->oidc->can('updateState') || $self->oidc->can('updateToken');
+        $self->oidc->$update( $jti, { &SESSION_KEY => $d } );
     }
     return PE_OK;
 }

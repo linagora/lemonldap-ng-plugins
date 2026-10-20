@@ -295,7 +295,9 @@ sub storeRSInAccessTokenSession {
     my $token = $tokensResponse->{access_token} or return PE_OK;
     my $at_id = getAccessTokenSessionId($token) or return PE_OK;
 
-    $self->oidc->updateToken( $at_id, { rs_audiences => $rs_aud } );
+    my $update =
+      $self->oidc->can('updateState') || $self->oidc->can('updateToken');
+    $self->oidc->$update( $at_id, { rs_audiences => $rs_aud } );
     $self->logger->debug(
         "OIDCResourceIndicators: Patched AT session $at_id with RS audiences: "
           . join( ', ', @$rs_aud ) );

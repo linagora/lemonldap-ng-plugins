@@ -57,8 +57,12 @@ has ott => (
     is      => 'rw',
     lazy    => 1,
     default => sub {
-        my $ott =
-          $_[0]->{p}->loadModule('Lemonldap::NG::Portal::Lib::OneTimeToken');
+        # OneTimeToken was renamed StateToken in LLNG >= 3.0
+        my $lib =
+          eval { require Lemonldap::NG::Portal::Lib::StateToken; 1 }
+          ? 'Lemonldap::NG::Portal::Lib::StateToken'
+          : 'Lemonldap::NG::Portal::Lib::OneTimeToken';
+        my $ott = $_[0]->{p}->loadModule($lib);
         $ott->timeout( $_[0]->conf->{formTimeout} );
         return $ott;
     }
@@ -482,7 +486,8 @@ sub displayVerification {
     $user_code =~ s/[^A-Z0-9]//gi;    # Clean up
 
     # Create CSRF token
-    my $token = $self->ott->createToken();
+    my $store = $self->ott->can('storeState') ? 'storeState' : 'createToken';
+    my $token = $self->ott->$store();
 
     # Set template parameters
     $req->data->{activeTimer} = 0;
@@ -510,7 +515,8 @@ sub submitVerification {
         $self->userLogger->error('Device verification called without token');
         return $self->p->do( $req, [ sub { PE_NOTOKEN } ] );
     }
-    unless ( $self->ott->getToken($token) ) {
+    my $get = $self->ott->can('getState') ? 'getState' : 'getToken';
+    unless ( $self->ott->$get($token) ) {
         $self->userLogger->error(
             'Device verification called with invalid/expired token');
         return $self->p->do( $req, [ sub { PE_TOKENEXPIRED } ] );

@@ -306,7 +306,9 @@ sub addGrantIdToAccessToken {
 
     $payload->{grant_id} = $grant_id;
     if ( my $jti = $payload->{jti} ) {
-        $self->oidc->updateToken( $jti, { grant_id => $grant_id } );
+        my $update =
+          $self->oidc->can('updateState') || $self->oidc->can('updateToken');
+        $self->oidc->$update( $jti, { grant_id => $grant_id } );
     }
     return PE_OK;
 }
