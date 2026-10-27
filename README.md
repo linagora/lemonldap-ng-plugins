@@ -124,6 +124,12 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 ### Available plugins
 
+Four of them — `pam-access`, `ssh-ca`, `oidc-device-authorization` and
+`oidc-device-organization` — are developed in the
+[open-bastion](https://github.com/linagora/open-bastion) repository, under
+`llng/plugins/`, and reach this one through the `open-bastion` submodule. They
+are published from this store like the others.
+
 | Plugin                                                       | Description                                                | Status |
 | ------------------------------------------------------------ | ---------------------------------------------------------- | ------ |
 | [matrix-token-exchange](plugins/matrix)                      | Matrix federation token exchange for OIDC relying parties  | stable |
