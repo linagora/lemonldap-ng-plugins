@@ -612,7 +612,7 @@ export async function prepareTest(
   if (!skipMake) await makeCommon(log);
 
   const primaryComponent = await detectPrimaryComponent(
-    path.join(PLUGINS_DIR, primary),
+    pluginDir(primary),
   );
   log.push(
     `Plugins to link (in order): ${chain.join(", ")} — primary component: ${primaryComponent}`,
@@ -646,7 +646,7 @@ export async function executeTest(
 ) {
   validatePluginName(primary);
   const component = await detectPrimaryComponent(
-    path.join(PLUGINS_DIR, primary),
+    pluginDir(primary),
   );
   const { dir } = COMPONENT_MAP[component];
   const runDir = path.join(LLNG_DIR, dir);
