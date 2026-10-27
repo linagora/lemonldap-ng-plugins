@@ -304,7 +304,12 @@ echo "  -> linagora-llng-crowdsec-filters_${COMMON_VERSION}_all.deb"
 ##############################################################################
 # Build individual plugin packages
 ##############################################################################
-for plugin_json in "${REPO_ROOT}/plugins/"*/plugin.json; do
+# The four plugins used by Open Bastion are developed in that repository
+# and reach this one as a submodule; both roots are scanned.
+PLUGIN_ROOTS=("${REPO_ROOT}/plugins" "${REPO_ROOT}/open-bastion/llng/plugins")
+for plugin_root in "${PLUGIN_ROOTS[@]}"; do
+  [ -d "$plugin_root" ] || continue
+for plugin_json in "${plugin_root}/"*/plugin.json; do
   plugin_dir="$(dirname "$plugin_json")"
   plugin_basename="$(basename "$plugin_dir")"
 
@@ -560,6 +565,7 @@ POSTINST
 
   dpkg-deb --root-owner-group --build "${PKG_BUILD}" "${OUTPUT_DIR}/${pkg_name}_${version}_all.deb"
   echo "  -> ${pkg_name}_${version}_all.deb"
+done
 done
 
 ##############################################################################

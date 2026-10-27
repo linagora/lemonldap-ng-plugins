@@ -9,7 +9,20 @@ Every plugin is a standalone Perl bundle that ships its own `lib/`,
 those files into a live LemonLDAP::NG checkout so that `prove` can see
 them alongside the core modules.
 
+Four of them — `pam-access`, `ssh-ca`, `oidc-device-authorization` and
+`oidc-device-organization` — are developed in the
+[open-bastion](https://github.com/linagora/open-bastion) repository, under
+`llng/plugins/`, and reach this one through the `open-bastion` submodule.
+Change them there, not here; this repository still builds and publishes them.
+
 ## One-time setup
+
+Initialise the `open-bastion` submodule first: the four plugins it carries
+live in `open-bastion/llng/plugins/`, and nothing below sees them otherwise.
+
+```sh
+git submodule update --init --recursive
+```
 
 Install the Node.js tooling once (the MCP server + the standalone CLI
 share the same core and both need this):
@@ -62,6 +75,10 @@ Prepare / test options:
 If you prefer a shorter name, `npm install` also registers the CLI as
 `llng-plugins-test` — symlink it or add `mcp/node_modules/.bin` to
 your `PATH`.
+
+These commands look a plugin up under `plugins/`, then under
+`open-bastion/llng/plugins/` (`pluginDir()` in `mcp/lib.js`), so the four
+carried by the submodule behave like the others once it is initialised.
 
 ### What it does, step by step
 

@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Import GPG key
         run: |
@@ -48,7 +50,9 @@ jobs:
 
           # Build each plugin archive
           PLUGINS_JSON="[]"
-          for plugin_dir in plugins/*/; do
+          for plugin_root in plugins open-bastion/llng/plugins; do
+          [ -d "$plugin_root" ] || continue
+          for plugin_dir in "$plugin_root"/*/; do
             [ -f "$plugin_dir/plugin.json" ] || continue
             plugin_name=$(basename "$plugin_dir")
 
@@ -71,7 +75,7 @@ jobs:
             # Create tar.gz with the expected top-level directory name
             tar czf "$STORE_DIR/$archive_name" \
               --exclude='*/t' \
-              --transform "s|^plugins/$plugin_name|llng-plugin-${name}-${version}|" \
+              --transform "s|^${plugin_dir%/}|llng-plugin-${name}-${version}|" \
               "$plugin_dir"
 
             # Sign archive
@@ -127,6 +131,7 @@ jobs:
 
             PLUGINS_JSON=$(echo "$PLUGINS_JSON" | jq --argjson entry "$plugin_entry" '. + [$entry]')
           done
+          done
 
           # Generate index.json
           jq -n \
@@ -156,7 +161,11 @@ jobs:
           PLUGIN_ROWS=""
           for row in $(echo "$PLUGINS_JSON" | jq -r '.[] | @base64'); do
             _jq() { echo "$row" | base64 -d | jq -r "$1"; }
-            PLUGIN_ROWS="$PLUGIN_ROWS<tr><td><strong><a href=\"${STORE_URL}/tree/main/plugins/$(_jq '.name')#readme\">$(_jq '.name')</a></strong></td><td>$(_jq '.version')</td><td>$(_jq '.summary')</td><td>$(_jq '.llng_compat')</td></tr>"
+            plugin_link="${STORE_URL}/tree/main/plugins/$(_jq '.name')"
+            if [ -d "open-bastion/llng/plugins/$(_jq '.name')" ]; then
+              plugin_link="https://github.com/linagora/open-bastion/tree/main/llng/plugins/$(_jq '.name')"
+            fi
+            PLUGIN_ROWS="$PLUGIN_ROWS<tr><td><strong><a href=\"${plugin_link}#readme\">$(_jq '.name')</a></strong></td><td>$(_jq '.version')</td><td>$(_jq '.summary')</td><td>$(_jq '.llng_compat')</td></tr>"
           done
 
           cat > "$STORE_DIR/index.html" <<HTMLEOF

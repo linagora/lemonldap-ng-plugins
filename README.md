@@ -8,7 +8,7 @@
 
 [LINAGORA](https://linagora.com) is member of [Lemonldap::NG Team](https://lemonldap-ng.org/professionalservices.html) since 2007 and actively continues to contribute.
 
-Several of these plugins power [**Open Bastion**](https://github.com/linagora/open-bastion), an open-source SSH bastion that relies on LemonLDAP::NG for centralized authentication and authorization. In particular, the [pam-access](plugins/pam-access), [ssh-ca](plugins/ssh-ca), [oidc-device-authorization](plugins/oidc-device-authorization), and [oidc-device-organization](plugins/oidc-device-organization) plugins provide the PAM integration, SSH certificate signing, and server enrollment used by Open Bastion.
+Several of these plugins power [**Open Bastion**](https://github.com/linagora/open-bastion), an open-source SSH bastion that relies on LemonLDAP::NG for centralized authentication and authorization. In particular, the pam-access, ssh-ca, oidc-device-authorization, and oidc-device-organization plugins provide the PAM integration, SSH certificate signing, and server enrollment used by Open Bastion.
 
 This repository contains:
 
@@ -124,14 +124,20 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 
 ### Available plugins
 
+Four of them — `pam-access`, `ssh-ca`, `oidc-device-authorization` and
+`oidc-device-organization` — are developed in the
+[open-bastion](https://github.com/linagora/open-bastion) repository, under
+`llng/plugins/`, and reach this one through the `open-bastion` submodule. They
+are published from this store like the others.
+
 | Plugin                                                       | Description                                                | Status |
 | ------------------------------------------------------------ | ---------------------------------------------------------- | ------ |
 | [matrix-token-exchange](plugins/matrix)                      | Matrix federation token exchange for OIDC relying parties  | stable |
 | [reports](plugins/reports)                                   | Session and browser usage reports (CSV)                    | stable |
 | [mail-autodiscover](plugins/mail-autodiscover)               | SMTP/IMAP autodiscover for Outlook and Thunderbird         | stable |
 | [json-file](plugins/json-file)                               | JSON file-based Auth/UserDB backend for dev/test           | stable |
-| [pam-access](plugins/pam-access)                             | PAM access token generation and authorization for SSH/sudo | beta   |
-| [ssh-ca](plugins/ssh-ca)                                     | SSH Certificate Authority                                  | beta   |
+| [pam-access]                                                 | PAM access token generation and authorization for SSH/sudo | beta   |
+| [ssh-ca]                                                     | SSH Certificate Authority                                  | beta   |
 | [krb-provisioning](plugins/krb-provisioning)                 | On-the-fly Kerberos principal provisioning from SSO logins | alpha  |
 | [twake](plugins/twake)                                       | Twake well-known endpoint and applicative accounts         | beta   |
 | [fixed-logout-redirection](plugins/fixed-logout-redirection) | Force redirect to a fixed URL after logout                 | beta   |
@@ -150,8 +156,8 @@ The Manager rebuild is triggered only once via dpkg triggers, even when installi
 | [oidc-par](plugins/oidc-par)                                   | Pushed Authorization Requests (RFC 9126)                  | beta   |
 | [oidc-jar](plugins/oidc-jar)                                   | JWT-Secured Authorization Request (RFC 9101)              | beta   |
 | [oidc-ciba](plugins/oidc-ciba)                                 | Client-Initiated Backchannel Authentication (CIBA)        | beta   |
-| [oidc-device-authorization](plugins/oidc-device-authorization) | Device Authorization Grant (RFC 8628)                     | beta   |
-| [oidc-device-organization](plugins/oidc-device-organization)   | Organization Device Ownership for Device Auth             | beta   |
+| [oidc-device-authorization]                                    | Device Authorization Grant (RFC 8628)                     | beta   |
+| [oidc-device-organization]                                     | Organization Device Ownership for Device Auth             | beta   |
 | [oidc-scope-applications](plugins/oidc-scope-applications)     | Portal application menu in OIDC userinfo                  | beta   |
 | [oidc-federation](plugins/oidc-federation)                     | OpenID Connect Federation (server side)                   | beta   |
 | [oidc-global-scopes](plugins/oidc-global-scopes)               | Global OIDC scopes and claim mapping for all RPs          | beta   |
@@ -203,3 +209,8 @@ are released under **GPL-2+ license**, unless specified:
 [^2]: Possible extension via [LINAGORA's OSSA](https://linagora.com/ossa)
 
 [^3]: Supported by LINAGORA inside Debian community
+
+[pam-access]: https://github.com/linagora/open-bastion/tree/main/llng/plugins/pam-access
+[ssh-ca]: https://github.com/linagora/open-bastion/tree/main/llng/plugins/ssh-ca
+[oidc-device-authorization]: https://github.com/linagora/open-bastion/tree/main/llng/plugins/oidc-device-authorization
+[oidc-device-organization]: https://github.com/linagora/open-bastion/tree/main/llng/plugins/oidc-device-organization

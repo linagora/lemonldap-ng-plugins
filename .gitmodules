@@ -1,0 +1,3 @@
+[submodule "open-bastion"]
+	path = open-bastion
+	url = ../open-bastion.git
