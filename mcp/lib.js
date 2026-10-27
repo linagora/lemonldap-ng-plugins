@@ -1,6 +1,7 @@
 // Core operations shared by the MCP server (server.js) and the CLI (cli.js).
 
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,29 @@ const __dirname = path.dirname(__filename);
 export const PROJECT_ROOT =
   process.env.LLNG_PLUGINS_ROOT || path.resolve(__dirname, "..");
 export const PLUGINS_DIR = path.join(PROJECT_ROOT, "plugins");
+
+// The four plugins used by Open Bastion are developed in that repository and
+// reach this one through the submodule; the rest still live under plugins/.
+// Every lookup goes through pluginDir(), which searches plugins/ first.
+export const SUBMODULE_PLUGINS_DIR = path.join(
+  PROJECT_ROOT,
+  "open-bastion",
+  "llng",
+  "plugins",
+);
+
+export function pluginRoots() {
+  return [PLUGINS_DIR, SUBMODULE_PLUGINS_DIR];
+}
+
+export function pluginDir(name) {
+  for (const root of pluginRoots()) {
+    const candidate = path.join(root, name);
+    if (existsSync(candidate)) return candidate;
+  }
+  return pluginDir(name);
+}
+
 export const LLNG_ROOT = path.join(PROJECT_ROOT, ".llng-test");
 export const LLNG_DIR = path.join(LLNG_ROOT, "lemonldap-ng");
 export const STATE_DIR = path.join(LLNG_ROOT, "state");
@@ -133,11 +157,17 @@ async function exists(p) {
 }
 
 export async function listPluginDirs() {
-  const entries = await fs.readdir(PLUGINS_DIR, { withFileTypes: true });
-  return entries
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name)
-    .sort();
+  const names = new Set();
+  for (const root of pluginRoots()) {
+    let entries = [];
+    try {
+      entries = await fs.readdir(root, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) if (e.isDirectory()) names.add(e.name);
+  }
+  return [...names].sort();
 }
 
 async function walkFiles(dir, filter = () => true) {
@@ -202,7 +232,7 @@ function validatePluginName(name) {
   }
   const resolved = path.resolve(PLUGINS_DIR, name);
   if (
-    resolved !== path.join(PLUGINS_DIR, name) ||
+    resolved !== pluginDir(name) ||
     !resolved.startsWith(PLUGINS_DIR + path.sep)
   ) {
     throw new Error(`invalid plugin name (escapes plugins/): ${name}`);
@@ -211,7 +241,7 @@ function validatePluginName(name) {
 
 async function readPluginJson(pluginName) {
   validatePluginName(pluginName);
-  const p = path.join(PLUGINS_DIR, pluginName, "plugin.json");
+  const p = path.join(pluginDir(pluginName), "plugin.json");
   if (!(await exists(p))) return null;
   try {
     return JSON.parse(await fs.readFile(p, "utf8"));
@@ -232,7 +262,7 @@ async function resolveDependencies(root, opts = {}) {
     validatePluginName(name);
     if (visited.has(name)) return;
     visited.add(name);
-    if (!(await exists(path.join(PLUGINS_DIR, name)))) {
+    if (!(await exists(pluginDir(name)))) {
       throw new Error(`Plugin not found: ${name}`);
     }
     if (!noDeps) {
@@ -396,7 +426,7 @@ async function forceSymlink(source, target) {
 }
 
 async function linkPluginLib(pluginName, log) {
-  const libRoot = path.join(PLUGINS_DIR, pluginName, "lib");
+  const libRoot = path.join(pluginDir(pluginName), "lib");
   if (!(await exists(libRoot))) return 0;
   const pms = await walkFiles(libRoot, (p) => p.endsWith(".pm"));
   let n = 0;
@@ -414,7 +444,7 @@ async function linkPluginLib(pluginName, log) {
 }
 
 async function linkPluginTests(pluginName, component, log) {
-  const tRoot = path.join(PLUGINS_DIR, pluginName, "t");
+  const tRoot = path.join(pluginDir(pluginName), "t");
   if (!(await exists(tRoot))) return 0;
   const { dir } = COMPONENT_MAP[component];
   const testDir = path.join(LLNG_DIR, dir, "t");
@@ -435,7 +465,7 @@ async function linkPluginTests(pluginName, component, log) {
 async function linkPluginAssets(pluginName, log) {
   let n = 0;
   for (const { src, dst } of ASSET_TREES) {
-    const srcRoot = path.join(PLUGINS_DIR, pluginName, src);
+    const srcRoot = path.join(pluginDir(pluginName), src);
     if (!(await exists(srcRoot))) continue;
     const dstRoot = path.join(LLNG_DIR, ...dst);
     if (!(await exists(dstRoot))) {
@@ -465,7 +495,7 @@ function serializeTranslations(obj) {
 }
 
 async function mergeTranslations(pluginName, log) {
-  const srcDir = path.join(PLUGINS_DIR, pluginName, "portal-translations");
+  const srcDir = path.join(pluginDir(pluginName), "portal-translations");
   if (!(await exists(srcDir))) return 0;
   const dstDir = path.join(LLNG_DIR, ...TRANSLATIONS_DIR);
   if (!(await exists(dstDir))) {
@@ -636,7 +666,7 @@ export async function executeTest(
     "-I../lemonldap-ng-portal/lib",
   );
 
-  const pluginTestDir = path.join(PLUGINS_DIR, primary, "t");
+  const pluginTestDir = path.join(pluginDir(primary), "t");
   let targets;
   if (tests && tests.length) {
     targets = tests.map((t) => {
@@ -722,10 +752,11 @@ export async function cleanTest({ plugins } = {}) {
   const removed = [];
   if (scope) {
     for (const p of scope) {
-      await removeSymlinksUnder(path.join(PLUGINS_DIR, p) + path.sep, removed);
+      await removeSymlinksUnder(pluginDir(p) + path.sep, removed);
     }
   } else {
-    await removeSymlinksUnder(PLUGINS_DIR + path.sep, removed);
+    for (const root of pluginRoots())
+      await removeSymlinksUnder(root + path.sep, removed);
   }
   let unmerged = 0;
   const targets = scope || (await listPluginsWithState());
