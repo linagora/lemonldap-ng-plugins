@@ -19,6 +19,8 @@ jobs:
       has_container_tests: ${{ steps.find.outputs.has_container_tests }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - id: find
         name: Build matrix from plugin.json:llng_compat
@@ -52,7 +54,7 @@ jobs:
 
           entries=()
           container_entries=()
-          for d in plugins/*/; do
+          for d in plugins/*/ open-bastion/llng/plugins/*/; do
             [ -d "$d/t" ] || continue
             name=$(basename "$d")
             compat=$(jq -r '.llng_compat // ""' "$d/plugin.json")
@@ -143,6 +145,8 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: actions/setup-node@v6
         with:
@@ -205,6 +209,8 @@ jobs:
             devscripts equivs perl nodejs npm
 
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Install MCP/CLI dependencies
         run: cd mcp && npm install --no-audit --no-fund
@@ -247,6 +253,8 @@ jobs:
     name: validate manager-overrides
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - uses: actions/setup-node@v6
         with:
@@ -271,7 +279,7 @@ jobs:
       - name: Aggregate all plugin manager-overrides
         run: |
           mkdir -p .llng-overrides-all
-          for f in plugins/*/manager-overrides/*.json; do
+          for f in plugins/*/manager-overrides/*.json open-bastion/llng/plugins/*/manager-overrides/*.json; do
             [ -f "$f" ] || continue
             cp "$f" .llng-overrides-all/
           done
@@ -308,6 +316,8 @@ jobs:
     name: check translations
     steps:
       - uses: actions/checkout@v5
+        with:
+          submodules: recursive
 
       - name: Check key parity across languages
         shell: python3 {0}
@@ -328,7 +338,10 @@ jobs:
                       errors.append(f"{path}: keys differ from en.json {diff or '(order)'}")
                   errors += [f"{path}: {k} is empty" for k, v in tr.items()
                              if not isinstance(v, str) or not v.strip()]
-          for path in sorted(glob.glob("plugins/*/manager-overrides/*.json")):
+          for path in sorted(
+              glob.glob("plugins/*/manager-overrides/*.json")
+              + glob.glob("open-bastion/llng/plugins/*/manager-overrides/*.json")
+          ):
               for key, tr in json.load(open(path, encoding="utf-8")).get("lang", {}).items():
                   missing = [l for l in LANGS if not str(tr.get(l, "")).strip()]
                   if missing:

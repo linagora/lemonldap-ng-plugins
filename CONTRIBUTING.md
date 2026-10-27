@@ -76,9 +76,9 @@ If you prefer a shorter name, `npm install` also registers the CLI as
 `llng-plugins-test` — symlink it or add `mcp/node_modules/.bin` to
 your `PATH`.
 
-These commands resolve a plugin name under `plugins/` (`PLUGINS_DIR` in
-`mcp/lib.js`) and do not see the four that live in the submodule, at
-`open-bastion/llng/plugins/<name>`.
+These commands look a plugin up under `plugins/`, then under
+`open-bastion/llng/plugins/` (`pluginDir()` in `mcp/lib.js`), so the four
+carried by the submodule behave like the others once it is initialised.
 
 ### What it does, step by step
 
