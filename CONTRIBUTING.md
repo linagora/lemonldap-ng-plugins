@@ -52,7 +52,7 @@ The CLI `mcp/cli.js` wraps the exact same operations the MCP server
 exposes. Call it directly from anywhere in the repo:
 
 ```sh
-./mcp/cli.js list                      # list plugins available under plugins/
+./mcp/cli.js list                      # list plugins (plugins/ + open-bastion submodule)
 ./mcp/cli.js test  ssh-ca              # prepare + prove in one go
 ./mcp/cli.js prepare ssh-ca            # just graft the plugin into LLNG
 ./mcp/cli.js execute ssh-ca            # just run prove (prepare must have happened)

@@ -13,7 +13,7 @@ import {
 const USAGE = `Usage: llng-plugins-test <command> [options]
 
 Commands:
-  list                               List plugins available under plugins/
+  list                               List plugins (plugins/ + open-bastion submodule)
   prepare <plugin> [options]         Clone LLNG + make common + symlink the plugin
   execute <plugin> [-- t1 t2 ...]    Run prove on the plugin (prepare must have run)
   test    <plugin> [options]         prepare + execute in one go

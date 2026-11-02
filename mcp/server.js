@@ -20,7 +20,7 @@ const TOOLS = [
   {
     name: "list-plugins",
     description:
-      "List plugins available in the plugins/ directory of this repository.",
+      "List plugins available in plugins/ and in the open-bastion submodule.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {

@@ -174,6 +174,7 @@ jobs:
       - name: Install plugin extra build dependencies
         run: |
           PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          [ -d "$PLUGIN_DIR" ] || PLUGIN_DIR="open-bastion/llng/plugins/${{ matrix.plugin }}"
           BUILD_DEPS=$(jq -r '.build_depends // [] | .[]' "$PLUGIN_DIR/plugin.json")
           if [ -n "$BUILD_DEPS" ]; then
             echo "Installing extra build deps: $BUILD_DEPS"
@@ -232,6 +233,7 @@ jobs:
       - name: Install plugin extra build dependencies
         run: |
           PLUGIN_DIR="plugins/${{ matrix.plugin }}"
+          [ -d "$PLUGIN_DIR" ] || PLUGIN_DIR="open-bastion/llng/plugins/${{ matrix.plugin }}"
           BUILD_DEPS=$(jq -r '.build_depends // [] | .[]' "$PLUGIN_DIR/plugin.json")
           if [ -n "$BUILD_DEPS" ]; then
             echo "Installing extra build deps: $BUILD_DEPS"
@@ -325,7 +327,10 @@ jobs:
           import glob, json, os, sys
           LANGS = ["en", "fr", "es", "it"]
           errors = []
-          for d in sorted(glob.glob("plugins/*/portal-translations")):
+          for d in sorted(
+              glob.glob("plugins/*/portal-translations")
+              + glob.glob("open-bastion/llng/plugins/*/portal-translations")
+          ):
               src = json.load(open(f"{d}/en.json", encoding="utf-8"))
               for lang in LANGS[1:]:
                   path = f"{d}/{lang}.json"

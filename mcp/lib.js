@@ -32,7 +32,9 @@ export function pluginDir(name) {
     const candidate = path.join(root, name);
     if (existsSync(candidate)) return candidate;
   }
-  return pluginDir(name);
+  // Unknown plugin: keep the historical plugins/<name> default so callers
+  // that probe for existence get a stable path instead of recursing forever.
+  return path.join(PLUGINS_DIR, name);
 }
 
 export const LLNG_ROOT = path.join(PROJECT_ROOT, ".llng-test");
@@ -230,12 +232,14 @@ function validatePluginName(name) {
   ) {
     throw new Error(`invalid plugin name (path separators not allowed): ${name}`);
   }
-  const resolved = path.resolve(PLUGINS_DIR, name);
-  if (
-    resolved !== pluginDir(name) ||
-    !resolved.startsWith(PLUGINS_DIR + path.sep)
-  ) {
-    throw new Error(`invalid plugin name (escapes plugins/): ${name}`);
+  // A plugin may live in either root, so validate against both instead of
+  // comparing with pluginDir(): that returns the submodule path for the four
+  // Open Bastion plugins, which is not under plugins/.
+  const inARoot = pluginRoots().some((root) =>
+    path.resolve(root, name).startsWith(root + path.sep),
+  );
+  if (!inARoot) {
+    throw new Error(`invalid plugin name (escapes plugin directories): ${name}`);
   }
 }
 
