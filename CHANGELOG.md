@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.1 - 2026-11-02
 
 Touched plugins: `ssh-ca` bumped to **0.6.1**; the other three open-bastion
 plugins stay at 0.6.0. Sources pinned to the open-bastion tag
