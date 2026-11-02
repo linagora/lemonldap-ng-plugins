@@ -58,6 +58,12 @@ If several names map to the same level (almost always a config mistake), the **a
 
 `auth_time` is the seconds-epoch of the user's last authentication (`_lastAuthnUTime`), the same value LLNG already exposes on the ID token.
 
+## LLNG 3.0 and later
+
+LLNG 3.0 adds `acr` and `auth_time` to **every** JWT access token in core ([#3270](https://gitlab.ow2.org/lemonldap-ng/lemonldap-ng/-/issues/3270)), without a per-RP toggle. The plugin is therefore unnecessary on 3.0: it still fills the claims for RPs that opt in, and does nothing for the others, but core has already emitted them.
+
+Keep the plugin installed only if the same configuration must also run on 2.23.x, where `oidcRPMetaDataOptionsAcrClaims` is what enables the claims.
+
 ## Refresh token behavior
 
 The values surfaced on the access token reflect the **original** authentication, not the refresh time — exactly what RFC 9470 §3.3 requires. The plugin captures `authenticationLevel` and `_lastAuthnUTime` on the refresh session at issuance (`oidcGenerateRefreshToken`) and restores them at /oauth2/token (`oidcGotTokenRequest`). Refresh-token rotation preserves the values across rotations.

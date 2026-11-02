@@ -14,6 +14,13 @@ ok( my $op = register( 'op', sub { op() } ), 'OP portal' );
 
 my $idpId = login( $op, "french" );
 
+# LLNG 3.0 moved the ACR computation into core
+# (Lib::OpenIDConnect::getAcr) and now emits acr/auth_time on every JWT
+# access token, with no per-RP opt-in.
+my $core_emits_acr =
+  $op->p->loadedModules->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'}
+  ->can('getAcr') ? 1 : 0;
+
 sub jwt_payload {
     my $jwt = shift;
     my ( undef, $body ) = split /\./, $jwt;
@@ -208,7 +215,7 @@ sub _refresh {
     );
 }
 
-subtest "RP without AcrClaims does not get the claims" => sub {
+subtest "RP without AcrClaims: plugin opt-in, or LLNG 3.0 core behaviour" => sub {
     my $code = codeAuthorize(
         $op, $idpId,
         {
@@ -224,10 +231,18 @@ subtest "RP without AcrClaims does not get the claims" => sub {
         codeGrant( $op, "rpid_off", $code, "http://client.com/" ) );
     my $payload = jwt_payload( $token_res->{access_token} );
 
-    ok( !defined $payload->{acr},
-        "acr absent when RP has not opted in" );
-    ok( !defined $payload->{auth_time},
-        "auth_time absent when RP has not opted in" );
+    if ($core_emits_acr) {
+        is( $payload->{acr}, "loa-1",
+            "LLNG 3.0 core emits acr on every RP's AT (no opt-in there)" );
+        ok( $payload->{auth_time},
+            "LLNG 3.0 core emits auth_time on every RP's AT" );
+    }
+    else {
+        ok( !defined $payload->{acr},
+            "acr absent when RP has not opted in" );
+        ok( !defined $payload->{auth_time},
+            "auth_time absent when RP has not opted in" );
+    }
 };
 
 clean_sessions();
