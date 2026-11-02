@@ -2,103 +2,153 @@
    "lang" : {
       "activeIssuers" : {
          "en" : "Active identity providers",
-         "fr" : "Fournisseurs d'identité actifs"
+         "es" : "Proveedores de identidad activos",
+         "fr" : "Fournisseurs d'identité actifs",
+         "it" : "Provider di identità attivi"
       },
       "activeNotifications" : {
          "en" : "Active notifications",
-         "fr" : "Notifications actives"
+         "es" : "Notificaciones activas",
+         "fr" : "Notifications actives",
+         "it" : "Notifiche attive"
       },
       "advancedConfiguration" : {
          "en" : "Advanced configuration",
-         "fr" : "Configuration avancée"
+         "es" : "Configuración avanzada",
+         "fr" : "Configuration avancée",
+         "it" : "Configurazione avanzata"
       },
       "appNum" : {
          "en" : "Number of app",
-         "fr" : "Nombre d'applications"
+         "es" : "Número de aplicaciones",
+         "fr" : "Nombre d'applications",
+         "it" : "Numero di applicazioni"
       },
       "applications" : {
          "en" : "Applications",
-         "fr" : "Applications"
+         "es" : "Aplicaciones",
+         "fr" : "Applications",
+         "it" : "Applicazioni"
       },
       "backToLegacyManager" : {
          "en" : "Back to the classic manager",
-         "fr" : "Retour au manager classique"
+         "es" : "Volver al gestor clásico",
+         "fr" : "Retour au manager classique",
+         "it" : "Torna al gestore classico"
       },
       "basicOptions" : {
          "en" : "Basic Options",
-         "fr" : "Options basiques"
+         "es" : "Opciones básicas",
+         "fr" : "Options basiques",
+         "it" : "Opzioni di base"
       },
       "clickToDisplay" : {
          "en" : "Click on a session to display it",
-         "fr" : "Cliquez sur une session pour l'afficher"
+         "es" : "Haga clic en una sesión para mostrarla",
+         "fr" : "Cliquez sur une session pour l'afficher",
+         "it" : "Fare clic su una sessione per visualizzarla"
       },
       "configurationManager" : {
          "en" : "Configuration Manager",
-         "fr" : "Gestionnaire de configuration"
+         "es" : "Gestor de configuración",
+         "fr" : "Gestionnaire de configuration",
+         "it" : "Gestore della configurazione"
       },
       "delete" : {
          "en" : "Delete",
-         "fr" : "Supprimer"
+         "es" : "Eliminar",
+         "fr" : "Supprimer",
+         "it" : "Elimina"
       },
       "downloadLastConf" : {
          "en" : "Download last configuration",
-         "fr" : "Télécharger la dernière configuration"
+         "es" : "Descargar la última configuración",
+         "fr" : "Télécharger la dernière configuration",
+         "it" : "Scarica l'ultima configurazione"
       },
       "home" : {
          "en" : "Home",
-         "fr" : "Accueil"
+         "es" : "Inicio",
+         "fr" : "Accueil",
+         "it" : "Home"
       },
       "indent" : {
          "en" : "Indent",
-         "fr" : "Indenter"
+         "es" : "Indentar",
+         "fr" : "Indenter",
+         "it" : "Indenta"
       },
       "llngVersion" : {
          "en" : "Running version",
-         "fr" : "Version en cours d'execution"
+         "es" : "Versión en ejecución",
+         "fr" : "Version en cours d'execution",
+         "it" : "Versione in esecuzione"
       },
       "newManager" : {
          "en" : "New manager (beta)",
-         "fr" : "Nouveau manager (bêta)"
+         "es" : "Nuevo gestor (beta)",
+         "fr" : "Nouveau manager (bêta)",
+         "it" : "Nuovo gestore (beta)"
       },
       "noChanges" : {
          "en" : "No changes",
-         "fr" : "Aucune modification"
+         "es" : "Sin cambios",
+         "fr" : "Aucune modification",
+         "it" : "Nessuna modifica"
       },
       "noSession" : {
          "en" : "No session",
-         "fr" : "Aucune session"
+         "es" : "Ninguna sesión",
+         "fr" : "Aucune session",
+         "it" : "Nessuna sessione"
       },
       "oldManager" : {
          "en" : "Old Manager",
-         "fr" : "Ancien Manager"
+         "es" : "Gestor antiguo",
+         "fr" : "Ancien Manager",
+         "it" : "Vecchio gestore"
       },
       "otherChanges" : {
          "en" : "other changes",
-         "fr" : "autres modifications"
+         "es" : "otros cambios",
+         "fr" : "autres modifications",
+         "it" : "altre modifiche"
       },
       "pendingChanges" : {
          "en" : "Pending changes",
-         "fr" : "Modifications en attente"
+         "es" : "Cambios pendientes",
+         "fr" : "Modifications en attente",
+         "it" : "Modifiche in sospeso"
       },
       "rename" : {
          "en" : "Rename",
-         "fr" : "Renomer"
+         "es" : "Renombrar",
+         "fr" : "Renomer",
+         "it" : "Rinomina"
       },
       "saveWithWarnings" : {
          "en" : "Cannot save with app warnings",
-         "fr" : "On ne peut pas sauvegarder avec des avertissements dans la configuration"
+         "es" : "No se puede guardar con advertencias en la configuración",
+         "fr" : "On ne peut pas sauvegarder avec des avertissements dans la configuration",
+         "it" : "Impossibile salvare con avvisi nella configurazione"
       },
       "tryNewManager" : {
          "en" : "Try the new manager (beta)",
-         "fr" : "Essayer le nouveau manager (bêta)"
+         "es" : "Probar el nuevo gestor (beta)",
+         "fr" : "Essayer le nouveau manager (bêta)",
+         "it" : "Prova il nuovo gestore (beta)"
       },
       "unavailable" : {
          "en" : "Unavailable",
-         "fr" : "Indisponible"
+         "es" : "No disponible",
+         "fr" : "Indisponible",
+         "it" : "Non disponibile"
       },
       "usersWith2F" : {
          "en" : "Users with second factors",
-         "fr" : "Utilisateurs avec un second facteur"
+         "es" : "Usuarios con segundo factor",
+         "fr" : "Utilisateurs avec un second facteur",
+         "it" : "Utenti con secondo fattore"
       }
    }
 }
