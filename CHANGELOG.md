@@ -8,6 +8,7 @@
   every JWT access token, without a per-RP toggle. The plugin remains
   harmless there (and still fills the claims for opted-in RPs), but is only
   needed on 2.23.x. Tests now accept the core behaviour.
+- **Update translations**
 
 ## v0.6.0 - 2026-10-20
 
