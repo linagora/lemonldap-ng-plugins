@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+Touched plugins: `ssh-ca` bumped to **0.6.1**; the other three open-bastion
+plugins stay at 0.6.0. Sources pinned to the open-bastion tag
+`plugins-v0.6.1` (4892d6d).
+
+### ssh-ca
+
+- **Security fix — the decoder accepted an ECDSA key whose curve disagreed
+  with its type** (#401): a blob naming `nistp521` under `ecdsa-sha2-nistp384`
+  was accepted and graded as a P-384 key, so its size described material it
+  does not hold. The curve and the public point are now checked, as `sshd`
+  does.
+
 ### oidc-acr-claims
 
 - **Compatibility with LLNG 3.0**: core now emits `acr` and `auth_time` on
