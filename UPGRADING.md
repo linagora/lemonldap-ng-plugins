@@ -7,6 +7,31 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
+## v0.7.0
+
+`matrix-token-exchange` refuses exchanges it used to accept, and adds an
+option. Check the points below before upgrading.
+
+1. **An empty `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` now accepts no
+   Matrix server**, even when the RP is also the caller. Fill the list for
+   every RP that must accept the exchange.
+2. **A public Relying Party can no longer be the target of an exchange.** Give
+   the Matrix server a confidential client (with a secret), or keep the
+   exchange disabled for that RP.
+3. **An exchange towards another Relying Party needs the caller in its
+   `oidcRPMetaDataOptionsTokenXAuthorizedRP`**, as for LLNG token exchange.
+   Add the caller to every target RP that accepted cross-RP exchanges before.
+4. **`oidcRPMetaDataOptionsTokenXMatrixUser=mail` changes the user lookup**
+   from `user` to `user@domain.tld`, so `LDAPFilter` must also match `mail`.
+   Without this option, only list Matrix servers whose users share the `uid`
+   namespace of the user database.
+5. **`*` is only honoured with the mail mapping**, and only safe when each
+   mail domain's Matrix server is run by whoever runs its mailboxes. A public
+   Matrix server with open registration on `domain.tld` would get tokens for
+   every `user@domain.tld`.
+6. **New runtime dependency `LWPx::ParanoidAgent`** (Debian:
+   `liblwpx-paranoidagent-perl`), used for servers accepted through `*`.
+
 ## v0.6.0
 
 The security audit of the open-bastion SSO chain (ssh-ca, pam-access, the

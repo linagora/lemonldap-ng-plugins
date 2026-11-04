@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.7.0 - 2026-11-04
+
+Touched plugin bumped to **0.7.0**: `matrix-token-exchange`.
+Theme: the Matrix token exchange no longer trusts any server for any user, and
+can tell users of several Matrix servers apart.
+
+### matrix-token-exchange
+
+- **Security fix — any Matrix server could get tokens for any portal user**
+  ([#110](https://github.com/linagora/lemonldap-ng-plugins/issues/110)): an
+  exchange without `audience`, or targeting the calling client, skipped the
+  `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` allowlist, and the server's
+  answer was trusted for users of another domain. The allowlist is now
+  checked on every exchange, an empty list accepts no server, the server must
+  answer for one of its own users, and a localpart can no longer swallow `@`.
+  See [UPGRADING.md](UPGRADING.md).
+- **Security fix — public Relying Parties are no longer valid targets**:
+  Matrix OpenID tokens are handed to widgets and integration managers, so
+  anyone holding one could get a token for a public RP without a secret. The
+  client must now authenticate, and a public RP is refused.
+- **Fix — cross-RP exchange needs the target's consent**: an exchange towards
+  another Relying Party now requires the caller in the target's
+  `oidcRPMetaDataOptionsTokenXAuthorizedRP`, as in LLNG token exchange.
+- **Feature — `oidcRPMetaDataOptionsTokenXMatrixUser=mail`** looks
+  `@user:domain.tld` up as `user@domain.tld`, so users of several Matrix
+  servers sharing one user database stay apart. With this mapping the
+  authorized list may be `*`; see [UPGRADING.md](UPGRADING.md).
+- **Fix — Matrix server names are parsed strictly** (#113, #114):
+  `serverResolve()` accepts bracketed IPv6 literals (`[2001:db8::1]`), rejects
+  bare IPv6 names, and checks ports in `1..65535` in names, `.well-known`
+  delegation and SRV records.
+- **Hardening — servers accepted through `*` are contacted with
+  `LWPx::ParanoidAgent`**, which refuses loopback, private, link-local and
+  shared addresses after DNS resolution.
+
+### Tooling & CI
+
+- **JUnit test evidence** is now published for every plugin/ref run and
+  attached to automatic releases (#107, #108, #109).
+
 ## v0.6.1 - 2026-11-02
 
 Touched plugins: `ssh-ca` bumped to **0.6.1**; the other three open-bastion
