@@ -22,7 +22,7 @@ LWP::Protocol::PSGI->register(
                         [],
                         [
                             JSON::to_json( {
-                                    sub => '@french:badwolf.org'
+                                    sub => '@french:m.org'
                                 }
                             )
                         ]
@@ -184,6 +184,7 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsIDTokenForceClaims     => 1,
                 oidcRPMetaDataOptionsRedirectUris           => 'http://test/',
                 oidcRPMetaDataOptionsTokenXAuthorizedMatrix => 'm.org',
+                oidcRPMetaDataOptionsTokenXAuthorizedRP     => 'rp',
             },
         },
         oidcServicePrivateKeySig => oidc_key_op_private_sig,

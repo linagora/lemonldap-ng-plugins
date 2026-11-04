@@ -30,7 +30,7 @@ LWP::Protocol::PSGI->register(
                         [],
                         [
                             JSON::to_json( {
-                                    sub => '@french:badwolf.org'
+                                    sub => '@french:m.org'
                                 }
                             )
                         ]

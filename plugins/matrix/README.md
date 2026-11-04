@@ -60,7 +60,7 @@ Response looks like:
 ```Shell
 $ curl -XPOST \
 --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
---data-urlencode 'client_id=rpid' \
+--basic -u 'rpid:password' \
 --data-urlencode 'subject_token=SomeT0kenHere' \
 --data-urlencode 'subject_issuer=domain.tld' \
 --data-urlencode 'scope=openid profile email' \
@@ -68,7 +68,15 @@ $ curl -XPOST \
 https://lemon-portal.domain.tld/oauth2/token
 ```
 
-If client isn't public, add `--basic -u 'client_id:password'`
+The client authenticates with its secret (`--basic -u 'client_id:password'`): Matrix OpenID tokens are handed to widgets and integration managers, so the exchange is refused for public Relying Parties. A Relying Party can only get tokens for another one listed as audience if that one lists it in `oidcRPMetaDataOptionsTokenXAuthorizedRP`, as for [LLNG token exchange](https://lemonldap-ng.org/documentation/latest/oidctokenexchange).
+
+The user is looked up by the localpart of its Matrix ID (`user` for `@user:domain.tld`), so only list Matrix servers whose users share the `uid` namespace of your user database: any listed server can reach every `uid`.
+
+### Upgrading from 0.6.x
+
+- A Relying Party with an empty `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` now accepts no Matrix server, even for itself.
+- Public Relying Parties can no longer be the target of a Matrix token exchange.
+- An exchange towards another Relying Party needs the caller in its `oidcRPMetaDataOptionsTokenXAuthorizedRP`.
 
 ## Prerequisites
 

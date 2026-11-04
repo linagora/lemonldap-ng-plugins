@@ -168,7 +168,11 @@ sub validateMatrixToken {
             return;
         }
         if ( ref $content eq 'HASH' and my $sub = $content->{sub} ) {
-            unless ( $sub =~ /^\@(.*):(.*)$/ ) {
+            # Historical user ID grammar (printable ASCII localpart, no colon),
+            # minus "@" so that a localpart never looks like a mail address
+            unless ( $sub =~
+                /^\@([\x21-\x39\x3B-\x3F\x41-\x7E]+):([A-Za-z0-9.\-:\[\]]+)\z/ )
+            {
                 $self->logger->error(
                     "Bad 'sub' received from $matrixBaseUrl: $sub");
                 return;
@@ -183,7 +187,7 @@ sub validateMatrixToken {
     }
     else {
         $self->userLogger->error(
-            "Token $accessToken refused by $matrixBaseUrl: "
+            "Matrix token refused by $matrixBaseUrl: "
               . $resp->status_line );
         return;
     }
