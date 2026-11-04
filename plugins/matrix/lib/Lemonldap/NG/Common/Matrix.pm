@@ -9,11 +9,12 @@ use Net::DNS;
 use Regexp::Common 'net';
 use Regexp::Common::URI::RFC2396 '$hostname';
 
-# Check IP:port or IP. Captures IP and port
-my $isIpLiteral = qr/^($RE{net}{IPv6}|$RE{net}{IPv4})(?:(?<!:):(\d+))?$/;
+# Check [IPv6]:port, [IPv6], IPv4:port or IPv4. Captures IP and port.
+# IPv6 literals must be bracketed, as required by the Matrix specification.
+my $isIpLiteral = qr/^(\[$RE{net}{IPv6}\]|$RE{net}{IPv4})(?::(\d+))?$/;
 
-# Check hostname:port or hostname. Cpatures hostname and port
-my $isHostname = qr/^($hostname)(?:(?<!:):(\d+))?$/;
+# Check hostname:port or hostname. Captures hostname and port
+my $isHostname = qr/^($hostname)(?::(\d+))?$/;
 
 has ua => (
     is      => 'rw',
@@ -35,6 +36,30 @@ has dnsResolver => (
     }
 );
 
+# Parse a Matrix server name. Return (host, port, is_ip_literal) or an empty
+# list. Ports are checked here so that every caller rejects malformed names.
+sub _parseServerName {
+    my ( $self, $name ) = @_;
+
+    my ( $host, $port, $isIp );
+    if ( $name =~ $isIpLiteral ) {
+        ( $host, $port, $isIp ) = ( $1, $2, 1 );
+    }
+    elsif ( $name =~ $isHostname ) {
+        ( $host, $port, $isIp ) = ( $1, $2, 0 );
+    }
+    else {
+        $self->logger->error("Bad hostname $name");
+        return;
+    }
+
+    if ( defined $port and ( $port < 1 or $port > 65535 ) ) {
+        $self->logger->error("Bad port in Matrix server name $name");
+        return;
+    }
+    return ( $host, $port, $isIp );
+}
+
 # MATRIX SERVER RESOLUTION
 #
 # main method: serverResolve
@@ -43,75 +68,77 @@ sub serverResolve {
     my ( $self, $name, $ua ) = @_;
     $ua ||= $self->ua;
 
+    my ( $host, $port, $isIp ) = $self->_parseServerName($name);
+    return unless defined $host;
+
     # From Matrix spec 1.9
     #
     # If the hostname is an IP literal, then that IP address should be used,
     # together with the given port number, or 8448 if no port is given.
-    return "https://$1:" . ( $2 || '8448' ) . '/'
-      if $name =~ $isIpLiteral;
-
-    unless ( $name =~ $isHostname ) {
-        $self->logger->error("Bad hostname $name");
-        return;
-    }
+    return "https://$host:" . ( defined $port ? $port : '8448' ) . '/'
+      if $isIp;
 
     # If the hostname is not an IP literal, and the server name includes an
     # explicit port, resolve the hostname to an IP address using CNAME, AAAA
     # or A records
-    return "https://$1:$2/" if $2;
+    return "https://$host:$port/" if defined $port;
 
     # If the hostname is not an IP literal, a regular HTTPS request is made
     # to https://<hostname>/.well-known/matrix/server
-    my $resp = $ua->get("https://$name/.well-known/matrix/server");
+    my $resp = $ua->get("https://$host/.well-known/matrix/server");
     if ( $resp->is_success ) {
         my $content = eval { JSON::from_json( $resp->decoded_content ) };
         unless ($@) {
-            if (    ref($content)
-                and ref($content) eq 'HASH'
-                and my $delegated = $content->{'m.server'} )
-            {
-                # If <delegated_hostname> is an IP literal, then that IP
-                # address should be used together with the <delegated_port>
-                # or 8448 if no port is provided
-                return "https://$1:" . ( $2 || '8448' ) . '/'
-                  if $delegated =~ $isIpLiteral;
+            if ( ref($content) and ref($content) eq 'HASH' ) {
+                my $delegated = $content->{'m.server'};
+                if ( defined $delegated and !ref $delegated ) {
+                    my ( $delegatedHost, $delegatedPort, $delegatedIsIp ) =
+                      $self->_parseServerName($delegated);
+                    return unless defined $delegatedHost;
 
-                unless ( $delegated =~ $isHostname ) {
-                    $self->logger->error("Bad hostname $name");
-                    return;
+                    # If <delegated_hostname> is an IP literal, then that IP
+                    # address should be used together with the
+                    # <delegated_port> or 8448 if no port is provided
+                    return "https://$delegatedHost:"
+                      . ( defined $delegatedPort ? $delegatedPort : '8448' )
+                      . '/'
+                      if $delegatedIsIp;
+
+                    # If <delegated_hostname> is not an IP literal, and
+                    # <delegated_port> is present, an IP address is discovered
+                    # by looking up CNAME, AAAA or A records for
+                    # <delegated_hostname>
+                    return "https://$delegatedHost:$delegatedPort/"
+                      if defined $delegatedPort;
+
+                    # ALL NEXT CASES ARE EXACTLY THE SAME DNS SEARCH THAN IF
+                    # NO .well-known IS VALID BUT USING ${delegatedHost}
+                    # INSTEAD OF ${host}
+
+                    # If <delegated_hostname> is not an IP literal and no
+                    # <delegated_port> is present, an SRV record is looked up
+                    # for _matrix-fed._tcp.<delegated_hostname>. This may
+                    # result in another hostname (to be resolved using AAAA or
+                    # A records) and port.
+                    #
+                    # [Deprecated] If <delegated_hostname> is not an IP
+                    # literal, no <delegated_port> is present, and a
+                    # _matrix-fed._tcp.<delegated_hostname> SRV record was not
+                    # found, an SRV record is looked up for
+                    # _matrix._tcp.<delegated_hostname>. This may result in
+                    # another hostname # (to be resolved using AAAA or A
+                    # records) and port.
+                    #
+                    # If no SRV record is found, an IP address is resolved
+                    # using CNAME, # AAAA or A records. Requests are then made
+                    # to the resolve IP address # and a port of 8448, using a
+                    # Host header of <delegated_hostname>
+                    return $self->_dnsResolve($delegatedHost);
                 }
-
-                # If <delegated_hostname> is not an IP literal, and
-                # <delegated_port> is present, an IP address is discovered by
-                # looking up CNAME, AAAA or A records for <delegated_hostname>
-                return "https://$1:$2/" if $2;
-
-                # ALL NEXT CASES ARE EXACTLY THE SAME DNS SEARCH THAN IF NO
-                # .well-known IS VALID BUT USING ${delegated} INSTEAD OF
-                # ${name}
-
-                # If <delegated_hostname> is not an IP literal and no
-                # <delegated_port> is present, an SRV record is looked up for
-                # _matrix-fed._tcp.<delegated_hostname>. This may result in
-                # another hostname (to be resolved using AAAA or A records) and
-                # port.
-                #
-                # [Deprecated] If <delegated_hostname> is not an IP literal, no
-                # <delegated_port> is present, and a
-                # _matrix-fed._tcp.<delegated_hostname> SRV record was not
-                # found, an SRV record is looked up for
-                # _matrix._tcp.<delegated_hostname>. This may result in another
-                # hostname # (to be resolved using AAAA or A records) and port.
-                #
-                # If no SRV record is found, an IP address is resolved using
-                # CNAME, # AAAA or A records. Requests are then made to the
-                # resolve IP address # and a port of 8448, using a Host header
-                # of <delegated_hostname>
-                return $self->_dnsResolve($delegated);
             }
         }
     }
-    return $self->_dnsResolve($name);
+    return $self->_dnsResolve($host);
 }
 
 sub _dnsResolve {
@@ -148,8 +175,30 @@ sub dnsSrvResolve {
     my ( $self, $name ) = @_;
     my $reply = $self->dnsResolver->query( $name, 'SRV' );
     return unless $reply;
-    return map { 'https://' . $_->target . ':' . $_->port . '/' }
-      sort { $b->priority <=> $a->priority } $reply->answer;
+
+    my @res;
+    foreach my $rr (
+        sort { $b->priority <=> $a->priority }
+        grep { $_->type eq 'SRV' } $reply->answer
+      )
+    {
+        my $target = $rr->target;
+        my $port   = $rr->port;
+        next unless defined $target and defined $port;
+        next if $target eq '.';    # service not available
+
+        # DNS returns fully qualified names
+        $target =~ s/\.$//;
+
+        # An SRV target has no port and no bracket syntax of its own. Reuse
+        # the server name parser to reject impossible records and to bracket
+        # IPv6 targets.
+        my ($host) = $self->_parseServerName( $target . ':' . $port );
+        next unless defined $host;
+
+        push @res, "https://$host:$port/";
+    }
+    return @res;
 }
 
 # MATRIX TOKEN VALIDATION
@@ -234,6 +283,9 @@ methods to interact with Matrix servers.
 
 Return the base URL corresponding to the given Matrix "Servername", following
 L<Matrix specifications|https://spec.matrix.org/v1.9/server-server-api/#server-discovery>
+
+IPv6 literals must be bracketed (C<[2001:db8::1]>), and an explicit port must
+be between 1 and 65535. A malformed name is logged and returns C<undef>.
 
 An optional second argument is the L<LWP::UserAgent> to use instead of C<ua>.
 
