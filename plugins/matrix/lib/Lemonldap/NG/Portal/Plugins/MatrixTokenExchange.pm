@@ -44,23 +44,67 @@ sub validateAudience {
 
     # Any Matrix server can vouch for any user it likes, so the allowlist is
     # checked on every request, and an empty allowlist authorizes no server
-    my $list = $self->oidc->rpOptions->{ $target->{rp} }
-      ->{oidcRPMetaDataOptionsTokenXAuthorizedMatrix};
+    my $opts = $self->oidc->rpOptions->{ $target->{rp} };
+    my $list = $opts->{oidcRPMetaDataOptionsTokenXAuthorizedMatrix};
+    my $mailMapping =
+      ( $opts->{oidcRPMetaDataOptionsTokenXMatrixUser} // '' ) eq 'mail';
     my $subject_issuer = $req->param('subject_issuer');
     unless ($subject_issuer) {
         $self->logger->debug('Request without subject_issuer');
         return 0;
     }
-    unless ( $list
-        and grep { lc($_) eq lc($subject_issuer) } split /[,;\s]+/, $list )
+
+    # A server name with a port or an IP literal is no mail domain
+    if ( $mailMapping
+        and $subject_issuer !~
+        /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+(?:[a-z]{2,}|xn--[a-z0-9-]+)\z/i )
     {
+        $self->logger->debug(
+            "Matrix server $subject_issuer is not a domain name");
+        return 0;
+    }
+
+    my @servers = split /[,;\s]+/, $list // '';
+    my $wildcard = grep { $_ eq '*' } @servers;
+    if ( $wildcard and !$mailMapping and !$self->_wildcardWarned->{ $target->{rp} }++ )
+    {
+        $self->logger->warn( "\"*\" in TokenXAuthorizedMatrix of $target->{rp}"
+              . ' is ignored unless TokenXMatrixUser is "mail"' );
+    }
+
+    # "*" is only safe when the user is looked up by its full address: each
+    # server then only reaches the users of its own domain
+    my $listed = grep { lc($_) eq lc($subject_issuer) } @servers;
+    unless ( $listed or ( $wildcard and $mailMapping ) ) {
         $self->logger->debug(
 "Token exchange for an unauthorized Matrix server ($subject_issuer => $target->{rp})"
         );
         return 0;
     }
+    $req->data->{matrixMailMapping} = $mailMapping;
+    $req->data->{matrixUnlisted}    = !$listed;
     return 1;
 }
+
+has _wildcardWarned => ( is => 'ro', default => sub { {} } );
+
+# A server only accepted through "*" is chosen by the caller, and so are the
+# hosts its delegation points to: refuse internal addresses at connect time
+has paranoidUa => (
+    is      => 'ro',
+    lazy    => 1,
+    builder => sub {
+        require LWPx::ParanoidAgent;
+        my $ua = LWPx::ParanoidAgent->new(
+            agent   => "LemonLDAP-NG/$Lemonldap::NG::Portal::Main::VERSION ",
+            timeout => 10,
+        );
+
+        # Shared address space (RFC 6598), often used inside clusters
+        $ua->blocked_hosts( qr/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./ );
+        return $ua;
+    }
+);
 
 sub getUid {
     my ( $self, $req, $rp, $subjectToken, $subjectTokenType ) = @_;
@@ -71,8 +115,9 @@ sub getUid {
         return 0;
     }
 
+    my $ua = $req->data->{matrixUnlisted} ? $self->paranoidUa : undef;
     my $serverName     = $req->param('subject_issuer');
-    my $subject_issuer = $self->serverResolve($serverName);
+    my $subject_issuer = $self->serverResolve( $serverName, $ua );
     unless ($subject_issuer) {
         $self->logger->debug("Unable to resolve Matrix server $serverName");
         return 0;
@@ -82,7 +127,7 @@ sub getUid {
         "Token exchange asked for a Matrix token on $subject_issuer");
 
     my ( $matrixSub, $uid, $domain ) =
-      $self->validateMatrixToken( $subject_issuer, $subjectToken );
+      $self->validateMatrixToken( $subject_issuer, $subjectToken, $ua );
 
     unless ($matrixSub) {
         $self->logger->debug("Matrix token rejected by $subject_issuer");
@@ -95,7 +140,7 @@ sub getUid {
             "Matrix server $serverName answered for foreign user $matrixSub");
         return 0;
     }
-    return $uid;
+    return $req->data->{matrixMailMapping} ? "$uid\@" . lc($domain) : $uid;
 }
 
 1;

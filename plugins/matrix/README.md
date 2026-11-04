@@ -78,10 +78,18 @@ The user is looked up by the localpart of its Matrix ID (`user` for `@user:domai
 - Public Relying Parties can no longer be the target of a Matrix token exchange.
 - An exchange towards another Relying Party needs the caller in its `oidcRPMetaDataOptionsTokenXAuthorizedRP`.
 
+### User lookup
+
+By default, `@user:domain.tld` is looked up as `user`. When users of several Matrix servers share the same user database, set `oidcRPMetaDataOptionsTokenXMatrixUser` to `mail` on the Relying Party: `@user:domain.tld` is then looked up as `user@domain.tld`, so your `LDAPFilter` must also match the mail attribute. Matrix servers are then only accepted under a plain domain name, without port or IP address. `LDAPFilter` is shared by every Relying Party and by the login form: a Relying Party still in localpart mode then also matches mail addresses, which is safe because a localpart never contains `@`.
+
+With `mail`, the authorized list may be `*`: any Matrix server is accepted, and each one only reaches the users whose address is on its own domain. This is only safe when, for every mail domain of your user database, the Matrix server of that domain is run by whoever runs its mailboxes: a public Matrix server with open registration on `domain.tld` would get tokens for every `user@domain.tld`. `*` is ignored when the lookup is by localpart.
+
+A server accepted through `*` is chosen by the caller, and so are the hosts its `.well-known` and SRV records point to. These requests go through [LWPx::ParanoidAgent](https://metacpan.org/pod/LWPx::ParanoidAgent), which refuses loopback, private, link-local and shared (RFC 6598) IPv4 addresses after DNS resolution, and IPv6 targets. Each exchange still costs the portal a few DNS lookups and up to two HTTPS requests towards a domain the caller picks, so rate limit the token endpoint if it is reachable by untrusted clients.
+
 ## Prerequisites
 
 - LLNG version 2.20.0 or later
-- Perl modules: `Net::DNS`, `Regexp::Common`
+- Perl modules: `Net::DNS`, `Regexp::Common`, `LWPx::ParanoidAgent`
 
 [^1]:
     In [Matrix specs](https://spec.matrix.org/latest/), a "Matrix server" is the domain part of a Matrix address, not the hostname of the server.

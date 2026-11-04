@@ -8,14 +8,16 @@
   "llng_compat": ">=2.20.0",
   "perl_requires": {
     "Net::DNS": "0",
-    "Regexp::Common": "0"
+    "Regexp::Common": "0",
+    "LWPx::ParanoidAgent": "0"
   },
   "build_depends": [
     "libnet-dns-perl",
-    "libregexp-common-perl"
+    "libregexp-common-perl",
+    "liblwpx-paranoidagent-perl"
   ],
   "customPlugins": "::Plugins::MatrixTokenExchange",
-  "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager.",
+  "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager. To tell apart users of several Matrix servers, set 'oidcRPMetaDataOptionsTokenXMatrixUser' to 'mail' (LDAPFilter must then match the mail attribute); only then may the list be '*'.",
   "autoload": [
     {
       "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsTokenXAuthorizedMatrix",

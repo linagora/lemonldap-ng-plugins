@@ -3,6 +3,21 @@
     "oidcRPMetaDataOptionsTokenXAuthorizedMatrix": {
       "type": "text",
       "documentation": "List of Matrix servers authorized to query for an access_token of this RP"
+    },
+    "oidcRPMetaDataOptionsTokenXMatrixUser": {
+      "type": "select",
+      "select": [
+        {
+          "k": "",
+          "v": "Localpart"
+        },
+        {
+          "k": "mail",
+          "v": "Mail (localpart@server)"
+        }
+      ],
+      "default": "",
+      "documentation": "How the Matrix user ID is mapped to the user looked up in the user database"
     }
   },
   "ctrees": {
@@ -10,7 +25,8 @@
       "insert_into": "oidcRPMetaDataOptions/oidcRPMetaDataOptionsAdvanced",
       "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
       "nodes": [
-        "oidcRPMetaDataOptionsTokenXAuthorizedMatrix"
+        "oidcRPMetaDataOptionsTokenXAuthorizedMatrix",
+        "oidcRPMetaDataOptionsTokenXMatrixUser"
       ]
     }
   },
@@ -20,6 +36,12 @@
       "fr": "Serveurs Matrix autorisés à échanger un access_token",
       "es": "Servidores Matrix autorizados a intercambiar el access_token",
       "it": "Server Matrix autorizzati a scambiare l'access_token"
+    },
+    "oidcRPMetaDataOptionsTokenXMatrixUser": {
+      "en": "Matrix user lookup",
+      "fr": "Recherche de l'utilisateur Matrix",
+      "es": "Búsqueda del usuario Matrix",
+      "it": "Ricerca dell'utente Matrix"
     }
   }
 }
