@@ -65,10 +65,10 @@ registration, add to `~/.claude.json`:
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `list-plugins` | Lists every plugin directory under `plugins/` and the `open-bastion` submodule.                                                                                                                                                                                                                                                  |
 | `prepare-test` | Clones LLNG if absent, runs `make common`, symlinks lib + t + assets + merges translations. Follows `depends` transitively unless `noDeps:true`. Params: `plugin` (required), `with` (extra plugins), `noDeps`, `skipMake`, `ref` (git tag/branch; falls back to default branch if unreachable, wipes the clone on ref change). |
-| `execute-test` | Runs `prove` in the primary plugin's LLNG component dir. Params: `plugin` (required), `tests` (optional array), `verbose`.                                                                                                                                                                                                      |
+| `execute-test` | Runs `prove` in the primary plugin's LLNG component dir. Params: `plugin` (required), `tests` (optional array), `verbose`, `junit` (directory or `.xml` path for a JUnit report).                                                                                                                                                 |
 | `clean-test`   | Removes the plugin's symlinks + un-merges its translation keys. Params: `plugin` or `plugins` to scope; omit both to clean every plugin. The LLNG clone is kept.                                                                                                                                                                |
 | `clean-all`    | `clean-test` **and** wipes `.llng-test/` entirely. Use to start fresh.                                                                                                                                                                                                                                                          |
-| `test`         | Convenience: `prepare-test` then `execute-test`. Cleanup is not performed automatically.                                                                                                                                                                                                                                        |
+| `test`         | Convenience: `prepare-test` then `execute-test`. Cleanup is not performed automatically. Accepts the same `junit` parameter.                                                                                                                                                                                                    |
 
 ### Plugin → LLNG layout
 
@@ -105,6 +105,23 @@ prove -v -I. \
 
 from inside the primary plugin's component directory (usually
 `.llng-test/lemonldap-ng/lemonldap-ng-portal/`).
+
+### JUnit report
+
+Pass `--junit <dir>` (CLI) or `junit: "<dir>"` (MCP) to also write a
+JUnit XML report for the run:
+
+```sh
+./mcp/cli.js execute ssh-ca --junit test-results
+```
+
+The file name carries the plugin, LLNG ref, commit and timestamp, e.g.
+`junit-ssh-ca-llng-v2.23.4-de24354-20261104T143005Z.xml`; `-dirty` is
+added when the working tree is not clean. The XML records the repo and
+open-bastion commits, the LLNG ref, and the CI run URL as properties.
+When a report is requested, `.t` files run one at a time (per-file status
+and duration) and `prove` runs in verbose mode so the TAP stream is
+available for the conversion.
 
 ### Multi-plugin linking
 

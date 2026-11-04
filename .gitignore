@@ -2,5 +2,6 @@
 CLAUDE.md
 .claude/
 .llng-test/
+test-results/
 mcp/node_modules/
 COMPAT-open-bastion.md

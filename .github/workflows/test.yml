@@ -3,7 +3,7 @@ name: Test Plugins
 on:
   push:
     branches: [main]
-    tags-ignore: ['v*']
+    tags: ['v*']
   pull_request:
 
 env:
@@ -130,6 +130,21 @@ jobs:
             echo "$cinclude" | jq .
           fi
 
+  # The prove → JUnit converter is what produces the certification evidence;
+  # keep its own unit tests independent from the (slow) plugin matrix.
+  mcp-tests:
+    runs-on: ubuntu-latest
+    name: mcp tooling unit tests
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Run mcp unit tests
+        run: npm --prefix mcp run test:unit
+
   test:
     needs: discover
     if: needs.discover.outputs.has_tests == 'true'
@@ -182,7 +197,18 @@ jobs:
           fi
 
       - name: Run tests
-        run: ./mcp/cli.js execute "${{ matrix.plugin }}"
+        run: ./mcp/cli.js execute "${{ matrix.plugin }}" --junit test-results
+
+      # Keep the evidence even when the suite failed: a JUnit report with a
+      # failure is still a useful, checkable record of what ran.
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-${{ matrix.plugin }}-${{ matrix.label }}-${{ github.sha }}
+          path: test-results/*.xml
+          if-no-files-found: error
+          retention-days: 400
 
   # Same as `test`, but for plugins that declare `ci_container` in plugin.json
   # (e.g. a Debian image carrying a build dependency the Ubuntu runners lack).
@@ -241,7 +267,61 @@ jobs:
           fi
 
       - name: Run tests
-        run: ./mcp/cli.js execute "${{ matrix.plugin }}"
+        run: ./mcp/cli.js execute "${{ matrix.plugin }}" --junit test-results
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-${{ matrix.plugin }}-${{ matrix.label }}-${{ github.sha }}
+          path: test-results/*.xml
+          if-no-files-found: error
+          retention-days: 400
+
+  # Release evidence: one bundle holding every plugin/ref JUnit report from
+  # this tag's run. Individual reports remain downloadable from their matrix
+  # job; this artifact is the single file set a certification dossier can
+  # reference (retained for the maximum GitHub allows on a public repo).
+  collect-evidence:
+    if: always() && startsWith(github.ref, 'refs/tags/v')
+    needs: [discover, test, test-container]
+    runs-on: ubuntu-latest
+    name: collect JUnit evidence (${{ github.ref_name }})
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: junit-*
+          path: evidence
+          merge-multiple: true
+
+      - name: Index the evidence
+        env:
+          TAG: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          cd evidence
+          {
+            echo "tag=$TAG"
+            echo "commit=$COMMIT"
+            echo "workflow_run=$RUN_URL"
+            echo "collected_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > MANIFEST.txt
+          find . -type f -name '*.xml' | sort > FILES.txt
+          if [ ! -s FILES.txt ]; then
+            echo "::error::No JUnit report was produced for this release"
+            exit 1
+          fi
+          xargs sha256sum < FILES.txt > SHA256SUMS
+          cat MANIFEST.txt
+          cat FILES.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: junit-evidence-${{ github.ref_name }}-${{ github.sha }}
+          path: evidence
+          retention-days: 400
 
   # Global lint: aggregate every plugin's manager-overrides/*.json under a
   # single directory and run llng-build-manager-files against the union.

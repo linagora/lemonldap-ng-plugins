@@ -28,11 +28,16 @@ Options (prepare / test):
   --no-deps          Don't auto-resolve plugin.json "depends"
   --with a,b,c       Also link extra plugins (lib + assets only)
   --quiet            Non-verbose prove (test/execute only)
+  --junit <dir>      Also write a JUnit XML report in <dir> (or to the
+                     given .xml path). The file name carries the commit
+                     and the run timestamp; CI publishes it as an
+                     artifact for certification evidence.
 
 Examples:
   llng-plugins-test list
   llng-plugins-test test ssh-ca
   llng-plugins-test test ssh-ca --ref v2.23.0
+  llng-plugins-test test ssh-ca --junit test-results
   llng-plugins-test prepare oidc-device-organization --skip-make
   llng-plugins-test execute ssh-ca -- t/01-SSHCA-mycerts.t
   llng-plugins-test clean ssh-ca
@@ -46,6 +51,7 @@ function parseArgs(argv) {
     with: [],
     verbose: true,
     ref: "",
+    junit: null,
   };
   const positional = [];
   let afterDashDash = false;
@@ -70,6 +76,15 @@ function parseArgs(argv) {
       opts.ref = v;
     } else if (a.startsWith("--ref=")) {
       opts.ref = a.slice("--ref=".length);
+    } else if (a === "--junit") {
+      const v = argv[++i];
+      if (!v || v.startsWith("--")) {
+        throw new Error("--junit requires a directory or .xml path");
+      }
+      opts.junit = v;
+    } else if (a.startsWith("--junit=")) {
+      opts.junit = a.slice("--junit=".length);
+      if (!opts.junit) throw new Error("--junit requires a directory or .xml path");
     } else if (a === "--with") {
       const v = argv[++i];
       if (!v) throw new Error("--with requires a value (comma-separated list)");
@@ -93,6 +108,15 @@ function parseArgs(argv) {
 
 function fmt(obj) {
   return JSON.stringify(obj, null, 2);
+}
+
+function printJUnitReport(report) {
+  if (!report) return;
+  process.stdout.write(
+    `--- JUnit report: ${report.path} ` +
+      `(tests=${report.tests}, failures=${report.failures}, skipped=${report.skipped}, ` +
+      `commit=${report.commit || "unknown"}, llng=${report.llngRef})\n`,
+  );
 }
 
 // Forward the child process exit code, clamped to the 0-255 range
@@ -168,8 +192,10 @@ async function main() {
         tests: tests.length ? tests : undefined,
         verbose: opts.verbose,
         streamStdio: true,
+        junit: opts.junit,
       });
       // prove output was streamed live; just report the summary line
+      printJUnitReport(res.junit);
       process.stdout.write(
         `\n--- prove exit=${res.exitCode} (cwd=${res.cwd})\n`,
       );
@@ -195,7 +221,9 @@ async function main() {
         tests: tests.length ? tests : undefined,
         verbose: opts.verbose,
         streamStdio: true,
+        junit: opts.junit,
       });
+      printJUnitReport(res.junit);
       process.stdout.write(`\n--- prove exit=${res.exitCode}\n`);
       return clampExit(res.exitCode);
     }

@@ -71,6 +71,7 @@ Prepare / test options:
 | `--no-deps`    | Don't auto-resolve `plugin.json:depends`                                                                                                                             |
 | `--with a,b,c` | Also link extra plugins (lib + assets only; their tests are not linked)                                                                                              |
 | `--quiet`      | Non-verbose `prove`                                                                                                                                                  |
+| `--junit <dir>`| Also write a JUnit report in `<dir>` (or to the given `.xml` path); see below                                                                                         |
 
 If you prefer a shorter name, `npm install` also registers the CLI as
 `llng-plugins-test` — symlink it or add `mcp/node_modules/.bin` to
@@ -114,6 +115,41 @@ prove -v -I. \
 The CLI just automates all of this and tracks the merged translation
 keys in `.llng-test/state/<plugin>/translations.json` so that `clean`
 can un-merge them without losing LLNG's core strings.
+
+## JUnit reports for certification evidence
+
+A test definition is not evidence that the test ran. Pass `--junit` to
+`test` or `execute` to also write a JUnit XML report next to the prove
+output:
+
+```sh
+./mcp/cli.js test ssh-ca --junit test-results
+```
+
+The report is named after the plugin, the LLNG ref, the commit under test
+and the run timestamp, for example:
+
+```text
+test-results/junit-ssh-ca-llng-v2.23.4-de24354-20261104T143005Z.xml
+```
+
+A `-dirty` marker is inserted when the working tree had uncommitted
+changes. Inside the XML, the `<properties>` block records the full repo
+commit, the LLNG ref, the open-bastion submodule commit, whether the tree
+was dirty, and the CI run URL when available. One `<testsuite>` holds each
+`.t` file and one `<testcase>` each TAP test result, so a dossier can point
+at either level.
+
+`--junit` forces verbose mode (the report needs the TAP stream) and runs
+the `.t` files one at a time to get a per-file status and duration.
+
+In CI, every matrix job uploads its report as the
+`junit-<plugin>-<ref>-<commit>` artifact. The `Test Plugins` workflow also
+runs on `v*` tags; a `v*` run additionally collects all reports into a
+single `junit-evidence-<tag>-<commit>` artifact with a `SHA256SUMS` index,
+kept for the maximum retention GitHub allows. Download that artifact and
+archive it with the release to keep the evidence beyond the retention
+window.
 
 ## Testing with AI — MCP server
 
