@@ -40,7 +40,8 @@ has dnsResolver => (
 # main method: serverResolve
 
 sub serverResolve {
-    my ( $self, $name ) = @_;
+    my ( $self, $name, $ua ) = @_;
+    $ua ||= $self->ua;
 
     # From Matrix spec 1.9
     #
@@ -61,7 +62,7 @@ sub serverResolve {
 
     # If the hostname is not an IP literal, a regular HTTPS request is made
     # to https://<hostname>/.well-known/matrix/server
-    my $resp = $self->ua->get("https://$name/.well-known/matrix/server");
+    my $resp = $ua->get("https://$name/.well-known/matrix/server");
     if ( $resp->is_success ) {
         my $content = eval { JSON::from_json( $resp->decoded_content ) };
         unless ($@) {
@@ -156,10 +157,11 @@ sub dnsSrvResolve {
 # main method: validateMatrixToken
 
 sub validateMatrixToken {
-    my ( $self, $matrixBaseUrl, $accessToken ) = @_;
+    my ( $self, $matrixBaseUrl, $accessToken, $ua ) = @_;
+    $ua ||= $self->ua;
     $matrixBaseUrl =~ s#/+$##;
     my $resp =
-      $self->ua->get( "$matrixBaseUrl/_matrix/federation/v1/openid/userinfo?"
+      $ua->get( "$matrixBaseUrl/_matrix/federation/v1/openid/userinfo?"
           . build_urlencoded( access_token => $accessToken ) );
     if ( $resp->is_success ) {
         my $content = eval { JSON::from_json( $resp->decoded_content ) };
@@ -233,9 +235,13 @@ methods to interact with Matrix servers.
 Return the base URL corresponding to the given Matrix "Servername", following
 L<Matrix specifications|https://spec.matrix.org/v1.9/server-server-api/#server-discovery>
 
+An optional second argument is the L<LWP::UserAgent> to use instead of C<ua>.
+
 =head2 validateMatrixToken
 
 Verify the given "federation token" and return the matrix address.
+
+An optional third argument is the L<LWP::UserAgent> to use instead of C<ua>.
 
 The "federation token" isn't the Matrix C<access_token> but a token that user
 can get by calling C</_matrix/client/v3/user/$USER_ID/openid/request_token>
