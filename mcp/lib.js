@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildJUnitXml, suitesFromProveOutput } from "./junit.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -644,9 +645,91 @@ export async function prepareTest(
   };
 }
 
+function sanitizeNamePart(value) {
+  return (
+    String(value ?? "")
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "unknown"
+  );
+}
+
+function timestampSlug(date) {
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z").replace(/[-:]/g, "");
+}
+
+async function gitOutput(args) {
+  const r = await run("git", args);
+  return r.code === 0 ? r.stdout.trim() : "";
+}
+
+// Everything a certification document needs to identify the code under
+// test: the commit, whether the working tree was clean, and the vendored
+// open-bastion revision (four of the plugins live there).
+async function collectRevisionInfo() {
+  const commit =
+    process.env.GITHUB_SHA ||
+    (await gitOutput(["-C", PROJECT_ROOT, "rev-parse", "HEAD"]));
+  const ref =
+    process.env.GITHUB_REF_NAME ||
+    (await gitOutput([
+      "-C",
+      PROJECT_ROOT,
+      "describe",
+      "--tags",
+      "--exact-match",
+    ])) ||
+    (await gitOutput(["-C", PROJECT_ROOT, "rev-parse", "--abbrev-ref", "HEAD"]));
+  const status = await gitOutput([
+    "-C",
+    PROJECT_ROOT,
+    "status",
+    "--porcelain",
+    "--untracked-files=normal",
+  ]);
+  const submodule = await gitOutput([
+    "-C",
+    path.join(PROJECT_ROOT, "open-bastion"),
+    "rev-parse",
+    "HEAD",
+  ]);
+  const runUrl =
+    process.env.GITHUB_SERVER_URL &&
+    process.env.GITHUB_REPOSITORY &&
+    process.env.GITHUB_RUN_ID
+      ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
+      : "";
+
+  return { commit, ref, dirty: Boolean(status), submodule, runUrl };
+}
+
+function junitOutputPath(target, { plugin, llngRef, startedAt, revision }) {
+  if (typeof target === "string" && target.endsWith(".xml")) {
+    return path.resolve(target);
+  }
+  const dir = path.resolve(
+    target === true
+      ? path.join(PROJECT_ROOT, "test-results")
+      : String(target || "test-results"),
+  );
+  const sha = (revision.commit || "unknown").slice(0, 7);
+  const name = [
+    "junit",
+    plugin,
+    "llng",
+    llngRef,
+    sha,
+    revision.dirty ? "dirty" : null,
+    timestampSlug(startedAt),
+  ]
+    .filter(Boolean)
+    .map(sanitizeNamePart)
+    .join("-");
+  return path.join(dir, `${name}.xml`);
+}
+
 export async function executeTest(
   primary,
-  { tests, verbose = true, streamStdio = false } = {},
+  { tests, verbose = true, streamStdio = false, junit = null } = {},
 ) {
   validatePluginName(primary);
   const component = await detectPrimaryComponent(
@@ -661,7 +744,11 @@ export async function executeTest(
   }
 
   const args = [];
-  if (verbose) args.push("-v");
+  // A JUnit report needs the per-assertion TAP stream, so force verbose
+  // mode even if the caller asked for quiet console output.
+  if (verbose || junit) args.push("-v");
+  // Keep diagnostics next to the test they belong to.
+  if (junit) args.push("--merge");
   args.push(
     "-I.",
     "-I../lemonldap-ng-common/blib/lib",
@@ -691,21 +778,115 @@ export async function executeTest(
   } else {
     throw new Error(`Plugin ${primary} has no t/ directory`);
   }
-  args.push(...targets);
 
-  const r = await run("prove", args, {
-    cwd: runDir,
-    streamStdout: streamStdio,
-    streamStderr: streamStdio,
-  });
+  const startedAt = new Date();
+  let r;
+  const runs = [];
+
+  if (junit) {
+    // Run one .t at a time: it gives each file its own exit status and
+    // duration (JUnit wants both) without running anything twice.
+    let stdout = "";
+    let stderr = "";
+    let exitCode = 0;
+    for (const target of targets) {
+      const t0 = Date.now();
+      const one = await run("prove", [...args, target], {
+        cwd: runDir,
+        streamStdout: streamStdio,
+        streamStderr: streamStdio,
+      });
+      runs.push({
+        target,
+        output: `${one.stdout}\n${one.stderr}`,
+        exitCode: one.code,
+        duration: (Date.now() - t0) / 1000,
+      });
+      stdout += one.stdout;
+      stderr += one.stderr;
+      if (exitCode === 0 && one.code !== 0) exitCode = one.code;
+    }
+    r = { code: exitCode, stdout, stderr };
+  } else {
+    r = await run("prove", [...args, ...targets], {
+      cwd: runDir,
+      streamStdout: streamStdio,
+      streamStderr: streamStdio,
+    });
+  }
+  const finishedAt = new Date();
+
+  let junitReport = null;
+  if (junit) {
+    const revision = await collectRevisionInfo();
+    const llngRef = (await readMeta()).ref || "default";
+    const suites = runs.flatMap((one) =>
+      suitesFromProveOutput(one.output, {
+        name: one.target,
+        exitCode: one.exitCode,
+        duration: one.duration,
+      }),
+    );
+    const properties = {
+      "repo.commit": revision.commit,
+      "repo.ref": revision.ref,
+      "repo.dirty": revision.dirty ? "true" : "false",
+      "open_bastion.commit": revision.submodule,
+      "llng.ref": llngRef,
+      "ci.run_url": revision.runUrl,
+      "prove.command": `prove ${[...args, ...targets].join(" ")}`,
+      "started_at": startedAt.toISOString(),
+      "finished_at": finishedAt.toISOString(),
+    };
+    const xml = buildJUnitXml({
+      plugin: primary,
+      component,
+      suites,
+      properties,
+      startedAt,
+      finishedAt,
+      exitCode: r.code,
+    });
+    const outPath = junitOutputPath(junit, {
+      plugin: primary,
+      llngRef,
+      startedAt,
+      revision,
+    });
+    await fs.mkdir(path.dirname(outPath), { recursive: true });
+    await fs.writeFile(outPath, xml);
+
+    const tests = suites.reduce((n, s) => n + s.cases.length, 0);
+    const failures = suites.reduce(
+      (n, s) => n + s.cases.filter((c) => c.outcome === "failed").length,
+      0,
+    );
+    const skipped = suites.reduce(
+      (n, s) => n + s.cases.filter((c) => c.outcome === "skipped").length,
+      0,
+    );
+    junitReport = {
+      path: outPath,
+      commit: revision.commit,
+      ref: revision.ref,
+      dirty: revision.dirty,
+      llngRef,
+      openBastionCommit: revision.submodule,
+      tests,
+      failures,
+      skipped,
+    };
+  }
+
   return {
     plugin: primary,
     component,
     cwd: runDir,
-    command: `prove ${args.join(" ")}`,
+    command: `prove ${[...args, ...targets].join(" ")}`,
     exitCode: r.code,
     stdout: r.stdout,
     stderr: r.stderr,
+    junit: junitReport,
   };
 }
 

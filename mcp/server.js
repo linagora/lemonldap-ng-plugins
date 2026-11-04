@@ -82,6 +82,11 @@ const TOOLS = [
             "Optional explicit test paths relative to the component dir (or absolute). Defaults to every .t in the plugin's t/.",
         },
         verbose: { type: "boolean", default: true },
+        junit: {
+          type: "string",
+          description:
+            "Also write a JUnit XML report to this directory (or .xml path). The file name carries the commit and run timestamp; useful as certification evidence.",
+        },
       },
       required: ["plugin"],
       additionalProperties: false,
@@ -126,6 +131,11 @@ const TOOLS = [
         ref: { type: "string" },
         tests: { type: "array", items: { type: "string" } },
         verbose: { type: "boolean", default: true },
+        junit: {
+          type: "string",
+          description:
+            "Also write a JUnit XML report to this directory (or .xml path).",
+        },
       },
       required: ["plugin"],
       additionalProperties: false,
@@ -178,6 +188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         const res = await executeTest(args.plugin, {
           tests: args.tests,
           verbose: args.verbose !== false,
+          junit: args.junit || null,
         });
         return textResult(res);
       }
@@ -213,6 +224,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
         const exec = await executeTest(args.plugin, {
           tests: args.tests,
           verbose: args.verbose !== false,
+          junit: args.junit || null,
         });
         return textResult({
           prepare: {
