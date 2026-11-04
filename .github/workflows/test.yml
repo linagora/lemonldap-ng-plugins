@@ -288,7 +288,10 @@ jobs:
     runs-on: ubuntu-latest
     name: collect JUnit evidence (${{ github.ref_name }})
     steps:
+      # A missing report is diagnosed by the indexing step below, which fails
+      # with an explicit message; don't stop here on the download error.
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           pattern: junit-*
           path: evidence
@@ -301,6 +304,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          mkdir -p evidence
           cd evidence
           {
             echo "tag=$TAG"
