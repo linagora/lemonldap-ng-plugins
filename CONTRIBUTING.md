@@ -144,12 +144,15 @@ at either level.
 the `.t` files one at a time to get a per-file status and duration.
 
 In CI, every matrix job uploads its report as the
-`junit-<plugin>-<ref>-<commit>` artifact. The `Test Plugins` workflow also
-runs on `v*` tags; a `v*` run additionally collects all reports into a
-single `junit-evidence-<tag>-<commit>` artifact with a `SHA256SUMS` index,
-kept for the maximum retention GitHub allows. Download that artifact and
-archive it with the release to keep the evidence beyond the retention
-window.
+`junit-<plugin>-<ref>-<commit>` artifact for debugging. The `Test Plugins`
+workflow also runs on `v*` tags; a tag run collects all reports into a
+single `junit-evidence-<tag>-<commit>.zip` archive (containing
+`MANIFEST.txt`, `FILES.txt` and `SHA256SUMS`), creates the GitHub release
+for the tag if it does not exist yet, and attaches the archive to it. The
+release is only published when the test and validation jobs succeeded: a
+failed run still produces the per-matrix artifacts, but no release. The
+release asset is the durable copy to cite in a certification dossier; it
+is not subject to Actions artifact retention.
 
 ## Testing with AI — MCP server
 
