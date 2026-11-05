@@ -1,0 +1,9 @@
+{
+  "accountsList": "Comptes applicatifs",
+  "addAccount": "Ajouter un compte",
+  "accountName": "Nom du compte",
+  "delAppAccount": "Supprimer ce compte applicatif ?",
+  "noAccount": "Aucun compte applicatif",
+  "delete": "Supprimer",
+  "error": "Une erreur est survenue"
+}
