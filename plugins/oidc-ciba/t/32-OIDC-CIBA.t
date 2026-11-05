@@ -867,5 +867,69 @@ subtest "CIBA ping mode without token" => sub {
     expectReject( $res, 400, 'invalid_request' );
 };
 
+subtest "CIBA callback: an invalid body" => sub {
+    for my $body ( '[1,2]', '"abc"' ) {
+        my $res = $op->_post(
+            '/oauth2/ciba-callback',
+            IO::String->new($body),
+            accept => 'application/json',
+            type   => 'application/json',
+            length => length($body),
+            custom => { HTTP_AUTHORIZATION => 'Bearer callback_secret' },
+        );
+        expectReject( $res, 400, 'invalid_request' );
+    }
+
+    my $body = to_json( { auth_req_id => [1], status => 'approved' } );
+    my $res  = $op->_post(
+        '/oauth2/ciba-callback',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+        custom => { HTTP_AUTHORIZATION => 'Bearer callback_secret' },
+    );
+    expectReject( $res, 400, 'invalid_request' );
+};
+
+subtest "CIBA: a hint whose payload is not an object" => sub {
+    for my $param (qw(login_hint_token id_token_hint)) {
+        my $query = buildForm( {
+                client_id     => 'rpid',
+                client_secret => 'rpsecret',
+                scope         => 'openid',
+                $param        => 'eyJhbGciOiJub25lIn0.WzEsMl0.c2ln',
+        } );
+        my $res = eval {
+            $op->_post(
+                '/oauth2/bc-authorize',
+                IO::String->new($query),
+                accept => 'application/json',
+                length => length($query),
+            );
+        };
+        is( $@, '', "no die for $param" );
+        expectReject( $res, 400, 'invalid_request' );
+    }
+};
+
+subtest "CIBA: near-matches of the openid scope" => sub {
+    for my $scope ( '-openid', 'my-openid', 'openid-x' ) {
+        my $query = buildForm( {
+                client_id     => 'rpid',
+                client_secret => 'rpsecret',
+                scope         => $scope,
+                login_hint    => 'dwho',
+        } );
+        my $res = $op->_post(
+            '/oauth2/bc-authorize',
+            IO::String->new($query),
+            accept => 'application/json',
+            length => length($query),
+        );
+        expectReject( $res, 400, 'invalid_scope' );
+    }
+};
+
 clean_sessions();
 done_testing();

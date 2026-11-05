@@ -121,7 +121,7 @@ sub backchannelAuthentication {
     my $acr_values                = $req->param('acr_values');
 
     # Validate scope
-    unless ( $scope =~ /\bopenid\b/ ) {
+    unless ( $self->_hasOpenidScope($scope) ) {
         $self->logger->error('CIBA request missing openid scope');
         return $self->_cibaError( $req, 'invalid_scope', 400 );
     }
@@ -300,7 +300,7 @@ sub _backchannelAuthenticationAuthImpl {
     my $scope      = $req->param('scope') || '';
     my $login_hint = $req->param('login_hint');
 
-    unless ( $scope =~ /\bopenid\b/ ) {
+    unless ( $self->_hasOpenidScope($scope) ) {
         return $self->_cibaError( $req, 'invalid_scope', 400 );
     }
 
@@ -355,7 +355,7 @@ sub _backchannelAuthenticationAuthImpl {
     };
 
     # Generate ID token
-    if ( $scope =~ /\bopenid\b/ ) {
+    if ( $self->_hasOpenidScope($scope) ) {
         my $id_token =
           $self->oidc->_generateIDToken( $req, $rp, $scope, $sessionInfo, 0,
             {} );
@@ -413,8 +413,9 @@ sub authenticationCallback {
     # Extract parameters from JSON body
     my $body;
     eval { $body = decode_json( $req->content ); };
-    if ($@) {
-        $self->logger->error("CIBA callback: Invalid JSON body: $@");
+    if ( $@ or ref $body ne 'HASH' ) {
+        $self->logger->error('CIBA callback: Invalid JSON body: '
+              . ( $@ || 'not an object' ) );
         return $self->p->sendJSONresponse(
             $req,
             { error => 'invalid_request', error_description => 'Invalid JSON' },
@@ -428,7 +429,10 @@ sub authenticationCallback {
     my $acr         = $body->{acr};          # Authentication context (optional)
     my $auth_time   = $body->{auth_time};    # Authentication time (optional)
 
-    unless ($auth_req_id) {
+    unless ( defined $auth_req_id
+        and !ref $auth_req_id
+        and length $auth_req_id )
+    {
         $self->logger->error('CIBA callback: Missing auth_req_id');
         return $self->p->sendJSONresponse(
             $req,
@@ -672,7 +676,7 @@ sub handleCibaGrant {
         };
 
         # Generate ID token if openid scope
-        if ( $scope =~ /\bopenid\b/ ) {
+        if ( $self->_hasOpenidScope($scope) ) {
 
             # Override auth_time in session if provided by CIBA
             my $session_for_idtoken = {%$sessionInfo};
@@ -744,6 +748,14 @@ sub _cibaError {
     $response->{error_description} = $description if $description;
 
     return $self->p->sendJSONresponse( $req, $response, code => $code );
+}
+
+# Scope values are space-delimited tokens: `-openid` and `my-openid` are not
+# the `openid` scope.
+sub _hasOpenidScope {
+    my ( $self, $scope ) = @_;
+    return 0 unless defined $scope && !ref $scope;
+    return scalar grep { $_ eq 'openid' } split /\s+/, $scope;
 }
 
 sub _resolveUserFromHint {
