@@ -513,6 +513,7 @@ subtest 'request object: dates that are not numbers are refused' => sub {
         { exp => { a => 1 } },
         { exp => 'NaN' },
         { exp => 'Inf' },
+        { exp => '1e400' },
         { nbf => 'NaN' },
         { nbf => [1] },
       )
