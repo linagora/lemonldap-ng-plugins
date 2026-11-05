@@ -48,6 +48,7 @@ In the Manager, under **OpenID Connect Service** > **CIBA**:
 | `oidcServiceCibaExpiration`                  | `120`           | Default auth_req_id TTL (seconds)           |
 | `oidcServiceCibaMaxExpiration`               | `300`           | Maximum auth_req_id TTL (seconds)           |
 | `oidcServiceCibaInterval`                    | `5`             | Minimum polling interval (seconds)          |
+| `oidcServiceCibaChoice`                      |                 | `authChoiceModules` entry for `Auth = Choice` |
 | `oidcServiceCibaAuthenticationChannelUrl`    |                 | External auth channel URL                   |
 | `oidcServiceCibaAuthenticationChannelSecret` |                 | Secret for outgoing auth channel requests   |
 | `oidcServiceCibaCallbackSecret`              |                 | Secret expected from auth channel callbacks |
@@ -61,6 +62,11 @@ For each OIDC RP:
 | `oidcRPMetaDataOptionsAllowCIBA`                | `0`     | Enable CIBA for this RP             |
 | `oidcRPMetaDataOptionsCIBAMode`                 | `poll`  | Delivery mode: `poll` or `ping`     |
 | `oidcRPMetaDataOptionsCIBANotificationEndpoint` |         | Client notification URL (ping mode) |
+
+`id_token_hint` is accepted only when the RP's
+`oidcRPMetaDataOptionsUserIDAttr` (or `whatToTrace` when unset) is the local
+login attribute and is not an RP macro. Other configurations get
+`invalid_request`, because the `sub` cannot be mapped back to a login safely.
 
 ## How It Works
 

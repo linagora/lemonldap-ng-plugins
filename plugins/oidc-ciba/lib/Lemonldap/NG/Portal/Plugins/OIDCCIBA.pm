@@ -773,6 +773,15 @@ sub _resolveUserFromHint {
         return ( undef, undef, 'invalid_request' )
           unless defined $sub && !ref $sub && length $sub;
 
+        # LLNG computes sub from the RP user-ID attribute. Only use it as a
+        # login when that attribute is the local login attribute and is not
+        # an RP macro; otherwise we cannot map it back safely.
+        unless ( $self->_subIsLogin($rp) ) {
+            $self->logger->error(
+                'CIBA: id_token_hint sub cannot be mapped back to a login');
+            return ( undef, undef, 'invalid_request' );
+        }
+
         my $sessionInfo = $self->_lookupUser( $req, $sub );
         return ( undef, undef, 'unknown_user_id' ) unless $sessionInfo;
         return ( $sub, $sessionInfo );
@@ -789,6 +798,19 @@ sub _resolveUserFromHint {
     return ( undef, undef, 'invalid_request' );
 }
 
+sub _subIsLogin {
+    my ( $self, $rp ) = @_;
+    my $whatToTrace = $self->conf->{whatToTrace} || 'uid';
+    my $userIdAttr =
+         $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsUserIDAttr}
+      || $whatToTrace;
+    return 0 unless $userIdAttr eq $whatToTrace;
+
+    my $macros = $self->oidc->rpMacros->{$rp} || {};
+    return 0 if $macros->{$userIdAttr};
+    return 1;
+}
+
 # Resolve a user through the local user backends. There is no interactive
 # authentication here: the hint already names the user, we only need this
 # server's own view of them.
@@ -799,6 +821,9 @@ sub _lookupUser {
 
     $req->user($user);
     $req->sessionInfo( {} );
+    if ( my $choice = $self->conf->{oidcServiceCibaChoice} ) {
+        $req->data->{_authChoice} = $choice;
+    }
     $req->steps( [
             'getUser',              'setSessionInfo',
             $self->groupsAndMacros, 'setLocalGroups'
@@ -1022,13 +1047,14 @@ sub _createUserSessionForCiba {
     # last so that they cannot be overridden by user attributes.
     my $sessionInfo = {
         %$user_info,
-        $self->conf->{whatToTrace} => $user,
-        _user                      => $user,
-        _utime                     => time,
-        _auth                      => 'CIBA',
-        _authChoice                => 'CIBA',
-        _scope                     => $cibaSession->{scope},
-        _clientId                  =>
+        $self->conf->{whatToTrace} => $user_info->{ $self->conf->{whatToTrace} }
+          // $user,
+        _user       => $user,
+        _utime      => time,
+        _auth       => 'CIBA',
+        _authChoice => 'CIBA',
+        _scope      => $cibaSession->{scope},
+        _clientId   =>
           $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID},
         _clientConfKey => $rp,
     };

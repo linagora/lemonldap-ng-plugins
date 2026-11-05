@@ -25,6 +25,10 @@
       "default": 5,
       "documentation": "CIBA polling interval (seconds)"
     },
+    "oidcServiceCibaChoice": {
+      "type": "text",
+      "documentation": "authChoiceModules entry used to resolve the user when authentication = Choice"
+    },
     "oidcServiceCibaAuthenticationChannelUrl": {
       "type": "url",
       "documentation": "External authentication channel URL for CIBA notifications"
@@ -77,6 +81,7 @@
             "oidcServiceCibaExpiration",
             "oidcServiceCibaMaxExpiration",
             "oidcServiceCibaInterval",
+            "oidcServiceCibaChoice",
             "oidcServiceCibaAuthenticationChannelUrl",
             "oidcServiceCibaAuthenticationChannelSecret",
             "oidcServiceCibaCallbackSecret"
@@ -145,6 +150,12 @@
       "fr": "Intervalle de polling CIBA (secondes)",
       "es": "Intervalo de sondeo CIBA (segundos)",
       "it": "Intervallo di polling CIBA (secondi)"
+    },
+    "oidcServiceCibaChoice": {
+      "en": "Authentication choice for CIBA user lookup",
+      "fr": "Choix d'authentification pour la résolution CIBA",
+      "es": "Elección de autenticación para la resolución CIBA",
+      "it": "Scelta di autenticazione per la risoluzione CIBA"
     },
     "oidcServiceCibaAuthenticationChannelUrl": {
       "en": "External authentication channel URL",
