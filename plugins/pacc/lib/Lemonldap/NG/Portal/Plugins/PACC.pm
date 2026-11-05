@@ -15,8 +15,7 @@ extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 # INTERFACE
 use constant hook => {
-    oidcGotRegistrationRequest        => 'checkRegistrationAllowed',
-    oidcGenerateRegistrationResponse  => 'adjustRegistrationMetadata',
+    oidcGotRegistrationRequest => 'checkRegistrationAllowed',
 };
 
 # INITIALIZATION
@@ -81,38 +80,6 @@ sub checkRegistrationAllowed {
 "PACC: Rejecting registration - not all redirect_uris are loopback (strict mode enabled)"
         );
         return PE_OIDC_SERVICE_NOT_ALLOWED;
-    }
-
-    return PE_OK;
-}
-
-## @method int adjustRegistrationMetadata($req, $registration_state)
-# Hook for OIDC dynamic registration to adjust client metadata
-# Support public clients (token_endpoint_auth_method = none)
-# @param $req Lemonldap::NG::Portal::Main::Request object
-# @param $registration_state hashref State with client_id, client_secret, etc.
-# @return PE_OK
-sub adjustRegistrationMetadata {
-    my ( $self, $req, $registration_state ) = @_;
-
-    my $client_metadata = $registration_state->{client_metadata};
-    my $token_endpoint_auth_method =
-      $client_metadata->{token_endpoint_auth_method} || 'client_secret_basic';
-
-    # If client requests public client (no secret), honor it
-    if ( $token_endpoint_auth_method eq 'none' ) {
-        $self->logger->debug(
-            "PACC: Registering public client (no client_secret)");
-        $registration_state->{client_secret} = undef;
-
-        # Include in registration response
-        $registration_state->{response_fields}->{token_endpoint_auth_method} =
-          'none';
-    }
-    else {
-        # Confidential client - include auth method in response
-        $registration_state->{response_fields}->{token_endpoint_auth_method} =
-          $token_endpoint_auth_method;
     }
 
     return PE_OK;

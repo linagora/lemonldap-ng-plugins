@@ -12,13 +12,14 @@ standardized JSON endpoint.
   apps with loopback redirect URIs (localhost, 127.0.0.1, [::1]) when dynamic
   registration is enabled. Public clients need
   `oidcServiceAllowDynamicRegistration = 2`.
-- **Public client support**: honors `token_endpoint_auth_method: "none"` in
-  registration requests for clients that cannot store a secret (relies on PKCE)
+- **Public client support**: the core honours
+  `token_endpoint_auth_method: "none"` when
+  `oidcServiceAllowDynamicRegistration = 2`; PACC only filters which clients
+  may register
 
 ## Requirements
 
-- LemonLDAP::NG >= 2.23.2 (requires `oidcGotRegistrationRequest` and
-  `oidcGenerateRegistrationResponse` hooks)
+- LemonLDAP::NG >= 2.23.2 (requires the `oidcGotRegistrationRequest` hook)
 
 ## Installation
 
