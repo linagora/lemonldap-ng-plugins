@@ -24,6 +24,19 @@
   the PAR hook calls JAR validation on the resolved request so the two
   plugins no longer depend on `customPlugins` order.
 
+### oidc-id-jag
+
+- **Non-object JWT parts are refused** (#125): a JWT Bearer assertion or a
+  subject ID Token whose header or payload is a JSON array or string now gets
+  `invalid_grant` instead of dying with "Not a HASH reference".
+- **NumericDate claims are validated** (#155): `exp`, `nbf` and `iat` must be
+  finite numbers, both for incoming ID-JAG assertions and for subject ID
+  Tokens; lists, objects, `NaN` and text are refused.
+- **`jti` values are validated and replay-safe** (#126, #156): a non-empty
+  string is required, non-Latin-1 characters no longer die in the digest or
+  in the session record, and non-string `jti` values are refused.
+- **Wide `sid` values no longer die** when hashing the ID Token `sid` index.
+
 ### custom-functions
 
 - **UUIDv5 input normalisation** (#143): `uuid()` now hashes unflagged

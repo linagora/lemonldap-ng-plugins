@@ -9,7 +9,7 @@ use Test::More;
 use strict;
 use utf8;
 use IO::String;
-use MIME::Base64 qw/encode_base64/;
+use MIME::Base64 qw/encode_base64 encode_base64url/;
 use Crypt::JWT qw(decode_jwt encode_jwt);
 use JSON;
 
@@ -380,6 +380,103 @@ subtest 'asserted authorization_details are filtered locally' => sub {
     my $json = expectJSON( jwtBearer( $ras, 'rpid', assertion => $withRar ) );
     ok( !$json->{authorization_details},
         'Details are dropped when the local RP declares no allowlist' );
+};
+
+my $assertionSeq = 0;
+
+sub signedAssertion {
+    my (%overrides) = @_;
+    return encode_jwt(
+        payload => {
+            iss       => $ISSUER,
+            sub       => 'french',
+            aud       => $AUDIENCE,
+            client_id => 'rpid',
+            scope     => 'openid profile',
+            jti       => 'claims-' . ++$assertionSeq,
+            iat       => time,
+            exp       => time + 300,
+            %overrides,
+        },
+        alg           => 'RS256',
+        key           => \oidc_key_op_private_sig,
+        extra_headers => { typ => 'oauth-id-jag+jwt' },
+    );
+}
+
+subtest 'an assertion that is not made of JSON objects is refused' => sub {
+    my $goodHeader = encode_base64url('{"alg":"RS256","typ":"oauth-id-jag+jwt"}');
+    my $goodBody   = encode_base64url('{"iss":"x"}');
+    my $n          = 0;
+    for my $jwt (
+        encode_base64url('[1,2]') . ".$goodBody.sig",
+        encode_base64url('"abc"') . ".$goodBody.sig",
+        "$goodHeader." . encode_base64url('[1,2]') . '.sig',
+        "$goodHeader." . encode_base64url('"abc"') . '.sig',
+      )
+    {
+        my $res = eval { jwtBearer( $ras, 'rpid', assertion => $jwt ) };
+        is( $@, '', "no die for malformed assertion " . ++$n );
+        expectError( $res, 'invalid_grant',
+            "Malformed assertion $n" );
+    }
+};
+
+subtest 'a subject ID token that is not made of JSON objects is refused' => sub {
+    my $bad = encode_base64url('[1,2]') . '.'
+      . encode_base64url('{"iss":"x"}') . '.sig';
+    my $res = eval {
+        tokenExchange(
+            $op, 'rpid',
+            requested_token_type => $ID_JAG,
+            audience             => $AUDIENCE,
+            subject_token        => $bad,
+            subject_token_type   =>
+              'urn:ietf:params:oauth:token-type:id_token',
+            scope => 'openid profile',
+        );
+    };
+    is( $@, '', 'no die for a malformed subject ID token' );
+    expectError( $res, 'invalid_grant', 'A malformed subject ID token' );
+};
+
+subtest 'a jti with a wide character does not die, and is used once' => sub {
+    my $jwt = signedAssertion( jti => "\x{263a}-wide-1" );
+    my $first = eval { jwtBearer( $ras, 'rpid', assertion => $jwt ) };
+    is( $@, '', 'no die' );
+    isnt( $first->[0], 500, 'no 500' );
+    is( $first->[0], 200, 'accepted once' );
+
+    my $second = eval { jwtBearer( $ras, 'rpid', assertion => $jwt ) };
+    is( $@, '', 'no die on replay' );
+    isnt( $second->[0], 200, 'not accepted twice' );
+};
+
+subtest 'exp, nbf and iat must be numbers' => sub {
+    for my $bad (
+        { exp => [ time + 300 ] },
+        { exp => 'Inf' },
+        { exp => '1e400' },
+        { nbf => 'soon' },
+        { iat => 'soon' },
+      )
+    {
+        my $jwt = signedAssertion(%$bad);
+        my $res = eval { jwtBearer( $ras, 'rpid', assertion => $jwt ) };
+        is( $@, '', 'no die' );
+        expectError( $res, 'invalid_grant',
+            'A malformed date ' . to_json($bad) );
+    }
+};
+
+subtest 'a jti that is not a string is refused' => sub {
+    for my $jti ( ['ref-1'], { id => 'ref-2' } ) {
+        my $jwt = signedAssertion( jti => $jti );
+        my $res = eval { jwtBearer( $ras, 'rpid', assertion => $jwt ) };
+        is( $@, '', 'no die' );
+        expectError( $res, 'invalid_grant',
+            'A non-string jti ' . to_json($jti) );
+    }
 };
 
 clean_sessions();

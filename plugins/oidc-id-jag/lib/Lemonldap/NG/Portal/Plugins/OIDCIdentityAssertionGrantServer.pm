@@ -13,7 +13,10 @@ package Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrantServer;
 use strict;
 use Mouse;
 use Digest::SHA qw(sha256_hex);
+use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::JWT qw(getJWTHeader getJWTPayload);
+use Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrant::Util
+  qw(numeric_date);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_SENDRESPONSE
@@ -123,7 +126,8 @@ sub _run {
 
     # 2. Only ID-JAG assertions are accepted here. Refusing anything else by
     #    its `typ` keeps this grant from becoming a generic JWT bearer path.
-    my $header = eval { getJWTHeader($assertion) } || {};
+    my $header = eval { getJWTHeader($assertion) };
+    $header = {} unless ref $header eq 'HASH';
     unless ( ( $header->{typ} || '' ) eq ID_JAG_TYP ) {
         $self->userLogger->error( 'JWT Bearer assertion is not an ID-JAG (typ '
               . ( $header->{typ} || 'missing' )
@@ -143,7 +147,8 @@ sub _run {
 
     # 3. Resolve the issuer into a trusted identity provider, *before* any
     #    signature check, so we know which JWKS to verify against.
-    my $unverified = eval { getJWTPayload($assertion) } || {};
+    my $unverified = eval { getJWTPayload($assertion) };
+    $unverified = {} unless ref $unverified eq 'HASH';
     my $iss = $unverified->{iss};
     unless ($iss) {
         $self->userLogger->error('ID-JAG without iss claim');
@@ -158,7 +163,7 @@ sub _run {
 
     # 4. Verify the signature against that provider's JWKS
     my $claims = $oidc->decodeJWT( $assertion, $op );
-    unless ($claims) {
+    unless ( ref $claims eq 'HASH' ) {
         $self->userLogger->error("Unable to verify ID-JAG issued by $iss");
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
@@ -186,17 +191,42 @@ sub _run {
     # 6. Freshness
     my $skew = $self->conf->{oidcServiceIdJagAllowedSkew} // 30;
     my $now  = time;
-    unless ( $claims->{exp} and $claims->{exp} + $skew > $now ) {
+
+    my $exp = numeric_date( $claims->{exp} );
+    unless ( defined $exp ) {
+        $self->userLogger->error('ID-JAG exp claim is not a NumericDate');
+        return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+    }
+    unless ( $exp + $skew > $now ) {
         $self->userLogger->error('ID-JAG is expired');
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
-    if ( $claims->{nbf} and $claims->{nbf} - $skew > $now ) {
-        $self->userLogger->error('ID-JAG is not valid yet');
-        return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+    $claims->{exp} = $exp;
+
+    if ( defined $claims->{nbf} ) {
+        my $nbf = numeric_date( $claims->{nbf} );
+        unless ( defined $nbf ) {
+            $self->userLogger->error('ID-JAG nbf claim is not a NumericDate');
+            return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+        }
+        if ( $nbf - $skew > $now ) {
+            $self->userLogger->error('ID-JAG is not valid yet');
+            return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+        }
+        $claims->{nbf} = $nbf;
     }
-    if ( $claims->{iat} and $claims->{iat} - $skew > $now ) {
-        $self->userLogger->error('ID-JAG was issued in the future');
-        return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+
+    if ( defined $claims->{iat} ) {
+        my $iat = numeric_date( $claims->{iat} );
+        unless ( defined $iat ) {
+            $self->userLogger->error('ID-JAG iat claim is not a NumericDate');
+            return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+        }
+        if ( $iat - $skew > $now ) {
+            $self->userLogger->error('ID-JAG was issued in the future');
+            return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
+        }
+        $claims->{iat} = $iat;
     }
 
     # 7. The assertion must have been minted for the client presenting it
@@ -210,8 +240,11 @@ sub _run {
     # 8. A jti is required; it is consumed at step 11, once every other check
     #    has passed, so a transient failure elsewhere does not burn a valid
     #    assertion the client would then have to re-obtain from its provider.
-    unless ( $claims->{jti} ) {
-        $self->userLogger->error('ID-JAG without jti claim');
+    unless ( defined $claims->{jti}
+        and !ref $claims->{jti}
+        and length $claims->{jti} )
+    {
+        $self->userLogger->error('ID-JAG without a string jti claim');
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
 
@@ -254,7 +287,7 @@ sub _run {
     unless ( $self->_consumeJti( $claims->{iss}, $claims->{jti},
             $claims->{exp} + $skew - $now ) )
     {
-        $self->userLogger->error("ID-JAG $claims->{jti} was already used");
+        $self->userLogger->error('ID-JAG jti was already used');
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
     }
 
@@ -348,7 +381,11 @@ sub _consumeJti {
     my ( $self, $iss, $jti, $ttl ) = @_;
     $ttl = 300 if !$ttl or $ttl < 1;
 
-    my $id = sha256_hex( JTI_INDEX_PREFIX . $iss . '|' . $jti );
+    # Digest::SHA works on bytes only: a jti decoded from a \u escape is a
+    # Perl character string.
+    my $issBytes = utf8::is_utf8($iss) ? encode_utf8($iss) : $iss;
+    my $jtiBytes = utf8::is_utf8($jti) ? encode_utf8($jti) : $jti;
+    my $id = sha256_hex( JTI_INDEX_PREFIX . $issBytes . '|' . $jtiBytes );
 
     my $existing = $self->p->getApacheSession(
         $id,
@@ -363,14 +400,14 @@ sub _consumeJti {
         info => {
             _type  => 'idjag_jti',
             _utime => time() - $self->conf->{timeout} + $ttl,
-            iss    => $iss,
-            jti    => $jti,
+            iss    => $issBytes,
+            jti    => $jtiBytes,
         },
         force     => 1,
         hashStore => 0,
     );
     unless ($session) {
-        $self->logger->error("Unable to record ID-JAG jti $jti");
+        $self->logger->error('Unable to record ID-JAG jti');
         return 0;
     }
     return 1;

@@ -165,10 +165,11 @@ allowlist before being stored, and dropped entirely when it declares none.
 
 ### Using an ID Token as subject token
 
-This is the flow described by the draft. The ID Token is verified against the
-signature algorithm **declared for the client** — pinned, to avoid algorithm
-substitution — and its `iss`, `aud`, `exp` and `nbf` claims are checked, then
-the user session is resolved through its `sid` claim.
+This is the flow described by the draft. The ID Token header and payload must
+be JSON objects, it is verified against the signature algorithm **declared for
+the client** — pinned, to avoid algorithm substitution — and its `iss`, `aud`,
+`exp` and `nbf` claims are checked (dates must be finite `NumericDate`
+values), then the user session is resolved through its `sid` claim.
 
 > The client's `oidcRPMetaDataOptionsIDTokenSignAlg` must be **asymmetric**.
 > An `HS*` ID Token is verified with the client's own `client_secret`, so the
@@ -231,19 +232,21 @@ Globally (Manager → _OpenID Connect Service_ → _Security_):
 
 ### What is checked
 
-1. `typ` header is `oauth-id-jag+jwt` — a plain JWT is refused, so this grant
-   never becomes a generic JWT bearer path.
+1. The header and payload are JSON objects, and the `typ` header is
+   `oauth-id-jag+jwt` — a plain JWT is refused, so this grant never becomes a
+   generic JWT bearer path.
 2. The signature algorithm is asymmetric, and the signature verifies against
    the JWKS of the issuing provider.
 3. `iss` names a provider configured with _Accept ID-JAG_, re-checked on the
    **verified** payload.
 4. `aud` names this server.
-5. `exp` / `nbf` / `iat` are fresh, within the tolerated skew.
+5. `exp` / `nbf` / `iat` are finite `NumericDate` values, fresh within the
+   tolerated skew.
 6. `client_id` matches the authenticated client.
-7. `jti` has not been seen before — **single use is enforced**, recorded until
-   the assertion would have expired anyway. The record is written only once
-   every other check has passed, so a transient failure does not burn an
-   otherwise valid assertion.
+7. `jti` is a non-empty string that has not been seen before — **single use is
+   enforced**, recorded until the assertion would have expired anyway. The
+   record is written only once every other check has passed, so a transient
+   failure does not burn an otherwise valid assertion.
 
 An assertion carrying no `scope` claim grants no scope: the request is refused
 with `invalid_scope` rather than letting the client name whatever it likes.
