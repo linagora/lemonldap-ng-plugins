@@ -188,4 +188,27 @@ is_deeply(
     'bracketed IPv6 SRV target'
 );
 
+# RFC 2782: lowest priority value first
+$dns = T::DNS->new(
+    '_matrix-fed._tcp.example.org' => [
+        T::RR->new(
+            target   => 'backup.example.org.',
+            port     => 8448,
+            priority => 20
+        ),
+        T::RR->new(
+            target   => 'primary.example.org.',
+            port     => 8448,
+            priority => 10
+        ),
+    ],
+);
+is_deeply(
+    [ matrix( dns => $dns )->dnsSrvResolve('_matrix-fed._tcp.example.org') ],
+    [ 'https://primary.example.org:8448/',
+        'https://backup.example.org:8448/'
+    ],
+    'SRV answers come lowest priority value first'
+);
+
 done_testing();

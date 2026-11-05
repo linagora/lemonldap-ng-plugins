@@ -178,7 +178,7 @@ sub dnsSrvResolve {
 
     my @res;
     foreach my $rr (
-        sort { $b->priority <=> $a->priority }
+        sort { $a->priority <=> $b->priority }
         grep { $_->type eq 'SRV' } $reply->answer
       )
     {
