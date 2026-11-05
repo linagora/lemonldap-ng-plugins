@@ -172,6 +172,8 @@ my $op = LLNG::Manager::Test->new( {
             # OpenID Federation config
             oidcFederationEnabled   => 1,
             oidcFederationEntityId  => 'https://op.example.com',
+            oidcFederationAllowPrivateHosts => 1,
+            oidcFederationCacheTTL          => 0,
             oidcFederationAuthorityHints => 'https://ta.example.com',
             oidcFederationSigningAlg     => 'RS256',
             oidcFederationTrustAnchors   => {
@@ -850,6 +852,116 @@ subtest 'the subject is encoded in the fetch query' => sub {
     ok( $jwt, 'statement fetched' );
     is( $last_fetch_sub, 'https://rp-fed.example.com/a&b',
         'the subject arrives decoded exactly once' );
+};
+
+subtest 'trust chain resolutions are cached' => sub {
+    my $conf      = $plugin->conf;
+    my $saved_ttl = $conf->{oidcFederationCacheTTL};
+    my $saved_sub = $ta_sub_statement_jwt;
+    $conf->{oidcFederationCacheTTL} = 60;
+    $plugin->_chainCache({});
+
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die' ) or diag $@;
+    ok( $config{confKey}, 'the first resolution builds the RP' );
+
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json( {
+                %$ta_sub_statement_payload,
+                sub => 'https://other.example.com',
+        } ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+    %config = ();
+    $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die with the cached chain' ) or diag $@;
+    ok( $config{confKey}, 'the cached chain is reused' );
+
+    $plugin->_chainCache({});
+    %config = ();
+    $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die without the cache' ) or diag $@;
+    ok( !$config{confKey}, 'without the cache the invalid statement is refused' );
+
+    $ta_sub_statement_jwt          = $saved_sub;
+    $conf->{oidcFederationCacheTTL} = $saved_ttl;
+    $plugin->_chainCache({});
+};
+
+subtest 'federation fetch guards' => sub {
+    my @hints = map { "https://h$_.example.com" } 1 .. 10;
+    is( scalar( $plugin->_candidateHints( \@hints ) ), 5,
+        'authority hints are capped' );
+
+    my $budget = { left => 3 };
+    ok( $plugin->_consumeBudget( $budget, 2 ), 'budget available' );
+    ok( !$plugin->_consumeBudget( $budget, 2 ), 'budget exhausted' );
+};
+
+{
+    package t::FedLogger;
+    sub new     { bless {}, shift }
+    sub debug   { }
+    sub info    { }
+    sub notice  { }
+    sub warn    { }
+    sub error   { }
+
+    package t::FedRole;
+    use Mouse;
+    has conf   => ( is => 'rw', default => sub { {} } );
+    has logger => ( is => 'rw', default => sub { t::FedLogger->new } );
+    has p      => ( is => 'rw', default => sub { {} } );
+    with 'Lemonldap::NG::Portal::Lib::OpenIDFederation';
+}
+
+subtest 'default federation UA blocks private hosts' => sub {
+    SKIP: {
+        skip 'LWPx::ParanoidAgent not installed', 3
+          unless eval { require LWPx::ParanoidAgent; 1 };
+
+        my $role =
+          t::FedRole->new( conf => { oidcFederationFetchTimeout => 1 } );
+        my $ua = $role->ua;
+        isa_ok( $ua, 'LWPx::ParanoidAgent' );
+        for my $url ( 'https://127.0.0.1/', 'https://100.64.0.1/' ) {
+            my $res = $ua->get($url);
+            is( $res->code, 403, "$url is blocked" );
+        }
+    }
+};
+
+subtest 'a resolution deadline stops the walk' => sub {
+    my $conf      = $plugin->conf;
+    my $saved     = $conf->{oidcFederationResolutionTimeout};
+    $conf->{oidcFederationResolutionTimeout} = 0;
+    $plugin->_chainCache({});
+
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die' ) or diag $@;
+    ok( $config{confKey}, 'a zero timeout falls back to the default' );
+
+    my $budget = { left => 3, deadline => time - 1 };
+    ok( !$plugin->_consumeBudget( $budget, 1 ), 'the budget deadline is enforced' );
+
+    $conf->{oidcFederationResolutionTimeout} = $saved;
+    $plugin->_chainCache({});
 };
 
 clean_sessions();

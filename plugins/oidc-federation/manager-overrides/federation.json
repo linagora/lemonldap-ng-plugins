@@ -36,6 +36,26 @@
       "default": {},
       "documentation": "OpenID Federation trust anchors (entity ID => JWKS JSON)"
     },
+    "oidcFederationFetchTimeout": {
+      "type": "int",
+      "default": 5,
+      "documentation": "Timeout in seconds for one federation HTTP fetch"
+    },
+    "oidcFederationResolutionTimeout": {
+      "type": "int",
+      "default": 15,
+      "documentation": "Maximum wall-clock time in seconds for one trust chain resolution (0 uses the default)"
+    },
+    "oidcFederationAllowPrivateHosts": {
+      "type": "bool",
+      "default": 0,
+      "documentation": "Allow loopback/private/link-local hosts and use the standard LWP agent (proxy support, per-read timeout). Lab use only"
+    },
+    "oidcFederationCacheTTL": {
+      "type": "int",
+      "default": 60,
+      "documentation": "Seconds to cache trust chain resolutions, including negative results (0 disables)"
+    },
     "oidcRPMetaDataOptionsFederationEntityId": {
       "type": "text",
       "documentation": "OpenID Federation entity identifier for this RP"
@@ -53,7 +73,11 @@
         "oidcFederationAuthorityHints",
         "oidcFederationSigningKey",
         "oidcFederationSigningAlg",
-        "oidcFederationTrustAnchors"
+        "oidcFederationTrustAnchors",
+        "oidcFederationFetchTimeout",
+        "oidcFederationResolutionTimeout",
+        "oidcFederationAllowPrivateHosts",
+        "oidcFederationCacheTTL"
       ]
     }
   ],
@@ -108,6 +132,30 @@
       "fr": "Ancres de confiance",
       "es": "Anclas de confianza",
       "it": "Trust anchor"
+    },
+    "oidcFederationFetchTimeout": {
+      "en": "Federation fetch timeout (seconds)",
+      "fr": "Délai d'une requête de fédération (secondes)",
+      "es": "Tiempo de espera de una petición de federación (segundos)",
+      "it": "Timeout di una richiesta di federazione (secondi)"
+    },
+    "oidcFederationResolutionTimeout": {
+      "en": "Trust chain resolution timeout (seconds)",
+      "fr": "Délai de résolution d'une chaîne de confiance (secondes)",
+      "es": "Tiempo de resolución de una cadena de confianza (segundos)",
+      "it": "Timeout di risoluzione di una catena di fiducia (secondi)"
+    },
+    "oidcFederationAllowPrivateHosts": {
+      "en": "Allow private federation hosts",
+      "fr": "Autoriser les hôtes privés de fédération",
+      "es": "Permitir hosts privados de federación",
+      "it": "Consenti host privati di federazione"
+    },
+    "oidcFederationCacheTTL": {
+      "en": "Trust chain cache TTL (seconds)",
+      "fr": "Durée du cache des chaînes de confiance (secondes)",
+      "es": "TTL de la caché de cadenas de confianza (segundos)",
+      "it": "TTL della cache delle catene di fiducia (secondi)"
     },
     "oidcRPMetaDataOptionsFederationEntityId": {
       "en": "Federation entity ID",

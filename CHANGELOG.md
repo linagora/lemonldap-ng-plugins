@@ -57,6 +57,15 @@
 - **Configured trust anchor keys** (#199): trust anchors are verified with the
   `jwks` from the local configuration, not with the keys they publish
   themselves; an anchor without configured keys is refused.
+- **Bounded, cached federation fetches** (#204): the user agent has a short
+  configurable timeout, loopback/private/link-local destinations are blocked
+  with `LWPx::ParanoidAgent` unless `oidcFederationAllowPrivateHosts` is set,
+  each resolution is limited to 20 fetches, 5 authority hints per level and a
+  wall-clock deadline (`oidcFederationResolutionTimeout`, 15 s), responses are
+  capped at 512 KiB, and positive/negative results are cached for
+  `oidcFederationCacheTTL` seconds (60 by default) without outliving the
+  chain `exp`. `LWPx::ParanoidAgent` is now checked at startup and receives
+  `lwpSslOpts` and the LLNG agent string.
 
 ### oidc-jar
 
