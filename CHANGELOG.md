@@ -66,6 +66,18 @@
   `oidcFederationCacheTTL` seconds (60 by default) without outliving the
   chain `exp`. `LWPx::ParanoidAgent` is now checked at startup and receives
   `lwpSslOpts` and the LLNG agent string.
+- **Federated dynamic registration** (#205): the dead
+  `oidcGenerateRegistrationResponse` hook is replaced by `oidcRegisterClient`.
+  A federated client is registered under its entity ID with options taken from
+  the policy-applied chain metadata only, must use `private_key_jwt`, and gets
+  no client secret. The chain values also replace the request metadata used
+  for core validation and the 201 response. Only the fixed key created by
+  federated registration is reused; any other RP that uses the entity ID as
+  `ClientID` **or** `FederationEntityId` is a conflict and is never
+  overwritten. An existing federated entry is merged, keeping admin tweaks
+  such as its access rule. The saved options use
+  `oidcRPMetaDataOptionsAuthMethod` and a JSON
+  `oidcRPMetaDataOptionsJwks`; `redirect_uris` is required in the chain.
 
 ### oidc-jar
 
