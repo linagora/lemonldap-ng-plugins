@@ -86,13 +86,23 @@ sub _login {
     }
     my $data;
     eval { $data = from_json( $resp->content, { allow_nonref => 1 } ) };
-    if ( $@ || !$data->{auth}{client_token} ) {
+    if ( $@
+        || ref $data ne 'HASH'
+        || ref $data->{auth} ne 'HASH'
+        || !defined $data->{auth}{client_token}
+        || ref $data->{auth}{client_token}
+        || $data->{auth}{client_token} eq '' )
+    {
         $Lemonldap::NG::Common::Conf::msg .=
           "OpenBAO AppRole login: unexpected response\n";
         return;
     }
+
+    my $lease = $data->{auth}{lease_duration};
+    $lease = _isUint($lease) ? $lease : 0;
+
     $self->{_token}    = $data->{auth}{client_token};
-    $self->{_tokenExp} = time + ( $data->{auth}{lease_duration} || 0 );
+    $self->{_tokenExp} = time + $lease;
 }
 
 sub _token {
@@ -175,13 +185,33 @@ sub _metaUrl {
 
 sub _payload {
     my ( $self, $resp ) = @_;
+    unless ( ref $resp eq 'HASH'
+        && ref $resp->{data} eq 'HASH'
+        && ref $resp->{data}{data} eq 'HASH' )
+    {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: unexpected data payload\n";
+        return;
+    }
     return $resp->{data}{data};
+}
+
+sub _isUint {
+    my ($value) = @_;
+    return defined $value
+      && !ref $value
+      && $value =~ /\A[0-9]+\z/;
 }
 
 sub store {
     my ( $self, $fields ) = @_;
-    my $cfgNum = $fields->{cfgNum};
-    my $url    = $self->_dataUrl("lmConf-$cfgNum");
+    my $cfgNum = ref $fields eq 'HASH' ? $fields->{cfgNum} : undef;
+    unless ( _isUint($cfgNum) ) {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: invalid configuration number\n";
+        return UNKNOWN_ERROR;
+    }
+    my $url = $self->_dataUrl("lmConf-$cfgNum");
     my $result = $self->_req( 'POST', $url,
         { options => { cas => 0 }, data => $fields } );
 
@@ -201,7 +231,9 @@ sub store {
             eval {
                 $body = from_json( $result->content, { allow_nonref => 1 } );
             };
-            if ( !$@ && $body->{errors}
+            if ( !$@
+                && ref $body eq 'HASH'
+                && ref $body->{errors} eq 'ARRAY'
                 && grep { /check-and-set/i } @{ $body->{errors} } )
             {
                 $self->unlock();
@@ -219,6 +251,11 @@ sub store {
 
 sub load {
     my ( $self, $cfgNum ) = @_;
+    unless ( _isUint($cfgNum) ) {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: invalid configuration number\n";
+        return undef;
+    }
     my $url    = $self->_dataUrl("lmConf-$cfgNum");
     my $result = $self->_req( 'GET', $url );
 
@@ -250,9 +287,19 @@ sub available {
         return ();
     }
 
-    my $keys = $result->{data}{keys} or return ();
+    unless ( ref $result eq 'HASH'
+        && ref $result->{data} eq 'HASH'
+        && ref $result->{data}{keys} eq 'ARRAY' )
+    {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: LIST returned an unexpected payload\n";
+        return ();
+    }
+
+    my $keys = $result->{data}{keys};
     return sort { $a <=> $b }
-      map { /^lmConf-(\d+)$/ ? ($1) : () } @$keys;
+      map {    defined $_ && !ref $_
+          && $_ =~ /^lmConf-(\d+)$/ ? ($1) : () } @$keys;
 }
 
 sub lastCfg {
@@ -263,6 +310,11 @@ sub lastCfg {
 
 sub delete {
     my ( $self, $cfgNum ) = @_;
+    unless ( _isUint($cfgNum) ) {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: invalid configuration number\n";
+        return 0;
+    }
     my $url    = $self->_metaUrl("lmConf-$cfgNum");
     my $result = $self->_req( 'DELETE', $url );
 
@@ -322,9 +374,31 @@ sub lock {
         if ( defined $get
             && !( ref $get && blessed($get) && $get->isa('HTTP::Response') ) )
         {
-            my $current        = $self->_payload($get) || {};
-            my $currentExpires = $current->{expiresAt} || 0;
-            my $currentVersion = $get->{data}{metadata}{version} || 0;
+            my $current = $self->_payload($get);
+            unless ($current) {
+                $Lemonldap::NG::Common::Conf::msg .=
+                  "OpenBAO: could not read existing lock\n";
+                return 0;
+            }
+
+            my $currentExpires = $current->{expiresAt};
+            unless ( _isUint($currentExpires) ) {
+                $Lemonldap::NG::Common::Conf::msg .=
+                  "OpenBAO: existing lock has no valid expiration\n";
+                return 0;
+            }
+
+            my $metadata = $get->{data}{metadata};
+            my $currentVersion =
+              ref $metadata eq 'HASH'
+              && _isUint( $metadata->{version} )
+              ? $metadata->{version}
+              : undef;
+            unless ( defined $currentVersion ) {
+                $Lemonldap::NG::Common::Conf::msg .=
+                  "OpenBAO: existing lock has no valid version\n";
+                return 0;
+            }
 
             if ( $currentExpires > time ) {
                 $Lemonldap::NG::Common::Conf::msg .=
@@ -389,13 +463,30 @@ sub isLocked {
     my $url    = $self->_dataUrl("lmConf.lock");
     my $result = $self->_req( 'GET', $url );
 
-    return 0 unless defined $result;
-    return 0 if ref $result && blessed($result) && $result->isa('HTTP::Response');
+    unless ( defined $result ) {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: could not read lock state\n";
+        return 1;
+    }
 
-    my $payload   = $self->_payload($result) || {};
-    my $expiresAt = $payload->{expiresAt}    || 0;
-    return 0 if $expiresAt < time;
-    return 1;
+    if ( ref $result && blessed($result) && $result->isa('HTTP::Response') ) {
+        return 0 if $result->code == 404;
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: could not read lock state: " . $result->status_line . "\n";
+        return 1;
+    }
+
+    my $payload = $self->_payload($result);
+    return 1 unless $payload;
+
+    my $expiresAt = $payload->{expiresAt};
+    unless ( _isUint($expiresAt) ) {
+        $Lemonldap::NG::Common::Conf::msg .=
+          "OpenBAO: lock has no valid expiration\n";
+        return 1;
+    }
+
+    return $expiresAt < time ? 0 : 1;
 }
 
 1;
