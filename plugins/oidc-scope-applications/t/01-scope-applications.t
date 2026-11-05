@@ -12,6 +12,19 @@ BEGIN {
 
 my $debug = 'error';
 
+sub app {
+    my ( $name, $display ) = @_;
+    return {
+        type    => 'application',
+        options => {
+            name    => $name,
+            display => $display,
+            logo    => 'x.png',
+            uri     => "http://$name.example.com/",
+        },
+    };
+}
+
 sub build_portal {
     my ($allow_only_declared) = @_;
 
@@ -29,15 +42,9 @@ sub build_portal {
                     cat => {
                         catname => 'Cat',
                         type    => 'category',
-                        app     => {
-                            type    => 'application',
-                            options => {
-                                name    => 'app',
-                                display => 'on',
-                                logo    => 'x.png',
-                                uri     => 'http://app.example.com/',
-                            },
-                        },
+                        always     => app( 'always',     '1' ),
+                        for_dwho   => app( 'for_dwho',   '$uid eq "dwho"' ),
+                        for_rtyler => app( 'for_rtyler', '$uid eq "rtyler"' ),
                     },
                 },
                 oidcRPMetaDataExportedVars => { rp => { email => 'mail' } },
@@ -128,6 +135,22 @@ my $id2 = login( $op2, 'dwho' );
 
 check_scope( $op2, $id2, 'applications', 1 );
 check_scope( $op2, $id2, $_, 0 ) for qw(my-applications applications-x);
+
+subtest 'display rules use the token user' => sub {
+    my %want = (
+        dwho   => [qw(always for_dwho)],
+        rtyler => [qw(always for_rtyler)],
+    );
+
+    for my $user ( sort keys %want ) {
+        my $id = login( $op, $user );
+        my ( $scopes, $userinfo ) = request_scope( $op, $id, 'applications' );
+        my @names =
+          sort map { $_->{appname} }
+          map { @$_ } @{ from_json( $userinfo->{applications} ) };
+        is_deeply( \@names, $want{$user}, "applications of $user" );
+    }
+};
 
 clean_sessions();
 done_testing();
