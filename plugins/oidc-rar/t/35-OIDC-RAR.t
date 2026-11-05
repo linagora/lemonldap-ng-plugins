@@ -362,6 +362,54 @@ SKIP: {
             "42.00",
             "payload preserved end-to-end"
         );
+
+        # Raw UTF-8 goes through the PAR session as bytes flagged as
+        # characters; it must not be double-encoded.
+        my $raw_detail = do {
+            my $note = "\x{263a}\x{e9}";
+            qq([{"type":"payment_initiation","note":"$note"}]);
+        };
+        my $par_query2 = buildForm( {
+                response_type         => "code",
+                scope                 => "openid profile",
+                state                 => "par-rar-utf8",
+                redirect_uri          => "http://rp.com/",
+                client_id             => "rp",
+                authorization_details => $raw_detail,
+        } );
+        my $par_res2 = $op2->_post(
+            "/oauth2/par",
+            IO::String->new($par_query2),
+            accept => 'application/json',
+            length => length($par_query2),
+            custom => {
+                HTTP_AUTHORIZATION => "Basic "
+                  . encode_base64( "rp:rp", '' ),
+            },
+        );
+        is( $par_res2->[0], 201, "PAR push with raw UTF-8 accepted" );
+        my $par_json2 = from_json( $par_res2->[2]->[0] );
+
+        my $auth_res2 = authorize(
+            $op2, $id2,
+            {
+                client_id   => "rp",
+                request_uri => $par_json2->{request_uri},
+            }
+        );
+        my ($code2) =
+          expectRedirection( $auth_res2, qr#http://.*code=([^\&]*)# );
+
+        my $token_res2 =
+          codeGrant( $op2, "rp", $code2, "http://rp.com/" );
+        is( $token_res2->[0], 200, "token endpoint answers 200" );
+        my $token_json2 = JSON->new->utf8->decode( $token_res2->[2]->[0] );
+        is(
+            encode( 'UTF-8',
+                $token_json2->{authorization_details}->[0]->{note} ),
+            encode( 'UTF-8', "\x{263a}\x{e9}" ),
+            "raw UTF-8 detail survives the PAR round-trip"
+        );
     };
 }
 
@@ -431,9 +479,54 @@ for my $case (
     };
 }
 
+{
+    package t::RarReq;
+    sub data { return $_[0]->{data} ||= {} }
+}
+
+subtest "flagged PAR bytes are not double-encoded" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $bytes = encode( 'UTF-8', "\x{263a}\x{e9}" );
+    my $flagged = join '', map { chr($_) } unpack( 'C*', $bytes );
+    utf8::upgrade($flagged);
+    my $raw = '[{"type":"payment_initiation","note":"' . $flagged . '"}]';
+
+    my $req = bless { data => {} }, 't::RarReq';
+    my $oidc_request =
+      { client_id => 'rp', authorization_details => $raw };
+    is( $rar->parseAuthorizationDetails( $req, $oidc_request ), 0,
+        'flagged bytes accepted' );
+    is(
+        encode( 'UTF-8', $req->data->{_rar_details}->[0]->{note} ),
+        encode( 'UTF-8', "\x{263a}\x{e9}" ),
+        'the detail is not double-encoded'
+    );
+};
+
+subtest "Consent page escapes non-ASCII details as HTML" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $req = bless {
+        data => {
+            _rar_details => [
+                { type => 'payment_initiation', note => "\x{e9}\x{263a}" }
+            ]
+        }
+    }, 't::RarReq';
+    my $tpl  = 'oidcConsent';
+    my $args = { params => {} };
+    $rar->injectConsentDetails( $req, \$tpl, $args );
+    my $html = $args->{params}->{RAR_DETAILS} || '';
+    like( $html, qr/&eacute;/,    'é is escaped as an HTML entity' );
+    like( $html, qr/&#x263A;/,   '☺ is escaped as a numeric entity' );
+    unlike( $html, qr/&Atilde;/, 'no mojibake entity' );
+};
+
 clean_sessions();
 done_testing();
-
 
 sub op {
     return LLNG::Manager::Test->new( {

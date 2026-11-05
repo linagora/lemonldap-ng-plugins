@@ -12,12 +12,13 @@
 
 ### oidc-rar
 
-- **Non-ASCII `authorization_details`** (#131): the parameter is decoded with
-  a UTF-8 JSON decoder, so raw UTF-8 and `\u` escapes both yield the intended
-  characters. Details stay characters for the token response, introspection
-  and session backends, and are converted to UTF-8 bytes only in the JWT
-  payload, where the core's non-UTF-8 `to_json()` requires them. The consent
-  page also encodes them as UTF-8.
+- **Non-ASCII `authorization_details`** (#131): raw UTF-8, `\u` escapes and
+  byte strings flagged as characters by a PAR session round-trip all yield the
+  intended characters. Details stay characters for the token response,
+  introspection and session backends, and are converted to UTF-8 bytes only
+  in the JWT payload, where the core's non-UTF-8 `to_json()` requires them.
+  The consent page decodes the UTF-8 JSON back to characters before HTML
+  escaping, so accents become `&eacute;`/`&#x263A;` rather than mojibake.
 
 ### pacc
 
