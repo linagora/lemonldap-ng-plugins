@@ -3,6 +3,8 @@ package Lemonldap::NG::Portal::Plugins::OIDCCIBA;
 use strict;
 use Mouse;
 use JSON qw(decode_json encode_json);
+use Crypt::JWT qw(decode_jwt);
+use Lemonldap::NG::Common::JWT qw(getJWTHeader);
 use Lemonldap::NG::Common::UserAgent;
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
@@ -35,6 +37,17 @@ has path => (
         $_[0]->oidc->path;
     }
 );
+
+# Steps computing groups and macros of a user looked up without a session.
+# LLNG <= 2.23 exposes Main::Run::groupsAndMacros(), which honours the
+# `groupsBeforeMacros` option; that option was dropped upstream (#3482) and
+# groups are now always computed first.
+sub groupsAndMacros {
+    my ($self) = @_;
+    return $self->p->can('groupsAndMacros')
+      ? $self->p->groupsAndMacros
+      : qw(setGroups setMacros);
+}
 
 sub init {
     my ($self) = @_;
@@ -133,9 +146,14 @@ sub backchannelAuthentication {
     }
 
     # Resolve the user from the hint
-    my ( $user, $user_info ) =
+    my ( $user, $user_info, $hint_error ) =
       $self->_resolveUserFromHint( $req, $rp, $login_hint, $id_token_hint,
         $login_hint_token );
+
+    if ($hint_error) {
+        $self->userLogger->warn("CIBA: invalid user hint ($hint_error)");
+        return $self->_cibaError( $req, $hint_error, 400 );
+    }
 
     unless ($user) {
         $self->userLogger->warn('CIBA: Could not resolve user from hint');
@@ -732,64 +750,141 @@ sub _resolveUserFromHint {
     my ( $self, $req, $rp, $login_hint, $id_token_hint, $login_hint_token ) =
       @_;
 
-    my $user;
-    my $user_info = {};
-
-    # Handle login_hint (most common)
-    if ($login_hint) {
+    # Handle login_hint (most common). The value is a local user identifier:
+    # resolve it through the configured backends instead of trusting it.
+    if ( defined $login_hint ) {
         $self->logger->debug(
             "CIBA: Resolving user from login_hint: $login_hint");
 
-        # login_hint is typically email or username
-        # Search for user in the user database
-        my $whatToTrace = $self->conf->{whatToTrace} || 'uid';
-
-        # Try to find user directly by whatToTrace attribute
-        $user = $login_hint;
-
-        # Optionally validate user exists in backend
-        # This is a simplified implementation - production code should
-        # query the user database to verify the user exists
-        $user_info->{login_hint} = $login_hint;
+        my $sessionInfo = $self->_lookupUser( $req, $login_hint );
+        return ( undef, undef, 'unknown_user_id' ) unless $sessionInfo;
+        return ( $login_hint, $sessionInfo );
     }
 
-    # Handle id_token_hint
-    elsif ($id_token_hint) {
+    # Handle id_token_hint. It must be an ID token issued by this OP, with a
+    # valid signature, our issuer and the requesting client as audience.
+    elsif ( defined $id_token_hint ) {
         $self->logger->debug('CIBA: Resolving user from id_token_hint');
 
-        # Decode and validate the ID token
-        my $payload =
-          eval { Lemonldap::NG::Common::JWT::getJWTPayload($id_token_hint); };
+        my $claims = $self->_verifyIdTokenHint( $req, $rp, $id_token_hint );
+        return ( undef, undef, 'invalid_request' ) unless $claims;
 
-        if ( $@ || !$payload ) {
-            $self->logger->error("CIBA: Failed to decode id_token_hint: $@");
-            return undef;
-        }
+        my $sub = $claims->{sub};
+        return ( undef, undef, 'invalid_request' )
+          unless defined $sub && !ref $sub && length $sub;
 
-        # Extract subject from ID token
-        $user      = $payload->{sub};
-        $user_info = $payload;
+        my $sessionInfo = $self->_lookupUser( $req, $sub );
+        return ( undef, undef, 'unknown_user_id' ) unless $sessionInfo;
+        return ( $sub, $sessionInfo );
     }
 
-    # Handle login_hint_token
-    elsif ($login_hint_token) {
-        $self->logger->debug('CIBA: Resolving user from login_hint_token');
-
-        # login_hint_token is a JWT containing user identification
-        my $payload =
-          eval { Lemonldap::NG::Common::JWT::getJWTPayload($login_hint_token); };
-
-        if ( $@ || !$payload ) {
-            $self->logger->error("CIBA: Failed to decode login_hint_token: $@");
-            return undef;
-        }
-
-        # Extract user identifier from token
-        $user      = $payload->{sub} || $payload->{login_hint};
-        $user_info = $payload;
+    # Handle login_hint_token. CIBA Core leaves its format to the deployment,
+    # and this plugin has no verifier configuration for it: fail closed.
+    elsif ( defined $login_hint_token ) {
+        $self->logger->debug(
+            'CIBA: login_hint_token verifier is not configured');
+        return ( undef, undef, 'invalid_request' );
     }
 
-    return ( $user, $user_info );
+    return ( undef, undef, 'invalid_request' );
+}
+
+# Resolve a user through the local user backends. There is no interactive
+# authentication here: the hint already names the user, we only need this
+# server's own view of them.
+sub _lookupUser {
+    my ( $self, $req, $user ) = @_;
+
+    return unless defined $user && !ref $user && length $user;
+
+    $req->user($user);
+    $req->sessionInfo( {} );
+    $req->steps( [
+            'getUser',              'setSessionInfo',
+            $self->groupsAndMacros, 'setLocalGroups'
+        ]
+    );
+
+    my $error = $self->p->process($req);
+    if ( $error != PE_OK ) {
+        $self->logger->info("CIBA: user '$user' not found (error: $error)");
+        return;
+    }
+
+    my $sessionInfo = $req->sessionInfo || {};
+    $sessionInfo->{_utime} ||= time;
+    return $sessionInfo;
+}
+
+# Verify an id_token_hint as an ID token produced by this OP for $rp.
+sub _verifyIdTokenHint {
+    my ( $self, $req, $rp, $jwt ) = @_;
+
+    return unless defined $jwt && !ref $jwt && length $jwt;
+
+    my $header = eval { getJWTHeader($jwt) };
+    return unless $header && ref $header eq 'HASH';
+
+    my $alg = $header->{alg};
+    return unless defined $alg && !ref $alg && $alg ne 'none';
+
+    # Only an asymmetric signature can prove that this OP issued the token.
+    # With an HS algorithm the client shares the secret and could forge it,
+    # so such a hint is no better than login_hint.
+    return if $alg =~ /^HS/;
+
+    my @keys = $self->_idTokenVerificationKeys($rp);
+    return unless @keys;
+
+    my $claims;
+    for my $key (@keys) {
+        $claims = eval { decode_jwt( token => $jwt, key => \$key ) };
+        last if $claims;
+    }
+
+    return unless $claims && ref $claims eq 'HASH';
+
+    my $issuer = $self->oidc->get_issuer($req);
+    unless ( $issuer
+        && defined $claims->{iss}
+        && !ref $claims->{iss}
+        && $claims->{iss} eq $issuer )
+    {
+        return;
+    }
+
+    my $aud = $claims->{aud};
+    my @aud =
+      ref $aud eq 'ARRAY' ? @$aud : ( defined $aud ? ($aud) : () );
+    my $client_id =
+      $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID};
+    unless ( defined $client_id
+        && grep { defined $_ && !ref $_ && $_ eq $client_id } @aud )
+    {
+        return;
+    }
+
+    return $claims;
+}
+
+sub _idTokenVerificationKeys {
+    my ( $self, $rp ) = @_;
+
+    my $configured =
+         $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsSigningKey}
+      || $self->conf->{oidcServiceSignatureKey};
+    my @ids = grep { length } split /\s*,\s*/, ( $configured // '' );
+    push @ids, qw(default-oidc-sig old-oidc-sig new-oidc-sig);
+
+    my ( @keys, %seen );
+    for my $id (@ids) {
+        my $key = $self->oidc->get_public_key($id);
+        next unless $key && $key->{public};
+        next if $seen{ $key->{public} }++;
+        push @keys, $key->{public};
+    }
+
+    return @keys;
 }
 
 sub _createCibaSession {
@@ -923,8 +1018,10 @@ sub _createUserSessionForCiba {
     my $rp        = $cibaSession->{rp};
     my $user_info = $cibaSession->{user_info} || {};
 
-    # Build session info based on user
+    # Build session info from the backend lookup, then set the CIBA fields
+    # last so that they cannot be overridden by user attributes.
     my $sessionInfo = {
+        %$user_info,
         $self->conf->{whatToTrace} => $user,
         _user                      => $user,
         _utime                     => time,
@@ -934,7 +1031,6 @@ sub _createUserSessionForCiba {
         _clientId                  =>
           $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID},
         _clientConfKey => $rp,
-        %$user_info,
     };
 
     # Create the session
