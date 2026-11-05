@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Digest::SHA ();
 use Net::CIDR   ();
+use Socket      ();
 
 our $VERSION = '0.1.0';
 
@@ -41,8 +42,12 @@ sub uuid {
     my ( $value, $namespace ) = @_;
     $value = '' unless defined $value;
 
-    # UUID v5 hashes the UTF-8 encoded form of the name
-    utf8::encode($value) if utf8::is_utf8($value);
+    # UUID v5 hashes the UTF-8 encoded form of the name. Normalise the
+    # internal Perl representation first: an unflagged valid UTF-8 string is
+    # kept as bytes, while Latin-1 bytes or wide characters are encoded.
+    utf8::downgrade( $value, 1 );
+    my $decoded = "$value";
+    utf8::encode($value) unless utf8::decode($decoded);
 
     $namespace = $DEFAULT_NAMESPACE
       unless defined $namespace and length $namespace;
@@ -74,13 +79,47 @@ sub uuid {
 #         when the address or one of the networks can't be parsed)
 sub isPrivateIp {
     my ( $ip, @others ) = @_;
-    return 0 unless defined $ip and length $ip;
+
+    # Net::CIDR tolerates several values that are not a single address
+    # (networks, ranges, trailing whitespace or NUL), so validate strictly.
+    return 0 unless _isIp($ip);
+    for my $network (@others) {
+        return 0 unless _isNetwork($network);
+    }
 
     # Net::CIDR dies on an unparsable address or network; localize $@ so the
     # caller's error handling isn't disturbed by our own eval
     local $@;
     my $res = eval { Net::CIDR::cidrlookup( $ip, @PRIVATE_NETWORKS, @others ) };
     return $res ? 1 : 0;
+}
+
+sub _isIp {
+    my ($ip) = @_;
+    return 0 if !defined $ip or ref $ip;
+
+    # IPv4: four decimal octets, no leading zero, each in 0..255
+    if ( $ip =~ /\A(?:0|[1-9][0-9]{0,2})(?:\.(?:0|[1-9][0-9]{0,2})){3}\z/ ) {
+        return !grep { $_ > 255 } split /\./, $ip;
+    }
+
+    # IPv6: let the system parser decide, after a cheap shape check
+    return
+         $ip =~ /\A[0-9A-Fa-f:.]+\z/
+      && $ip =~ /:/
+      && defined Socket::inet_pton( Socket::AF_INET6(), $ip );
+}
+
+sub _isNetwork {
+    my ($network) = @_;
+    return 0 if !defined $network or ref $network;
+
+    my ( $ip, $prefix, @extra ) = split /\//, $network, -1;
+    return 0 if @extra or !defined $prefix;
+    return 0 unless _isIp($ip);
+
+    my $max = $ip =~ /:/ ? 128 : 32;
+    return $prefix =~ /\A(?:0|[1-9][0-9]{0,2})\z/ && $prefix <= $max;
 }
 
 1;
@@ -136,13 +175,17 @@ would be identical for every user.
 
 C<$value> is hashed in its UTF-8 encoded form, so the result matches other
 UUIDv5 implementations (Python C<uuid.uuid5>, C<Data::UUID::MT>, ...).
+The internal Perl representation is normalised first: a valid UTF-8 byte
+string is kept as bytes, while Latin-1 bytes and wide characters are encoded.
+This can change the UUID previously computed from unflagged Latin-1 input.
 
 =head2 isPrivateIp($ip, @networks)
 
 Returns 1 if C<$ip> belongs to the RFC 1918 private IPv4 address space,
 0 otherwise. Additional networks in CIDR notation (IPv4 or IPv6) may be
 given as extra arguments to extend that definition. An address (or a
-network) that can't be parsed yields 0.
+network) that can't be parsed yields 0. The address must be in strict form:
+no surrounding whitespace, no leading zeros and no zone identifier.
 
 =head1 SEE ALSO
 
