@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### reports
+
+- **CSV escaping** (#137): every field is quoted and embedded double quotes
+  are doubled, in both `lastcnx` and the user-agent reports. Values are no
+  longer silently stripped of quotes.
+- **UTF-8 CSV body** (#161): source values are brought to characters, the
+  body is encoded once as UTF-8, and `Content-Length` counts its bytes;
+  `Content-Type` now announces `text/csv; charset=utf-8`.
+
 ### oidc-scope-applications
 
 - **Display rules use the token user** (#133): the `applications` claim of
