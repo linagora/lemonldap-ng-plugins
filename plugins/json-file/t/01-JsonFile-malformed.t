@@ -28,16 +28,17 @@ my $client = LLNG::Manager::Test->new( {
 );
 
 for my $content (
-    '0',                  '"a"',
-    '[]',                 '{"users":[]}',
-    '{"users":"a"}',      '{"users":{"a":1}}',
-    '{"users":{"a":[]}}', '{"groups":"a"}',
-    '{"groups":[]}',      '{"users":{"a":null}}'
+    '0',                            '"a"',
+    '[]',                           '{"users":[]}',
+    '{"users":"a"}',                '{"users":{"a":1}}',
+    '{"users":{"a":[]}}',           '{"groups":"a"}',
+    '{"groups":[]}',                '{"users":{"a":null}}',
+    '{"groups":{"admins":"dwho"}}', '{"groups":{"admins":null}}',
+    '{"groups":{"admins":{}}}',     '{"groups":{"admins":[null]}}',
+    '{"groups":{"admins":[{}]}}'
   )
 {
-    my $conf = {
-        jsonFileUserPath => write_file( 'bad.json', $content ),
-    };
+    my $conf   = { jsonFileUserPath => write_file( 'bad.json', $content ), };
     my $userdb = Lemonldap::NG::Portal::UserDB::JsonFile->new( {
             p    => $client->p,
             conf => $conf,

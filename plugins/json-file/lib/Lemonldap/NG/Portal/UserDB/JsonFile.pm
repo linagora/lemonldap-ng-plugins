@@ -90,6 +90,21 @@ sub init {
                 "JSON users file: 'groups' must be an object: $file");
             return 0;
         }
+        for my $group ( keys %{ $json->{groups} } ) {
+            unless ( ref $json->{groups}{$group} eq 'ARRAY' ) {
+                $self->logger->error(
+                    "JSON users file: group '$group' must be an array: $file");
+                return 0;
+            }
+            for my $member ( @{ $json->{groups}{$group} } ) {
+                unless ( defined $member && !ref $member ) {
+                    $self->logger->error(
+                        "JSON users file: group '$group' "
+                          . "must contain scalar user names: $file" );
+                    return 0;
+                }
+            }
+        }
     }
 
     # Populate Demo's data structures so inherited methods work as-is
