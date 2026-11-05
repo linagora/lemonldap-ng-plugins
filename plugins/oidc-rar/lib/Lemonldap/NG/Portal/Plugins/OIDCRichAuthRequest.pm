@@ -188,7 +188,7 @@ sub parseAuthorizationDetails {
     my $bytes = $raw;
     if ( utf8::downgrade( $bytes, 1 ) ) {
         my $decoded = $bytes;
-        if ( eval { utf8::decode($decoded); 1 } ) {
+        if ( utf8::decode($decoded) ) {
             $json = $decoded;
         }
         elsif ( utf8::is_utf8($raw) ) {

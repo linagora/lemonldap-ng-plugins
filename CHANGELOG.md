@@ -14,7 +14,8 @@
 
 - **Non-ASCII `authorization_details`** (#131): raw UTF-8, `\u` escapes and
   byte strings flagged as characters by a PAR session round-trip all yield the
-  intended characters. Details stay characters for the token response,
+  intended characters, while invalid UTF-8 bytes are refused. Details stay
+  characters for the token response,
   introspection and session backends, and are converted to UTF-8 bytes only
   in the JWT payload, where the core's non-UTF-8 `to_json()` requires them.
   The consent page decodes the UTF-8 JSON back to characters before HTML

@@ -505,6 +505,20 @@ subtest "flagged PAR bytes are not double-encoded" => sub {
     );
 };
 
+subtest "invalid UTF-8 bytes are refused" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $raw = '[{"type":"payment_initiation","note":"' . "\xE9" . '"}]';
+
+    my $req = bless { data => {} }, 't::RarReq';
+    my $oidc_request =
+      { client_id => 'rp', authorization_details => $raw };
+    my $rc = $rar->parseAuthorizationDetails( $req, $oidc_request );
+    isnt( $rc, 0, 'invalid UTF-8 bytes are refused' );
+    ok( !$req->data->{_rar_details}, 'nothing is stored for invalid UTF-8' );
+};
+
 subtest "Consent page escapes non-ASCII details as HTML" => sub {
     my $rar =
       $op->p->loadedModules
