@@ -4,6 +4,7 @@ use strict;
 use Mouse::Role;
 use Crypt::JWT qw(encode_jwt decode_jwt);
 use JSON       qw(from_json to_json);
+use URI;
 use Lemonldap::NG::Common::UserAgent;
 
 our $VERSION = '2.21.0';
@@ -77,28 +78,54 @@ sub buildFederationJwk {
     return $jwk;
 }
 
-# Fetch and decode an Entity Configuration from a remote entity
-# @param entity_id the entity identifier (URL)
-# @return HashRef decoded payload, or undef on failure
-sub fetchEntityConfiguration {
-    my ( $self, $entity_id ) = @_;
+# An OpenID Federation entity identifier is an https URL without query or
+# fragment (OpenID Federation 1.0 §1.2). Fetch endpoints follow the same rule.
+sub isSecureUrl {
+    my ( $self, $url ) = @_;
+    return 0 unless defined $url && !ref $url && length $url;
+    my $uri = eval { URI->new($url) };
+    return 0 unless $uri;
+    return 0 unless defined $uri->scheme && lc( $uri->scheme ) eq 'https';
+    return 0 unless defined $uri->host && length $uri->host;
+    return 0 if defined $uri->userinfo;
+    return 0 if defined $uri->query;
+    return 0 if defined $uri->fragment;
+    return 1;
+}
 
-    # Entity Configuration is at entity_id/.well-known/openid-federation
-    my $url = $entity_id;
-    $url =~ s|/+$||;
-    $url .= '/.well-known/openid-federation';
-
-    $self->logger->debug("Fetching Entity Configuration from $url");
+sub _fetchJwt {
+    my ( $self, $url, $what ) = @_;
+    $what ||= 'statement';
+    $self->logger->debug("Fetching $what from $url");
 
     my $response = $self->ua->get($url);
     unless ( $response->is_success ) {
         $self->logger->error(
-            "Failed to fetch Entity Configuration from $url: "
-              . $response->status_line );
+            "Failed to fetch $what from $url: " . $response->status_line );
         return;
     }
+    return $response->decoded_content;
+}
 
-    return $self->_decodeEntityStatement( $response->decoded_content );
+sub _fetchEntityConfigurationJwt {
+    my ( $self, $entity_id ) = @_;
+    return unless $self->isSecureUrl($entity_id);
+
+    my $url = $entity_id;
+    $url =~ s|/+$||;
+    $url .= '/.well-known/openid-federation';
+    return $self->_fetchJwt( $url, 'Entity Configuration' );
+}
+
+# Fetch and decode an Entity Configuration from a remote entity
+# @param entity_id the entity identifier (URL)
+# @param jwks optional JWKS to verify it (required for a trust anchor)
+# @return HashRef decoded payload, or undef on failure
+sub fetchEntityConfiguration {
+    my ( $self, $entity_id, $jwks ) = @_;
+    my $jwt = $self->_fetchEntityConfigurationJwt($entity_id);
+    return unless defined $jwt;
+    return $self->_decodeEntityStatement( $jwt, $jwks );
 }
 
 # Fetch a Subordinate Statement from a superior's fetch endpoint
@@ -109,42 +136,99 @@ sub fetchEntityConfiguration {
 sub fetchSubordinateStatement {
     my ( $self, $fetch_endpoint, $subject, $superior_jwks ) = @_;
 
-    my $url = $fetch_endpoint . '?sub=' . $subject;
-    $self->logger->debug("Fetching Subordinate Statement from $url");
+    return unless $self->isSecureUrl($fetch_endpoint);
+    return unless $self->isSecureUrl($subject);
+    return unless ref $superior_jwks eq 'ARRAY' && @$superior_jwks;
 
-    my $response = $self->ua->get($url);
-    unless ( $response->is_success ) {
-        $self->logger->error(
-            "Failed to fetch Subordinate Statement from $url: "
-              . $response->status_line );
-        return;
+    # The subject is an entity identifier chosen by the client: encode it,
+    # never concatenate it as a raw query value.
+    my $uri = URI->new($fetch_endpoint);
+    $uri->query_form( sub => $subject );
+    my $jwt = $self->_fetchJwt( $uri->as_string, 'Subordinate Statement' );
+    return unless defined $jwt;
+    return $self->_decodeEntityStatement( $jwt, $superior_jwks );
+}
+
+# Return the configured JWKS of a trust anchor, or undef when it has none.
+sub _anchorJwks {
+    my ( $self, $trust_anchors, $entity_id ) = @_;
+    return unless ref $trust_anchors eq 'HASH';
+    my $anchor = $trust_anchors->{$entity_id};
+    return unless ref $anchor eq 'HASH';
+    my $jwks = $anchor->{jwks};
+    return unless ref $jwks eq 'HASH' && ref $jwks->{keys} eq 'ARRAY';
+    my @keys = grep { ref $_ eq 'HASH' } @{ $jwks->{keys} };
+    return unless @keys;
+    return \@keys;
+}
+
+# Check the linkage and lifetime of an Entity Statement.
+sub _statementValid {
+    my ( $self, $statement, $expected_iss, $expected_sub ) = @_;
+
+    return 0 unless ref $statement eq 'HASH';
+
+    for my $check ( [ iss => $expected_iss ], [ sub => $expected_sub ] ) {
+        my ( $claim, $expected ) = @$check;
+        next unless defined $expected;
+        return 0
+          unless defined $statement->{$claim}
+          && !ref $statement->{$claim}
+          && $statement->{$claim} eq $expected;
     }
 
-    return $self->_decodeEntityStatement( $response->decoded_content,
-        $superior_jwks );
+    my $now  = time;
+    my $skew = 30;
+
+    my $exp = $statement->{exp};
+    return 0
+      unless defined $exp
+      && !ref $exp
+      && $exp =~ /\A-?[0-9]+(?:\.[0-9]+)?\z/
+      && $exp + $skew > $now;
+
+    if ( defined $statement->{iat} ) {
+        my $iat = $statement->{iat};
+        return 0
+          if ref $iat
+          || $iat !~ /\A-?[0-9]+(?:\.[0-9]+)?\z/
+          || $iat - $skew > $now;
+    }
+
+    return 1;
 }
 
 # Resolve a trust chain from a leaf entity to a trust anchor
 # @param entity_id the leaf entity ID
-# @param trust_anchors HashRef { entity_id => { jwks => [...] } }
+# @param trust_anchors HashRef { entity_id => { jwks => ... } }
 # @param max_depth maximum chain length (default 10)
 # @return ArrayRef of Entity Statement payloads (leaf to anchor), or undef
 sub resolveTrustChain {
     my ( $self, $entity_id, $trust_anchors, $max_depth ) = @_;
     $max_depth //= 10;
 
+    return unless $self->isSecureUrl($entity_id);
+
+    my $is_anchor =
+      ref $trust_anchors eq 'HASH' && exists $trust_anchors->{$entity_id};
+    my $anchor_jwks = $self->_anchorJwks( $trust_anchors, $entity_id );
+    return if $is_anchor && !$anchor_jwks;
+
     # Step 1: fetch the leaf's Entity Configuration
-    my $leaf_config = $self->fetchEntityConfiguration($entity_id);
-    unless ($leaf_config) {
+    my $leaf_jwt = $self->_fetchEntityConfigurationJwt($entity_id);
+    return unless defined $leaf_jwt;
+    my $leaf_config = $self->_decodeEntityStatement( $leaf_jwt, $anchor_jwks );
+    unless ( $leaf_config
+        && $self->_statementValid( $leaf_config, $entity_id, $entity_id ) )
+    {
         $self->logger->error(
-            "Trust chain resolution failed: cannot fetch $entity_id");
+            "Trust chain resolution failed: invalid Entity Configuration for "
+              . $entity_id );
         return;
     }
 
-    # Check if this entity is directly a trust anchor
-    if ( $trust_anchors->{$entity_id} ) {
-        return [$leaf_config];
-    }
+    # A trust anchor is its own chain.
+    return [$leaf_config] if $is_anchor;
 
     my $authority_hints = $leaf_config->{authority_hints};
     unless ( $authority_hints
@@ -157,12 +241,9 @@ sub resolveTrustChain {
     }
 
     # Step 2: walk up authority_hints
-    for my $superior_id (
-        grep { defined $_ && !ref $_ && length $_ } @$authority_hints )
-    {
+    for my $superior_id ( grep { $self->isSecureUrl($_) } @$authority_hints ) {
         my $chain = $self->_walkTrustChain(
-            $entity_id,     $leaf_config, $superior_id,
-            $trust_anchors, $max_depth - 1
+            $entity_id, $leaf_jwt, $superior_id, $trust_anchors, $max_depth - 1
         );
         return $chain if $chain;
     }
@@ -174,21 +255,46 @@ sub resolveTrustChain {
 }
 
 sub _walkTrustChain {
-    my ( $self, $subject_id, $subject_config, $superior_id, $trust_anchors,
+    my ( $self, $subject_id, $subject_jwt, $superior_id, $trust_anchors,
         $depth )
       = @_;
 
     return if $depth <= 0;
+    return unless $self->isSecureUrl($superior_id);
 
-    # Fetch the superior's Entity Configuration
-    my $superior_config = $self->fetchEntityConfiguration($superior_id);
-    return unless $superior_config;
+    my $is_anchor =
+      ref $trust_anchors eq 'HASH' && exists $trust_anchors->{$superior_id};
+    my $anchor_jwks = $self->_anchorJwks( $trust_anchors, $superior_id );
+    return if $is_anchor && !$anchor_jwks;
 
-    my $jwks = $superior_config->{jwks};
-    return unless ref $jwks eq 'HASH' && ref $jwks->{keys} eq 'ARRAY';
-    my @keys = grep { ref $_ eq 'HASH' } @{ $jwks->{keys} };
-    return unless @keys;
-    my $superior_jwks = \@keys;
+    # Fetch and verify the superior's Entity Configuration. A trust anchor is
+    # verified with the keys already configured, not with its self-published
+    # JWKS.
+    my $superior_jwt = $self->_fetchEntityConfigurationJwt($superior_id);
+    return unless defined $superior_jwt;
+    my $superior_config =
+      $self->_decodeEntityStatement( $superior_jwt, $anchor_jwks );
+    unless ( $superior_config
+        && $self->_statementValid( $superior_config, $superior_id,
+            $superior_id ) )
+    {
+        $self->logger->error(
+                "Trust chain resolution failed: invalid Entity Configuration "
+              . "for superior $superior_id" );
+        return;
+    }
+
+    # Keys that must have signed the Subordinate Statement.
+    my $superior_jwks = $anchor_jwks;
+    unless ($superior_jwks) {
+        my $published = $superior_config->{jwks};
+        return
+          unless ref $published eq 'HASH'
+          && ref $published->{keys} eq 'ARRAY';
+        my @keys = grep { ref $_ eq 'HASH' } @{ $published->{keys} };
+        return unless @keys;
+        $superior_jwks = \@keys;
+    }
 
     # The superior must have a federation_fetch_endpoint
     my $metadata = $superior_config->{metadata};
@@ -196,26 +302,48 @@ sub _walkTrustChain {
     my $federation_entity = $metadata->{federation_entity};
     return unless ref $federation_entity eq 'HASH';
     my $fetch_endpoint = $federation_entity->{federation_fetch_endpoint};
-    unless ( defined $fetch_endpoint
-        && !ref $fetch_endpoint
-        && length $fetch_endpoint )
-    {
+    unless ( $self->isSecureUrl($fetch_endpoint) ) {
         $self->logger->error(
-            "Superior $superior_id has no federation_fetch_endpoint");
+            "Superior $superior_id has no usable federation_fetch_endpoint");
         return;
     }
 
     # Fetch the Subordinate Statement about the subject
-    my $sub_statement =
-      $self->fetchSubordinateStatement( $fetch_endpoint, $subject_id,
-        $superior_jwks );
+    my $sub_statement = $self->fetchSubordinateStatement(
+        $fetch_endpoint, $subject_id, $superior_jwks );
     return unless $sub_statement;
+    unless (
+        $self->_statementValid( $sub_statement, $superior_id, $subject_id ) )
+    {
+        $self->logger->error(
+"Trust chain resolution failed: Subordinate Statement from $superior_id does not vouch for $subject_id"
+        );
+        return;
+    }
+
+    # The superior vouches for the subject's keys: verify the subject's Entity
+    # Configuration against them.
+    my $vouched = $sub_statement->{jwks};
+    return unless ref $vouched eq 'HASH' && ref $vouched->{keys} eq 'ARRAY';
+    my @vouched_keys = grep { ref $_ eq 'HASH' } @{ $vouched->{keys} };
+    return unless @vouched_keys;
+    my $verified_subject =
+      $self->_decodeEntityStatement( $subject_jwt, \@vouched_keys );
+    unless ( $verified_subject
+        && $self->_statementValid( $verified_subject, $subject_id,
+            $subject_id ) )
+    {
+        $self->logger->error(
+"Trust chain resolution failed: $subject_id is not signed by the keys $superior_id vouched for"
+        );
+        return;
+    }
 
     # Build chain so far: [leaf_config, subordinate_statement]
-    my @chain = ( $subject_config, $sub_statement );
+    my @chain = ( $verified_subject, $sub_statement );
 
-    # Check if the superior is a trust anchor
-    if ( $trust_anchors->{$superior_id} ) {
+    # A trust anchor ends the chain.
+    if ($is_anchor) {
         push @chain, $superior_config;
         return \@chain;
     }
@@ -224,16 +352,16 @@ sub _walkTrustChain {
     my $superior_hints = $superior_config->{authority_hints};
     if ( $superior_hints && ref($superior_hints) eq 'ARRAY' ) {
         for my $next_superior_id (
-            grep { defined $_ && !ref $_ && length $_ } @$superior_hints )
+            grep { $self->isSecureUrl($_) } @$superior_hints )
         {
             my $upper_chain = $self->_walkTrustChain(
-                $superior_id,   $superior_config, $next_superior_id,
+                $superior_id, $superior_jwt, $next_superior_id,
                 $trust_anchors, $depth - 1
             );
             if ($upper_chain) {
 
                 # Prepend our portion
-                return [ $subject_config, $sub_statement, @$upper_chain ];
+                return [ $verified_subject, $sub_statement, @$upper_chain ];
             }
         }
     }
@@ -430,28 +558,27 @@ sub _decodeEntityStatement {
             return;
         }
 
-        if ( my $embedded_jwks = $payload->{jwks} ) {
-            unless ( ref $embedded_jwks eq 'HASH'
-                && ref $embedded_jwks->{keys} eq 'ARRAY' )
-            {
-                $self->logger->error(
-                    'Entity Statement jwks is not a JWKS object');
-                return;
-            }
+        my $embedded_jwks = $payload->{jwks};
+        unless ( ref $embedded_jwks eq 'HASH'
+            && ref $embedded_jwks->{keys} eq 'ARRAY'
+            && @{ $embedded_jwks->{keys} } )
+        {
+            $self->logger->error(
+                'Entity Configuration has no usable jwks');
+            return;
+        }
 
-            # Re-verify with the embedded keys
-            eval {
-                decode_jwt(
-                    token    => $jwt_string,
-                    kid_keys => $embedded_jwks,
-                );
-            };
-            if ($@) {
-                $self->logger->error(
-"Entity Statement self-signature verification failed: $@"
-                );
-                return;
-            }
+        # Re-verify with the embedded keys
+        eval {
+            decode_jwt(
+                token    => $jwt_string,
+                kid_keys => $embedded_jwks,
+            );
+        };
+        if ($@) {
+            $self->logger->error(
+                "Entity Statement self-signature verification failed: $@");
+            return;
         }
     }
 
