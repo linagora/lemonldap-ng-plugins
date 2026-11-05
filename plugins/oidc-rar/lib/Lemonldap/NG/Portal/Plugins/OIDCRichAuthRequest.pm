@@ -10,6 +10,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest;
 use strict;
 use Mouse;
 use JSON qw(decode_json);
+use Encode qw(decode);
 use HTML::Entities qw(encode_entities);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
@@ -178,7 +179,32 @@ sub parseAuthorizationDetails {
         return PE_ERROR;
     }
 
-    my $details = eval { decode_json($raw) };
+    # The same value can arrive as raw UTF-8 bytes, as a byte string flagged
+    # as characters after a PAR session round-trip, or as genuine wide
+    # characters. Downgrade first: when it works, UTF-8-decode the bytes;
+    # when it fails, or the UTF-8 decode fails, parse the original as
+    # characters.
+    my $json;
+    my $bytes = $raw;
+    if ( utf8::downgrade( $bytes, 1 ) ) {
+        my $decoded = $bytes;
+        if ( utf8::decode($decoded) ) {
+            $json = $decoded;
+        }
+        elsif ( utf8::is_utf8($raw) ) {
+            $json = $raw;
+        }
+        else {
+            $self->logger->error(
+                'RAR: authorization_details is not valid UTF-8');
+            return PE_ERROR;
+        }
+    }
+    else {
+        $json = $raw;
+    }
+
+    my $details = eval { JSON->new->decode($json) };
     if ($@) {
         $self->logger->error("RAR: malformed authorization_details JSON: $@");
         return PE_ERROR;
@@ -306,6 +332,27 @@ sub restoreFromRefresh {
     return PE_OK;
 }
 
+# Recursively turn decoded characters into UTF-8 bytes (keys included).
+# Used only for the JWT payload: the core's _createJWT() uses a non-UTF-8
+# to_json(), while sendJSONresponse() and the session backends expect
+# characters.
+sub _utf8Bytes {
+    my ( $self, $value ) = @_;
+    if ( ref $value eq 'HASH' ) {
+        return {
+            map { $self->_utf8Bytes($_) => $self->_utf8Bytes( $value->{$_} ) }
+              keys %$value
+        };
+    }
+    if ( ref $value eq 'ARRAY' ) {
+        return [ map { $self->_utf8Bytes($_) } @$value ];
+    }
+    if ( defined $value && !ref $value && utf8::is_utf8($value) ) {
+        utf8::encode($value);
+    }
+    return $value;
+}
+
 # Hook: oidcGenerateAccessToken
 # Add authorization_details claim to JWT-formatted access tokens (RFC 9396 §7).
 # Also persists the details onto the access token session so introspection
@@ -314,7 +361,7 @@ sub addToAccessToken {
     my ( $self, $req, $payload, $rp, $extra_headers ) = @_;
     my $d = $req->data->{ &SESSION_KEY } or return PE_OK;
 
-    $payload->{authorization_details} = $d;
+    $payload->{authorization_details} = $self->_utf8Bytes($d);
     if ( my $jti = $payload->{jti} ) {
         my $update =
           $self->oidc->can('updateState') || $self->oidc->can('updateToken');
@@ -389,7 +436,8 @@ sub injectConsentDetails {
     my $d = $req->data->{ &SESSION_KEY };
     return PE_OK unless $d;
 
-    my $json = JSON->new->canonical->pretty->encode($d);
+    my $json = JSON->new->utf8->canonical->pretty->encode($d);
+    $json = decode( 'UTF-8', $json );
     $args->{params}->{ &CONSENT_TPL_VAR } = encode_entities($json);
     return PE_OK;
 }

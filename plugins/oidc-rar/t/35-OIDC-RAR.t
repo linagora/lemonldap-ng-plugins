@@ -2,7 +2,8 @@ use warnings;
 use Test::More;
 use strict;
 use IO::String;
-use MIME::Base64 qw/encode_base64/;
+use MIME::Base64 qw/encode_base64 decode_base64url/;
+use Encode qw/encode/;
 use JSON;
 use Lemonldap::NG::Portal::Main::Request;
 
@@ -361,6 +362,54 @@ SKIP: {
             "42.00",
             "payload preserved end-to-end"
         );
+
+        # Raw UTF-8 goes through the PAR session as bytes flagged as
+        # characters; it must not be double-encoded.
+        my $raw_detail = do {
+            my $note = "\x{263a}\x{e9}";
+            qq([{"type":"payment_initiation","note":"$note"}]);
+        };
+        my $par_query2 = buildForm( {
+                response_type         => "code",
+                scope                 => "openid profile",
+                state                 => "par-rar-utf8",
+                redirect_uri          => "http://rp.com/",
+                client_id             => "rp",
+                authorization_details => $raw_detail,
+        } );
+        my $par_res2 = $op2->_post(
+            "/oauth2/par",
+            IO::String->new($par_query2),
+            accept => 'application/json',
+            length => length($par_query2),
+            custom => {
+                HTTP_AUTHORIZATION => "Basic "
+                  . encode_base64( "rp:rp", '' ),
+            },
+        );
+        is( $par_res2->[0], 201, "PAR push with raw UTF-8 accepted" );
+        my $par_json2 = from_json( $par_res2->[2]->[0] );
+
+        my $auth_res2 = authorize(
+            $op2, $id2,
+            {
+                client_id   => "rp",
+                request_uri => $par_json2->{request_uri},
+            }
+        );
+        my ($code2) =
+          expectRedirection( $auth_res2, qr#http://.*code=([^\&]*)# );
+
+        my $token_res2 =
+          codeGrant( $op2, "rp", $code2, "http://rp.com/" );
+        is( $token_res2->[0], 200, "token endpoint answers 200" );
+        my $token_json2 = JSON->new->utf8->decode( $token_res2->[2]->[0] );
+        is(
+            encode( 'UTF-8',
+                $token_json2->{authorization_details}->[0]->{note} ),
+            encode( 'UTF-8', "\x{263a}\x{e9}" ),
+            "raw UTF-8 detail survives the PAR round-trip"
+        );
     };
 }
 
@@ -381,6 +430,113 @@ subtest "Request without authorization_details still works" => sub {
     ok( $token_res->{access_token}, "Access token received" );
     ok( !$token_res->{authorization_details},
         "no authorization_details in response when not requested" );
+};
+
+for my $case (
+    [ 'smiley+accent', "\x{263a}\x{e9}",
+      '[{"type":"payment_initiation","note":"\u263a\u00e9"}]' ],
+    [ 'accent', "\x{e9}", '[{"type":"payment_initiation","note":"\u00e9"}]' ],
+    [ 'raw-utf8', "\x{263a}\x{e9}",
+      do {
+          my $note = "\x{263a}\x{e9}";
+          qq([{"type":"payment_initiation","note":"$note"}]);
+      }
+    ],
+  )
+{
+    my ( $name, $label, $detail ) = @$case;
+    subtest "Non-ASCII detail survives the token endpoint: $name" => sub {
+        my $code = codeAuthorize(
+            $op, $id,
+            {
+                %base_authorize,
+                client_id             => "rp",
+                authorization_details => $detail,
+            }
+        );
+        my $token_res = codeGrant( $op, "rp", $code, "http://rp.com/" );
+        is( $token_res->[0], 200, "the token endpoint answers 200" );
+        my $json = JSON->new->utf8->decode( $token_res->[2]->[0] );
+        ok( $json->{authorization_details}, "details echoed in the response" );
+
+        my @parts = split /\./, $json->{access_token};
+        my $payload =
+          JSON->new->utf8->decode( decode_base64url( $parts[1] ) );
+        is( ref $payload, 'HASH', "the access token payload is a JSON object" );
+        is_deeply( $payload->{authorization_details},
+            $json->{authorization_details},
+            "the access token and the response show the same list" );
+        is( encode( 'UTF-8', $payload->{authorization_details}->[0]->{note} ),
+            encode( 'UTF-8', $label ),
+            "the note is decoded correctly" );
+
+        my $intro_res = introspect( $op, "rp", $json->{access_token} );
+        is( $intro_res->[0], 200, "introspection answers 200" );
+        my $intro = JSON->new->utf8->decode( $intro_res->[2]->[0] );
+        is_deeply( $intro->{authorization_details},
+            $json->{authorization_details},
+            "introspection shows the same list" );
+    };
+}
+
+{
+    package t::RarReq;
+    sub data { return $_[0]->{data} ||= {} }
+}
+
+subtest "flagged PAR bytes are not double-encoded" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $bytes = encode( 'UTF-8', "\x{263a}\x{e9}" );
+    my $flagged = join '', map { chr($_) } unpack( 'C*', $bytes );
+    utf8::upgrade($flagged);
+    my $raw = '[{"type":"payment_initiation","note":"' . $flagged . '"}]';
+
+    my $req = bless { data => {} }, 't::RarReq';
+    my $oidc_request =
+      { client_id => 'rp', authorization_details => $raw };
+    is( $rar->parseAuthorizationDetails( $req, $oidc_request ), 0,
+        'flagged bytes accepted' );
+    is(
+        encode( 'UTF-8', $req->data->{_rar_details}->[0]->{note} ),
+        encode( 'UTF-8', "\x{263a}\x{e9}" ),
+        'the detail is not double-encoded'
+    );
+};
+
+subtest "invalid UTF-8 bytes are refused" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $raw = '[{"type":"payment_initiation","note":"' . "\xE9" . '"}]';
+
+    my $req = bless { data => {} }, 't::RarReq';
+    my $oidc_request =
+      { client_id => 'rp', authorization_details => $raw };
+    my $rc = $rar->parseAuthorizationDetails( $req, $oidc_request );
+    isnt( $rc, 0, 'invalid UTF-8 bytes are refused' );
+    ok( !$req->data->{_rar_details}, 'nothing is stored for invalid UTF-8' );
+};
+
+subtest "Consent page escapes non-ASCII details as HTML" => sub {
+    my $rar =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+    my $req = bless {
+        data => {
+            _rar_details => [
+                { type => 'payment_initiation', note => "\x{e9}\x{263a}" }
+            ]
+        }
+    }, 't::RarReq';
+    my $tpl  = 'oidcConsent';
+    my $args = { params => {} };
+    $rar->injectConsentDetails( $req, \$tpl, $args );
+    my $html = $args->{params}->{RAR_DETAILS} || '';
+    like( $html, qr/&eacute;/,    'é is escaped as an HTML entity' );
+    like( $html, qr/&#x263A;/,   '☺ is escaped as a numeric entity' );
+    unlike( $html, qr/&Atilde;/, 'no mojibake entity' );
 };
 
 clean_sessions();
