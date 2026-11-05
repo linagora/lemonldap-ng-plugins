@@ -5,6 +5,8 @@ use IO::String;
 use LWP::UserAgent;
 use LWP::Protocol::PSGI;
 use URI::QueryParam;
+use Crypt::JWT qw(encode_jwt);
+use JSON qw(to_json);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -171,6 +173,71 @@ subtest "Full JARM authentication flow" => sub {
     # Should get the session cookie (authentication completed)
     my $rpId = expectCookie($res);
     ok( $rpId, 'RP session created - JARM client flow successful' );
+};
+
+subtest 'a forged response leaves the state usable' => sub {
+    my $res = $rp->_get( '/', accept => 'text/html' );
+    my ( $url, $query ) = expectRedirection( $res,
+        qr#http://auth.op.com(/oauth2/authorize)\?(.*)$# );
+    my $state = URI->new("http://x/?$query")->query_param('state');
+
+    my $key    = alt_oidc_key_op_private_sig();
+    my $forged = encode_jwt(
+        payload => to_json( {
+            iss   => 'http://auth.op.com/',
+            aud   => 'rpid',
+            exp   => time + 300,
+            state => $state,
+            code  => 'forged',
+        } ),
+        alg => 'RS256',
+        key => \$key,
+    );
+    $res = $rp->_get(
+        '/',
+        query  => "openidconnectcallback=1&response=$forged",
+        accept => 'text/html',
+    );
+    ok( !getCookies($res)->{lemonldap}, 'no session from a forged response' );
+
+    my $idpId = login( $op, 'french' );
+    $res = $op->_get(
+        $url,
+        query  => $query,
+        accept => 'text/html',
+        cookie => "lemonldap=$idpId",
+    );
+    my $real =
+      URI->new( getHeader( $res, 'Location' ) )->query_param('response');
+    ok( $real, 'the genuine response is available' );
+
+    $res = $rp->_get(
+        '/',
+        query  => "openidconnectcallback=1&response=$real",
+        accept => 'text/html',
+    );
+    ok( getCookies($res)->{lemonldap},
+        'the genuine response still opens a session' );
+};
+
+subtest 'a response whose payload is not an object is refused' => sub {
+    for my $jwt (
+        'eyJhbGciOiJSUzI1NiJ9.WzEsMl0.c2ln',    # [1,2]
+        'eyJhbGciOiJSUzI1NiJ9.ImFiYyI.c2ln',    # "abc"
+        'MQ.Mg.Mw.NA.NQ.Ng',                    # 2
+      )
+    {
+        my $res = eval {
+            $rp->_get(
+                '/',
+                query  => "openidconnectcallback=1&response=$jwt",
+                accept => 'text/html',
+            );
+        };
+        is( $@, '', "no die for $jwt" );
+        ok( $res, 'response returned' );
+        ok( !getCookies($res)->{lemonldap}, 'no session' );
+    }
 };
 
 clean_sessions();
