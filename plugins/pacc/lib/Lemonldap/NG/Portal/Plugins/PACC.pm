@@ -39,16 +39,12 @@ sub init {
 # HOOKS
 
 ## @method int checkRegistrationAllowed($req, $client_metadata, $state)
-# Hook to allow dynamic registration for native clients when globally disabled
+# Hook filtering dynamic registration for PACC native clients
 # @param $req Lemonldap::NG::Portal::Main::Request object
 # @param $client_metadata hashref Client registration metadata
-# @return PE_OK (allowed) or a non-OK constant (rejected in strict mode)
+# @return PE_OK (allowed) or a non-OK constant (rejected)
 sub checkRegistrationAllowed {
     my ( $self, $req, $client_metadata ) = @_;
-
-    # Only handle if native client registration is allowed
-    return PE_OK
-      unless $self->conf->{paccAllowNativeClientRegistration};
 
     # Check if all redirect_uris are loopback (native client). An empty list
     # is not a native client, and a URI containing whitespace would be split
@@ -67,10 +63,16 @@ sub checkRegistrationAllowed {
     }
 
     if ($all_loopback) {
-        $self->logger->debug(
+        if ( $self->conf->{paccAllowNativeClientRegistration} ) {
+            $self->logger->debug(
 "PACC: Allowing registration for native client with loopback redirect_uris"
+            );
+            return PE_OK;
+        }
+        $self->logger->error(
+"PACC: Rejecting loopback client registration (native clients disabled)"
         );
-        return PE_OK;
+        return PE_OIDC_SERVICE_NOT_ALLOWED;
     }
     elsif ( $self->conf->{paccStrictNativeClientOnly} ) {
 

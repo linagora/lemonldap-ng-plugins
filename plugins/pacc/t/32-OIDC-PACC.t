@@ -167,8 +167,9 @@ my $reg_op = LLNG::Manager::Test->new( {
 );
 
 sub register_native {
-    my $json = to_json( $_[0] );
-    return $reg_op->_post(
+    my ( $op, $data ) = @_;
+    my $json = to_json($data);
+    return $op->_post(
         '/oauth2/register',
         IO::String->new($json),
         accept => 'application/json',
@@ -178,7 +179,9 @@ sub register_native {
 }
 
 subtest 'PACC native client registration' => sub {
-    my $res = register_native( {
+    my $res = register_native(
+        $reg_op,
+        {
             redirect_uris              => ['http://localhost/'],
             token_endpoint_auth_method => 'none',
         }
@@ -196,7 +199,9 @@ subtest 'PACC strict mode rejects non-loopback redirect URIs' => sub {
         ["http://localhost/\n"],
       )
     {
-        my $res = register_native( {
+        my $res = register_native(
+            $reg_op,
+            {
                 redirect_uris              => $uris,
                 token_endpoint_auth_method => 'none',
             }
@@ -204,6 +209,38 @@ subtest 'PACC strict mode rejects non-loopback redirect URIs' => sub {
         is( $res->[0], 400, 'refused in strict mode: ' . to_json($uris) );
     }
 };
+
+my $reg_op_no_native = LLNG::Manager::Test->new( {
+        ini => {
+            domain                              => 'op.com',
+            portal                              => 'http://auth.op.com/',
+            authentication                      => 'Demo',
+            userDB                              => 'Same',
+            issuerDBOpenIDConnectActivation     => 1,
+            oidcServiceMetaDataIssuer           => 'http://auth.op.com',
+            oidcServiceMetaDataRegistrationURI  => 'register',
+            oidcServiceAllowDynamicRegistration => 2,
+            customPlugins => 'Lemonldap::NG::Portal::Plugins::PACC',
+            paccEnabled   => 1,
+            paccAllowNativeClientRegistration => 0,
+            paccStrictNativeClientOnly        => 1,
+            oidcServicePrivateKeySig          => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig           => oidc_cert_op_public_sig(),
+        }
+    }
+);
+
+subtest 'PACC refuses loopback clients when native registration is disabled' =>
+  sub {
+    my $res = register_native(
+        $reg_op_no_native,
+        {
+            redirect_uris              => ['http://localhost/'],
+            token_endpoint_auth_method => 'none',
+        }
+    );
+    is( $res->[0], 400, 'loopback client refused when the option is off' );
+  };
 
 clean_sessions();
 done_testing();
