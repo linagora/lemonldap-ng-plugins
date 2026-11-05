@@ -1100,6 +1100,28 @@ subtest 'a non-federated RP with the same client ID is not overwritten' => sub {
     is( $oidc->rpOptions->{rp_admin}->{oidcRPMetaDataOptionsRule},
         '1', 'the admin RP is untouched' );
 
+    # An admin RP may declare the federation entity ID for the list endpoint
+    # without being a registration-created entry.
+    %opts = %{ $saved || {} };
+    $opts{rp_admin} = {
+        oidcRPMetaDataOptionsClientID           => 'admin-client',
+        oidcRPMetaDataOptionsFederationEntityId => $reg_entity_id,
+        oidcRPMetaDataOptionsRule               => '1',
+    };
+    $oidc->rpOptions( \%opts );
+    $req = bless { data => {} }, 't::FedRequest';
+    $rc = $plugin->federationRegistrationCheck(
+        $req,
+        {
+            trust_chain                => 'ignored',
+            client_id                  => $reg_entity_id,
+            token_endpoint_auth_method => 'private_key_jwt',
+        }
+    );
+    isnt( $rc, 0, 'an admin RP declaring the entity ID is refused' );
+    is( $oidc->rpOptions->{rp_admin}->{oidcRPMetaDataOptionsRule},
+        '1', 'that admin RP is untouched' );
+
     $oidc->rpOptions($saved);
 };
 

@@ -404,10 +404,13 @@ sub federationRegistrationCheck {
 
     # The core validates and echoes the request metadata: replace it with the
     # policy-applied chain values so the response and the saved RP agree.
-    for my $key (qw(redirect_uris client_name id_token_signed_response_alg)) {
-        $client_metadata->{$key} = $rp_metadata->{$key}
-          if exists $rp_metadata->{$key};
-    }
+    $client_metadata->{redirect_uris} =
+      $rp_metadata->{redirect_uris};
+    $client_metadata->{client_name} = $rp_metadata->{client_name}
+      || $entity_id;
+    $client_metadata->{id_token_signed_response_alg} =
+         $rp_metadata->{id_token_signed_response_alg}
+      || 'RS256';
     $client_metadata->{jwks_uri} = $rp_metadata->{jwks_uri}
       if defined $rp_metadata->{jwks_uri}
       && !ref $rp_metadata->{jwks_uri};
@@ -459,6 +462,10 @@ sub federationRegisterClient {
     # admin tweaks (rule, consent, ...) survive a re-registration.
     my $existing = $self->_federatedRP($entity_id);
     my $confKey  = $existing || $self->_federationConfKey($entity_id);
+
+    # This is the runtime view of the previous entry. A Manager change made
+    # since the last reload is not visible here; the core saves into a fresh
+    # raw configuration.
     my $previous = $existing ? ( $self->oidc->rpOptions->{$existing} || {} ) : {};
 
     my %options = (
@@ -526,7 +533,12 @@ sub _validFederationMetadata {
     {
         return 0 if exists $rp_metadata->{$key} && ref $rp_metadata->{$key};
     }
-    for my $key (qw(redirect_uris response_types grant_types)) {
+    return 0
+      unless exists $rp_metadata->{redirect_uris}
+      && $self->_stringArray( $rp_metadata->{redirect_uris} )
+      && @{ $rp_metadata->{redirect_uris} };
+
+    for my $key (qw(response_types grant_types)) {
         return 0
           if exists $rp_metadata->{$key}
           && !$self->_stringArray( $rp_metadata->{$key} );
@@ -534,31 +546,35 @@ sub _validFederationMetadata {
     return 1;
 }
 
+# Only the fixed key used by federated registration identifies an entry this
+# plugin may rewrite. An admin can also set
+# oidcRPMetaDataOptionsFederationEntityId on a hand-configured RP (listEndpoint
+# uses it), so that option alone is not proof of ownership.
 sub _federatedRP {
     my ( $self, $entity_id ) = @_;
-    for my $rp ( keys %{ $self->oidc->rpOptions || {} } ) {
-        my $opts = $self->oidc->rpOptions->{$rp} || {};
-        return $rp
-          if ( $opts->{oidcRPMetaDataOptionsFederationEntityId} || '' ) eq
-          $entity_id;
-    }
-    return;
+    my $key  = $self->_federationConfKey($entity_id);
+    my $opts = $self->oidc->rpOptions->{$key};
+    return
+      unless ref $opts eq 'HASH'
+      && ( $opts->{oidcRPMetaDataOptionsFederationEntityId} || '' ) eq
+      $entity_id;
+    return $key;
 }
 
 # Return the RP that already uses this entity ID without being a federated
 # entry for it. Registering would overwrite an admin configuration.
 sub _federationRegistrationConflict {
     my ( $self, $entity_id ) = @_;
+    my $key = $self->_federationConfKey($entity_id);
 
     for my $rp ( keys %{ $self->oidc->rpOptions || {} } ) {
-        my $opts = $self->oidc->rpOptions->{$rp} || {};
-        next
-          unless ( $opts->{oidcRPMetaDataOptionsClientID} || '' ) eq $entity_id;
-        my $fed = $opts->{oidcRPMetaDataOptionsFederationEntityId} || '';
-        return $rp unless $fed eq $entity_id;
+        next if $rp eq $key;
+        my $opts   = $self->oidc->rpOptions->{$rp} || {};
+        my $client = $opts->{oidcRPMetaDataOptionsClientID} || '';
+        my $fed    = $opts->{oidcRPMetaDataOptionsFederationEntityId} || '';
+        return $rp if $client eq $entity_id || $fed eq $entity_id;
     }
 
-    my $key  = $self->_federationConfKey($entity_id);
     my $opts = $self->oidc->rpOptions->{$key};
     if ( ref $opts eq 'HASH' ) {
         my $fed = $opts->{oidcRPMetaDataOptionsFederationEntityId} || '';
