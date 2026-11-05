@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### pacc
+
+- **Removed the dead dynamic-registration hook** (#206):
+  `adjustRegistrationMetadata` was registered on
+  `oidcGenerateRegistrationResponse`, which no LLNG release calls. Public
+  client support is already provided by the core when
+  `oidcServiceAllowDynamicRegistration = 2`; the README now says so.
+
 ### oidc-ciba
 
 - **Callback bodies must be JSON objects** (#150): an array or string body is
