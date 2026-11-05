@@ -91,7 +91,7 @@ sub request_scope {
     my $userinfo =
       expectJSON( getUserinfo( $op, $json->{access_token} ) );
 
-    return ( \%scopes, $userinfo );
+    return ( \%scopes, $userinfo, $json->{access_token} );
 }
 
 sub check_scope {
@@ -142,14 +142,40 @@ subtest 'display rules use the token user' => sub {
         rtyler => [qw(always for_rtyler)],
     );
 
+    my %ids;
+    my $rtyler_token;
     for my $user ( sort keys %want ) {
         my $id = login( $op, $user );
-        my ( $scopes, $userinfo ) = request_scope( $op, $id, 'applications' );
+        $ids{$user} = $id;
+        my ( $scopes, $userinfo, $token ) =
+          request_scope( $op, $id, 'applications' );
+        $rtyler_token = $token if $user eq 'rtyler';
+
         my @names =
           sort map { $_->{appname} }
           map { @$_ } @{ from_json( $userinfo->{applications} ) };
         is_deeply( \@names, $want{$user}, "applications of $user" );
     }
+
+    # A userinfo call with another user's SSO cookie must still use the
+    # token's user for the display rules.
+    my $userinfo = expectJSON(
+        $op->_post(
+            '/oauth2/userinfo',
+            IO::String->new(''),
+            accept => 'application/json',
+            length => 0,
+            cookie => "lemonldap=$ids{dwho}",
+            custom => {
+                HTTP_AUTHORIZATION => "Bearer $rtyler_token",
+            },
+        )
+    );
+    my @names =
+      sort map { $_->{appname} }
+      map { @$_ } @{ from_json( $userinfo->{applications} ) };
+    is_deeply( \@names, [qw(always for_rtyler)],
+        'rtyler token with a dwho cookie lists rtyler applications' );
 };
 
 clean_sessions();
