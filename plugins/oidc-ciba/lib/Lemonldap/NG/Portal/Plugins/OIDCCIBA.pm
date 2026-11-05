@@ -425,8 +425,6 @@ sub authenticationCallback {
 
     my $auth_req_id = $body->{auth_req_id};
     my $status      = $body->{status};       # 'approved' or 'denied'
-    my $sub         = $body->{sub};          # Subject if approved (optional)
-    my $acr         = $body->{acr};          # Authentication context (optional)
     my $auth_time   = $body->{auth_time};    # Authentication time (optional)
 
     unless ( defined $auth_req_id
@@ -489,11 +487,15 @@ sub authenticationCallback {
     if ( $status eq 'approved' ) {
         $self->logger->debug("CIBA: User $user approved authentication");
 
-        # Update session with approved status
-        $cibaSession->{status}    = 'approved';
-        $cibaSession->{sub}       = $sub || $user;
-        $cibaSession->{acr}       = $acr if $acr;
-        $cibaSession->{auth_time} = $auth_time || time;
+        # Update session with approved status. The callback only contributes a
+        # plausible authentication time: `sub` and `acr` are not read later,
+        # so a channel cannot claim them.
+        $cibaSession->{status} = 'approved';
+        my $valid_auth_time = $self->_validAuthTime($auth_time);
+        $self->logger->warn(
+            'CIBA callback: invalid auth_time, using current time')
+          if defined $auth_time and !defined $valid_auth_time;
+        $cibaSession->{auth_time} = $valid_auth_time // time;
 
         # Create user session for token generation
         my $session_id = $self->_createUserSessionForCiba( $req, $cibaSession );
@@ -748,6 +750,18 @@ sub _cibaError {
     $response->{error_description} = $description if $description;
 
     return $self->p->sendJSONresponse( $req, $response, code => $code );
+}
+
+# CIBA Core allows the authentication channel to return auth_time. Keep only
+# a plausible integer value (not in the future beyond a small clock skew);
+# anything else falls back to the current time.
+sub _validAuthTime {
+    my ( $self, $value ) = @_;
+    return undef unless defined $value && !ref $value;
+    return undef unless $value =~ /\A[0-9]+\z/;
+    my $auth_time = $value + 0;
+    return undef if $auth_time > time + 30;
+    return $auth_time;
 }
 
 # Scope values are space-delimited tokens: `-openid` and `my-openid` are not

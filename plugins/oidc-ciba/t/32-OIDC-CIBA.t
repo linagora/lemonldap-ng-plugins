@@ -913,6 +913,72 @@ subtest "CIBA: a hint whose payload is not an object" => sub {
     }
 };
 
+subtest "CIBA callback: auth_time is validated" => sub {
+    my @cases = (
+        { sent => 'abc',       expect => undef },
+        { sent => [1],         expect => undef },
+        { sent => time - 100,  expect => time - 100 },
+        { sent => time + 3600, expect => undef },
+    );
+
+    for my $case (@cases) {
+        my $query = buildForm( {
+                client_id     => 'rpid',
+                client_secret => 'rpsecret',
+                scope         => 'openid',
+                login_hint    => 'dwho',
+        } );
+        my $res = $op->_post(
+            '/oauth2/bc-authorize',
+            IO::String->new($query),
+            accept => 'application/json',
+            length => length($query),
+        );
+        my $auth_req_id = expectJSON($res)->{auth_req_id};
+        ok( $auth_req_id, 'Got auth_req_id' );
+
+        my $callback = to_json( {
+                auth_req_id => $auth_req_id,
+                status      => 'approved',
+                auth_time   => $case->{sent},
+        } );
+        $res = $op->_post(
+            '/oauth2/ciba-callback',
+            IO::String->new($callback),
+            accept => 'application/json',
+            length => length($callback),
+            type   => 'application/json',
+            custom => { HTTP_AUTHORIZATION => 'Bearer callback_secret' },
+        );
+        expectOK($res);
+
+        my $token_query = buildForm( {
+                client_id     => 'rpid',
+                client_secret => 'rpsecret',
+                grant_type    => 'urn:openid:params:grant-type:ciba',
+                auth_req_id   => $auth_req_id,
+        } );
+        $res = $op->_post(
+            '/oauth2/token',
+            IO::String->new($token_query),
+            accept => 'application/json',
+            length => length($token_query),
+        );
+        my $tokens = expectJSON($res);
+        ok( $tokens->{id_token}, 'Got id_token' );
+        my $claims = getJWTPayload( $tokens->{id_token} );
+        like( $claims->{auth_time}, qr/^\d+$/, 'auth_time is numeric' );
+        if ( defined $case->{expect} ) {
+            is( $claims->{auth_time}, $case->{expect},
+                'a valid auth_time is kept' );
+        }
+        else {
+            ok( $claims->{auth_time} <= time + 60,
+                'an invalid auth_time is replaced by now' );
+        }
+    }
+};
+
 subtest "CIBA: near-matches of the openid scope" => sub {
     for my $scope ( '-openid', 'my-openid', 'openid-x' ) {
         my $query = buildForm( {

@@ -13,6 +13,10 @@
 - **Exact `openid` scope matching** (#152): `-openid`, `my-openid` and
   `openid-x` are no longer accepted as the required `openid` scope; the four
   scope checks now split the value on whitespace and compare tokens.
+- **Callback `auth_time` is validated**: only a non-negative integer that is
+  not in the future is kept; anything else falls back to the current time, so
+  a malformed channel cannot put text or a far-future value in the ID Token.
+  The unused `sub` and `acr` callback fields are no longer stored.
 
 ### oidc-jar
 
