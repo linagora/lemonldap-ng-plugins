@@ -5,7 +5,8 @@ use IO::String;
 use LWP::UserAgent;
 use LWP::Protocol::PSGI;
 use MIME::Base64;
-use JSON qw(from_json to_json);
+use Crypt::JWT qw(encode_jwt);
+use JSON       qw(from_json to_json);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -76,6 +77,7 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsRefreshToken          => 1,
                     oidcRPMetaDataOptionsAllowCIBA             => 1,
                     oidcRPMetaDataOptionsCIBAMode              => 'poll',
+                    oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
                 },
                 rp_no_ciba => {
                     oidcRPMetaDataOptionsDisplayName           => "RP No CIBA",
@@ -233,6 +235,122 @@ subtest "CIBA backchannel authentication" => sub {
     $ENV{CIBA_AUTH_REQ_ID} = $payload->{auth_req_id};
 };
 
+subtest "CIBA unknown login_hint" => sub {
+    @ciba_notifications = ();
+
+    my $query = buildForm( {
+            client_id     => 'rpid',
+            client_secret => 'rpsecret',
+            scope         => 'openid',
+            login_hint    => 'nobody',
+        }
+    );
+
+    $res = $op->_post(
+        "/oauth2/bc-authorize",
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 400, 'unknown_user_id' );
+    is( scalar(@ciba_notifications), 0, 'the channel is not called' );
+};
+
+subtest "CIBA invalid id_token_hint and login_hint_token" => sub {
+    for my $param (qw(id_token_hint login_hint_token)) {
+        @ciba_notifications = ();
+
+        my $jwt = join '.',
+          map { MIME::Base64::encode_base64url($_) } '{"alg":"RS256"}',
+          '{"sub":"dwho"}', 'sig';
+        my $query = buildForm( {
+                client_id     => 'rpid',
+                client_secret => 'rpsecret',
+                scope         => 'openid',
+                $param        => $jwt,
+            }
+        );
+
+        $res = $op->_post(
+            "/oauth2/bc-authorize",
+            IO::String->new($query),
+            accept => 'application/json',
+            length => length($query),
+        );
+        is( $res->[0], 400, "$param refused" );
+        ok( !from_json( $res->[2]->[0] )->{auth_req_id}, 'no auth_req_id' );
+        is( scalar(@ciba_notifications), 0, "$param: no notification" );
+    }
+
+    # A client sharing an HS secret could forge an HS-signed ID token, so it
+    # cannot prove that this OP issued it.
+    @ciba_notifications = ();
+    my $hs_jwt = encode_jwt(
+        payload => '{"sub":"dwho"}',
+        alg     => 'HS256',
+        key     => 'rpsecret',
+    );
+    my $query = buildForm( {
+            client_id     => 'rpid',
+            client_secret => 'rpsecret',
+            scope         => 'openid',
+            id_token_hint => $hs_jwt,
+        }
+    );
+
+    $res = $op->_post(
+        "/oauth2/bc-authorize",
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    is( $res->[0], 400, 'HS-signed id_token_hint refused' );
+    ok( !from_json( $res->[2]->[0] )->{auth_req_id}, 'no auth_req_id' );
+    is( scalar(@ciba_notifications), 0, 'HS-signed hint: no notification' );
+};
+
+subtest "CIBA valid id_token_hint" => sub {
+    @ciba_notifications = ();
+
+    my $id   = login( $op, 'dwho' );
+    my $code = codeAuthorize(
+        $op, $id,
+        {
+            response_type => 'code',
+            scope         => 'openid',
+            client_id     => 'rpid',
+            state         => 's',
+            redirect_uri  => 'http://rp.com/',
+        }
+    );
+    my $tokens = expectJSON(
+        codeGrantWithSecret( $op, 'rpid', 'rpsecret', $code, 'http://rp.com/' )
+    );
+    my $hint = $tokens->{id_token};
+    ok( $hint, 'got an ID token to use as hint' );
+
+    my $query = buildForm( {
+            client_id     => 'rpid',
+            client_secret => 'rpsecret',
+            scope         => 'openid',
+            id_token_hint => $hint,
+        }
+    );
+
+    $res = $op->_post(
+        "/oauth2/bc-authorize",
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $payload = expectJSON($res);
+
+    ok( $payload->{auth_req_id}, 'valid id_token_hint accepted' );
+    is( scalar(@ciba_notifications), 1, 'notification sent' );
+    is( $ciba_notifications[0]->{user},
+        'dwho', 'notification names the backend user' );
+};
+
 subtest "CIBA token endpoint - pending" => sub {
     my $auth_req_id = $ENV{CIBA_AUTH_REQ_ID};
     ok( $auth_req_id, "Have auth_req_id from previous test" );
@@ -316,6 +434,13 @@ subtest "CIBA token endpoint - success" => sub {
     # Verify ID token
     my $id_token_payload = getJWTPayload( $payload->{id_token} );
     is( $id_token_payload->{sub}, 'dwho', "ID token sub is dwho" );
+
+    # The session must carry the attributes resolved from the backend
+    my $userinfo = expectJSON( getUserinfo( $op, $payload->{access_token} ) );
+    is( $userinfo->{email}, 'dwho@badwolf.org',
+        'userinfo has the backend email attribute' );
+    is( $userinfo->{name}, 'Doctor Who',
+        'userinfo has the backend name attribute' );
 };
 
 subtest "CIBA callback - unauthorized" => sub {
