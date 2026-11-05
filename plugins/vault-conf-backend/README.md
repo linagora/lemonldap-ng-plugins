@@ -274,6 +274,17 @@ Individual test files:
   lemonldap-ng-cli conf purge-lock
   ```
 
+A lock whose `expiresAt` or `metadata.version` is missing or invalid is
+treated as held and is not stolen automatically. Delete it explicitly:
+
+```bash
+bao kv metadata delete secret/lmConf/lmConf.lock
+# or: vault kv metadata delete secret/lmConf/lmConf.lock
+```
+
+A `403` when reading `lmConf.lock` is also treated as locked: grant the
+AppRole/token `read` access on the lock path to make lock checks reliable.
+
 ### 400 Bad Request with "invalid path for this backend"
 
 **Cause:** `baseUrl` is missing the `/v1` prefix.
