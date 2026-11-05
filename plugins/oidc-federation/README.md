@@ -94,11 +94,19 @@ Resolved RPs are cached for 1 hour.
 
 Federated clients register through the standard dynamic registration endpoint
 with `token_endpoint_auth_method=private_key_jwt` and a `trust_chain` member.
-The chain must resolve to a configured trust anchor, and standard dynamic
-registration must be enabled. The registered client takes its `client_id`
-(the entity ID), redirect URIs and other options from the chain metadata
-only; the request body is not used for them. No client secret is issued: the
-client authenticates with the keys in its Entity Configuration.
+The chain must resolve to a configured trust anchor, and
+`oidcServiceAllowDynamicRegistration` must be `2` (the value that also allows
+public clients). The registered client takes its `client_id` (the entity ID),
+redirect URIs and other options from the chain metadata only; the request
+body is not used for them. No client secret is issued: the client
+authenticates with the keys in its Entity Configuration.
+
+The core requires a `jwks_uri` in the registration request for
+`private_key_jwt`. When the chain metadata provides one it replaces the
+request value; otherwise the request must carry one (it is not used to build
+the RP options). The response is a plain RFC 7591 JSON document, not the
+`application/entity-statement+jwt` response of OpenID Federation §12.2; this
+is a known limitation of dynamic registration.
 
 ## See Also
 

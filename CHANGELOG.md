@@ -70,7 +70,11 @@
   `oidcGenerateRegistrationResponse` hook is replaced by `oidcRegisterClient`.
   A federated client is registered under its entity ID with options taken from
   the policy-applied chain metadata only, must use `private_key_jwt`, and gets
-  no client secret; repeated registrations update the existing entry.
+  no client secret. The chain values also replace the request metadata used
+  for core validation and the 201 response. A non-federated RP that already
+  uses the entity ID is never overwritten; an existing federated entry is
+  merged, keeping admin tweaks such as its access rule. The saved options use
+  `oidcRPMetaDataOptionsAuthMethod` and a JSON `oidcRPMetaDataOptionsJwks`.
 
 ### oidc-jar
 

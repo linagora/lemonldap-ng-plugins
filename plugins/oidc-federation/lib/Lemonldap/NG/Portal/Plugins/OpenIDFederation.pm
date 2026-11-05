@@ -321,11 +321,12 @@ sub resolveRPFromFederation {
         );
         my $method =
           $auth_map{ $rp_metadata->{token_endpoint_auth_method} } || '';
-        $config->{options}->{oidcRPMetaDataOptionsAuthentication} = $method;
+        $config->{options}->{oidcRPMetaDataOptionsAuthMethod} = $method;
 
         if ( $method eq 'private_key_jwt' ) {
             my $entity_jwks = $chain->[0]->{jwks};
-            $config->{options}->{oidcRPMetaDataOptionsJwks} = $entity_jwks
+            $config->{options}->{oidcRPMetaDataOptionsJwks} =
+              to_json($entity_jwks)
               if ref $entity_jwks eq 'HASH';
         }
     }
@@ -335,12 +336,6 @@ sub resolveRPFromFederation {
         my %grants = map { $_ => 1 } @{ $rp_metadata->{grant_types} };
         $config->{options}->{oidcRPMetaDataOptionsAllowOffline} =
           $grants{'refresh_token'} ? 1 : 0;
-    }
-
-    # Response types
-    if ( $rp_metadata->{response_types} ) {
-        $config->{options}->{oidcRPMetaDataOptionsAllowedResponseTypes} =
-          join( ', ', @{ $rp_metadata->{response_types} } );
     }
 
     $config->{ttl} = 3600;    # Cache for 1 hour
@@ -400,6 +395,23 @@ sub federationRegistrationCheck {
         return PE_ERROR;
     }
 
+    if ( my $conflict = $self->_federationRegistrationConflict($entity_id) ) {
+        $self->logger->error(
+"Federation registration for $entity_id conflicts with existing RP $conflict"
+        );
+        return PE_ERROR;
+    }
+
+    # The core validates and echoes the request metadata: replace it with the
+    # policy-applied chain values so the response and the saved RP agree.
+    for my $key (qw(redirect_uris client_name id_token_signed_response_alg)) {
+        $client_metadata->{$key} = $rp_metadata->{$key}
+          if exists $rp_metadata->{$key};
+    }
+    $client_metadata->{jwks_uri} = $rp_metadata->{jwks_uri}
+      if defined $rp_metadata->{jwks_uri}
+      && !ref $rp_metadata->{jwks_uri};
+
     $self->logger->notice(
         "Federation registration approved for $entity_id");
     $req->data->{federationChain}       = $chain;
@@ -436,13 +448,21 @@ sub federationRegisterClient {
         return PE_ERROR;
     }
 
-    # Reuse the existing entry when the entity is already known, so repeated
-    # registrations update it instead of creating duplicates.
-    my $confKey = $self->_findRPByEntityId($entity_id)
-      || $self->_federationConfKey($entity_id);
+    if ( my $conflict = $self->_federationRegistrationConflict($entity_id) ) {
+        $self->logger->error(
+"Federation registration for $entity_id conflicts with existing RP $conflict"
+        );
+        return PE_ERROR;
+    }
 
-    $newRp->{confKey} = $confKey;
-    $newRp->{options} = {
+    # Only reuse an entry created by federated registration. Merge onto it so
+    # admin tweaks (rule, consent, ...) survive a re-registration.
+    my $existing = $self->_federatedRP($entity_id);
+    my $confKey  = $existing || $self->_federationConfKey($entity_id);
+    my $previous = $existing ? ( $self->oidc->rpOptions->{$existing} || {} ) : {};
+
+    my %options = (
+        %$previous,
         oidcRPMetaDataOptionsClientID => $entity_id,
         oidcRPMetaDataOptionsRedirectUris =>
           join( ' ', @{ $rp_metadata->{redirect_uris} || [] } ),
@@ -453,18 +473,30 @@ sub federationRegisterClient {
         oidcRPMetaDataOptionsDisplayName =>
           $rp_metadata->{client_name} || $entity_id,
         oidcRPMetaDataOptionsFederationEntityId => $entity_id,
-        oidcRPMetaDataOptionsAuthentication    => 'private_key_jwt',
-        oidcRPMetaDataOptionsJwks              => $entity_jwks,
-    };
-
+        oidcRPMetaDataOptionsAuthMethod => 'private_key_jwt',
+        oidcRPMetaDataOptionsJwks       => to_json($entity_jwks),
+    );
     if ( $rp_metadata->{grant_types} ) {
         my %grants = map { $_ => 1 } @{ $rp_metadata->{grant_types} };
-        $newRp->{options}->{oidcRPMetaDataOptionsAllowOffline} =
+        $options{oidcRPMetaDataOptionsAllowOffline} =
           $grants{'refresh_token'} ? 1 : 0;
     }
-    if ( $rp_metadata->{response_types} ) {
-        $newRp->{options}->{oidcRPMetaDataOptionsAllowedResponseTypes} =
-          join( ', ', @{ $rp_metadata->{response_types} } );
+
+    # A federated client must never receive a secret.
+    delete $options{oidcRPMetaDataOptionsClientSecret};
+    delete $options{oidcRPMetaDataOptionsPublic};
+
+    $newRp->{confKey} = $confKey;
+    $newRp->{options} = \%options;
+
+    if ($existing) {
+        my $oidc = $self->oidc;
+        $newRp->{attributes} = $oidc->rpAttributes->{$existing}
+          if $oidc->rpAttributes->{$existing};
+        $newRp->{macros}     = $oidc->rpMacros->{$existing}     || {};
+        $newRp->{scopeRules} = $oidc->rpScopeRules->{$existing} || {};
+        $newRp->{extraClaims} =
+          $self->conf->{oidcRPMetaDataOptionsExtraClaims}->{$existing} || {};
     }
 
     return PE_OK;
@@ -500,6 +532,40 @@ sub _validFederationMetadata {
           && !$self->_stringArray( $rp_metadata->{$key} );
     }
     return 1;
+}
+
+sub _federatedRP {
+    my ( $self, $entity_id ) = @_;
+    for my $rp ( keys %{ $self->oidc->rpOptions || {} } ) {
+        my $opts = $self->oidc->rpOptions->{$rp} || {};
+        return $rp
+          if ( $opts->{oidcRPMetaDataOptionsFederationEntityId} || '' ) eq
+          $entity_id;
+    }
+    return;
+}
+
+# Return the RP that already uses this entity ID without being a federated
+# entry for it. Registering would overwrite an admin configuration.
+sub _federationRegistrationConflict {
+    my ( $self, $entity_id ) = @_;
+
+    for my $rp ( keys %{ $self->oidc->rpOptions || {} } ) {
+        my $opts = $self->oidc->rpOptions->{$rp} || {};
+        next
+          unless ( $opts->{oidcRPMetaDataOptionsClientID} || '' ) eq $entity_id;
+        my $fed = $opts->{oidcRPMetaDataOptionsFederationEntityId} || '';
+        return $rp unless $fed eq $entity_id;
+    }
+
+    my $key  = $self->_federationConfKey($entity_id);
+    my $opts = $self->oidc->rpOptions->{$key};
+    if ( ref $opts eq 'HASH' ) {
+        my $fed = $opts->{oidcRPMetaDataOptionsFederationEntityId} || '';
+        return $key unless $fed eq $entity_id;
+    }
+
+    return;
 }
 
 sub _federationConfKey {

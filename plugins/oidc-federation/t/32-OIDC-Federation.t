@@ -589,8 +589,8 @@ subtest 'a valid metadata policy is applied' => sub {
                 %$ta_sub_statement_payload,
                 metadata_policy => {
                     openid_relying_party => {
-                        client_name    => { value => 'Policy Name' },
-                        response_types => { subset_of => ['code'] },
+                        client_name => { value => 'Policy Name' },
+                        grant_types => { add => ['refresh_token'] },
                     },
                 },
         } ),
@@ -608,8 +608,8 @@ subtest 'a valid metadata policy is applied' => sub {
     ok( $config{confKey}, 'virtual RP built' );
     is( $config{options}->{oidcRPMetaDataOptionsDisplayName},
         'Policy Name', 'value operator applied' );
-    is( $config{options}->{oidcRPMetaDataOptionsAllowedResponseTypes},
-        'code', 'subset_of operator applied' );
+    is( $config{options}->{oidcRPMetaDataOptionsAllowOffline},
+        1, 'add operator applied' );
 
     $ta_sub_statement_jwt = $saved;
 };
@@ -1053,6 +1053,8 @@ subtest 'federated dynamic registration uses the chain metadata' => sub {
     my $json = from_json( $res->[2]->[0] );
     is( $json->{client_id}, $reg_entity_id, 'client_id is the entity ID' );
     ok( !$json->{client_secret}, 'no client secret is issued' );
+    is_deeply( $json->{redirect_uris}, ['http://rp-reg.example.com/callback'],
+        'the response advertises the chain redirect_uris' );
 
     my $confKey = $plugin->_federationConfKey($reg_entity_id);
     my $dyn =
@@ -1064,13 +1066,41 @@ subtest 'federated dynamic registration uses the chain metadata' => sub {
     is( $opts->{oidcRPMetaDataOptionsRedirectUris},
         'http://rp-reg.example.com/callback',
         'chain redirect_uris win over the request' );
-    is( $opts->{oidcRPMetaDataOptionsAuthentication},
+    is( $opts->{oidcRPMetaDataOptionsAuthMethod},
         'private_key_jwt', 'private_key_jwt authentication' );
     is( $opts->{oidcRPMetaDataOptionsFederationEntityId},
         $reg_entity_id, 'entity ID stored' );
-    ok( $opts->{oidcRPMetaDataOptionsJwks}, 'entity jwks stored' );
+    my $stored_jwks = from_json( $opts->{oidcRPMetaDataOptionsJwks} || '{}' );
+    ok( $stored_jwks->{keys}, 'entity jwks stored as a JWKS document' );
     is( $opts->{oidcRPMetaDataOptionsAllowOffline}, 1,
         'refresh_token grant from the chain is honoured' );
+};
+
+subtest 'a non-federated RP with the same client ID is not overwritten' => sub {
+    my $oidc  = $plugin->oidc;
+    my $saved = $oidc->rpOptions;
+    my %opts  = %{ $saved || {} };
+    $opts{rp_admin} = {
+        oidcRPMetaDataOptionsClientID     => $reg_entity_id,
+        oidcRPMetaDataOptionsRule         => '1',
+        oidcRPMetaDataOptionsRedirectUris => 'http://admin.example.com/cb',
+    };
+    $oidc->rpOptions( \%opts );
+
+    my $req = bless { data => {} }, 't::FedRequest';
+    my $rc = $plugin->federationRegistrationCheck(
+        $req,
+        {
+            trust_chain                => 'ignored',
+            client_id                  => $reg_entity_id,
+            token_endpoint_auth_method => 'private_key_jwt',
+        }
+    );
+    isnt( $rc, 0, 'the conflicting registration is refused' );
+    is( $oidc->rpOptions->{rp_admin}->{oidcRPMetaDataOptionsRule},
+        '1', 'the admin RP is untouched' );
+
+    $oidc->rpOptions($saved);
 };
 
 subtest 'federated registration refuses non-private_key_jwt requests' => sub {
