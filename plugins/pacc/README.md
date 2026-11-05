@@ -9,8 +9,9 @@ standardized JSON endpoint.
 - **`/.well-known/pacc.json` endpoint**: returns configuration for mail servers
   (IMAP, SMTP, JMAP, CalDAV, CardDAV) with OAuth2 issuer information
 - **Native client registration**: allows OIDC dynamic registration for native
-  apps with loopback redirect URIs (localhost, 127.0.0.1, [::1]), even when
-  global dynamic registration is disabled
+  apps with loopback redirect URIs (localhost, 127.0.0.1, [::1]) when dynamic
+  registration is enabled. Public clients need
+  `oidcServiceAllowDynamicRegistration = 2`.
 - **Public client support**: honors `token_endpoint_auth_method: "none"` in
   registration requests for clients that cannot store a secret (relies on PKCE)
 
@@ -40,7 +41,7 @@ In the Manager, go to **OpenID Connect Service** > **PACC Configuration**:
 | Parameter                           | Default | Description                                                      |
 | ----------------------------------- | ------- | ---------------------------------------------------------------- |
 | `paccEnabled`                       | 0       | Enable the PACC endpoint                                         |
-| `paccAllowNativeClientRegistration` | 1       | Allow dynamic registration for native clients with loopback URIs |
+| `paccAllowNativeClientRegistration` | 1       | Allow registration for native clients with loopback URIs (dynamic registration must be enabled) |
 | `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations in strict mode            |
 
 ### IMAP Settings

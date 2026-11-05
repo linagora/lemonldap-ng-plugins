@@ -2,10 +2,11 @@ use warnings;
 use Test::More;
 use strict;
 use IO::String;
-use JSON;
+use JSON qw(from_json to_json);
 
 BEGIN {
     require 't/test-lib.pm';
+    require 't/oidc-lib.pm';
 }
 
 my $res;
@@ -143,6 +144,66 @@ ok( $res = $op_no_servers->_get('/.well-known/pacc.json'),
     'Get PACC metadata with no servers' );
 ok( $res->[0] == 503, 'PACC returns 503 when no servers configured' )
   or explain( $res->[0], 503 );
+
+# Native client registration
+my $reg_op = LLNG::Manager::Test->new( {
+        ini => {
+            domain                              => 'op.com',
+            portal                              => 'http://auth.op.com/',
+            authentication                      => 'Demo',
+            userDB                              => 'Same',
+            issuerDBOpenIDConnectActivation     => 1,
+            oidcServiceMetaDataIssuer           => 'http://auth.op.com',
+            oidcServiceMetaDataRegistrationURI  => 'register',
+            oidcServiceAllowDynamicRegistration => 2,
+            customPlugins => 'Lemonldap::NG::Portal::Plugins::PACC',
+            paccEnabled   => 1,
+            paccAllowNativeClientRegistration => 1,
+            paccStrictNativeClientOnly        => 1,
+            oidcServicePrivateKeySig          => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig           => oidc_cert_op_public_sig(),
+        }
+    }
+);
+
+sub register_native {
+    my $json = to_json( $_[0] );
+    return $reg_op->_post(
+        '/oauth2/register',
+        IO::String->new($json),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($json),
+    );
+}
+
+subtest 'PACC native client registration' => sub {
+    my $res = register_native( {
+            redirect_uris              => ['http://localhost/'],
+            token_endpoint_auth_method => 'none',
+        }
+    );
+    is( $res->[0], 201, 'a native client is registered' );
+    my $client = from_json( $res->[2][0] );
+    ok( $client->{client_id},      'it has a client_id' );
+    ok( !$client->{client_secret}, 'a public client has no secret' );
+};
+
+subtest 'PACC strict mode rejects non-loopback redirect URIs' => sub {
+    for my $uris (
+        ['http://evil.example.com/'],
+        [], ['http://localhost/ http://evil.example.com/'],
+        ["http://localhost/\n"],
+      )
+    {
+        my $res = register_native( {
+                redirect_uris              => $uris,
+                token_endpoint_auth_method => 'none',
+            }
+        );
+        is( $res->[0], 400, 'refused in strict mode: ' . to_json($uris) );
+    }
+};
 
 clean_sessions();
 done_testing();
