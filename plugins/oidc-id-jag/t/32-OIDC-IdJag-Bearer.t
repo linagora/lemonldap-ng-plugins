@@ -456,6 +456,7 @@ subtest 'exp, nbf and iat must be numbers' => sub {
     for my $bad (
         { exp => [ time + 300 ] },
         { exp => 'Inf' },
+        { exp => '1e400' },
         { nbf => 'soon' },
         { iat => 'soon' },
       )

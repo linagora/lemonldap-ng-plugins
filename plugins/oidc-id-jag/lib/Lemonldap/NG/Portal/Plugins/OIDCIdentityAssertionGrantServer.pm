@@ -383,7 +383,7 @@ sub _numericDate {
       unless $value =~
       /\A-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/;
     my $number = $value + 0;
-    return undef unless $number == $number;    # NaN
+    return undef unless $number - $number == 0;    # NaN or infinite
     return $number;
 }
 
