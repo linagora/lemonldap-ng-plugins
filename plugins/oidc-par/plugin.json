@@ -19,11 +19,13 @@
   "autoload": [
     {
       "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsPAR",
-      "module": "::Plugins::OIDCPushedAuthRequest"
+      "module": "::Plugins::OIDCPushedAuthRequest",
+      "priority": 40
     },
     {
       "condition": "or::oidcOPMetaDataOptions/*/oidcOPMetaDataOptionsUsePAR",
-      "module": "::Plugins::OIDCPushedAuthRequestClient"
+      "module": "::Plugins::OIDCPushedAuthRequestClient",
+      "priority": 40
     }
   ]
 }

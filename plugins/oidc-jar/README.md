@@ -25,6 +25,21 @@ This plugin completes LemonLDAP::NG's built-in support of the OIDC Core
   `request_object_encryption_enc_values_supported` and
   `require_signed_request_object`.
 
+## Interaction with oidc-par
+
+When both plugins are used, PAR must resolve the pushed request before JAR
+validates it. The autoload rules of `oidc-par` use priority `40`, so PAR is
+loaded before JAR (`50`). With `customPlugins`, list PAR first:
+
+```
+customPlugins => '::Plugins::OIDCPushedAuthRequest ::Plugins::OIDCJar'
+```
+
+The reverse order also works: JAR leaves
+`urn:ietf:params:oauth:request_uri:` values to PAR and PAR calls JAR back on
+the request it resolved, so JAR claim checks and
+`RequireSignedRequestObject` still apply.
+
 ## Requirements
 
 - LemonLDAP::NG >= 2.23.2

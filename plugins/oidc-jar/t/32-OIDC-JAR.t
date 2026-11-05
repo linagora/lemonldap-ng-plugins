@@ -472,6 +472,166 @@ subtest 'Discovery advertises JAR metadata fields' => sub {
     ok( $sigAlgs{RS256}, 'RS256 advertised for JAR signatures' );
 };
 
+subtest 'request object: non-Latin-1 jti' => sub {
+    my $idpId = login( $op, 'french' );
+    my $jwt   = encode_jwt(
+        payload => JSON->new->ascii->encode( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+                jti          => "\x{263a}abc" . time,
+            }
+        ),
+        alg => 'HS256',
+        key => 'rpid',
+    );
+    my %params = (
+        response_type => 'code',
+        client_id     => 'rpid',
+        scope         => 'openid',
+        state         => 'widejti',
+        redirect_uri  => 'http://redirect.uri/',
+        request       => $jwt,
+    );
+
+    my $res = eval { authorize( $op, $idpId, {%params} ) };
+    is( $@, '', 'no die' );
+    like( getRedirection($res) // '',
+        qr/[?&]code=/, 'the request object is accepted' );
+
+    $res = authorize( $op, $idpId, {%params} );
+    like(
+        getRedirection($res) // '',
+        qr/error=invalid_request_object/,
+        'the second use is refused as a replay'
+    );
+};
+
+subtest 'request object: dates that are not numbers are refused' => sub {
+    my $idpId = login( $op, 'french' );
+    for my $claims (
+        { exp => [ time + 600 ] },
+        { exp => { a => 1 } },
+        { exp => 'NaN' },
+        { exp => 'Inf' },
+        { nbf => 'NaN' },
+        { nbf => [1] },
+      )
+    {
+        my $res = authorize(
+            $op, $idpId,
+            {
+                response_type => 'code',
+                client_id     => 'rpid',
+                scope         => 'openid',
+                state         => 'dates',
+                redirect_uri  => 'http://redirect.uri/',
+                request       => signedRequestObject( {
+                        client_id    => 'rpid',
+                        redirect_uri => 'http://redirect.uri/',
+                        %$claims,
+                    }
+                ),
+            }
+        );
+        like(
+            getRedirection($res) // '',
+            qr/error=invalid_request_object/,
+            to_json($claims) . ' refused'
+        );
+    }
+
+    my $res = authorize(
+        $op, $idpId,
+        {
+            response_type => 'code',
+            client_id     => 'maxage',
+            scope         => 'openid',
+            state         => 'dates',
+            redirect_uri  => 'http://redirect.uri/',
+            request       => $i->createJWT( {
+                    iat          => [1],
+                    client_id    => 'maxage',
+                    redirect_uri => 'http://redirect.uri/',
+                },
+                'HS256',
+                'rpMaxAge'
+            ),
+        }
+    );
+    like(
+        getRedirection($res) // '',
+        qr/error=invalid_request_object/,
+        'iat list refused when JarMaxAge applies'
+    );
+};
+
+subtest 'request object: a jti of any kind cannot be used twice' => sub {
+    my $idpId = login( $op, 'french' );
+    my $n     = 0;
+    for my $jti ( ['jti-list'], { id => 'jti-obj' }, '', '0' ) {
+        $n++;
+        my %params = (
+            response_type => 'code',
+            client_id     => 'rpid',
+            scope         => 'openid',
+            state         => "jtikinds$n",
+            redirect_uri  => 'http://redirect.uri/',
+            request       => signedRequestObject( {
+                    client_id    => 'rpid',
+                    redirect_uri => 'http://redirect.uri/',
+                    jti          => $jti,
+                }
+            ),
+        );
+
+        my $first = authorize( $op, $idpId, {%params} );
+        if ( ref $jti or !length $jti ) {
+            like(
+                getRedirection($first) // '',
+                qr/error=invalid_request_object/,
+                to_json($jti) . ' refused on first use'
+            );
+        }
+        else {
+            like( getRedirection($first) // '',
+                qr/[?&]code=/, to_json($jti) . ' accepted on first use' );
+        }
+
+        my $second = authorize( $op, $idpId, {%params} );
+        unlike( getRedirection($second) // '',
+            qr/[?&]code=/, to_json($jti) . ' cannot be used twice' );
+    }
+};
+
+subtest 'request object: signed payload is not a JSON object' => sub {
+    my $idpId = login( $op, 'french' );
+    for my $payload ( '12', '[1,2]', '"abc"' ) {
+        my $res = eval {
+            authorize(
+                $op, $idpId,
+                {
+                    response_type => 'code',
+                    client_id     => 'rpid',
+                    scope         => 'openid',
+                    redirect_uri  => 'http://redirect.uri/',
+                    state         => 'nonobj',
+                    request       => encode_jwt(
+                        payload => $payload,
+                        alg     => 'HS256',
+                        key     => 'rpid',
+                    ),
+                }
+            );
+        };
+        is( $@, '', "no die for $payload" );
+        like(
+            getRedirection($res) // '',
+            qr/error=invalid_request_object/,
+            "$payload refused"
+        );
+    }
+};
+
 clean_sessions();
 done_testing();
 
