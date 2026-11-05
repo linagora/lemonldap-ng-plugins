@@ -7,7 +7,6 @@ use Mouse;
 use String::Random;
 
 use Lemonldap::NG::Portal::Main::Constants qw(
-  portalConsts
   PE_ERROR
   PE_LDAPCONNECTFAILED
   PE_LDAPERROR
@@ -107,7 +106,7 @@ sub connect {
         [
                 Location => $portal
               . '/?url='
-              . encode_base64( $portal . '/deviceaccounts' )
+              . encode_base64( $portal . '/deviceaccounts', '' )
         ],
         []
     ];
@@ -157,7 +156,7 @@ sub addAccount {
     my $query = $req->jsonBodyToObj;
 
     return $self->sendError( $req, 'Bad content', PE_ERROR, 400 )
-      unless $query;
+      unless ref $query eq 'HASH';
 
     my ( $accounts, $err ) = $self->getAccounts($req);
     return $err unless $accounts;
@@ -269,7 +268,7 @@ sub delAccount {
     my $query = $req->jsonBodyToObj;
 
     return $self->sendError( $req, 'Bad content', PE_ERROR, 400 )
-      unless $query;
+      unless ref $query eq 'HASH';
 
     my $accounts = $self->getAccounts($req);
     return $self->sendError( $req, 'No accounts', PE_ERROR, 400 )
@@ -379,7 +378,7 @@ sub sendError {
     $self->logger->error("$prefix $logMsg");
     return $self->p->sendHtml(
         $req,
-        'displayLdapAccounts',
+        'displayAppAccounts',
         params => {
             AUTH_ERROR      => $errCode,
             AUTH_ERROR_TYPE => 'warning',
@@ -421,7 +420,8 @@ sub apiCall {
 
     # Get user
     my $body = $req->jsonBodyToObj;
-    return $self->p->sendError( $req, 'Empty body',   400 ) unless $body;
+    return $self->p->sendError( $req, 'Empty body', 400 )
+      unless ref $body eq 'HASH';
     return $self->p->sendError( $req, 'Missing user', 400 )
       unless $body->{user};
     $req->user( $body->{user} );
@@ -436,7 +436,10 @@ sub apiCall {
     $self->logger->debug("$prefix API call");
     my $res = $self->p->process($req);
     if ($res) {
-        my $txt = portalConsts->{$res};
+        my $txt =
+          Lemonldap::NG::Portal::Main::Constants->can('portalConsts')
+          ? Lemonldap::NG::Portal::Main::Constants::portalConsts()->{$res}
+          : $res;
         $self->userLogger->error("API call: unable to resolve user: $txt");
         return $self->p->sendJSONresponse( $req,
             { error => ( $txt || $res ) }, 400 );
