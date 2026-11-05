@@ -4,6 +4,10 @@
       "type": "text",
       "documentation": "List of Matrix servers authorized to query for an access_token of this RP"
     },
+    "oidcRPMetaDataOptionsTokenXMatrixInternalHosts": {
+      "type": "text",
+      "documentation": "Comma-separated internal Matrix hostnames or IPv4 addresses that may resolve to private addresses for this RP (ignored when the server is accepted through '*')"
+    },
     "oidcRPMetaDataOptionsTokenXMatrixUser": {
       "type": "select",
       "select": [
@@ -26,6 +30,7 @@
       "insert_after": "oidcRPMetaDataOptionsTokenXAuthorizedRP",
       "nodes": [
         "oidcRPMetaDataOptionsTokenXAuthorizedMatrix",
+        "oidcRPMetaDataOptionsTokenXMatrixInternalHosts",
         "oidcRPMetaDataOptionsTokenXMatrixUser"
       ]
     }
@@ -36,6 +41,12 @@
       "fr": "Serveurs Matrix autorisés à échanger un access_token",
       "es": "Servidores Matrix autorizados a intercambiar el access_token",
       "it": "Server Matrix autorizzati a scambiare l'access_token"
+    },
+    "oidcRPMetaDataOptionsTokenXMatrixInternalHosts": {
+      "en": "Internal Matrix hosts allowed to resolve to private addresses",
+      "fr": "Hôtes Matrix internes autorisés à résoudre des adresses privées",
+      "es": "Hosts Matrix internos autorizados a resolver direcciones privadas",
+      "it": "Host Matrix interni autorizzati a risolvere indirizzi privati"
     },
     "oidcRPMetaDataOptionsTokenXMatrixUser": {
       "en": "Matrix user lookup",

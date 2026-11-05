@@ -21,6 +21,12 @@ $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{'alice@m.org'} = {
     mail => 'alice@m.org',
 };
 
+$Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{'alice@int.org'} = {
+    uid  => 'alice@int.org',
+    cn   => 'Alice Int',
+    mail => 'alice@int.org',
+};
+
 # evil.org must not reach bob through its own @bob:evil.org
 $Lemonldap::NG::Portal::UserDB::Demo::demoAccounts{bob} = {
     uid  => 'bob',
@@ -36,11 +42,13 @@ my %delegation = (
     'e2.org'   => 'internal.e2.org:443',
     'e3.org'   => 'cgnat.e3.org:443',
     'e5.org'   => '[::1]:8448',
+    'int.org'  => 'host.int.org:8080',
 );
 my %dns = (
     ( map { $_ => '198.51.100.1' } qw(m.org host.m.org evil.org host.evil.org) ),
-    ( map { $_ => '198.51.100.2' } qw(e1.org e2.org e3.org e5.org) ),
+    ( map { $_ => '198.51.100.2' } qw(e1.org e2.org e3.org e5.org int.org) ),
     'internal.e2.org' => '10.0.0.5',
+    'host.int.org'    => '10.0.0.5',
     'cgnat.e3.org'    => '100.64.1.1',
     'e4.org'          => '127.0.0.1',
 );
@@ -54,6 +62,7 @@ my $app = sub {
     if ( $req->path_info eq '/_matrix/federation/v1/openid/userinfo' ) {
         my %subs = (
             'host.m.org'    => { 'access_token=alice' => '@alice:m.org' },
+            'host.int.org'  => { 'access_token=alice' => '@alice:int.org' },
             'host.evil.org' => {
                 'access_token=alice' => '@alice:m.org',
                 'access_token=bob'   => '@bob:evil.org',
@@ -86,6 +95,14 @@ LWP::Protocol::PSGI->register($app);
         my $packet = Net::DNS::Packet->new($name);
         $packet->push( answer => Net::DNS::RR->new("$name 60 A $dns{$name}") )
           if $dns{$name};
+        return $packet;
+    }
+
+    sub query {
+        my ( $self, $name, $type ) = @_;
+        my $packet = Net::DNS::Packet->new($name);
+        $packet->push( answer => Net::DNS::RR->new("$name 60 A $dns{$name}") )
+          if $dns{$name} and ( $type // 'A' ) eq 'A';
         return $packet;
     }
 
@@ -143,12 +160,15 @@ my $op = LLNG::Manager::Test->new( {
             portal                          => 'http://auth.op.com',
             authentication                  => 'Demo',
             userDB                          => 'Same',
+            lwpSslOpts                      => { SSL_verify_mode => 0 },
             customPlugins                   => '::Plugins::MatrixTokenExchange',
             issuerDBOpenIDConnectActivation => 1,
             oidcRPMetaDataExportedVars      => {
                 mail      => { name => "cn" },
                 listed    => { name => "cn" },
                 localpart => { name => "cn" },
+                allow     => { mail => { name => "cn" } },
+                wildallow => { mail => { name => "cn" } },
             },
             oidcRPMetaDataOptions => {
                 mail => rp(
@@ -157,7 +177,22 @@ my $op = LLNG::Manager::Test->new( {
                 listed => rp(
                     'listedrp',
                     oidcRPMetaDataOptionsTokenXMatrixUser       => 'mail',
-                    oidcRPMetaDataOptionsTokenXAuthorizedMatrix => 'm.org',
+                    oidcRPMetaDataOptionsTokenXAuthorizedMatrix =>
+                      'm.org,int.org',
+                ),
+                allow => rp(
+                    'allowrp',
+                    oidcRPMetaDataOptionsTokenXMatrixUser       => 'mail',
+                    oidcRPMetaDataOptionsTokenXAuthorizedMatrix => 'int.org',
+                    oidcRPMetaDataOptionsTokenXMatrixInternalHosts =>
+                      'host.int.org',
+                ),
+                wildallow => rp(
+                    'wildallowrp',
+                    oidcRPMetaDataOptionsTokenXMatrixUser       => 'mail',
+                    oidcRPMetaDataOptionsTokenXAuthorizedMatrix => '*',
+                    oidcRPMetaDataOptionsTokenXMatrixInternalHosts =>
+                      'host.int.org',
                 ),
                 localpart => rp('localrp'),
             },
@@ -166,8 +201,13 @@ my $op = LLNG::Manager::Test->new( {
         }
     }
 );
-$op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::MatrixTokenExchange'}
-  ->paranoidUa->resolver( MockResolver->new );
+my $resolver = MockResolver->new;
+my $plugin =
+  $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::MatrixTokenExchange'};
+$plugin->paranoidUa->resolver($resolver);
+$plugin->dnsResolver($resolver);
+is( $plugin->paranoidUa->{ssl_opts}->{SSL_verify_mode}, 0,
+    'lwpSslOpts is passed to the paranoid agent' );
 
 foreach my $client (qw(mailrp listedrp)) {
     my $res = exchange(
@@ -220,6 +260,45 @@ foreach my $issuer (qw(e1.org e2.org e3.org e4.org e5.org)) {
         "$issuer: only its own .well-known contacted" )
       or explain \@contacted;
 }
+
+# A listed server is filtered too: its delegation to an internal target
+# is refused unless the RP allowlists that target.
+@contacted = ();
+$res = exchange(
+    $op, 'listedrp',
+    subject_token  => 'alice',
+    subject_issuer => 'int.org',
+);
+expectReject( $res, 400 );
+ok( !( grep { !/^int\.org:443$/ } @contacted ),
+    'listed server: internal delegation not contacted' )
+  or explain \@contacted;
+
+# The RP allowlist lets the same delegation through.
+@contacted = ();
+$res = exchange(
+    $op, 'allowrp',
+    subject_token  => 'alice',
+    subject_issuer => 'int.org',
+);
+ok( expectJSON($res)->{access_token},
+    'allowlisted internal target accepted' );
+ok( ( grep { /^host\.int\.org:8080$/ } @contacted ),
+    'allowlisted internal target contacted' )
+  or explain \@contacted;
+
+# The allowlist is ignored for a server accepted through "*": the caller
+# chooses the server, so it must stay fully paranoid.
+@contacted = ();
+$res = exchange(
+    $op, 'wildallowrp',
+    subject_token  => 'alice',
+    subject_issuer => 'int.org',
+);
+expectReject( $res, 400 );
+ok( !( grep { !/^int\.org:443$/ } @contacted ),
+    'wildcard + allowlist: internal delegation not contacted' )
+  or explain \@contacted;
 
 # "*" authorizes no server when users are looked up by localpart
 $res = exchange(

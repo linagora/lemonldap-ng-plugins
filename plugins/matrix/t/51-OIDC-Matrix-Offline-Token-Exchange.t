@@ -193,6 +193,10 @@ my $baseConfig = {
 };
 
 my $op = LLNG::Manager::Test->new($baseConfig);
+# This test mocks the Matrix HTTP endpoints with LWP::Protocol::PSGI;
+# keep the exchange on that mock instead of the paranoid agent's own stack.
+$op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::MatrixTokenExchange'}
+  ->paranoidUa( LWP::UserAgent->new );
 runTest($op);
 
 clean_sessions();
