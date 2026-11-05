@@ -88,7 +88,30 @@ When an unknown client presents an entity ID (URL) as `client_id`, the plugin:
 4. Applies metadata policies from each level
 5. Builds a virtual RP configuration from the resolved metadata
 
-Resolved RPs are cached for 1 hour.
+Every statement must link `iss` and `sub`, carry a non-expired `exp`, and
+each Entity Configuration is verified with the keys its superior vouched
+for; a leaf without usable `jwks` is refused. Trust anchors are verified with
+the `jwks` from `oidcFederationTrustAnchors`, never with the keys they
+publish themselves.
+
+Metadata policies are type-checked: `one_of`, `subset_of`, `superset_of` and
+`add` operands must be arrays, a `one_of` mismatch or a missing `essential`
+claim refuses the chain, and `superset_of` is a check rather than an
+addition. `redirect_uris`, `response_types` and `grant_types` must be arrays
+of non-empty strings before a virtual RP is built.
+
+Entity identifiers, authority hints and fetch URLs must be `https` URLs
+without query or fragment, and the `sub` parameter is encoded with
+`URI->query_form`. A resolution is limited to 20 fetches, 5 authority hints
+per level and a wall-clock deadline (`oidcFederationResolutionTimeout`, 15 s
+by default); each response is capped at 512 KiB and each fetch times out
+after `oidcFederationFetchTimeout` (5 s by default). Destinations are
+filtered by `LWPx::ParanoidAgent` unless `oidcFederationAllowPrivateHosts` is
+set.
+
+Resolved chains are cached for `oidcFederationCacheTTL` seconds (60 by
+default), negative results included, without outliving the chain `exp`; `0`
+disables the cache.
 
 ### Federation-Aware Registration
 
@@ -97,9 +120,19 @@ with `token_endpoint_auth_method=private_key_jwt` and a `trust_chain` member.
 The chain must resolve to a configured trust anchor, and
 `oidcServiceAllowDynamicRegistration` must be `2` (the value that also allows
 public clients). The registered client takes its `client_id` (the entity ID),
-redirect URIs and other options from the chain metadata only; the request
-body is not used for them. No client secret is issued: the client
-authenticates with the keys in its Entity Configuration.
+redirect URIs and other options from the policy-applied chain metadata only;
+the request body is not used for them, and `redirect_uris` is required in the
+chain. No client secret is issued: the client authenticates with the keys in
+its Entity Configuration. The chain values also replace the request metadata
+used for core validation and the 201 response.
+
+A valid chain returns `PE_OK` and an invalid one `PE_ERROR`; the plugin never
+falls back to ordinary dynamic registration. Only the fixed entry created by
+federated registration is reused: an existing federated entry is merged,
+keeping admin tweaks such as its access rule, but any other RP that uses the
+entity ID as `ClientID` or `FederationEntityId` is a conflict and is never
+overwritten. The saved options use `oidcRPMetaDataOptionsAuthMethod` and a
+JSON `oidcRPMetaDataOptionsJwks`.
 
 The core requires a `jwks_uri` in the registration request for
 `private_key_jwt`. When the chain metadata provides one it replaces the

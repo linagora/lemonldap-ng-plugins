@@ -26,6 +26,13 @@ Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::Reports` to
 Protect `/reports/*` endpoints in your Manager virtual host rules to restrict
 access to administrators.
 
+## CSV format
+
+Every field is quoted with `"`, and embedded double quotes are doubled. A
+value starting with `=`, `+`, `-`, `@`, a tab or a CR is prefixed with an
+apostrophe, so a spreadsheet does not evaluate it as a formula. The body is
+encoded as UTF-8 and `Content-Type` is `text/csv; charset=utf-8`.
+
 ## Files
 
 - `lib/Lemonldap/NG/Portal/Plugins/Reports.pm` — Plugin module

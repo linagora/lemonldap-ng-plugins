@@ -121,6 +121,10 @@ JSON attributes to session variables. The default `exportedVars` mapping
 - **groups** (optional): Object mapping group names to arrays of member
   usernames. Populates `groups` and `hGroups` session variables.
 
+Malformed input is refused at init: the document, each user entry and each
+group must have the expected JSON types, and a group must be an array of user
+names. The backend is then disabled instead of dying on every login.
+
 ## Differences from the Demo backend
 
 | Feature       | Demo                             | JsonFile                 |

@@ -1,6 +1,6 @@
 {
   "name": "reports",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "summary": "Session and browser usage reports (CSV)",
   "description": "Provides API endpoints returning CSV reports: /reports/apps (OIDC offline apps by User-Agent), /reports/browsers (web sessions by User-Agent), /reports/lastcnx (last connection per user from SSO + LDAP). Requires PostgreSQL session storage and LDAP user backend for /reports/lastcnx.",
   "author": "Xavier Guimard / Linagora <https://linagora.com>",

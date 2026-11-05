@@ -1,185 +1,137 @@
 # Changelog
 
-## Unreleased
+## v0.7.1 - 2026-11-05
 
-### fixed-logout-redirection
-
-- **Invalid `fixedLogoutRedirection` values** (#144): `init` now accepts only
-  an `http` or `https` URL with a non-empty host. Other values are logged and
-  refused instead of dying with `Can't locate object method "host"`.
+Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,
+`fixed-logout-redirection`, `json-file`, `ldap-rest`, `matrix-token-exchange`,
+`oidc-ciba`, `oidc-federation`, `oidc-id-jag`, `oidc-jar`, `oidc-jarm`,
+`oidc-par`, `oidc-rar`, `oidc-scope-applications`, `pacc`, `twake`,
+`vault-conf-backend`; `reports` keeps its own version line and goes to
+**1.0.1**. Theme: validate untrusted input — JWTs, JSON bodies, user hints,
+files — before using it, and stop trusting hosts chosen by a caller. **Check
+[UPGRADING.md](UPGRADING.md#v071) before deploying**: several plugins refuse
+what they used to accept.
 
 ### matrix-token-exchange
 
-- **SSRF through listed Matrix servers** (#149): every Matrix server, listed
-  or accepted through `*`, is now resolved and fetched with
-  `LWPx::ParanoidAgent`. A listed server can no longer reach loopback,
-  private, link-local or shared IPv4 addresses through its `.well-known`,
-  SRV target or redirects. Deployments that intentionally target an internal
-  server can allow it per Relying Party with
-  `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` (comma-separated hostnames
-  or IPv4 addresses); the option is ignored for servers accepted through `*`
-  and is empty by default.
-- **HTTP proxy regression**: `LWPx::ParanoidAgent` does not use
-  `lwpOpts`/`env_proxy`. A portal that only reaches Matrix through an HTTP
-  proxy loses listed-server exchanges; `paranoid_proxy` is a possible
-  follow-up. Private CAs still work through `lwpSslOpts`, and the configured
-  `lwpOpts` timeout is honoured.
-
-### reports
-
-- **CSV escaping** (#137): every field is quoted and embedded double quotes
-  are doubled, in both `lastcnx` and the user-agent reports. Values are no
-  longer silently stripped of quotes. Fields starting with a spreadsheet
-  formula prefix (`=`, `+`, `-`, `@`, tab, CR) are additionally prefixed with
-  an apostrophe to prevent CSV injection.
-- **UTF-8 CSV body** (#161): source values are brought to characters, the
-  body is encoded once as UTF-8, and `Content-Length` counts its bytes;
-  `Content-Type` now announces `text/csv; charset=utf-8`.
-
-### oidc-scope-applications
-
-- **Display rules use the token user** (#133): the `applications` claim of
-  `/oauth2/userinfo` is now built with the access token's session data instead
-  of the request user. Applications whose `display` rule depends on the user
-  are no longer missing, and a request carrying another user's SSO cookie
-  cannot leak that user's menu.
-
-### oidc-rar
-
-- **Non-ASCII `authorization_details`** (#131): raw UTF-8, `\u` escapes and
-  byte strings flagged as characters by a PAR session round-trip all yield the
-  intended characters, while invalid UTF-8 bytes are refused. Details stay
-  characters for the token response,
-  introspection and session backends, and are converted to UTF-8 bytes only
-  in the JWT payload, where the core's non-UTF-8 `to_json()` requires them.
-  The consent page decodes the UTF-8 JSON back to characters before HTML
-  escaping, so accents become `&eacute;`/`&#x263A;` rather than mojibake.
-- **LLNG <= 2.23.2 responses**: the plugin enables UTF-8 on the shared core
-  JSON encoder, as master does, so token responses carrying non-ASCII details
-  are sent as UTF-8 bytes instead of triggering `Wide character in subroutine
-  entry`. The tests also build PAR and authorization requests with
-  `uri_escape_utf8`, because 2.23.2's `buildForm` still uses the non-UTF-8
-  escaper.
-
-### pacc
-
-- **Removed the dead dynamic-registration hook** (#206):
-  `adjustRegistrationMetadata` was registered on
-  `oidcGenerateRegistrationResponse`, which no LLNG release calls. Public
-  client support is already provided by the core when
-  `oidcServiceAllowDynamicRegistration = 2`; the README now says so.
-
-### oidc-ciba
-
-- **Callback bodies must be JSON objects** (#150): an array or string body is
-  refused with `400 invalid_request`, and `auth_req_id` must be a plain
-  string before it reaches the session lookup.
-- **Hint payloads must be JSON objects** (#151): a `login_hint_token` or
-  `id_token_hint` whose JWT payload is an array or string is refused with
-  `400 invalid_request` instead of dying.
-- **Exact `openid` scope matching** (#152): `-openid`, `my-openid` and
-  `openid-x` are no longer accepted as the required `openid` scope; the four
-  scope checks now split the value on whitespace and compare tokens.
-- **Callback `auth_time` is validated**: only a non-negative integer that is
-  not in the future is kept; anything else falls back to the current time, so
-  a malformed channel cannot put text or a far-future value in the ID Token.
-  The unused `sub` and `acr` callback fields are no longer stored.
+- **Security fix — SSRF through listed servers** (#149): every Matrix server,
+  listed or accepted through `*`, now goes through `LWPx::ParanoidAgent`.
+  Internal targets must be named in the new
+  `oidcRPMetaDataOptionsTokenXMatrixInternalHosts`; HTTP proxies are no longer
+  used. See [Upgrading from 0.7.x](plugins/matrix/README.md#upgrading-from-07x).
+- **Fix — SRV records are tried in RFC 2782 priority order** (#121).
 
 ### oidc-federation
 
-- **Entity statements must be JSON objects** (#124): a non-object payload, or
-  a `jwks` / `metadata` member of the wrong type, is logged and ends that
-  trust-chain path instead of dying with a 500 on `/oauth2/authorize`.
-  Authority hints and JWKS entries are type-checked too, and the resolution
-  hooks keep an `eval` barrier.
-- **Metadata policy operands must be arrays** (#153): a scalar `one_of`,
-  `subset_of`, `superset_of` or `add` operand refuses the entity, and
-  `_applyPolicy` failures (including `essential`) are now honoured instead of
-  ignored.
-- **RP metadata arrays are validated** (#154): `redirect_uris`,
-  `response_types` and `grant_types` must be arrays of non-empty strings
-  before a virtual RP is built.
-- **Policy violations refuse the chain**: a `one_of` mismatch no longer
-  deletes the claim, and `superset_of` is now a check instead of adding the
-  missing values.
-- **Federation registration hook contract**: a valid trust chain now returns
-  `PE_OK` so the core completes the registration (it treated `PE_DONE` as a
-  failure), and an invalid chain returns `PE_ERROR` instead of falling back
-  to ordinary dynamic registration.
-- **Trust chain validation** (#197): every statement must link `iss` / `sub`,
-  carry a non-expired `exp`, and each Entity Configuration must be verified
-  with the keys its superior vouched for. A leaf without usable `jwks` is
-  refused.
-- **Fetch URL safety** (#198, #200): the `sub` query parameter is encoded with
-  `URI->query_form`, and entity identifiers, authority hints and fetch
-  endpoints must be `https` URLs without query or fragment.
-- **Configured trust anchor keys** (#199): trust anchors are verified with the
-  `jwks` from the local configuration, not with the keys they publish
-  themselves; an anchor without configured keys is refused.
-- **Bounded, cached federation fetches** (#204): the user agent has a short
-  configurable timeout, loopback/private/link-local destinations are blocked
-  with `LWPx::ParanoidAgent` unless `oidcFederationAllowPrivateHosts` is set,
-  each resolution is limited to 20 fetches, 5 authority hints per level and a
-  wall-clock deadline (`oidcFederationResolutionTimeout`, 15 s), responses are
-  capped at 512 KiB, and positive/negative results are cached for
-  `oidcFederationCacheTTL` seconds (60 by default) without outliving the
-  chain `exp`. `LWPx::ParanoidAgent` is now checked at startup and receives
-  `lwpSslOpts` and the LLNG agent string.
-- **Federated dynamic registration** (#205): the dead
-  `oidcGenerateRegistrationResponse` hook is replaced by `oidcRegisterClient`.
-  A federated client is registered under its entity ID with options taken from
-  the policy-applied chain metadata only, must use `private_key_jwt`, and gets
-  no client secret. The chain values also replace the request metadata used
-  for core validation and the 201 response. Only the fixed key created by
-  federated registration is reused; any other RP that uses the entity ID as
-  `ClientID` **or** `FederationEntityId` is a conflict and is never
-  overwritten. An existing federated entry is merged, keeping admin tweaks
-  such as its access rule. The saved options use
-  `oidcRPMetaDataOptionsAuthMethod` and a JSON
-  `oidcRPMetaDataOptionsJwks`; `redirect_uris` is required in the chain.
+- **Security fix — trust chain, fetch and registration hardening** (#124,
+  #153, #154, #197–#200, #204, #205): malformed statements, policies and RP
+  metadata are refused, chains are verified against configured anchor keys
+  and `exp`, fetches are bounded, address-filtered and cached, and federated
+  clients register through `oidcRegisterClient` from the chain metadata only,
+  never over a configured RP. Details and new options in the
+  [README](plugins/oidc-federation/README.md#trust-chain-resolution).
 
-### oidc-jar
+### oidc-ciba
 
-- **PAR works whatever the plugin order** (#127): a
-  `urn:ietf:params:oauth:request_uri:` value is left to `oidc-par`, which
-  calls JAR back on the request it resolved, so JAR claim checks and
-  `RequireSignedRequestObject` still apply. `oidc-par` autoload rules now use
-  priority `40` so PAR is loaded before JAR.
-- **Non-object request object payloads** (#159): a signed payload that is not
-  a JSON object is refused with `invalid_request_object` instead of dying in
-  the claim checks.
-- **NumericDate claims are validated** (#157): `exp`, `nbf` and `iat` must be
-  finite numbers; lists, objects, `NaN` and `Inf` are refused.
-- **`jti` values are validated and replay-safe** (#128, #158): a non-empty
-  string is required, non-Latin-1 characters no longer die in the digest, and
-  an empty or falsy `jti` is detected as a replay.
+- **Security fix — user hints are verified** (#122, #123, #183–#185):
+  `login_hint` and the `id_token_hint` `sub` are resolved through the local
+  user backends, `login_hint_token` is refused, and the session keeps the
+  backend attributes. `oidcServiceCibaChoice` supports `Auth = Choice`. See
+  the [README](plugins/oidc-ciba/README.md#validation).
+- **Fix — request validation** (#150–#152): callback and hint payloads must
+  be JSON objects, `openid` is matched as a whole scope, and `auth_time` must
+  be a sane integer.
 
-### oidc-par
+### oidc-jar, oidc-par
 
-- **Loaded before oidc-jar** (#127): autoload rules use priority `40`, and
-  the PAR hook calls JAR validation on the resolved request so the two
-  plugins no longer depend on `customPlugins` order.
+- **Fix — PAR works whatever the plugin order** (#127): `oidc-par` autoload
+  rules use priority `40` and PAR calls JAR back on the resolved request. See
+  [oidc-par README](plugins/oidc-par/README.md#interaction-with-oidc-jar).
+- **Fix — request object validation** (#128, #157–#159): non-object payloads
+  are refused, dates must be finite numbers and `jti` a non-empty string with
+  a replay-safe digest. See the [JAR README](plugins/oidc-jar/README.md#validation).
 
 ### oidc-id-jag
 
-- **Non-object JWT parts are refused** (#125): a JWT Bearer assertion or a
-  subject ID Token whose header or payload is a JSON array or string now gets
-  `invalid_grant` instead of dying with "Not a HASH reference".
-- **NumericDate claims are validated** (#155): `exp`, `nbf` and `iat` must be
-  finite numbers, both for incoming ID-JAG assertions and for subject ID
-  Tokens; lists, objects, `NaN` and text are refused.
-- **`jti` values are validated and replay-safe** (#126, #156): a non-empty
-  string is required, non-Latin-1 characters no longer die in the digest or
-  in the session record, and non-string `jti` values are refused.
-- **Wide `sid` values no longer die** when hashing the ID Token `sid` index.
+- **Fix — JWT and claim validation** (#125, #126, #155, #156): non-object JWT
+  parts are refused, dates must be finite and `jti` a non-empty string. See
+  [What is checked](plugins/oidc-id-jag/README.md#what-is-checked).
+
+### oidc-jarm
+
+- **Security fix — state is consumed only after verification** (#129, #130):
+  JWE is decrypted and the JARM response verified before the one-time state
+  is burned; non-object payloads are refused.
+
+### oidc-rar
+
+- **Fix — non-ASCII `authorization_details`** (#131): raw UTF-8, `\u` escapes
+  and PAR round-trips all yield the intended characters, invalid UTF-8 is
+  refused, and responses are UTF-8 on LLNG <= 2.23.2. See
+  [Character encoding](plugins/oidc-rar/README.md#character-encoding).
+
+### oidc-scope-applications
+
+- **Fix — display rules use the token user** (#133): the `applications` claim
+  is built from the access token session, so a foreign SSO cookie cannot leak
+  that user's menu.
+- **Fix — whole-token scope matching** (#132): `my-applications` is no longer
+  the `applications` scope. The plugin now requires LLNG >= 2.23.2.
+
+### pacc
+
+- **Fix — native client registration** (#134, #188): the hook returns what
+  the core expects, loopback URIs are matched strictly, and
+  `paccAllowNativeClientRegistration = 0` now really refuses them. Dynamic
+  registration must be enabled; public clients need
+  `oidcServiceAllowDynamicRegistration = 2`. See the [README](plugins/pacc/README.md).
+- **Removed — the dead registration hook** (#206).
+
+### json-file
+
+- **Fix — file validation** (#145, #146, #186): a malformed document, user
+  entry or group now disables the backend instead of dying, and runtime
+  attributes (`_*`, `groups`, `ipAddr`, `UA`, `authenticationLevel`) can no
+  longer be overridden from the file. See the
+  [README](plugins/json-file/README.md#json-file-format).
+
+### ldap-rest
+
+- **Fix — non-ASCII passwords and names** (#120, #147, #148, #187): values
+  are encoded once as UTF-8, invalid UTF-8 is refused, and `.`/`..` logins
+  cannot escape the entry path.
+
+### vault-conf-backend
+
+- **Fix — malformed OpenBAO responses** (#142, #166–#170): tokens, KV
+  payloads, key lists, `cfgNum` and lock records are validated; an unreadable
+  lock is no longer stolen. See the
+  [README](plugins/vault-conf-backend/README.md#lock-stuck-after-manager-crash).
+
+### twake
+
+- **Fix — application accounts page** (#139–#141): the redirect header no
+  longer carries a newline, JSON bodies must be objects, the missing template
+  and JavaScript are restored, and the page works with stock Bootstrap with
+  en/fr/es/it translations.
 
 ### custom-functions
 
-- **UUIDv5 input normalisation** (#143): `uuid()` now hashes unflagged
-  Latin-1 bytes in their UTF-8 form and treats an upgraded UTF-8 byte string
-  like the original bytes. UUIDs previously computed from unflagged Latin-1
-  input change; ASCII, UTF-8 bytes and ordinary decoded characters are
-  unchanged.
+- **Fix — input validation** (#119, #143): `isPrivateIp` only accepts one
+  strict address, and `uuid()` hashes unflagged Latin-1 strings as UTF-8.
+  UUIDs computed from such input change; ASCII and decoded characters do not.
+  See the [README](plugins/custom-functions/README.md#uuidvalue-namespace).
+
+### reports
+
+- **Fix — CSV hardening** (#137, #161): every field is quoted, double quotes
+  are doubled, formula prefixes are neutralised, and the body is UTF-8 with a
+  matching `Content-Length`. See the [README](plugins/reports/README.md#csv-format).
+
+### fixed-logout-redirection
+
+- **Fix — invalid target URL** (#144): `init` accepts only an `http`/`https`
+  URL with a host and refuses anything else instead of dying.
 
 ## v0.7.0 - 2026-11-04
 

@@ -81,6 +81,13 @@ Under the RP's **Options > Algorithms**:
 - `oidcRPMetaDataOptionsJarEncAlg` — expected JWE `alg` (key management).
 - `oidcRPMetaDataOptionsJarEncEnc` — expected JWE `enc` (content encryption).
 
+## Validation
+
+A request object header and payload must be JSON objects. `exp`, `nbf` and
+`iat` must be finite numbers; lists, objects, `NaN` and `Inf` are refused.
+`jti` must be a non-empty string, non-Latin-1 characters are hashed safely,
+and an empty or falsy `jti` counts as a replay.
+
 ## Status
 
 Beta. Core LLNG already parses OIDC Core request objects; this plugin adds

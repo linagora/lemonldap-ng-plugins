@@ -68,6 +68,17 @@ For each OIDC RP:
 login attribute and is not an RP macro. Other configurations get
 `invalid_request`, because the `sub` cannot be mapped back to a login safely.
 
+## Validation
+
+Callback bodies must be JSON objects: an array or string is refused with
+`400 invalid_request`, as is a non-string `auth_req_id`. Hint payloads
+(`login_hint_token`, `id_token_hint`) must also be JSON objects.
+
+Only the exact `openid` token satisfies the required scope: `-openid` and
+`my-openid` do not. A callback `auth_time` is kept only when it is a
+non-negative integer that is not in the future; anything else falls back to
+the current time.
+
 ## How It Works
 
 1. **RP sends POST to `/oauth2/bc-authorize`** with client auth + user hint

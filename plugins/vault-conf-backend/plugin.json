@@ -1,6 +1,6 @@
 {
   "name": "vault-conf-backend",
-  "version": "0.1.14",
+  "version": "0.7.1",
   "summary": "LemonLDAP::NG configuration backend using OpenBAO / Vault KV v2",
   "author": "Xavier Guimard / Linagora <https://linagora.com>",
   "license": "AGPL-3.0",

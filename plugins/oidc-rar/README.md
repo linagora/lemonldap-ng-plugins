@@ -137,6 +137,15 @@ with key = `type` and value = Perl expression:
 | `/.well-known/openid-configuration` | `authorization_details_types_supported` array (union of all enabled RPs' allowed types, intersected with the global allowlist when set) |
 | Refresh token grant                 | Persisted on the refresh session, re-emitted in the new token response                                                                  |
 
+## Character encoding
+
+`authorization_details` may arrive as raw UTF-8 or with `\u` escapes; both
+yield the intended characters, and invalid UTF-8 is refused. Details stay
+characters in the token response, introspection and session backends, and
+are encoded as UTF-8 bytes only in the JWT payload. On LLNG <= 2.23.2 the
+plugin also enables UTF-8 on the core JSON encoder, so non-ASCII details do
+not trigger `Wide character in subroutine entry`.
+
 ## Limitations & known gaps (v1)
 
 - **No token-endpoint scope-down.** The client cannot submit a sub-set of

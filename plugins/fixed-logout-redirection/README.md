@@ -25,3 +25,6 @@ In the Manager under **General Parameters** > **Portal** > **Customization** > *
 | `fixedLogoutRedirection` | URL to redirect to after logout |
 
 The target domain is automatically added to `trustedDomains`.
+
+The URL must be an `http` or `https` URL with a non-empty host. Any other
+value is logged and refused at `init` instead of dying on the first logout.

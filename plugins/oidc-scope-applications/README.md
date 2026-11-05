@@ -44,3 +44,8 @@ The RP then requests `scope=openid applications` in the authorization request.
 The `applications` claim in the userinfo response contains a JSON array of
 application categories, each with its list of applications (same structure
 as the portal menu).
+
+The claim is built from the access token's session data, not from the user
+making the request, so display rules see the token user and a foreign SSO
+cookie cannot leak that user's menu. Scope matching is done on whole tokens:
+`my-applications` is not accepted as the `applications` scope.

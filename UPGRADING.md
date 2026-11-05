@@ -7,6 +7,54 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
+## v0.7.1
+
+Mostly input validation: the plugins below refuse what they used to accept.
+Check these points before upgrading; the rest upgrades by replacing the files.
+
+1. **`matrix-token-exchange` now sends every Matrix server through
+   `LWPx::ParanoidAgent`**, listed or not. An internal Matrix server must be
+   added to `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` on its Relying
+   Party, and a portal that reaches Matrix only through an HTTP proxy can no
+   longer use listed servers (`LWPx::ParanoidAgent` ignores
+   `lwpOpts`/`env_proxy`). New runtime dependency
+   `liblwpx-paranoidagent-perl`. See the
+   [plugin README](plugins/matrix/README.md#upgrading-from-07x).
+2. **`pacc` native registration now needs dynamic registration.**
+   `paccAllowNativeClientRegistration` only filters clients; it no longer
+   opens the registration endpoint. Set
+   `oidcServiceAllowDynamicRegistration = 1` (or `2` for public clients), and
+   note that `paccAllowNativeClientRegistration = 0` now really refuses
+   loopback clients. See the [README](plugins/pacc/README.md).
+3. **`oidc-ciba` only accepts user hints it can verify.** `login_hint` and
+   the `id_token_hint` `sub` must resolve through the local user backends,
+   `login_hint_token` is refused, and `id_token_hint` needs an asymmetric
+   signature, this issuer and the requesting client as audience. The RP
+   `sub` must be the login attribute. With `Auth = Choice`, set
+   `oidcServiceCibaChoice`. See the
+   [README](plugins/oidc-ciba/README.md#validation).
+4. **`oidc-federation` fetches are blocked on private addresses** unless
+   `oidcFederationAllowPrivateHosts = 1`, and the new
+   `oidcFederationFetchTimeout`, `oidcFederationResolutionTimeout` and
+   `oidcFederationCacheTTL` bound and cache resolutions. Trust chains are
+   stricter (statement links, `exp`, configured anchor keys) and federated
+   registration goes through `oidcRegisterClient`. New runtime dependency
+   `liblwpx-paranoidagent-perl`. See the
+   [README](plugins/oidc-federation/README.md#trust-chain-resolution).
+5. **`json-file` ignores runtime attributes declared in the user file**
+   (`_*`, `groups`, `hGroups`, `ipAddr`, `UA`, `authenticationLevel`); use
+   the `groups` object for group membership. A malformed file or group now
+   disables the backend at init instead of dying on each login. See the
+   [README](plugins/json-file/README.md#json-file-format).
+6. **`reports` CSV files changed**: every field is quoted, and values
+   starting with `=`, `+`, `-`, `@`, a tab or a CR are prefixed with `'`.
+   Consumers must accept quoting and that apostrophe. See the
+   [README](plugins/reports/README.md#csv-format).
+7. **`custom-functions.uuid()` hashes unflagged Latin-1 strings as UTF-8**,
+   so UUIDs computed from such input change. ASCII, UTF-8 bytes and decoded
+   characters are unchanged. See the
+   [README](plugins/custom-functions/README.md#uuidvalue-namespace).
+
 ## v0.7.0
 
 `matrix-token-exchange` refuses exchanges it used to accept, and adds an

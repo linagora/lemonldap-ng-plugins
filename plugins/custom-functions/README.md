@@ -114,7 +114,10 @@ Notes:
   user;
 - a UUIDv5 is a _hash_, not a secret: anybody who knows the namespace can
   recompute it from the value. If you need an opaque identifier that cannot
-  be reversed, use LLNG's built-in `subjectid()` with a salt instead.
+  be reversed, use LLNG's built-in `subjectid()` with a salt instead;
+- before 0.7.1, an unflagged Latin-1 byte string was hashed as its raw
+  bytes; it is now hashed as UTF-8, so UUIDs computed from such input change.
+  ASCII, UTF-8 bytes and decoded characters are unaffected.
 
 ## `isPrivateIp($ip, @networks)`
 
