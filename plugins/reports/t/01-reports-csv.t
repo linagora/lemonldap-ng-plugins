@@ -2,6 +2,7 @@ use warnings;
 use strict;
 use utf8;
 use Test::More;
+use IO::String;
 use Encode qw(decode_utf8);
 
 BEGIN {
@@ -45,7 +46,15 @@ my $op = LLNG::Manager::Test->new( {
 $op->p->{loadedModules}->{'Lemonldap::NG::Portal::UserDB::LDAP'} =
   t::UserDB->new;
 
-my $id = $op->login('dwho');
+# Inline the login helper: LLNG 2.0.0's test-lib has no login() wrapper.
+my $login_query = 'user=dwho&password=dwho';
+my $login_res   = $op->_post(
+    '/',
+    IO::String->new($login_query),
+    length => length($login_query),
+);
+expectOK($login_res);
+my $id = expectCookie($login_res);
 
 sub report {
     return $op->_get(
