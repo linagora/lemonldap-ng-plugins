@@ -40,9 +40,16 @@ In the Manager, under **OpenID Connect Service > Federation**:
 | `oidcFederationSigningKey`     | `default-oidc-sig` | Key ID used for signing entity statements              |
 | `oidcFederationSigningAlg`     | `RS256`            | Signing algorithm (RS256/384/512, ES256/384/512)       |
 | `oidcFederationTrustAnchors`   | `{}`               | Trust anchors mapping entity IDs to their JWKS         |
-| `oidcFederationFetchTimeout`   | `5`                | Timeout in seconds for federation HTTP fetches         |
-| `oidcFederationAllowPrivateHosts` | `0`             | Allow fetches to loopback/private/link-local addresses |
+| `oidcFederationFetchTimeout`   | `5`                | Timeout in seconds for one federation HTTP fetch        |
+| `oidcFederationResolutionTimeout` | `15`           | Maximum wall-clock time for one trust chain resolution  |
+| `oidcFederationAllowPrivateHosts` | `0`             | Allow loopback/private/link-local hosts; uses the standard LWP agent (proxy support, per-read timeout). Lab use only |
 | `oidcFederationCacheTTL`       | `60`               | Trust chain cache TTL, negative results included (`0` disables) |
+
+> By default federation fetches use `LWPx::ParanoidAgent`: loopback, private
+> and link-local destinations are refused, but it has **no proxy support** and
+> only follows IPv4 `A`/`CNAME` records. Set `oidcFederationAllowPrivateHosts`
+> only in a lab: it restores the standard LWP agent (proxies included) but
+> removes the address filtering, and its timeout is per read.
 
 For each OIDC RP _(dynamically filled)_:
 

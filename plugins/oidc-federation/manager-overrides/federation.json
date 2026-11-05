@@ -39,12 +39,17 @@
     "oidcFederationFetchTimeout": {
       "type": "int",
       "default": 5,
-      "documentation": "Timeout in seconds for federation HTTP fetches"
+      "documentation": "Timeout in seconds for one federation HTTP fetch"
+    },
+    "oidcFederationResolutionTimeout": {
+      "type": "int",
+      "default": 15,
+      "documentation": "Maximum wall-clock time in seconds for one trust chain resolution"
     },
     "oidcFederationAllowPrivateHosts": {
       "type": "bool",
       "default": 0,
-      "documentation": "Allow federation fetches to loopback, private and link-local addresses (not recommended)"
+      "documentation": "Allow loopback/private/link-local hosts and use the standard LWP agent (proxy support, per-read timeout). Lab use only"
     },
     "oidcFederationCacheTTL": {
       "type": "int",
@@ -70,6 +75,7 @@
         "oidcFederationSigningAlg",
         "oidcFederationTrustAnchors",
         "oidcFederationFetchTimeout",
+        "oidcFederationResolutionTimeout",
         "oidcFederationAllowPrivateHosts",
         "oidcFederationCacheTTL"
       ]
@@ -129,9 +135,15 @@
     },
     "oidcFederationFetchTimeout": {
       "en": "Federation fetch timeout (seconds)",
-      "fr": "Délai des requêtes de fédération (secondes)",
-      "es": "Tiempo de espera de las peticiones de federación (segundos)",
-      "it": "Timeout delle richieste di federazione (secondi)"
+      "fr": "Délai d'une requête de fédération (secondes)",
+      "es": "Tiempo de espera de una petición de federación (segundos)",
+      "it": "Timeout di una richiesta di federazione (secondi)"
+    },
+    "oidcFederationResolutionTimeout": {
+      "en": "Trust chain resolution timeout (seconds)",
+      "fr": "Délai de résolution d'une chaîne de confiance (secondes)",
+      "es": "Tiempo de resolución de una cadena de confianza (segundos)",
+      "it": "Timeout di risoluzione di una catena di fiducia (secondi)"
     },
     "oidcFederationAllowPrivateHosts": {
       "en": "Allow private federation hosts",

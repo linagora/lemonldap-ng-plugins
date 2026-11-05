@@ -15,6 +15,7 @@ requires qw(conf logger p);
 # level, so bound both the number of hints explored and the total fetches.
 use constant MAX_AUTHORITY_HINTS => 5;
 use constant MAX_FETCHES         => 20;
+use constant MAX_RESPONSE_SIZE   => 512 * 1024;
 
 has _chainCache => ( is => 'rw', default => sub { {} } );
 
@@ -31,11 +32,19 @@ has ua => (
             my $ua = Lemonldap::NG::Common::UserAgent->new( $self->{conf} );
             $ua->env_proxy();
             $ua->timeout($timeout);
+            $ua->max_size(MAX_RESPONSE_SIZE);
             return $ua;
         }
 
         require LWPx::ParanoidAgent;
-        my $ua = LWPx::ParanoidAgent->new( timeout => $timeout );
+        my %args = (
+            timeout  => $timeout,
+            max_size => MAX_RESPONSE_SIZE,
+            agent    => "LemonLDAP-NG/$Lemonldap::NG::Portal::Main::VERSION ",
+        );
+        $args{ssl_opts} = $self->conf->{lwpSslOpts}
+          if ref $self->conf->{lwpSslOpts} eq 'HASH';
+        my $ua = LWPx::ParanoidAgent->new(%args);
 
         # Shared address space (RFC 6598), often used inside clusters
         $ua->blocked_hosts( qr/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./ );
@@ -116,11 +125,26 @@ sub isSecureUrl {
 }
 
 sub _fetchJwt {
-    my ( $self, $url, $what ) = @_;
+    my ( $self, $url, $what, $budget ) = @_;
     $what ||= 'statement';
-    $self->logger->debug("Fetching $what from $url");
 
-    my $response = $self->ua->get($url);
+    my $timeout = $self->conf->{oidcFederationFetchTimeout} || 5;
+    if ( ref $budget eq 'HASH' && $budget->{deadline} ) {
+        my $remaining = $budget->{deadline} - time;
+        return if $remaining <= 0;
+        $timeout = $remaining if $remaining < $timeout;
+    }
+
+    $self->logger->debug("Fetching $what from $url");
+    my $ua = $self->ua;
+    $ua->timeout($timeout);
+
+    my $response = $ua->get($url);
+    if ( $response->header('Client-Aborted') || $response->header('X-Died') ) {
+        $self->logger->error(
+            "Failed to fetch $what from $url: response aborted");
+        return;
+    }
     unless ( $response->is_success ) {
         $self->logger->error(
             "Failed to fetch $what from $url: " . $response->status_line );
@@ -130,13 +154,13 @@ sub _fetchJwt {
 }
 
 sub _fetchEntityConfigurationJwt {
-    my ( $self, $entity_id ) = @_;
+    my ( $self, $entity_id, $budget ) = @_;
     return unless $self->isSecureUrl($entity_id);
 
     my $url = $entity_id;
     $url =~ s|/+$||;
     $url .= '/.well-known/openid-federation';
-    return $self->_fetchJwt( $url, 'Entity Configuration' );
+    return $self->_fetchJwt( $url, 'Entity Configuration', $budget );
 }
 
 # Fetch and decode an Entity Configuration from a remote entity
@@ -144,8 +168,8 @@ sub _fetchEntityConfigurationJwt {
 # @param jwks optional JWKS to verify it (required for a trust anchor)
 # @return HashRef decoded payload, or undef on failure
 sub fetchEntityConfiguration {
-    my ( $self, $entity_id, $jwks ) = @_;
-    my $jwt = $self->_fetchEntityConfigurationJwt($entity_id);
+    my ( $self, $entity_id, $jwks, $budget ) = @_;
+    my $jwt = $self->_fetchEntityConfigurationJwt( $entity_id, $budget );
     return unless defined $jwt;
     return $self->_decodeEntityStatement( $jwt, $jwks );
 }
@@ -156,7 +180,7 @@ sub fetchEntityConfiguration {
 # @param superior_jwks ArrayRef of JWK hashes for signature verification
 # @return HashRef decoded payload, or undef on failure
 sub fetchSubordinateStatement {
-    my ( $self, $fetch_endpoint, $subject, $superior_jwks ) = @_;
+    my ( $self, $fetch_endpoint, $subject, $superior_jwks, $budget ) = @_;
 
     return unless $self->isSecureUrl($fetch_endpoint);
     return unless $self->isSecureUrl($subject);
@@ -166,7 +190,8 @@ sub fetchSubordinateStatement {
     # never concatenate it as a raw query value.
     my $uri = URI->new($fetch_endpoint);
     $uri->query_form( sub => $subject );
-    my $jwt = $self->_fetchJwt( $uri->as_string, 'Subordinate Statement' );
+    my $jwt =
+      $self->_fetchJwt( $uri->as_string, 'Subordinate Statement', $budget );
     return unless defined $jwt;
     return $self->_decodeEntityStatement( $jwt, $superior_jwks );
 }
@@ -230,19 +255,36 @@ sub resolveTrustChain {
 
     my $ttl = $self->conf->{oidcFederationCacheTTL} // 60;
     if ( $ttl > 0 ) {
+        # The key is the entity ID only: both callers use the same trust
+        # anchors and depth, and a configuration reload replaces the plugin.
         my $cached = $self->_chainCache->{$entity_id};
-        return $cached->{chain} if $cached && time - $cached->{at} < $ttl;
+        return $cached->{chain} if $cached && time < $cached->{expire};
     }
 
     my $chain =
       $self->_resolveTrustChain( $entity_id, $trust_anchors, $max_depth );
 
     if ( $ttl > 0 ) {
+        my $expire = time + $ttl;
+        if ( ref $chain eq 'ARRAY' ) {
+            for my $statement (@$chain) {
+                next unless ref $statement eq 'HASH';
+                my $exp = $statement->{exp};
+                next unless defined $exp && !ref $exp;
+                $expire = $exp if $exp < $expire;
+            }
+        }
         my $cache = $self->_chainCache;
-        $cache->{$entity_id} = { at => time, chain => $chain };
+        $cache->{$entity_id} = { expire => $expire, chain => $chain };
 
-        # Keep the cache bounded: callers choose the entity IDs.
-        %$cache = () if keys %$cache > 1000;
+        # Keep the cache bounded without letting new entries flush it.
+        if ( keys %$cache > 1000 ) {
+            my @oldest =
+              sort { $cache->{$a}{expire} <=> $cache->{$b}{expire} }
+              keys %$cache;
+            my $drop = @oldest - 1000;
+            delete @$cache{ @oldest[ 0 .. $drop - 1 ] } if $drop > 0;
+        }
     }
 
     return $chain;
@@ -252,6 +294,7 @@ sub resolveTrustChain {
 sub _consumeBudget {
     my ( $self, $budget, $count ) = @_;
     return 0 unless ref $budget eq 'HASH';
+    return 0 if $budget->{deadline} && time >= $budget->{deadline};
     $budget->{left} -= $count;
     return $budget->{left} >= 0;
 }
@@ -272,7 +315,9 @@ sub _resolveTrustChain {
 
     return unless $self->isSecureUrl($entity_id);
 
-    my $budget = { left => MAX_FETCHES };
+    my $deadline =
+      time + ( $self->conf->{oidcFederationResolutionTimeout} // 15 );
+    my $budget = { left => MAX_FETCHES, deadline => $deadline };
     return unless $self->_consumeBudget( $budget, 1 );
 
     my $is_anchor =
@@ -281,7 +326,7 @@ sub _resolveTrustChain {
     return if $is_anchor && !$anchor_jwks;
 
     # Step 1: fetch the leaf's Entity Configuration
-    my $leaf_jwt = $self->_fetchEntityConfigurationJwt($entity_id);
+    my $leaf_jwt = $self->_fetchEntityConfigurationJwt( $entity_id, $budget );
     return unless defined $leaf_jwt;
     my $leaf_config = $self->_decodeEntityStatement( $leaf_jwt, $anchor_jwks );
     unless ( $leaf_config
@@ -338,7 +383,8 @@ sub _walkTrustChain {
     # Fetch and verify the superior's Entity Configuration. A trust anchor is
     # verified with the keys already configured, not with its self-published
     # JWKS.
-    my $superior_jwt = $self->_fetchEntityConfigurationJwt($superior_id);
+    my $superior_jwt =
+      $self->_fetchEntityConfigurationJwt( $superior_id, $budget );
     return unless defined $superior_jwt;
     my $superior_config =
       $self->_decodeEntityStatement( $superior_jwt, $anchor_jwks );
@@ -378,7 +424,7 @@ sub _walkTrustChain {
 
     # Fetch the Subordinate Statement about the subject
     my $sub_statement = $self->fetchSubordinateStatement(
-        $fetch_endpoint, $subject_id, $superior_jwks );
+        $fetch_endpoint, $subject_id, $superior_jwks, $budget );
     return unless $sub_statement;
     unless (
         $self->_statementValid( $sub_statement, $superior_id, $subject_id ) )

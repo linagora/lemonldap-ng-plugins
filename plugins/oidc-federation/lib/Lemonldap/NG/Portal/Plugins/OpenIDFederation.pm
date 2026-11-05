@@ -58,6 +58,16 @@ sub init {
     my ($self) = @_;
     return 0 unless $self->SUPER::init();
 
+    # Fail at startup rather than on the first unauthenticated resolution.
+    unless ( $self->conf->{oidcFederationAllowPrivateHosts} ) {
+        eval { require LWPx::ParanoidAgent; 1 } or do {
+            $self->logger->error(
+                'LWPx::ParanoidAgent is required unless '
+                  . 'oidcFederationAllowPrivateHosts is set' );
+            return 0;
+        };
+    }
+
     # Register /.well-known/openid-federation endpoint
     $self->addUnauthRoute(
         '.well-known' => { 'openid-federation' => 'entityConfiguration' },

@@ -910,5 +910,59 @@ subtest 'federation fetch guards' => sub {
     ok( !$plugin->_consumeBudget( $budget, 2 ), 'budget exhausted' );
 };
 
+subtest 'default federation UA blocks private hosts' => sub {
+    SKIP: {
+        skip 'LWPx::ParanoidAgent not installed', 3
+          unless eval { require LWPx::ParanoidAgent; 1 };
+
+        my $role =
+          t::FedRole->new( conf => { oidcFederationFetchTimeout => 1 } );
+        my $ua = $role->ua;
+        isa_ok( $ua, 'LWPx::ParanoidAgent' );
+        for my $url ( 'https://127.0.0.1/', 'https://100.64.0.1/' ) {
+            my $res = $ua->get($url);
+            is( $res->code, 403, "$url is blocked" );
+        }
+    }
+};
+
+subtest 'a resolution deadline stops the walk' => sub {
+    my $conf      = $plugin->conf;
+    my $saved     = $conf->{oidcFederationResolutionTimeout};
+    $conf->{oidcFederationResolutionTimeout} = -1;
+    $plugin->_chainCache({});
+
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP with an expired deadline' );
+
+    my $budget = { left => 3, deadline => time - 1 };
+    ok( !$plugin->_consumeBudget( $budget, 1 ), 'the budget deadline is enforced' );
+
+    $conf->{oidcFederationResolutionTimeout} = $saved;
+    $plugin->_chainCache({});
+};
+
+{
+    package t::FedLogger;
+    sub new     { bless {}, shift }
+    sub debug   { }
+    sub info    { }
+    sub notice  { }
+    sub warn    { }
+    sub error   { }
+
+    package t::FedRole;
+    use Mouse;
+    has conf   => ( is => 'rw', default => sub { {} } );
+    has logger => ( is => 'rw', default => sub { t::FedLogger->new } );
+    has p      => ( is => 'rw', default => sub { {} } );
+    with 'Lemonldap::NG::Portal::Lib::OpenIDFederation';
+}
+
 clean_sessions();
 done_testing();
