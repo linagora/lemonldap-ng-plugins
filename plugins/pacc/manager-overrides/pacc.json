@@ -8,7 +8,7 @@
     "paccAllowNativeClientRegistration": {
       "type": "bool",
       "default": 1,
-      "documentation": "Allow registration for native clients with loopback redirect URIs (dynamic registration must be enabled; level 2 for public clients)"
+      "documentation": "Allow registration for native clients with loopback redirect URIs; when disabled, such registrations are refused (dynamic registration must be enabled; level 2 for public clients)"
     },
     "paccStrictNativeClientOnly": {
       "type": "bool",

@@ -41,7 +41,7 @@ In the Manager, go to **OpenID Connect Service** > **PACC Configuration**:
 | Parameter                           | Default | Description                                                      |
 | ----------------------------------- | ------- | ---------------------------------------------------------------- |
 | `paccEnabled`                       | 0       | Enable the PACC endpoint                                         |
-| `paccAllowNativeClientRegistration` | 1       | Allow registration for native clients with loopback URIs (dynamic registration must be enabled) |
+| `paccAllowNativeClientRegistration` | 1       | Allow loopback native clients; when disabled, loopback registrations are refused (dynamic registration must be enabled) |
 | `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations in strict mode            |
 
 ### IMAP Settings
