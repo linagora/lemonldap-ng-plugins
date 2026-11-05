@@ -79,6 +79,19 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsCIBAMode              => 'poll',
                     oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
                 },
+                rp_mail => {
+                    oidcRPMetaDataOptionsDisplayName       => "RP Mail Sub",
+                    oidcRPMetaDataOptionsIDTokenExpiration => 3600,
+                    oidcRPMetaDataOptionsIDTokenSignAlg    => "RS256",
+                    oidcRPMetaDataOptionsClientID          => "rpid_mail",
+                    oidcRPMetaDataOptionsClientSecret      => "rpsecret_mail",
+                    oidcRPMetaDataOptionsUserIDAttr        => "mail",
+                    oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                    oidcRPMetaDataOptionsBypassConsent         => 1,
+                    oidcRPMetaDataOptionsAllowCIBA             => 1,
+                    oidcRPMetaDataOptionsCIBAMode              => 'poll',
+                    oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
+                },
                 rp_no_ciba => {
                     oidcRPMetaDataOptionsDisplayName           => "RP No CIBA",
                     oidcRPMetaDataOptionsIDTokenExpiration     => 3600,
@@ -349,6 +362,71 @@ subtest "CIBA valid id_token_hint" => sub {
     is( scalar(@ciba_notifications), 1, 'notification sent' );
     is( $ciba_notifications[0]->{user},
         'dwho', 'notification names the backend user' );
+};
+
+subtest "CIBA id_token_hint with a non-login sub is refused" => sub {
+    @ciba_notifications = ();
+
+    my $id   = login( $op, 'dwho' );
+    my $code = codeAuthorize(
+        $op, $id,
+        {
+            response_type => 'code',
+            scope         => 'openid',
+            client_id     => 'rpid_mail',
+            state         => 's',
+            redirect_uri  => 'http://rp.com/',
+        }
+    );
+    my $tokens = expectJSON(
+        codeGrantWithSecret(
+            $op, 'rpid_mail', 'rpsecret_mail', $code, 'http://rp.com/'
+        )
+    );
+    my $hint = $tokens->{id_token};
+    ok( $hint, 'got an ID token with a mail sub' );
+
+    my $query = buildForm( {
+            client_id     => 'rpid_mail',
+            client_secret => 'rpsecret_mail',
+            scope         => 'openid',
+            id_token_hint => $hint,
+        }
+    );
+
+    $res = $op->_post(
+        "/oauth2/bc-authorize",
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 400, 'invalid_request' );
+    is( scalar(@ciba_notifications), 0, 'the channel is not called' );
+};
+
+subtest "CIBA session keeps the backend whatToTrace attribute" => sub {
+    my $plugin =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCCIBA'};
+    my $conf = $plugin->conf;
+    local $conf->{whatToTrace} = 'mail';
+
+    my $sid = $plugin->_createUserSessionForCiba(
+        undef,
+        {
+            user      => 'dwho',
+            rp        => 'rp',
+            scope     => 'openid',
+            user_info => {
+                mail => 'dwho@badwolf.org',
+                uid  => 'dwho',
+            },
+        }
+    );
+    ok( $sid, 'session created' );
+    my $session = $op->p->getApacheSession( $sid, kind => 'SSO' )->data;
+    is( $session->{mail}, 'dwho@badwolf.org',
+        'the backend whatToTrace attribute is kept' );
+    is( $session->{_user}, 'dwho', 'the login is kept in _user' );
 };
 
 subtest "CIBA token endpoint - pending" => sub {
