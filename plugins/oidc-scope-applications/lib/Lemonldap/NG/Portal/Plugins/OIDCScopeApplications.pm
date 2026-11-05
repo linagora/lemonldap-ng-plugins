@@ -96,6 +96,15 @@ sub addApplicationsClaim {
     $basePath =~ s#/*$##;
     $basePath .= $self->p->{staticPrefix} . '/common/apps/';
 
+    # The display rules must be evaluated on the token's user, not on the
+    # request user: userinfo may be called with no cookie, or with another
+    # user's SSO cookie.
+    my $userData = ref $data eq 'HASH' ? $data : {};
+    my $menu = do {
+        local $req->{userData} = $userData;
+        $self->p->menu->appslist($req);
+    };
+
     my @applist = map {
         my @apps = map {
             $_->{applogo} = $basePath . $_->{applogo}
@@ -103,7 +112,7 @@ sub addApplicationsClaim {
             $_;
         } @{ $_->{applications} };
         $_->{applications};
-    } @{ $self->p->menu->appslist($req) };
+    } @$menu;
 
     $userinfo_response->{applications} = to_json( \@applist );
 

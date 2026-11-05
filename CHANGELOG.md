@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### oidc-scope-applications
+
+- **Display rules use the token user** (#133): the `applications` claim of
+  `/oauth2/userinfo` is now built with the access token's session data instead
+  of the request user. Applications whose `display` rule depends on the user
+  are no longer missing, and a request carrying another user's SSO cookie
+  cannot leak that user's menu.
+
 ### pacc
 
 - **Removed the dead dynamic-registration hook** (#206):
