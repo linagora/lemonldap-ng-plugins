@@ -2,6 +2,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCJar;
 
 use strict;
 use Digest::SHA qw(sha256_hex);
+use Encode qw(encode_utf8);
 use JSON;
 use LWP::UserAgent;
 use Mouse;
@@ -37,11 +38,28 @@ sub _supportedSigAlg {
 sub processJarRequest {
     my ( $self, $req, $oidc_request ) = @_;
 
+    # PAR may call us back after resolving a pushed request, and our own hook
+    # may also run afterwards depending on the plugin order.
+    return PE_OK if $oidc_request->{_jarRequestProcessed};
+
     my $client_id = $oidc_request->{client_id};
     return PE_OK unless $client_id;
 
     my $rp = $self->oidc->getRP($client_id);
     return PE_OK unless $rp;
+
+    # A PAR request_uri is not a request object URI. Leave it to oidc-par,
+    # which will call us back on the request it resolved. This keeps JAR
+    # working whatever the plugin order.
+    if (    $oidc_request->{request_uri}
+        and $oidc_request->{request_uri} =~
+        /\Aurn:ietf:params:oauth:request_uri:/
+        and $self->_parPlugin )
+    {
+        return PE_OK;
+    }
+
+    $oidc_request->{_jarRequestProcessed} = 1;
 
     my $rpOpts = $self->oidc->rpOptions->{$rp} || {};
 
@@ -97,7 +115,9 @@ sub _extractAndValidateClaims {
     my ( $self, $req, $jwt, $rp ) = @_;
 
     my ( $claims, $alg ) = $self->oidc->decodeJWT( $jwt, undef, $rp );
-    return ( undef, 'JAR signature verification failed' ) unless $claims;
+    return ( undef, 'JAR signature verification failed' ) unless defined $claims;
+    return ( undef, 'JAR request object payload is not a JSON object' )
+      unless ref($claims) eq 'HASH';
 
     my $expectedAlg =
       $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarSigAlg};
@@ -129,25 +149,40 @@ sub _extractAndValidateClaims {
     }
 
     if ( defined $claims->{exp} ) {
+        my $exp = $self->_numericDate( $claims->{exp} );
+        return ( undef, "exp claim is not a NumericDate" )
+          unless defined $exp;
         return ( undef, "Request object is expired" )
-          if $claims->{exp} + $skew < $now;
+          if $exp + $skew < $now;
+        $claims->{exp} = $exp;
     }
 
     if ( defined $claims->{nbf} ) {
+        my $nbf = $self->_numericDate( $claims->{nbf} );
+        return ( undef, "nbf claim is not a NumericDate" )
+          unless defined $nbf;
         return ( undef, "Request object is not yet valid" )
-          if $claims->{nbf} - $skew > $now;
+          if $nbf - $skew > $now;
+        $claims->{nbf} = $nbf;
     }
 
     if ( defined $claims->{iat} ) {
+        my $iat = $self->_numericDate( $claims->{iat} );
+        return ( undef, "iat claim is not a NumericDate" )
+          unless defined $iat;
         my $maxAge =
           $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarMaxAge};
-        if ( $maxAge and $claims->{iat} + $maxAge + $skew < $now ) {
+        if ( $maxAge and $iat + $maxAge + $skew < $now ) {
             return ( undef,
                 "Request object iat is older than max age ($maxAge s)" );
         }
+        $claims->{iat} = $iat;
     }
 
     if ( defined $claims->{jti} ) {
+        my $jti = $claims->{jti};
+        return ( undef, "jti claim must be a non-empty string" )
+          if ref $jti or !length $jti;
         my $replay = $self->_checkAndStoreJti( $rp, $claims );
         return ( undef, $replay ) if $replay;
     }
@@ -155,13 +190,39 @@ sub _extractAndValidateClaims {
     return ( $claims, undef );
 }
 
+# RFC 7519 NumericDate: a finite number. Reject references, NaN, Inf and
+# anything that is not a plain decimal number (numeric strings are accepted
+# for clients that already send them).
+sub _numericDate {
+    my ( $self, $value ) = @_;
+    return undef if ref $value;
+    return undef unless defined $value;
+    return undef
+      unless $value =~
+      /\A-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/;
+    my $number = $value + 0;
+    return undef unless $number - $number == 0;    # NaN or infinite
+    return $number;
+}
+
+# Return the loaded PAR server plugin, if any.
+sub _parPlugin {
+    my ($self) = @_;
+    return $self->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest'};
+}
+
 # Anti-replay: a session keyed by sha256(rp . jti) is stored for the lifetime
 # of the request object. Any second sighting is a replay.
 sub _checkAndStoreJti {
     my ( $self, $rp, $claims ) = @_;
 
-    my $jti       = $claims->{jti};
-    my $id        = sha256_hex( 'jar-jti:' . $rp . ':' . $jti );
+    my $jti = $claims->{jti};
+
+    # Digest::SHA works on bytes only. A jti decoded from a \u escape is a
+    # Perl character string and would die with "Wide character" without this.
+    my $jtiBytes = utf8::is_utf8($jti) ? encode_utf8($jti) : $jti;
+    my $id       = sha256_hex( 'jar-jti:' . $rp . ':' . $jtiBytes );
     my %storeOpts = $self->oidc->_storeOpts();
 
     my $existing = Lemonldap::NG::Common::Session->new( {
@@ -171,7 +232,10 @@ sub _checkAndStoreJti {
             kind      => $self->oidc->sessionKind,
         }
     );
-    if ( !$existing->error and $existing->data and $existing->data->{jti} ) {
+    if ( !$existing->error
+        and $existing->data
+        and defined $existing->data->{jti} )
+    {
         return "JAR jti has already been used (replay detected)";
     }
 
@@ -191,7 +255,7 @@ sub _checkAndStoreJti {
             info      => {
                 _type  => 'jar_jti',
                 _utime => $now + $ttl - $timeout,
-                jti    => $jti,
+                jti    => $jtiBytes,
                 rp     => $rp,
             },
         }

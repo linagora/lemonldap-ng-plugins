@@ -247,6 +247,16 @@ sub resolvePushedRequest {
     $parSession->remove;
     $self->logger->debug("PAR: Session $session_id consumed");
 
+    # oidc-jar may have run before us and skipped the PAR URN. Run its checks
+    # now on the request we resolved, so JAR validation does not depend on
+    # the plugin order. Its own hook is a no-op afterwards.
+    if ( my $jar = $self->p->loadedModules
+        ->{'Lemonldap::NG::Portal::Plugins::OIDCJar'} )
+    {
+        my $h = $jar->processJarRequest( $req, $oidc_request );
+        return $h unless $h == PE_OK;
+    }
+
     return PE_OK;
 }
 

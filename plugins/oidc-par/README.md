@@ -28,6 +28,20 @@ into `/etc/lemonldap-ng/manager-plugins.d/`, add
 `::Plugins::OIDCPushedAuthRequest, ::Plugins::OIDCPushedAuthRequestClient`
 to `customPlugins`, and run `llng-build-manager-files`.
 
+## Interaction with oidc-jar
+
+When both plugins are used, PAR must resolve the pushed request before JAR
+validates it. The autoload rules of this plugin use priority `40`, so PAR is
+loaded before JAR (`50`). With `customPlugins`, list PAR first:
+
+```
+customPlugins => '::Plugins::OIDCPushedAuthRequest ::Plugins::OIDCJar'
+```
+
+The reverse order also works: JAR leaves
+`urn:ietf:params:oauth:request_uri:` values to PAR and PAR calls JAR back on
+the request it resolved.
+
 ## Configuration
 
 ### As OIDC Provider (IDP)

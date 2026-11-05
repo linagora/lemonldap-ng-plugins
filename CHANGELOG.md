@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### oidc-jar
+
+- **PAR works whatever the plugin order** (#127): a
+  `urn:ietf:params:oauth:request_uri:` value is left to `oidc-par`, which
+  calls JAR back on the request it resolved, so JAR claim checks and
+  `RequireSignedRequestObject` still apply. `oidc-par` autoload rules now use
+  priority `40` so PAR is loaded before JAR.
+- **Non-object request object payloads** (#159): a signed payload that is not
+  a JSON object is refused with `invalid_request_object` instead of dying in
+  the claim checks.
+- **NumericDate claims are validated** (#157): `exp`, `nbf` and `iat` must be
+  finite numbers; lists, objects, `NaN` and `Inf` are refused.
+- **`jti` values are validated and replay-safe** (#128, #158): a non-empty
+  string is required, non-Latin-1 characters no longer die in the digest, and
+  an empty or falsy `jti` is detected as a replay.
+
+### oidc-par
+
+- **Loaded before oidc-jar** (#127): autoload rules use priority `40`, and
+  the PAR hook calls JAR validation on the resolved request so the two
+  plugins no longer depend on `customPlugins` order.
+
 ### custom-functions
 
 - **UUIDv5 input normalisation** (#143): `uuid()` now hashes unflagged
