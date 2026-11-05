@@ -39,6 +39,16 @@
   `PE_OK` so the core completes the registration (it treated `PE_DONE` as a
   failure), and an invalid chain returns `PE_ERROR` instead of falling back
   to ordinary dynamic registration.
+- **Trust chain validation** (#197): every statement must link `iss` / `sub`,
+  carry a non-expired `exp`, and each Entity Configuration must be verified
+  with the keys its superior vouched for. A leaf without usable `jwks` is
+  refused.
+- **Fetch URL safety** (#198, #200): the `sub` query parameter is encoded with
+  `URI->query_form`, and entity identifiers, authority hints and fetch
+  endpoints must be `https` URLs without query or fragment.
+- **Configured trust anchor keys** (#199): trust anchors are verified with the
+  `jwks` from the local configuration, not with the keys they publish
+  themselves; an anchor without configured keys is refused.
 
 ### oidc-jar
 

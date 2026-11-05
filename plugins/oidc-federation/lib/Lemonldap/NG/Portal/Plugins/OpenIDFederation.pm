@@ -237,8 +237,9 @@ sub addFederationMetadata {
 sub resolveRPFromFederation {
     my ( $self, $req, $client_id, $config ) = @_;
 
-    # Only act if client_id looks like a URL (entity identifier)
-    return PE_OK unless $client_id && $client_id =~ m{^https?://};
+    # Only act if client_id is an entity identifier: https, no query or
+    # fragment.
+    return PE_OK unless $self->isSecureUrl($client_id);
 
     $self->logger->debug(
         "Attempting federation trust chain resolution for $client_id");

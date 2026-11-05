@@ -181,6 +181,8 @@ my $op = LLNG::Manager::Test->new( {
     }
 );
 
+my $last_fetch_sub;
+
 # Register LWP interceptor AFTER OP creation to override the default handler
 LWP::Protocol::PSGI->register(
     sub {
@@ -217,6 +219,7 @@ LWP::Protocol::PSGI->register(
         elsif ( $full_uri =~
             m{^https://ta\.example\.com/federation_fetch\?sub=} )
         {
+            $last_fetch_sub = Plack::Request->new($env)->param('sub');
             return [
                 200,
                 [ 'Content-Type' => 'application/entity-statement+jwt' ],
@@ -419,11 +422,10 @@ my $plugin =
 subtest 'a statement of the wrong JSON type gives no RP and no die' => sub {
     my $saved_ta  = $ta_entity_config_jwt;
     my $saved_sub = $ta_sub_statement_jwt;
+    my $saved_rp  = $rp_entity_config_jwt;
 
     for my $payload (
         '[1,2]',
-        to_json( { %$ta_entity_config_payload, jwks => 'abc' } ),
-        to_json( { %$ta_entity_config_payload, jwks => [1] } ),
         to_json( { %$ta_entity_config_payload, metadata => 'abc' } ),
       )
     {
@@ -443,6 +445,24 @@ subtest 'a statement of the wrong JSON type gives no RP and no die' => sub {
     }
 
     $ta_entity_config_jwt = $saved_ta;
+
+    for my $jwks ( 'abc', [1] ) {
+        $rp_entity_config_jwt = encode_jwt(
+            payload => to_json( { %$rp_entity_config_payload, jwks => $jwks } ),
+            alg           => 'RS256',
+            key           => $rp_pk,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'rp-fed-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, 'no die' ) or diag $@;
+        ok( !$config{confKey}, 'no virtual RP for a malformed leaf jwks' );
+    }
+
+    $rp_entity_config_jwt = $saved_rp;
 
     $ta_sub_statement_jwt = encode_jwt(
         payload => to_json(
@@ -668,6 +688,169 @@ subtest 'federation registration hook contract' => sub {
     package t::FedRequest;
     sub data { return $_[0]->{data} ||= {} }
 }
+
+subtest 'trust chain statements are linked and time-bounded' => sub {
+    my $saved_sub = $ta_sub_statement_jwt;
+
+    for my $mutation (
+        { iss => 'https://other.example.com' },
+        { sub => 'https://other.example.com' },
+        { exp => time - 10 },
+      )
+    {
+        $ta_sub_statement_jwt = encode_jwt(
+            payload => to_json(
+                { %$ta_sub_statement_payload, %$mutation }
+            ),
+            alg           => 'RS256',
+            key           => \$ta_private_key,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, 'no die' ) or diag $@;
+        ok( !$config{confKey}, 'no virtual RP for ' . to_json($mutation) );
+    }
+
+    $ta_sub_statement_jwt = $saved_sub;
+
+    # The leaf is not signed by the keys the superior vouched for.
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json( {
+                %$ta_sub_statement_payload,
+                jwks => { keys => [$ta_jwk] },
+        } ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for an unvouched leaf' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP for an unvouched leaf' );
+    $ta_sub_statement_jwt = $saved_sub;
+
+    # A leaf without embedded jwks cannot be verified at all.
+    my $saved_rp = $rp_entity_config_jwt;
+    my %leaf     = %$rp_entity_config_payload;
+    delete $leaf{jwks};
+    $rp_entity_config_jwt = encode_jwt(
+        payload       => to_json(\%leaf),
+        alg           => 'RS256',
+        key           => $rp_pk,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'rp-fed-key-1' },
+    );
+    %config = ();
+    $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for a leaf without jwks' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP for a leaf without jwks' );
+    $rp_entity_config_jwt = $saved_rp;
+};
+
+subtest 'configured trust anchor keys are enforced' => sub {
+    my $saved_anchors = $plugin->trustAnchors;
+
+    $plugin->trustAnchors(
+        { $ta_entity_id => { jwks => { keys => [$rp_jwk] } } } );
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die with a wrong anchor key' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP with a wrong anchor key' );
+
+    $plugin->trustAnchors( { $ta_entity_id => { jwks => undef } } );
+    %config = ();
+    $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die without anchor keys' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP without anchor keys' );
+
+    $plugin->trustAnchors($saved_anchors);
+};
+
+subtest 'entity identifiers must be https URLs without query or fragment' => sub {
+    for my $entity_id (
+        'http://rp-fed.example.com',
+        'https://rp-fed.example.com/?x=1',
+        'https://rp-fed.example.com/#frag',
+      )
+    {
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $entity_id, \%config );
+            1;
+        };
+        ok( $ok, 'no die' ) or diag $@;
+        ok( !$config{confKey}, "no virtual RP for $entity_id" );
+    }
+
+    my $saved_rp = $rp_entity_config_jwt;
+    $rp_entity_config_jwt = encode_jwt(
+        payload => to_json( {
+                %$rp_entity_config_payload,
+                authority_hints => ['http://ta.example.com'],
+        } ),
+        alg           => 'RS256',
+        key           => $rp_pk,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'rp-fed-key-1' },
+    );
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for an http authority hint' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP for an http authority hint' );
+    $rp_entity_config_jwt = $saved_rp;
+
+    my $saved_ta = $ta_entity_config_jwt;
+    my %ta       = %$ta_entity_config_payload;
+    my %metadata = %{ $ta_entity_config_payload->{metadata} };
+    $metadata{federation_entity} = {
+        %{ $ta_entity_config_payload->{metadata}->{federation_entity} },
+        federation_fetch_endpoint => 'http://ta.example.com/federation_fetch',
+    };
+    $ta{metadata} = \%metadata;
+    $ta_entity_config_jwt = encode_jwt(
+        payload       => to_json(\%ta),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+    %config = ();
+    $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for an http fetch endpoint' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP for an http fetch endpoint' );
+    $ta_entity_config_jwt = $saved_ta;
+};
+
+subtest 'the subject is encoded in the fetch query' => sub {
+    $last_fetch_sub = undef;
+    my $jwt = $plugin->fetchSubordinateStatement(
+        'https://ta.example.com/federation_fetch',
+        'https://rp-fed.example.com/a&b',
+        [$ta_jwk],
+    );
+    ok( $jwt, 'statement fetched' );
+    is( $last_fetch_sub, 'https://rp-fed.example.com/a&b',
+        'the subject arrives decoded exactly once' );
+};
 
 clean_sessions();
 done_testing();
