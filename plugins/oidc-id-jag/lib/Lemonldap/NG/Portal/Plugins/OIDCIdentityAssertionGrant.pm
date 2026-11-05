@@ -15,6 +15,7 @@ use Mouse;
 use JSON;
 use Crypt::JWT qw(decode_jwt);
 use Digest::SHA qw(sha256_hex);
+use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Common::JWT qw(getJWTHeader);
 use Lemonldap::NG::Portal::Main::Constants qw(
@@ -501,7 +502,12 @@ sub indexIdTokenSid {
 # RP resolve a `sid` it learned elsewhere into another RP's user session.
 sub _sidIndexId {
     my ( $self, $rp, $sid ) = @_;
-    return sha256_hex( SID_INDEX_PREFIX . $rp . '|' . $sid );
+
+    # Digest::SHA works on bytes only: an upstream OP may choose a sid with
+    # characters above U+00FF.
+    my $rpBytes  = utf8::is_utf8($rp)  ? encode_utf8($rp)  : $rp;
+    my $sidBytes = utf8::is_utf8($sid) ? encode_utf8($sid) : $sid;
+    return sha256_hex( SID_INDEX_PREFIX . $rpBytes . '|' . $sidBytes );
 }
 
 # Resolve an ID Token issued by this OP into token session data.
@@ -601,6 +607,21 @@ sub _getDataFromIdToken {
     return;
 }
 
+# RFC 7519 NumericDate: a finite number. Reject references, NaN, Inf and
+# anything that is not a plain decimal number (numeric strings are accepted
+# for providers that already send them).
+sub _numericDate {
+    my ( $self, $value ) = @_;
+    return undef if ref $value;
+    return undef unless defined $value;
+    return undef
+      unless $value =~
+      /\A-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/;
+    my $number = $value + 0;
+    return undef unless $number == $number;    # NaN
+    return $number;
+}
+
 # Validate the registered claims of a subject ID Token.
 #
 # `decode_jwt(..., decode_payload => 0)` returns the payload as a raw string,
@@ -614,13 +635,28 @@ sub _checkIdTokenClaims {
     my $skew = $self->conf->{oidcServiceIdJagAllowedSkew} // 30;
     my $now  = time;
 
-    unless ( $payload->{exp} and $payload->{exp} + $skew > $now ) {
+    my $exp = $self->_numericDate( $payload->{exp} );
+    unless ( defined $exp ) {
+        $self->userLogger->error(
+            'ID-JAG subject ID Token exp is not a NumericDate');
+        return 0;
+    }
+    unless ( $exp + $skew > $now ) {
         $self->userLogger->error('ID-JAG subject ID Token is expired');
         return 0;
     }
-    if ( $payload->{nbf} and $payload->{nbf} - $skew > $now ) {
-        $self->userLogger->error('ID-JAG subject ID Token is not valid yet');
-        return 0;
+    if ( defined $payload->{nbf} ) {
+        my $nbf = $self->_numericDate( $payload->{nbf} );
+        unless ( defined $nbf ) {
+            $self->userLogger->error(
+                'ID-JAG subject ID Token nbf is not a NumericDate');
+            return 0;
+        }
+        if ( $nbf - $skew > $now ) {
+            $self->userLogger->error(
+                'ID-JAG subject ID Token is not valid yet');
+            return 0;
+        }
     }
 
     my $issuer = $self->oidc->get_issuer($req);
@@ -668,7 +704,11 @@ sub _verifySelfIssuedJwt {
               . 'refresh or access token instead' );
         return;
     }
-    my $header = getJWTHeader($jwt);
+    my $header = eval { getJWTHeader($jwt) };
+    unless ( ref $header eq 'HASH' ) {
+        $self->logger->error('ID Token header is not a JSON object');
+        return;
+    }
     unless ( ( $header->{alg} || '' ) eq $alg ) {
         $self->logger->error( "ID Token is signed with "
               . ( $header->{alg} || 'nothing' )
@@ -699,7 +739,12 @@ sub _verifySelfIssuedJwt {
                 )
             );
         };
-        return $payload unless $@;
+        if ( !$@ ) {
+            return $payload if ref $payload eq 'HASH';
+            $self->logger->debug(
+                'ID Token payload is not a JSON object');
+            return;
+        }
         $self->logger->debug("Unable to verify ID Token: $@");
     }
 
