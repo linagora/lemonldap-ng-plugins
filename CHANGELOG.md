@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### oidc-ciba
+
+- **Callback bodies must be JSON objects** (#150): an array or string body is
+  refused with `400 invalid_request`, and `auth_req_id` must be a plain
+  string before it reaches the session lookup.
+- **Hint payloads must be JSON objects** (#151): a `login_hint_token` or
+  `id_token_hint` whose JWT payload is an array or string is refused with
+  `400 invalid_request` instead of dying.
+- **Exact `openid` scope matching** (#152): `-openid`, `my-openid` and
+  `openid-x` are no longer accepted as the required `openid` scope; the four
+  scope checks now split the value on whitespace and compare tokens.
+- **Callback `auth_time` is validated**: only a non-negative integer that is
+  not in the future is kept; anything else falls back to the current time, so
+  a malformed channel cannot put text or a far-future value in the ID Token.
+  The unused `sub` and `acr` callback fields are no longer stored.
+
 ### oidc-jar
 
 - **PAR works whatever the plugin order** (#127): a
