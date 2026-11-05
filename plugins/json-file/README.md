@@ -116,6 +116,8 @@ JSON attributes to session variables. The default `exportedVars` mapping
   - **uid**: User identifier. If omitted, defaults to the username key.
   - Any other fields are available as session attributes via `exportedVars`
     / `demoExportedVars`.
+  - Runtime attributes set by the portal are ignored: keys starting with `_`,
+    plus `groups`, `hGroups`, `ipAddr`, `UA` and `authenticationLevel`.
 - **groups** (optional): Object mapping group names to arrays of member
   usernames. Populates `groups` and `hGroups` session variables.
 
