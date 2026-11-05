@@ -8,6 +8,17 @@
   an `http` or `https` URL with a non-empty host. Other values are logged and
   refused instead of dying with `Can't locate object method "host"`.
 
+### matrix-token-exchange
+
+- **SSRF through listed Matrix servers** (#149): every Matrix server, listed
+  or accepted through `*`, is now resolved and fetched with
+  `LWPx::ParanoidAgent`. A listed server can no longer reach loopback,
+  private, link-local or shared IPv4 addresses through its `.well-known`,
+  SRV target or redirects. Deployments that intentionally target an internal
+  server can allow it per Relying Party with
+  `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` (comma-separated hostnames
+  or IPv4 addresses); the option is empty by default.
+
 ### reports
 
 - **CSV escaping** (#137): every field is quoted and embedded double quotes

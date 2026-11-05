@@ -82,16 +82,19 @@ sub validateAudience {
         return 0;
     }
     $req->data->{matrixMailMapping} = $mailMapping;
-    $req->data->{matrixUnlisted}    = !$listed;
+    $req->data->{matrixInternalHosts} =
+      $opts->{oidcRPMetaDataOptionsTokenXMatrixInternalHosts} // '';
     return 1;
 }
 
 has _wildcardWarned => ( is => 'ro', default => sub { {} } );
 
-# A server only accepted through "*" is chosen by the caller, and so are the
-# hosts its delegation points to: refuse internal addresses at connect time
+# Every Matrix server, listed or accepted through "*", is chosen by the
+# caller, and so are the hosts its .well-known, SRV target and redirects
+# point to: resolve and fetch them with the paranoid agent, which refuses
+# internal addresses at connect time.
 has paranoidUa => (
-    is      => 'ro',
+    is      => 'rw',
     lazy    => 1,
     builder => sub {
         require LWPx::ParanoidAgent;
@@ -106,6 +109,33 @@ has paranoidUa => (
     }
 );
 
+# Clone the paranoid agent and allow the RP's configured internal hosts.
+# A hostname is resolved here so the private A records the agent will check
+# are whitelisted too; whitelisting only the name would still block them.
+sub _paranoidUa {
+    my ( $self, $allowlist ) = @_;
+    my $ua = $self->paranoidUa->clone;
+    my @entries = grep { length } split /[,;\s]+/, $allowlist // '';
+    return $ua unless @entries;
+
+    my @whitelist;
+    my $resolver = $self->paranoidUa->resolver;
+    for my $entry (@entries) {
+        push @whitelist, $entry;
+
+        # IP literals are whitelisted as-is; hostnames are resolved so the
+        # A records that the agent will check are whitelisted too.
+        next
+          if $entry =~ /^(?:\[[0-9a-f:.]+\]|\d{1,3}(?:\.\d{1,3}){3})$/i;
+        my $reply = $resolver->query( $entry, 'A' );
+        next unless $reply;
+        push @whitelist, $_->address
+          for grep { $_->type eq 'A' } $reply->answer;
+    }
+    $ua->whitelisted_hosts(@whitelist);
+    return $ua;
+}
+
 sub getUid {
     my ( $self, $req, $rp, $subjectToken, $subjectTokenType ) = @_;
 
@@ -115,7 +145,7 @@ sub getUid {
         return 0;
     }
 
-    my $ua = $req->data->{matrixUnlisted} ? $self->paranoidUa : undef;
+    my $ua = $self->_paranoidUa( $req->data->{matrixInternalHosts} );
     my $serverName     = $req->param('subject_issuer');
     my $subject_issuer = $self->serverResolve( $serverName, $ua );
     unless ($subject_issuer) {

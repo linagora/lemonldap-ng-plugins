@@ -72,6 +72,8 @@ The client authenticates with its secret (`--basic -u 'client_id:password'`): Ma
 
 The user is looked up by the localpart of its Matrix ID (`user` for `@user:domain.tld`), so only list Matrix servers whose users share the `uid` namespace of your user database: any listed server can reach every `uid`.
 
+If one of the authorized Matrix servers is internal, also set `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` on that Relying Party: the paranoid agent blocks internal addresses for every server, listed or not (see Security below).
+
 ### Upgrading from 0.6.x
 
 - A Relying Party with an empty `oidcRPMetaDataOptionsTokenXAuthorizedMatrix` now accepts no Matrix server, even for itself.
@@ -84,7 +86,24 @@ By default, `@user:domain.tld` is looked up as `user`. When users of several Mat
 
 With `mail`, the authorized list may be `*`: any Matrix server is accepted, and each one only reaches the users whose address is on its own domain. This is only safe when, for every mail domain of your user database, the Matrix server of that domain is run by whoever runs its mailboxes: a public Matrix server with open registration on `domain.tld` would get tokens for every `user@domain.tld`. `*` is ignored when the lookup is by localpart.
 
-A server accepted through `*` is chosen by the caller, and so are the hosts its `.well-known` and SRV records point to. These requests go through [LWPx::ParanoidAgent](https://metacpan.org/pod/LWPx::ParanoidAgent), which refuses loopback, private, link-local and shared (RFC 6598) IPv4 addresses after DNS resolution, and IPv6 targets. Each exchange still costs the portal a few DNS lookups and up to two HTTPS requests towards a domain the caller picks, so rate limit the token endpoint if it is reachable by untrusted clients.
+Every Matrix server, whether explicitly listed or accepted through `*`, is
+chosen by the caller, and so are the hosts its `.well-known`, SRV records and
+redirects point to. All these requests go through
+[LWPx::ParanoidAgent](https://metacpan.org/pod/LWPx::ParanoidAgent), which
+refuses loopback, private, link-local and shared (RFC 6598) IPv4 addresses
+after DNS resolution, and IPv6 targets. Listing a server is therefore not a
+way to reach an internal address.
+
+When a Relying Party must reach an internal Matrix server on purpose, set
+`oidcRPMetaDataOptionsTokenXMatrixInternalHosts` on that Relying Party to a
+comma-separated list of the internal hostnames or IPv4 addresses that may
+resolve to private addresses. Hostnames are resolved to their A records when
+the exchange runs, and both the name and its addresses are passed to the
+paranoid agent's allowlist. The option is empty by default: leave it empty
+unless you really need an internal target, and only list hosts you control.
+Each exchange still costs the portal a few DNS lookups and up to two HTTPS
+requests towards a domain the caller picks, so rate limit the token endpoint
+if it is reachable by untrusted clients.
 
 ## Prerequisites
 

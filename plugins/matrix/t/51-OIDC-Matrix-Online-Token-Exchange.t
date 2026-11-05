@@ -196,19 +196,30 @@ my $baseConfig = {
     }
 };
 
+# These tests mock the Matrix HTTP endpoints with LWP::Protocol::PSGI;
+# keep the exchange on that mock instead of the paranoid agent's own stack.
+sub psgi_ua {
+    my ($op) = @_;
+    $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::MatrixTokenExchange'}
+      ->paranoidUa( LWP::UserAgent->new );
+}
+
 my $op = LLNG::Manager::Test->new($baseConfig);
+psgi_ua($op);
 runTest($op);
 
 # Re-run tests with JWT access tokens
 $baseConfig->{ini}->{oidcRPMetaDataOptions}->{rp}
   ->{oidcRPMetaDataOptionsAccessTokenJWT} = 1;
 $op = LLNG::Manager::Test->new($baseConfig);
+psgi_ua($op);
 runTest( $op, 1 );
 
 # Re-run tests with activity timeout.
 # Make sure Refresh tokens extend session activity
 $baseConfig->{ini}->{timeoutActivity} = 7500;
 $op = LLNG::Manager::Test->new($baseConfig);
+psgi_ua($op);
 runTest( $op, 1 );
 
 clean_sessions();
