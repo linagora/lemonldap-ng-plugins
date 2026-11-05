@@ -51,6 +51,10 @@ q"SELECT a_session->>'UA' as UA, count(id) as NB FROM sessions group by a_sessio
 # every value is brought to characters before the response is encoded once.
 sub _toChars {
     my ($value) = @_;
+
+    # Net::LDAP returns bytes and DBD::Pg returns characters when pg_enable_utf8
+    # is set (its default), so a non-UTF-8 flag means raw UTF-8 bytes. This is
+    # the same assumption as in #212: the flag is only trusted for that case.
     my $copy = defined $value ? "$value" : '';
     utf8::decode($copy) unless utf8::is_utf8($copy);
     return $copy;
@@ -59,6 +63,11 @@ sub _toChars {
 sub _csvField {
     my ($value) = @_;
     my $field = _toChars($value);
+
+    # Spreadsheets evaluate a quoted cell as a formula too, so neutralise the
+    # OWASP CSV Injection prefixes before quoting. The count column never
+    # starts with one of these characters.
+    $field = "'$field" if $field =~ /^[=+\-\@\t\r]/;
     $field =~ s/"/""/g;
     return qq("$field");
 }
@@ -85,7 +94,7 @@ sub _userAgents {
     my ( $self, $req, $query ) = @_;
     my $data = eval { $self->queryDb($query) };
     return $self->p->sendError( $req, $@ ) if $@;
-    my $csv = _csvRow(qw(User Agent Count));
+    my $csv = _csvRow( 'User Agent', 'Count' );
     my $uas = {};
     foreach my $row (@$data) {
         my ( $ua, $c ) = @$row;
@@ -158,7 +167,8 @@ s/(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})Z?/$1-$2-$3T$4:$5:$6.0000000/
     }
 
     # Build response in CSV format
-    my $csv = _csvRow(qw(UID Last connection Givenname Surname Department));
+    my $csv =
+      _csvRow( 'UID', 'Last connection', 'Givenname', 'Surname', 'Department' );
     foreach my $uid ( sort { $res->{$a} <=> $res->{$b} } keys %$res ) {
         my @attrs = @{ $data->{$uid} || [] };
         push @attrs, '' while @attrs < 3;
