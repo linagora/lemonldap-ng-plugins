@@ -6,7 +6,12 @@
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.2",
-  "perl_requires": {},
+  "perl_requires": {
+    "LWPx::ParanoidAgent": "0"
+  },
+  "build_depends": [
+    "liblwpx-paranoidagent-perl"
+  ],
   "customPlugins": "::Plugins::OpenIDFederation",
   "tags": [
     "oidc",

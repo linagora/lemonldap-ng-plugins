@@ -11,12 +11,34 @@ our $VERSION = '2.21.0';
 
 requires qw(conf logger p);
 
+# Hard limits for one resolution: a malicious chain can branch at every
+# level, so bound both the number of hints explored and the total fetches.
+use constant MAX_AUTHORITY_HINTS => 5;
+use constant MAX_FETCHES         => 20;
+
+has _chainCache => ( is => 'rw', default => sub { {} } );
+
 has ua => (
     is      => 'rw',
     lazy    => 1,
     builder => sub {
-        my $ua = Lemonldap::NG::Common::UserAgent->new( $_[0]->{conf} );
-        $ua->env_proxy();
+        my ($self) = @_;
+        my $timeout = $self->conf->{oidcFederationFetchTimeout} || 5;
+
+        # Federation resolution is triggered by unauthenticated callers: do
+        # not let them reach loopback, private or link-local addresses.
+        if ( $self->conf->{oidcFederationAllowPrivateHosts} ) {
+            my $ua = Lemonldap::NG::Common::UserAgent->new( $self->{conf} );
+            $ua->env_proxy();
+            $ua->timeout($timeout);
+            return $ua;
+        }
+
+        require LWPx::ParanoidAgent;
+        my $ua = LWPx::ParanoidAgent->new( timeout => $timeout );
+
+        # Shared address space (RFC 6598), often used inside clusters
+        $ua->blocked_hosts( qr/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./ );
         return $ua;
     }
 );
@@ -205,9 +227,53 @@ sub _statementValid {
 # @return ArrayRef of Entity Statement payloads (leaf to anchor), or undef
 sub resolveTrustChain {
     my ( $self, $entity_id, $trust_anchors, $max_depth ) = @_;
+
+    my $ttl = $self->conf->{oidcFederationCacheTTL} // 60;
+    if ( $ttl > 0 ) {
+        my $cached = $self->_chainCache->{$entity_id};
+        return $cached->{chain} if $cached && time - $cached->{at} < $ttl;
+    }
+
+    my $chain =
+      $self->_resolveTrustChain( $entity_id, $trust_anchors, $max_depth );
+
+    if ( $ttl > 0 ) {
+        my $cache = $self->_chainCache;
+        $cache->{$entity_id} = { at => time, chain => $chain };
+
+        # Keep the cache bounded: callers choose the entity IDs.
+        %$cache = () if keys %$cache > 1000;
+    }
+
+    return $chain;
+}
+
+# Consume the fetch budget of one resolution.
+sub _consumeBudget {
+    my ( $self, $budget, $count ) = @_;
+    return 0 unless ref $budget eq 'HASH';
+    $budget->{left} -= $count;
+    return $budget->{left} >= 0;
+}
+
+# Authority hints to explore: valid https URLs only, capped per level.
+sub _candidateHints {
+    my ( $self, $hints ) = @_;
+    return unless ref $hints eq 'ARRAY';
+    my @valid = grep { $self->isSecureUrl($_) } @$hints;
+    @valid = @valid[ 0 .. MAX_AUTHORITY_HINTS - 1 ]
+      if @valid > MAX_AUTHORITY_HINTS;
+    return @valid;
+}
+
+sub _resolveTrustChain {
+    my ( $self, $entity_id, $trust_anchors, $max_depth ) = @_;
     $max_depth //= 10;
 
     return unless $self->isSecureUrl($entity_id);
+
+    my $budget = { left => MAX_FETCHES };
+    return unless $self->_consumeBudget( $budget, 1 );
 
     my $is_anchor =
       ref $trust_anchors eq 'HASH' && exists $trust_anchors->{$entity_id};
@@ -241,9 +307,10 @@ sub resolveTrustChain {
     }
 
     # Step 2: walk up authority_hints
-    for my $superior_id ( grep { $self->isSecureUrl($_) } @$authority_hints ) {
+    for my $superior_id ( $self->_candidateHints($authority_hints) ) {
         my $chain = $self->_walkTrustChain(
-            $entity_id, $leaf_jwt, $superior_id, $trust_anchors, $max_depth - 1
+            $entity_id,    $leaf_jwt, $superior_id,
+            $trust_anchors, $max_depth - 1, $budget
         );
         return $chain if $chain;
     }
@@ -256,11 +323,12 @@ sub resolveTrustChain {
 
 sub _walkTrustChain {
     my ( $self, $subject_id, $subject_jwt, $superior_id, $trust_anchors,
-        $depth )
+        $depth, $budget )
       = @_;
 
     return if $depth <= 0;
     return unless $self->isSecureUrl($superior_id);
+    return unless $self->_consumeBudget( $budget, 2 );
 
     my $is_anchor =
       ref $trust_anchors eq 'HASH' && exists $trust_anchors->{$superior_id};
@@ -351,12 +419,10 @@ sub _walkTrustChain {
     # Otherwise, recurse up
     my $superior_hints = $superior_config->{authority_hints};
     if ( $superior_hints && ref($superior_hints) eq 'ARRAY' ) {
-        for my $next_superior_id (
-            grep { $self->isSecureUrl($_) } @$superior_hints )
-        {
+        for my $next_superior_id ( $self->_candidateHints($superior_hints) ) {
             my $upper_chain = $self->_walkTrustChain(
-                $superior_id, $superior_jwt, $next_superior_id,
-                $trust_anchors, $depth - 1
+                $superior_id,   $superior_jwt, $next_superior_id,
+                $trust_anchors, $depth - 1,    $budget
             );
             if ($upper_chain) {
 

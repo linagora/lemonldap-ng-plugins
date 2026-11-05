@@ -40,6 +40,9 @@ In the Manager, under **OpenID Connect Service > Federation**:
 | `oidcFederationSigningKey`     | `default-oidc-sig` | Key ID used for signing entity statements              |
 | `oidcFederationSigningAlg`     | `RS256`            | Signing algorithm (RS256/384/512, ES256/384/512)       |
 | `oidcFederationTrustAnchors`   | `{}`               | Trust anchors mapping entity IDs to their JWKS         |
+| `oidcFederationFetchTimeout`   | `5`                | Timeout in seconds for federation HTTP fetches         |
+| `oidcFederationAllowPrivateHosts` | `0`             | Allow fetches to loopback/private/link-local addresses |
+| `oidcFederationCacheTTL`       | `60`               | Trust chain cache TTL, negative results included (`0` disables) |
 
 For each OIDC RP _(dynamically filled)_:
 
