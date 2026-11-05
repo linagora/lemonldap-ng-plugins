@@ -1,0 +1,9 @@
+{
+  "accountsList": "Cuentas de aplicaciones",
+  "addAccount": "Añadir una cuenta",
+  "accountName": "Nombre de la cuenta",
+  "delAppAccount": "¿Eliminar esta cuenta de aplicación?",
+  "noAccount": "Ninguna cuenta de aplicación",
+  "delete": "Eliminar",
+  "error": "Se ha producido un error"
+}

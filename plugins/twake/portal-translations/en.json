@@ -1,0 +1,9 @@
+{
+  "accountsList": "Application accounts",
+  "addAccount": "Add an account",
+  "accountName": "Account name",
+  "delAppAccount": "Delete this application account?",
+  "noAccount": "No application account",
+  "delete": "Delete",
+  "error": "An error occurred"
+}

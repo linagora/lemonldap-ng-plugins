@@ -16,6 +16,7 @@ my $client = LLNG::Manager::Test->new( {
             userDB             => 'Same',
             customPlugins      => '::Plugins::TwakeAppAccounts',
             twakeAppLdapBranch => 'ou=accounts,dc=example,dc=com',
+            twakeAdminTokens   => 'secret',
             portalUserAttr     => 'uid',
         }
     }
@@ -79,6 +80,30 @@ $res = $client->_post(
     cookie => "lemonldap=$id",
 );
 is( $res->[0], 200, 'the HTML error page is displayed' );
+
+# The token API also refuses a non-object body
+{
+    package t::ApiRequest;
+    sub new { return bless { env => { HTTP_AUTHORIZATION => 'secret' } }, shift }
+    sub env { return $_[0]->{env} }
+    sub jsonBodyToObj { return [] }
+
+    package t::ApiPortal;
+    sub new { return bless {}, shift }
+    sub sendError {
+        my ( $self, $req, $message, $code ) = @_;
+        $self->{message} = $message;
+        $self->{code}    = $code;
+        return [ $code, [], [$message] ];
+    }
+}
+
+my $twake = bless {
+    validTokens => qr/^(?:secret)$/,
+    p           => t::ApiPortal->new,
+}, 'Lemonldap::NG::Portal::Plugins::TwakeAppAccounts';
+$res = $twake->apiCall( t::ApiRequest->new, 'addAccount' );
+is( $res->[0], 400, 'the token API refuses a non-object body' );
 
 clean_sessions();
 done_testing();
