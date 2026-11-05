@@ -56,9 +56,12 @@ sub resolveAppScope {
       ->{oidcRPMetaDataOptionsAllowScopeApplications};
 
     # If "applications" was requested but filtered out (oidcServiceAllowOnlyDeclaredScopes),
-    # re-add it
+    # re-add it. Compare whole scope tokens: "my-applications" is another
+    # scope and must not bring "applications" back.
     my $requested = $req->param('scope') || '';
-    if (    $requested =~ /\bapplications\b/
+    my %requested =
+      map { $_ => 1 } grep { length } split /\s+/, $requested;
+    if ( $requested{applications}
         and !grep { $_ eq 'applications' } @$scope_values )
     {
         push @$scope_values, 'applications';
@@ -75,7 +78,9 @@ sub addApplicationsClaim {
     my ( $self, $req, $userinfo_response, $rp, $data ) = @_;
 
     my $scope = $data->{_scope} || '';
-    return PE_OK unless $scope =~ /\bapplications\b/;
+    my %granted =
+      map { $_ => 1 } grep { length } split /\s+/, $scope;
+    return PE_OK unless $granted{applications};
 
     unless ( $self->oidc->rpOptions->{$rp}
         ->{oidcRPMetaDataOptionsAllowScopeApplications} )
