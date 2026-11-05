@@ -4,6 +4,7 @@ use strict;
 use IO::String;
 use MIME::Base64 qw/encode_base64 decode_base64url/;
 use Encode qw/encode/;
+use URI::Escape qw/uri_escape_utf8/;
 use JSON;
 use Lemonldap::NG::Portal::Main::Request;
 
@@ -369,14 +370,22 @@ SKIP: {
             my $note = "\x{263a}\x{e9}";
             qq([{"type":"payment_initiation","note":"$note"}]);
         };
-        my $par_query2 = buildForm( {
-                response_type         => "code",
-                scope                 => "openid profile",
-                state                 => "par-rar-utf8",
-                redirect_uri          => "http://rp.com/",
-                client_id             => "rp",
-                authorization_details => $raw_detail,
-        } );
+        # Build the PAR body by hand: LLNG 2.23.2's buildForm uses
+        # uri_escape(), which warns on characters above U+00FF. The PAR
+        # endpoint expects the percent-encoded UTF-8 bytes, so use the
+        # UTF-8-aware escaper on the character string.
+        my %par_params2 = (
+            response_type         => "code",
+            scope                 => "openid profile",
+            state                 => "par-rar-utf8",
+            redirect_uri          => "http://rp.com/",
+            client_id             => "rp",
+            authorization_details => $raw_detail,
+        );
+        my $par_query2 =
+          join '&',
+          map { $_ . '=' . uri_escape_utf8( $par_params2{$_} ) }
+          keys %par_params2;
         my $par_res2 = $op2->_post(
             "/oauth2/par",
             IO::String->new($par_query2),
@@ -432,6 +441,24 @@ subtest "Request without authorization_details still works" => sub {
         "no authorization_details in response when not requested" );
 };
 
+# Like codeAuthorize(), but escapes the parameters ourselves: LLNG 2.23.2's
+# buildForm uses uri_escape(), which warns on characters above U+00FF. The
+# endpoint expects percent-encoded UTF-8 bytes, so use the UTF-8-aware escaper.
+sub codeAuthorizeUtf8 {
+    my ( $op, $id, $params ) = @_;
+    my $query =
+      join '&',
+      map { $_ . '=' . uri_escape_utf8( $params->{$_} ) } keys %$params;
+    my $res = $op->_get(
+        "/oauth2/authorize",
+        query  => $query,
+        accept => 'text/html',
+        cookie => "lemonldap=$id",
+    );
+    my ($code) = expectRedirection( $res, qr#http://.*code=([^\&]*)# );
+    return $code;
+}
+
 for my $case (
     [ 'smiley+accent', "\x{263a}\x{e9}",
       '[{"type":"payment_initiation","note":"\u263a\u00e9"}]' ],
@@ -446,7 +473,7 @@ for my $case (
 {
     my ( $name, $label, $detail ) = @$case;
     subtest "Non-ASCII detail survives the token endpoint: $name" => sub {
-        my $code = codeAuthorize(
+        my $code = codeAuthorizeUtf8(
             $op, $id,
             {
                 %base_authorize,

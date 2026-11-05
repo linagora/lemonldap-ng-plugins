@@ -31,6 +31,12 @@
   in the JWT payload, where the core's non-UTF-8 `to_json()` requires them.
   The consent page decodes the UTF-8 JSON back to characters before HTML
   escaping, so accents become `&eacute;`/`&#x263A;` rather than mojibake.
+- **LLNG <= 2.23.2 responses**: the plugin enables UTF-8 on the shared core
+  JSON encoder, as master does, so token responses carrying non-ASCII details
+  are sent as UTF-8 bytes instead of triggering `Wide character in subroutine
+  entry`. The tests also build PAR and authorization requests with
+  `uri_escape_utf8`, because 2.23.2's `buildForm` still uses the non-UTF-8
+  escaper.
 
 ### pacc
 

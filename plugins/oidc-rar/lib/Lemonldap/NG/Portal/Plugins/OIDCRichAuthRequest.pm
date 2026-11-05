@@ -68,6 +68,14 @@ sub init {
     my ($self) = @_;
     return unless $self->SUPER::init;
 
+    # LLNG <= 2.23.2 encodes JSON responses with a non-UTF-8 encoder and
+    # then calls utf8::downgrade(), which warns on wide characters. Master
+    # enables utf8 on the shared encoder instead. Align older cores so a
+    # token response carrying non-ASCII authorization_details is sent as
+    # UTF-8 bytes and does not emit "Wide character in subroutine entry".
+    $Lemonldap::NG::Common::PSGI::_json->utf8(1)
+      if $Lemonldap::NG::Common::PSGI::_json->can('utf8');
+
     # Force lazy builders so configuration errors surface at init time
     $self->globalAllowedTypes;
     $self->rpAllowedTypes;
