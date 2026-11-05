@@ -92,9 +92,13 @@ Resolved RPs are cached for 1 hour.
 
 ### Federation-Aware Registration
 
-RPs can include a `trust_chain` in dynamic registration requests. If a valid
-trust chain to a configured trust anchor is found, registration is approved
-(even if standard dynamic registration is disabled).
+Federated clients register through the standard dynamic registration endpoint
+with `token_endpoint_auth_method=private_key_jwt` and a `trust_chain` member.
+The chain must resolve to a configured trust anchor, and standard dynamic
+registration must be enabled. The registered client takes its `client_id`
+(the entity ID), redirect URIs and other options from the chain metadata
+only; the request body is not used for them. No client secret is issued: the
+client authenticates with the keys in its Entity Configuration.
 
 ## See Also
 

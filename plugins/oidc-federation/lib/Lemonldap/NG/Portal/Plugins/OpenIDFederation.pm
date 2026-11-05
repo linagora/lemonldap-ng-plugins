@@ -15,10 +15,10 @@ extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 with 'Lemonldap::NG::Portal::Lib::OpenIDFederation';
 
 use constant hook => {
-    oidcGenerateMetadata           => 'addFederationMetadata',
-    getOidcRpConfig                => 'resolveRPFromFederation',
-    oidcGotRegistrationRequest     => 'federationRegistrationCheck',
-    oidcGenerateRegistrationResponse => 'federationRegistrationResponse',
+    oidcGenerateMetadata       => 'addFederationMetadata',
+    getOidcRpConfig            => 'resolveRPFromFederation',
+    oidcGotRegistrationRequest => 'federationRegistrationCheck',
+    oidcRegisterClient         => 'federationRegisterClient',
 };
 
 # Cached trust anchors parsed from config
@@ -294,8 +294,7 @@ sub resolveRPFromFederation {
     }
 
     # Build a virtual RP configuration
-    my $confKey = 'federation-' . $client_id;
-    $confKey =~ s/[^a-zA-Z0-9_-]/_/g;
+    my $confKey = $self->_federationConfKey($client_id);
 
     $config->{confKey} = $confKey;
     $config->{options} = {
@@ -320,8 +319,15 @@ sub resolveRPFromFederation {
             'private_key_jwt'     => 'private_key_jwt',
             'none'                => 'none',
         );
-        $config->{options}->{oidcRPMetaDataOptionsAuthentication} =
+        my $method =
           $auth_map{ $rp_metadata->{token_endpoint_auth_method} } || '';
+        $config->{options}->{oidcRPMetaDataOptionsAuthentication} = $method;
+
+        if ( $method eq 'private_key_jwt' ) {
+            my $entity_jwks = $chain->[0]->{jwks};
+            $config->{options}->{oidcRPMetaDataOptionsJwks} = $entity_jwks
+              if ref $entity_jwks eq 'HASH';
+        }
     }
 
     # Grant types
@@ -352,6 +358,16 @@ sub federationRegistrationCheck {
 
     $self->logger->debug("Registration request with trust_chain detected");
 
+    # Federated clients must authenticate with the entity key. Ignoring a
+    # different request value would make the response inconsistent with the
+    # saved configuration.
+    my $requested_auth = $client_metadata->{token_endpoint_auth_method} || '';
+    unless ( $requested_auth eq 'private_key_jwt' ) {
+        $self->logger->error(
+            'Federation registration must request private_key_jwt');
+        return PE_ERROR;
+    }
+
     # Validate the trust chain
     my $entity_id = $client_metadata->{client_id}
       || $client_metadata->{entity_id};
@@ -375,50 +391,80 @@ sub federationRegistrationCheck {
         return PE_ERROR;
     }
 
+    my $rp_metadata =
+      eval { $self->applyMetadataPolicy( $chain, 'openid_relying_party' ) };
+    if ( $@ or !$self->_validFederationMetadata($rp_metadata) ) {
+        $self->logger->error(
+            "Federation registration metadata for $entity_id is not usable"
+              . ( $@ ? ": $@" : '' ) );
+        return PE_ERROR;
+    }
+
     $self->logger->notice(
         "Federation registration approved for $entity_id");
-    $req->data->{federationChain}    = $chain;
-    $req->data->{federationEntityId} = $entity_id;
+    $req->data->{federationChain}       = $chain;
+    $req->data->{federationEntityId}    = $entity_id;
+    $req->data->{federationRpMetadata}  = $rp_metadata;
 
-    # Let the core perform the registration; federationRegistrationResponse
-    # adds the federation-specific fields afterwards.
+    # Let the core perform the registration; federationRegisterClient builds
+    # the RP options from the chain metadata.
     return PE_OK;
 }
 
-# Customize registration response for federated RPs
-sub federationRegistrationResponse {
-    my ( $self, $req, $registration_state ) = @_;
-
-    my $entity_id = $req->data->{federationEntityId};
-    return PE_OK unless $entity_id;
+# Build a federated RP from the trust chain metadata only. The request body
+# is never used for options: a valid chain only proves the entity exists, not
+# that the caller controls it. Federated clients must authenticate with the
+# entity key, so no client secret is issued.
+sub federationRegisterClient {
+    my ( $self, $req, $newRp, $client_metadata ) = @_;
 
     my $chain = $req->data->{federationChain};
     return PE_OK unless $chain;
+    my $entity_id = $req->data->{federationEntityId};
+    return PE_ERROR unless $entity_id;
 
-    # Apply metadata policies to determine RP options
-    my $rp_metadata =
-      eval { $self->applyMetadataPolicy( $chain, 'openid_relying_party' ) };
-    if ($@) {
+    my $rp_metadata = $req->data->{federationRpMetadata};
+    return PE_ERROR unless $self->_validFederationMetadata($rp_metadata);
+
+    my $entity_jwks = $chain->[0]->{jwks};
+    unless ( ref $entity_jwks eq 'HASH'
+        && ref $entity_jwks->{keys} eq 'ARRAY'
+        && @{ $entity_jwks->{keys} } )
+    {
         $self->logger->error(
-            "Federation registration metadata policy failed: $@");
-        return PE_OK;
+            "Federation registration for $entity_id has no usable jwks");
+        return PE_ERROR;
     }
 
-    if ( ref $rp_metadata eq 'HASH' ) {
+    # Reuse the existing entry when the entity is already known, so repeated
+    # registrations update it instead of creating duplicates.
+    my $confKey = $self->_findRPByEntityId($entity_id)
+      || $self->_federationConfKey($entity_id);
 
-        # Use entity_id as client_id for federated RPs
-        $registration_state->{client_id} = $entity_id;
+    $newRp->{confKey} = $confKey;
+    $newRp->{options} = {
+        oidcRPMetaDataOptionsClientID => $entity_id,
+        oidcRPMetaDataOptionsRedirectUris =>
+          join( ' ', @{ $rp_metadata->{redirect_uris} || [] } ),
+        oidcRPMetaDataOptionsIDTokenSignAlg =>
+          $rp_metadata->{id_token_signed_response_alg} || 'RS256',
+        oidcRPMetaDataOptionsAccessTokenSignAlg =>
+          $rp_metadata->{access_token_signed_response_alg} || 'RS256',
+        oidcRPMetaDataOptionsDisplayName =>
+          $rp_metadata->{client_name} || $entity_id,
+        oidcRPMetaDataOptionsFederationEntityId => $entity_id,
+        oidcRPMetaDataOptionsAuthentication    => 'private_key_jwt',
+        oidcRPMetaDataOptionsJwks              => $entity_jwks,
+    };
 
-        # For private_key_jwt auth, no client_secret needed
-        if (   $rp_metadata->{token_endpoint_auth_method}
-            && $rp_metadata->{token_endpoint_auth_method} eq 'private_key_jwt' )
-        {
-            $registration_state->{client_secret} = undef;
-        }
-
-        # Store federation info in RP options
-        $registration_state->{rp_options}
-          ->{oidcRPMetaDataOptionsFederationEntityId} = $entity_id;
+    if ( $rp_metadata->{grant_types} ) {
+        my %grants = map { $_ => 1 } @{ $rp_metadata->{grant_types} };
+        $newRp->{options}->{oidcRPMetaDataOptionsAllowOffline} =
+          $grants{'refresh_token'} ? 1 : 0;
+    }
+    if ( $rp_metadata->{response_types} ) {
+        $newRp->{options}->{oidcRPMetaDataOptionsAllowedResponseTypes} =
+          join( ', ', @{ $rp_metadata->{response_types} } );
     }
 
     return PE_OK;
@@ -430,6 +476,37 @@ sub _getEntityId {
     my ( $self, $req ) = @_;
     return $self->conf->{oidcFederationEntityId}
       || $self->oidc->get_issuer($req);
+}
+
+# Federated registration only accepts clients that authenticate with the
+# entity keys. The request body is ignored for these fields.
+sub _validFederationMetadata {
+    my ( $self, $rp_metadata ) = @_;
+    return 0 unless ref $rp_metadata eq 'HASH';
+    return 0
+      unless ( $rp_metadata->{token_endpoint_auth_method} || '' ) eq
+      'private_key_jwt';
+
+    for my $key (
+        qw(client_id client_name id_token_signed_response_alg
+        access_token_signed_response_alg)
+      )
+    {
+        return 0 if exists $rp_metadata->{$key} && ref $rp_metadata->{$key};
+    }
+    for my $key (qw(redirect_uris response_types grant_types)) {
+        return 0
+          if exists $rp_metadata->{$key}
+          && !$self->_stringArray( $rp_metadata->{$key} );
+    }
+    return 1;
+}
+
+sub _federationConfKey {
+    my ( $self, $entity_id ) = @_;
+    my $key = 'federation-' . $entity_id;
+    $key =~ s/[^a-zA-Z0-9_-]/_/g;
+    return $key;
 }
 
 sub _findRPByEntityId {

@@ -129,6 +129,57 @@ my $ta_sub_statement_jwt = encode_jwt(
     extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
 );
 
+# Second federated RP used by the dynamic registration tests
+my $reg_entity_id = 'https://rp-reg.example.com';
+my $reg_pk        = Crypt::PK::RSA->new();
+$reg_pk->generate_key(256);
+my $reg_jwk = $reg_pk->export_key_jwk( 'public', 1 );
+$reg_jwk->{kid} = 'rp-reg-key-1';
+$reg_jwk->{use} = 'sig';
+
+my $reg_metadata = {
+    client_id     => $reg_entity_id,
+    client_name   => 'Federated Registration RP',
+    redirect_uris => ['http://rp-reg.example.com/callback'],
+    response_types => ['code'],
+    grant_types    => [ 'authorization_code', 'refresh_token' ],
+    token_endpoint_auth_method => 'private_key_jwt',
+    id_token_signed_response_alg => 'RS256',
+};
+
+my $reg_entity_config_payload = {
+    iss             => $reg_entity_id,
+    sub             => $reg_entity_id,
+    iat             => time(),
+    exp             => time() + 86400,
+    jwks            => { keys => [$reg_jwk] },
+    authority_hints => [$ta_entity_id],
+    metadata        => { openid_relying_party => $reg_metadata },
+};
+
+my $reg_entity_config_jwt = encode_jwt(
+    payload       => to_json($reg_entity_config_payload),
+    alg           => 'RS256',
+    key           => $reg_pk,
+    extra_headers => { typ => 'entity-statement+jwt', kid => 'rp-reg-key-1' },
+);
+
+my $reg_sub_statement_payload = {
+    iss      => $ta_entity_id,
+    sub      => $reg_entity_id,
+    iat      => time(),
+    exp      => time() + 86400,
+    jwks     => { keys => [$reg_jwk] },
+    metadata => { openid_relying_party => $reg_metadata },
+};
+
+my $reg_sub_statement_jwt = encode_jwt(
+    payload       => to_json($reg_sub_statement_payload),
+    alg           => 'RS256',
+    key           => \$ta_private_key,
+    extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+);
+
 # --------------------------------------------------------------------------
 # Initialize OP with federation config
 # --------------------------------------------------------------------------
@@ -145,6 +196,8 @@ my $op = LLNG::Manager::Test->new( {
             customPlugins                   => '::Plugins::OpenIDFederation',
             issuerDBOpenIDConnectActivation => 1,
             issuerDBOpenIDConnectRule       => '$uid eq "french"',
+            oidcServiceAllowDynamicRegistration => 2,
+            oidcServiceMetaDataRegistrationURI  => 'register',
             oidcRPMetaDataExportedVars      => {
                 rp => {
                     email       => "mail",
@@ -206,6 +259,17 @@ LWP::Protocol::PSGI->register(
             ];
         }
 
+        # Registration RP Entity Configuration
+        elsif ( $full_uri =~
+            m{^https://rp-reg\.example\.com/\.well-known/openid-federation} )
+        {
+            return [
+                200,
+                [ 'Content-Type' => 'application/entity-statement+jwt' ],
+                [$reg_entity_config_jwt]
+            ];
+        }
+
         # TA Entity Configuration
         elsif ( $full_uri =~
             m{^https://ta\.example\.com/\.well-known/openid-federation} )
@@ -222,10 +286,14 @@ LWP::Protocol::PSGI->register(
             m{^https://ta\.example\.com/federation_fetch\?sub=} )
         {
             $last_fetch_sub = Plack::Request->new($env)->param('sub');
+            my $statement =
+              $last_fetch_sub eq $reg_entity_id
+              ? $reg_sub_statement_jwt
+              : $ta_sub_statement_jwt;
             return [
                 200,
                 [ 'Content-Type' => 'application/entity-statement+jwt' ],
-                [$ta_sub_statement_jwt]
+                [$statement]
             ];
         }
 
@@ -662,28 +730,30 @@ subtest 'federation registration hook contract' => sub {
     my $rc = $plugin->federationRegistrationCheck(
         $req,
         {
-            trust_chain => 'ignored',
-            client_id   => $rp_entity_id,
+            trust_chain                => 'ignored',
+            client_id                  => $reg_entity_id,
+            token_endpoint_auth_method => 'private_key_jwt',
         }
     );
     is( $rc, 0, 'a valid trust chain allows registration' );
-    is( $req->data->{federationEntityId}, $rp_entity_id,
+    is( $req->data->{federationEntityId}, $reg_entity_id,
         'the entity id is stored for the response hook' );
 
-    my $saved = $rp_entity_config_jwt;
-    $rp_entity_config_jwt = 'not-a-jwt';
+    my $saved = $reg_entity_config_jwt;
+    $reg_entity_config_jwt = 'not-a-jwt';
     my $bad = bless { data => {} }, 't::FedRequest';
     my $bad_rc = $plugin->federationRegistrationCheck(
         $bad,
         {
-            trust_chain => 'ignored',
-            client_id   => $rp_entity_id,
+            trust_chain                => 'ignored',
+            client_id                  => $reg_entity_id,
+            token_endpoint_auth_method => 'private_key_jwt',
         }
     );
     isnt( $bad_rc, 0, 'an invalid trust chain is refused' );
     ok( !$bad->data->{federationEntityId}, 'nothing stored for an invalid chain' );
 
-    $rp_entity_config_jwt = $saved;
+    $reg_entity_config_jwt = $saved;
 };
 
 {
@@ -962,6 +1032,80 @@ subtest 'a resolution deadline stops the walk' => sub {
 
     $conf->{oidcFederationResolutionTimeout} = $saved;
     $plugin->_chainCache({});
+};
+
+subtest 'federated dynamic registration uses the chain metadata' => sub {
+    my $body = to_json( {
+            client_id                  => $reg_entity_id,
+            trust_chain                => 'ignored',
+            redirect_uris              => ['http://evil.example.com/cb'],
+            token_endpoint_auth_method => 'private_key_jwt',
+            jwks_uri                   => 'https://rp-reg.example.com/jwks.json',
+    } );
+    my $res = $op->_post(
+        '/oauth2/register',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+    );
+    is( $res->[0], 201, 'registration created' );
+    my $json = from_json( $res->[2]->[0] );
+    is( $json->{client_id}, $reg_entity_id, 'client_id is the entity ID' );
+    ok( !$json->{client_secret}, 'no client secret is issued' );
+
+    my $confKey = $plugin->_federationConfKey($reg_entity_id);
+    my $dyn =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDC::DynamicRegistration'};
+    my $conf = $dyn->confAcc->getConf( { raw => 1, noCache => 1 } );
+    my $opts = $conf->{oidcRPMetaDataOptions}->{$confKey};
+    ok( $opts, 'the federated RP is saved' );
+    is( $opts->{oidcRPMetaDataOptionsRedirectUris},
+        'http://rp-reg.example.com/callback',
+        'chain redirect_uris win over the request' );
+    is( $opts->{oidcRPMetaDataOptionsAuthentication},
+        'private_key_jwt', 'private_key_jwt authentication' );
+    is( $opts->{oidcRPMetaDataOptionsFederationEntityId},
+        $reg_entity_id, 'entity ID stored' );
+    ok( $opts->{oidcRPMetaDataOptionsJwks}, 'entity jwks stored' );
+    is( $opts->{oidcRPMetaDataOptionsAllowOffline}, 1,
+        'refresh_token grant from the chain is honoured' );
+};
+
+subtest 'federated registration refuses non-private_key_jwt requests' => sub {
+    my $body = to_json( {
+            client_id                  => $reg_entity_id,
+            trust_chain                => 'ignored',
+            redirect_uris              => ['http://rp-reg.example.com/callback'],
+            token_endpoint_auth_method => 'none',
+    } );
+    my $res = $op->_post(
+        '/oauth2/register',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+    );
+    is( $res->[0], 400, 'a public federated client is refused' );
+};
+
+subtest 'federated registration refuses an unresolved chain' => sub {
+    my $body = to_json( {
+            client_id                  => 'https://unknown.example.com',
+            trust_chain                => 'ignored',
+            redirect_uris              => ['http://unknown.example.com/cb'],
+            token_endpoint_auth_method => 'private_key_jwt',
+            jwks_uri                   => 'https://unknown.example.com/jwks.json',
+    } );
+    my $res = $op->_post(
+        '/oauth2/register',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+    );
+    is( $res->[0], 400, 'an unknown entity is refused' );
 };
 
 clean_sessions();
