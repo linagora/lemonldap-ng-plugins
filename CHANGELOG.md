@@ -18,6 +18,28 @@
   a malformed channel cannot put text or a far-future value in the ID Token.
   The unused `sub` and `acr` callback fields are no longer stored.
 
+### oidc-federation
+
+- **Entity statements must be JSON objects** (#124): a non-object payload, or
+  a `jwks` / `metadata` member of the wrong type, is logged and ends that
+  trust-chain path instead of dying with a 500 on `/oauth2/authorize`.
+  Authority hints and JWKS entries are type-checked too, and the resolution
+  hooks keep an `eval` barrier.
+- **Metadata policy operands must be arrays** (#153): a scalar `one_of`,
+  `subset_of`, `superset_of` or `add` operand refuses the entity, and
+  `_applyPolicy` failures (including `essential`) are now honoured instead of
+  ignored.
+- **RP metadata arrays are validated** (#154): `redirect_uris`,
+  `response_types` and `grant_types` must be arrays of non-empty strings
+  before a virtual RP is built.
+- **Policy violations refuse the chain**: a `one_of` mismatch no longer
+  deletes the claim, and `superset_of` is now a check instead of adding the
+  missing values.
+- **Federation registration hook contract**: a valid trust chain now returns
+  `PE_OK` so the core completes the registration (it treated `PE_DONE` as a
+  failure), and an invalid chain returns `PE_ERROR` instead of falling back
+  to ordinary dynamic registration.
+
 ### oidc-jar
 
 - **PAR works whatever the plugin order** (#127): a

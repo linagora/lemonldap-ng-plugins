@@ -157,7 +157,9 @@ sub resolveTrustChain {
     }
 
     # Step 2: walk up authority_hints
-    for my $superior_id (@$authority_hints) {
+    for my $superior_id (
+        grep { defined $_ && !ref $_ && length $_ } @$authority_hints )
+    {
         my $chain = $self->_walkTrustChain(
             $entity_id,     $leaf_config, $superior_id,
             $trust_anchors, $max_depth - 1
@@ -182,14 +184,22 @@ sub _walkTrustChain {
     my $superior_config = $self->fetchEntityConfiguration($superior_id);
     return unless $superior_config;
 
-    my $superior_jwks = $superior_config->{jwks}->{keys};
-    return unless $superior_jwks && ref($superior_jwks) eq 'ARRAY';
+    my $jwks = $superior_config->{jwks};
+    return unless ref $jwks eq 'HASH' && ref $jwks->{keys} eq 'ARRAY';
+    my @keys = grep { ref $_ eq 'HASH' } @{ $jwks->{keys} };
+    return unless @keys;
+    my $superior_jwks = \@keys;
 
     # The superior must have a federation_fetch_endpoint
-    my $fetch_endpoint =
-      $superior_config->{metadata}->{federation_entity}
-      ->{federation_fetch_endpoint};
-    unless ($fetch_endpoint) {
+    my $metadata = $superior_config->{metadata};
+    return unless ref $metadata eq 'HASH';
+    my $federation_entity = $metadata->{federation_entity};
+    return unless ref $federation_entity eq 'HASH';
+    my $fetch_endpoint = $federation_entity->{federation_fetch_endpoint};
+    unless ( defined $fetch_endpoint
+        && !ref $fetch_endpoint
+        && length $fetch_endpoint )
+    {
         $self->logger->error(
             "Superior $superior_id has no federation_fetch_endpoint");
         return;
@@ -213,7 +223,9 @@ sub _walkTrustChain {
     # Otherwise, recurse up
     my $superior_hints = $superior_config->{authority_hints};
     if ( $superior_hints && ref($superior_hints) eq 'ARRAY' ) {
-        for my $next_superior_id (@$superior_hints) {
+        for my $next_superior_id (
+            grep { defined $_ && !ref $_ && length $_ } @$superior_hints )
+        {
             my $upper_chain = $self->_walkTrustChain(
                 $superior_id,   $superior_config, $next_superior_id,
                 $trust_anchors, $depth - 1
@@ -238,10 +250,14 @@ sub _walkTrustChain {
 sub applyMetadataPolicy {
     my ( $self, $chain, $entity_type ) = @_;
 
+    return unless ref $chain eq 'ARRAY' && ref $chain->[0] eq 'HASH';
+
     # Start with the leaf's own metadata
-    my $leaf     = $chain->[0];
-    my $metadata = $leaf->{metadata}->{$entity_type};
-    unless ($metadata) {
+    my $leaf = $chain->[0];
+    my $leaf_metadata = $leaf->{metadata};
+    return unless ref $leaf_metadata eq 'HASH';
+    my $metadata = $leaf_metadata->{$entity_type};
+    unless ( ref $metadata eq 'HASH' ) {
         $self->logger->error("Leaf entity has no metadata for $entity_type");
         return;
     }
@@ -252,10 +268,15 @@ sub applyMetadataPolicy {
     # Apply policies from each statement in the chain (skip leaf at index 0)
     for my $i ( 1 .. $#$chain ) {
         my $statement = $chain->[$i];
-        my $policy    = $statement->{metadata_policy}->{$entity_type};
-        next unless $policy && ref($policy) eq 'HASH';
+        next unless ref $statement eq 'HASH';
+        next unless exists $statement->{metadata_policy};
+        my $statements = $statement->{metadata_policy};
+        return unless ref $statements eq 'HASH';
+        next unless exists $statements->{$entity_type};
+        my $policy = $statements->{$entity_type};
+        return unless ref $policy eq 'HASH';
 
-        $self->_applyPolicy( $metadata, $policy );
+        return unless $self->_applyPolicy( $metadata, $policy );
     }
 
     return $metadata;
@@ -265,9 +286,27 @@ sub applyMetadataPolicy {
 sub _applyPolicy {
     my ( $self, $metadata, $policy ) = @_;
 
+    return unless ref $metadata eq 'HASH' && ref $policy eq 'HASH';
+
     for my $claim ( keys %$policy ) {
         my $operators = $policy->{$claim};
         next unless ref($operators) eq 'HASH';
+
+        # Operators taking a list of values must actually hold one; refusing
+        # the whole policy is safer than dereferencing a scalar.
+        for my $operator (qw(one_of subset_of superset_of add)) {
+            next unless exists $operators->{$operator};
+            unless ( ref $operators->{$operator} eq 'ARRAY' ) {
+                $self->logger->error(
+                    "Policy operator $operator for $claim must be an array");
+                return;
+            }
+            if ( grep { ref $_ } @{ $operators->{$operator} } ) {
+                $self->logger->error(
+                    "Policy operator $operator for $claim must hold scalars");
+                return;
+            }
+        }
 
         # 'value' operator: override the claim value
         if ( exists $operators->{value} ) {
@@ -285,7 +324,7 @@ sub _applyPolicy {
             unless ( $allowed{ $metadata->{$claim} } ) {
                 $self->logger->warn(
                     "Policy violation: $claim value not in one_of");
-                delete $metadata->{$claim};
+                return;
             }
         }
 
@@ -298,14 +337,21 @@ sub _applyPolicy {
             }
         }
 
-        # 'superset_of' operator: must contain all required values
+        # 'superset_of' operator: must already contain all required values
         if ( exists $operators->{superset_of} && exists $metadata->{$claim} ) {
-            if ( ref( $metadata->{$claim} ) eq 'ARRAY' ) {
-                my %has = map { $_ => 1 } @{ $metadata->{$claim} };
-                for my $required ( @{ $operators->{superset_of} } ) {
-                    unless ( $has{$required} ) {
-                        push @{ $metadata->{$claim} }, $required;
-                    }
+            unless ( ref( $metadata->{$claim} ) eq 'ARRAY' ) {
+                $self->logger->warn(
+                    "Policy violation: $claim is not an array for superset_of"
+                );
+                return;
+            }
+            my %has = map { $_ => 1 } @{ $metadata->{$claim} };
+            for my $required ( @{ $operators->{superset_of} } ) {
+                unless ( $has{$required} ) {
+                    $self->logger->warn(
+"Policy violation: $claim does not contain required value $required"
+                    );
+                    return;
                 }
             }
         }
@@ -338,8 +384,11 @@ sub _applyPolicy {
 sub _decodeEntityStatement {
     my ( $self, $jwt_string, $jwks ) = @_;
 
+    return unless defined $jwt_string && !ref $jwt_string;
+
     # Remove whitespace
     $jwt_string =~ s/\s//g;
+    return unless length $jwt_string;
 
     my $payload;
     if ($jwks) {
@@ -351,48 +400,74 @@ sub _decodeEntityStatement {
                 kid_keys => { keys => $jwks },
             );
         };
+        if ($@) {
+            $self->logger->error("Failed to decode Entity Statement: $@");
+            return;
+        }
     }
     else {
+
         # Self-signed: extract payload first, then verify with embedded JWKS
         $payload =
           eval { decode_jwt( token => $jwt_string, ignore_signature => 1, ); };
+        if ($@) {
+            $self->logger->error("Failed to decode Entity Statement: $@");
+            return;
+        }
 
-        if ( $payload && ref($payload) eq 'HASH' ) {
+        if ( $payload && !ref $payload ) {
+            $payload = eval { from_json($payload) };
+            if ($@) {
+                $self->logger->error(
+                    "Invalid Entity Statement payload JSON: $@");
+                return;
+            }
+        }
 
-            # Re-parse as string if needed
-            $payload = from_json($payload) if !ref($payload);
+        unless ( ref $payload eq 'HASH' ) {
+            $self->logger->error(
+                'Entity Statement payload is not a JSON object');
+            return;
+        }
 
-            if ( my $embedded_jwks = $payload->{jwks} ) {
+        if ( my $embedded_jwks = $payload->{jwks} ) {
+            unless ( ref $embedded_jwks eq 'HASH'
+                && ref $embedded_jwks->{keys} eq 'ARRAY' )
+            {
+                $self->logger->error(
+                    'Entity Statement jwks is not a JWKS object');
+                return;
+            }
 
-                # Re-verify with the embedded keys
-                eval {
-                    decode_jwt(
-                        token    => $jwt_string,
-                        kid_keys => $embedded_jwks,
-                    );
-                };
-                if ($@) {
-                    $self->logger->error(
+            # Re-verify with the embedded keys
+            eval {
+                decode_jwt(
+                    token    => $jwt_string,
+                    kid_keys => $embedded_jwks,
+                );
+            };
+            if ($@) {
+                $self->logger->error(
 "Entity Statement self-signature verification failed: $@"
-                    );
-                    return;
-                }
+                );
+                return;
             }
         }
     }
 
-    if ($@) {
-        $self->logger->error("Failed to decode Entity Statement: $@");
-        return;
-    }
-
     # Handle JSON string payload (Crypt::JWT may return string)
-    if ( $payload && !ref($payload) ) {
+    if ( $payload && !ref $payload ) {
         $payload = eval { from_json($payload) };
         if ($@) {
             $self->logger->error("Invalid Entity Statement payload JSON: $@");
             return;
         }
+    }
+
+    unless ( ref $payload eq 'HASH' ) {
+        $self->logger->error(
+            'Entity Statement payload is not a JSON object');
+        return;
     }
 
     return $payload;
