@@ -32,6 +32,13 @@
 - **RP metadata arrays are validated** (#154): `redirect_uris`,
   `response_types` and `grant_types` must be arrays of non-empty strings
   before a virtual RP is built.
+- **Policy violations refuse the chain**: a `one_of` mismatch no longer
+  deletes the claim, and `superset_of` is now a check instead of adding the
+  missing values.
+- **Federation registration hook contract**: a valid trust chain now returns
+  `PE_OK` so the core completes the registration (it treated `PE_DONE` as a
+  failure), and an invalid chain returns `PE_ERROR` instead of falling back
+  to ordinary dynamic registration.
 
 ### oidc-jar
 

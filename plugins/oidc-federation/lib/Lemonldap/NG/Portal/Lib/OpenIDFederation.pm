@@ -324,7 +324,7 @@ sub _applyPolicy {
             unless ( $allowed{ $metadata->{$claim} } ) {
                 $self->logger->warn(
                     "Policy violation: $claim value not in one_of");
-                delete $metadata->{$claim};
+                return;
             }
         }
 
@@ -337,14 +337,21 @@ sub _applyPolicy {
             }
         }
 
-        # 'superset_of' operator: must contain all required values
+        # 'superset_of' operator: must already contain all required values
         if ( exists $operators->{superset_of} && exists $metadata->{$claim} ) {
-            if ( ref( $metadata->{$claim} ) eq 'ARRAY' ) {
-                my %has = map { $_ => 1 } @{ $metadata->{$claim} };
-                for my $required ( @{ $operators->{superset_of} } ) {
-                    unless ( $has{$required} ) {
-                        push @{ $metadata->{$claim} }, $required;
-                    }
+            unless ( ref( $metadata->{$claim} ) eq 'ARRAY' ) {
+                $self->logger->warn(
+                    "Policy violation: $claim is not an array for superset_of"
+                );
+                return;
+            }
+            my %has = map { $_ => 1 } @{ $metadata->{$claim} };
+            for my $required ( @{ $operators->{superset_of} } ) {
+                unless ( $has{$required} ) {
+                    $self->logger->warn(
+"Policy violation: $claim does not contain required value $required"
+                    );
+                    return;
                 }
             }
         }

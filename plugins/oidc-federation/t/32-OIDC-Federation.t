@@ -583,5 +583,91 @@ subtest 'RP metadata of the wrong JSON type gives no RP and no die' => sub {
     $rp_entity_config_jwt = $saved;
 };
 
+subtest 'policy violations refuse the entity' => sub {
+    my $saved = $ta_sub_statement_jwt;
+
+    for my $policy (
+        { client_name => { one_of => ['Other'] } },
+        { response_types => { superset_of => ['code', 'token'] } },
+        { token_endpoint_auth_method => { one_of => ['private_key_jwt'] } },
+      )
+    {
+        $ta_sub_statement_jwt = encode_jwt(
+            payload => to_json( {
+                    %$ta_sub_statement_payload,
+                    metadata_policy => { openid_relying_party => $policy },
+            } ),
+            alg           => 'RS256',
+            key           => \$ta_private_key,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, 'no die' ) or diag $@;
+        ok( !$config{confKey}, 'no virtual RP' );
+    }
+
+    # A satisfied superset_of is still accepted.
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json( {
+                %$ta_sub_statement_payload,
+                metadata_policy => {
+                    openid_relying_party => {
+                        response_types => { superset_of => ['code'] },
+                    },
+                },
+        } ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for a satisfied superset_of' ) or diag $@;
+    ok( $config{confKey}, 'a satisfied superset_of builds the RP' );
+
+    $ta_sub_statement_jwt = $saved;
+};
+
+subtest 'federation registration hook contract' => sub {
+    my $req = bless { data => {} }, 't::FedRequest';
+    my $rc = $plugin->federationRegistrationCheck(
+        $req,
+        {
+            trust_chain => 'ignored',
+            client_id   => $rp_entity_id,
+        }
+    );
+    is( $rc, 0, 'a valid trust chain allows registration' );
+    is( $req->data->{federationEntityId}, $rp_entity_id,
+        'the entity id is stored for the response hook' );
+
+    my $saved = $rp_entity_config_jwt;
+    $rp_entity_config_jwt = 'not-a-jwt';
+    my $bad = bless { data => {} }, 't::FedRequest';
+    my $bad_rc = $plugin->federationRegistrationCheck(
+        $bad,
+        {
+            trust_chain => 'ignored',
+            client_id   => $rp_entity_id,
+        }
+    );
+    isnt( $bad_rc, 0, 'an invalid trust chain is refused' );
+    ok( !$bad->data->{federationEntityId}, 'nothing stored for an invalid chain' );
+
+    $rp_entity_config_jwt = $saved;
+};
+
+{
+    package t::FedRequest;
+    sub data { return $_[0]->{data} ||= {} }
+}
+
 clean_sessions();
 done_testing();

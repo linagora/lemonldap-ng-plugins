@@ -5,8 +5,7 @@ use Mouse;
 use JSON qw(from_json to_json);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
-  PE_DONE
-  PE_SENDRESPONSE
+  PE_ERROR
 );
 
 our $VERSION = '2.21.0';
@@ -345,25 +344,33 @@ sub federationRegistrationCheck {
     # Validate the trust chain
     my $entity_id = $client_metadata->{client_id}
       || $client_metadata->{entity_id};
-    return PE_OK unless $entity_id;
+    unless ($entity_id) {
+        $self->logger->warn(
+            'Federation registration without client_id or entity_id');
+        return PE_ERROR;
+    }
 
     my $chain =
       eval { $self->resolveTrustChain( $entity_id, $self->trustAnchors ) };
     if ($@) {
         $self->logger->error(
             "Federation registration trust chain failed for $entity_id: $@");
-        return PE_OK;
+        return PE_ERROR;
     }
-    if ($chain) {
-        $self->logger->notice(
-            "Federation registration approved for $entity_id");
-        $req->data->{federationChain}    = $chain;
-        $req->data->{federationEntityId} = $entity_id;
-        return PE_DONE;    # Allow registration even if globally disabled
+    unless ($chain) {
+        $self->logger->warn(
+            "Federation registration denied: no valid trust chain for $entity_id"
+        );
+        return PE_ERROR;
     }
 
-    $self->logger->warn(
-        "Federation registration denied: no valid trust chain for $entity_id");
+    $self->logger->notice(
+        "Federation registration approved for $entity_id");
+    $req->data->{federationChain}    = $chain;
+    $req->data->{federationEntityId} = $entity_id;
+
+    # Let the core perform the registration; federationRegistrationResponse
+    # adds the federation-specific fields afterwards.
     return PE_OK;
 }
 
