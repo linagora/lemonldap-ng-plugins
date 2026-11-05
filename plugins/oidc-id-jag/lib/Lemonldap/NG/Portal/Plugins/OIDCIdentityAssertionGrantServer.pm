@@ -15,6 +15,8 @@ use Mouse;
 use Digest::SHA qw(sha256_hex);
 use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::JWT qw(getJWTHeader getJWTPayload);
+use Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrant::Util
+  qw(numeric_date);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_SENDRESPONSE
@@ -190,7 +192,7 @@ sub _run {
     my $skew = $self->conf->{oidcServiceIdJagAllowedSkew} // 30;
     my $now  = time;
 
-    my $exp = $self->_numericDate( $claims->{exp} );
+    my $exp = numeric_date( $claims->{exp} );
     unless ( defined $exp ) {
         $self->userLogger->error('ID-JAG exp claim is not a NumericDate');
         return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
@@ -202,7 +204,7 @@ sub _run {
     $claims->{exp} = $exp;
 
     if ( defined $claims->{nbf} ) {
-        my $nbf = $self->_numericDate( $claims->{nbf} );
+        my $nbf = numeric_date( $claims->{nbf} );
         unless ( defined $nbf ) {
             $self->userLogger->error('ID-JAG nbf claim is not a NumericDate');
             return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
@@ -215,7 +217,7 @@ sub _run {
     }
 
     if ( defined $claims->{iat} ) {
-        my $iat = $self->_numericDate( $claims->{iat} );
+        my $iat = numeric_date( $claims->{iat} );
         unless ( defined $iat ) {
             $self->userLogger->error('ID-JAG iat claim is not a NumericDate');
             return $oidc->sendOIDCError( $req, 'invalid_grant', 400 );
@@ -370,21 +372,6 @@ sub _findTrustedOp {
 sub opOptions {
     my ($self) = @_;
     return $self->oidc->opOptions || {};
-}
-
-# RFC 7519 NumericDate: a finite number. Reject references, NaN, Inf and
-# anything that is not a plain decimal number (numeric strings are accepted
-# for providers that already send them).
-sub _numericDate {
-    my ( $self, $value ) = @_;
-    return undef if ref $value;
-    return undef unless defined $value;
-    return undef
-      unless $value =~
-      /\A-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/;
-    my $number = $value + 0;
-    return undef unless $number - $number == 0;    # NaN or infinite
-    return $number;
 }
 
 # Single-use enforcement. The jti is recorded under a fixed session id for as

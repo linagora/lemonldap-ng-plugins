@@ -18,6 +18,8 @@ use Digest::SHA qw(sha256_hex);
 use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Common::JWT qw(getJWTHeader);
+use Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrant::Util
+  qw(numeric_date);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_SENDRESPONSE
@@ -607,21 +609,6 @@ sub _getDataFromIdToken {
     return;
 }
 
-# RFC 7519 NumericDate: a finite number. Reject references, NaN, Inf and
-# anything that is not a plain decimal number (numeric strings are accepted
-# for providers that already send them).
-sub _numericDate {
-    my ( $self, $value ) = @_;
-    return undef if ref $value;
-    return undef unless defined $value;
-    return undef
-      unless $value =~
-      /\A-?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?\z/;
-    my $number = $value + 0;
-    return undef unless $number - $number == 0;    # NaN or infinite
-    return $number;
-}
-
 # Validate the registered claims of a subject ID Token.
 #
 # `decode_jwt(..., decode_payload => 0)` returns the payload as a raw string,
@@ -635,7 +622,7 @@ sub _checkIdTokenClaims {
     my $skew = $self->conf->{oidcServiceIdJagAllowedSkew} // 30;
     my $now  = time;
 
-    my $exp = $self->_numericDate( $payload->{exp} );
+    my $exp = numeric_date( $payload->{exp} );
     unless ( defined $exp ) {
         $self->userLogger->error(
             'ID-JAG subject ID Token exp is not a NumericDate');
@@ -646,7 +633,7 @@ sub _checkIdTokenClaims {
         return 0;
     }
     if ( defined $payload->{nbf} ) {
-        my $nbf = $self->_numericDate( $payload->{nbf} );
+        my $nbf = numeric_date( $payload->{nbf} );
         unless ( defined $nbf ) {
             $self->userLogger->error(
                 'ID-JAG subject ID Token nbf is not a NumericDate');
