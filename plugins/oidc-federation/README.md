@@ -41,7 +41,7 @@ In the Manager, under **OpenID Connect Service > Federation**:
 | `oidcFederationSigningAlg`     | `RS256`            | Signing algorithm (RS256/384/512, ES256/384/512)       |
 | `oidcFederationTrustAnchors`   | `{}`               | Trust anchors mapping entity IDs to their JWKS         |
 | `oidcFederationFetchTimeout`   | `5`                | Timeout in seconds for one federation HTTP fetch        |
-| `oidcFederationResolutionTimeout` | `15`           | Maximum wall-clock time for one trust chain resolution  |
+| `oidcFederationResolutionTimeout` | `15`           | Maximum wall-clock time for one trust chain resolution (`0` uses the default) |
 | `oidcFederationAllowPrivateHosts` | `0`             | Allow loopback/private/link-local hosts; uses the standard LWP agent (proxy support, per-read timeout). Lab use only |
 | `oidcFederationCacheTTL`       | `60`               | Trust chain cache TTL, negative results included (`0` disables) |
 

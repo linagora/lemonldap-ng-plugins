@@ -315,9 +315,13 @@ sub _resolveTrustChain {
 
     return unless $self->isSecureUrl($entity_id);
 
-    my $deadline =
-      time + ( $self->conf->{oidcFederationResolutionTimeout} // 15 );
-    my $budget = { left => MAX_FETCHES, deadline => $deadline };
+    my $resolution_timeout = $self->conf->{oidcFederationResolutionTimeout};
+    $resolution_timeout = 15
+      unless $resolution_timeout && $resolution_timeout > 0;
+    my $budget = {
+        left     => MAX_FETCHES,
+        deadline => time + $resolution_timeout,
+    };
     return unless $self->_consumeBudget( $budget, 1 );
 
     my $is_anchor =

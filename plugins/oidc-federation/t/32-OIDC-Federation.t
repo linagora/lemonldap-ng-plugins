@@ -910,6 +910,23 @@ subtest 'federation fetch guards' => sub {
     ok( !$plugin->_consumeBudget( $budget, 2 ), 'budget exhausted' );
 };
 
+{
+    package t::FedLogger;
+    sub new     { bless {}, shift }
+    sub debug   { }
+    sub info    { }
+    sub notice  { }
+    sub warn    { }
+    sub error   { }
+
+    package t::FedRole;
+    use Mouse;
+    has conf   => ( is => 'rw', default => sub { {} } );
+    has logger => ( is => 'rw', default => sub { t::FedLogger->new } );
+    has p      => ( is => 'rw', default => sub { {} } );
+    with 'Lemonldap::NG::Portal::Lib::OpenIDFederation';
+}
+
 subtest 'default federation UA blocks private hosts' => sub {
     SKIP: {
         skip 'LWPx::ParanoidAgent not installed', 3
@@ -929,7 +946,7 @@ subtest 'default federation UA blocks private hosts' => sub {
 subtest 'a resolution deadline stops the walk' => sub {
     my $conf      = $plugin->conf;
     my $saved     = $conf->{oidcFederationResolutionTimeout};
-    $conf->{oidcFederationResolutionTimeout} = -1;
+    $conf->{oidcFederationResolutionTimeout} = 0;
     $plugin->_chainCache({});
 
     my %config;
@@ -938,7 +955,7 @@ subtest 'a resolution deadline stops the walk' => sub {
         1;
     };
     ok( $ok, 'no die' ) or diag $@;
-    ok( !$config{confKey}, 'no virtual RP with an expired deadline' );
+    ok( $config{confKey}, 'a zero timeout falls back to the default' );
 
     my $budget = { left => 3, deadline => time - 1 };
     ok( !$plugin->_consumeBudget( $budget, 1 ), 'the budget deadline is enforced' );
@@ -946,23 +963,6 @@ subtest 'a resolution deadline stops the walk' => sub {
     $conf->{oidcFederationResolutionTimeout} = $saved;
     $plugin->_chainCache({});
 };
-
-{
-    package t::FedLogger;
-    sub new     { bless {}, shift }
-    sub debug   { }
-    sub info    { }
-    sub notice  { }
-    sub warn    { }
-    sub error   { }
-
-    package t::FedRole;
-    use Mouse;
-    has conf   => ( is => 'rw', default => sub { {} } );
-    has logger => ( is => 'rw', default => sub { t::FedLogger->new } );
-    has p      => ( is => 'rw', default => sub { {} } );
-    with 'Lemonldap::NG::Portal::Lib::OpenIDFederation';
-}
 
 clean_sessions();
 done_testing();
