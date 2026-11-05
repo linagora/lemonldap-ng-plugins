@@ -7,7 +7,7 @@ use strict;
 use Mouse;
 use JSON qw(to_json);
 use Lemonldap::NG::Portal::Main::Constants
-  qw(PE_OK PE_DONE PE_OIDC_SERVICE_NOT_ALLOWED);
+  qw(PE_OK PE_OIDC_SERVICE_NOT_ALLOWED);
 
 our $VERSION = '2.0.0';
 
@@ -42,7 +42,7 @@ sub init {
 # Hook to allow dynamic registration for native clients when globally disabled
 # @param $req Lemonldap::NG::Portal::Main::Request object
 # @param $client_metadata hashref Client registration metadata
-# @return PE_OK or PE_DONE (if allowed) or PE_ERROR (if rejected in strict mode)
+# @return PE_OK (allowed) or a non-OK constant (rejected in strict mode)
 sub checkRegistrationAllowed {
     my ( $self, $req, $client_metadata ) = @_;
 
@@ -50,16 +50,17 @@ sub checkRegistrationAllowed {
     return PE_OK
       unless $self->conf->{paccAllowNativeClientRegistration};
 
-    # Check if all redirect_uris are loopback (native client)
+    # Check if all redirect_uris are loopback (native client). An empty list
+    # is not a native client, and a URI containing whitespace would be split
+    # into several redirect URIs by the core.
     my $redirect_uris = $client_metadata->{redirect_uris};
     return PE_OK unless $redirect_uris && ref($redirect_uris) eq 'ARRAY';
 
-    my $all_loopback = 1;
+    my $loopback =
+      qr{\Ahttps?://(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:/\S*)?\z}i;
+    my $all_loopback = @$redirect_uris ? 1 : 0;
     foreach my $uri (@$redirect_uris) {
-        unless ( $uri =~
-            /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/.*)?$/i
-          )
-        {
+        unless ( defined $uri && !ref $uri && $uri =~ $loopback ) {
             $all_loopback = 0;
             last;
         }
@@ -69,7 +70,7 @@ sub checkRegistrationAllowed {
         $self->logger->debug(
 "PACC: Allowing registration for native client with loopback redirect_uris"
         );
-        return PE_DONE;
+        return PE_OK;
     }
     elsif ( $self->conf->{paccStrictNativeClientOnly} ) {
 
