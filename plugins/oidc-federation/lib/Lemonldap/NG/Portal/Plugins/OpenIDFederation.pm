@@ -244,9 +244,15 @@ sub resolveRPFromFederation {
     $self->logger->debug(
         "Attempting federation trust chain resolution for $client_id");
 
-    # Resolve the trust chain
+    # Resolve the trust chain. Remote statements are untrusted input: keep a
+    # last-resort barrier so a malformed one cannot turn into a 500.
     my $chain =
-      $self->resolveTrustChain( $client_id, $self->trustAnchors );
+      eval { $self->resolveTrustChain( $client_id, $self->trustAnchors ) };
+    if ($@) {
+        $self->logger->error(
+            "Trust chain resolution failed for $client_id: $@");
+        return PE_OK;
+    }
     return PE_OK unless $chain;
 
     $self->logger->notice(
@@ -255,8 +261,27 @@ sub resolveRPFromFederation {
 
     # Apply metadata policies to get final RP metadata
     my $rp_metadata =
-      $self->applyMetadataPolicy( $chain, 'openid_relying_party' );
-    return PE_OK unless $rp_metadata;
+      eval { $self->applyMetadataPolicy( $chain, 'openid_relying_party' ) };
+    if ($@) {
+        $self->logger->error(
+            "Metadata policy failed for $client_id: $@");
+        return PE_OK;
+    }
+    return PE_OK unless ref $rp_metadata eq 'HASH';
+
+    # Reject metadata of the wrong JSON type before building any option.
+    for my $key (
+        qw(client_id client_name id_token_signed_response_alg
+        access_token_signed_response_alg token_endpoint_auth_method)
+      )
+    {
+        next unless exists $rp_metadata->{$key};
+        return PE_OK if ref $rp_metadata->{$key};
+    }
+    for my $key (qw(redirect_uris response_types grant_types)) {
+        next unless exists $rp_metadata->{$key};
+        return PE_OK unless $self->_stringArray( $rp_metadata->{$key} );
+    }
 
     # Build a virtual RP configuration
     my $confKey = 'federation-' . $client_id;
@@ -323,7 +348,12 @@ sub federationRegistrationCheck {
     return PE_OK unless $entity_id;
 
     my $chain =
-      $self->resolveTrustChain( $entity_id, $self->trustAnchors );
+      eval { $self->resolveTrustChain( $entity_id, $self->trustAnchors ) };
+    if ($@) {
+        $self->logger->error(
+            "Federation registration trust chain failed for $entity_id: $@");
+        return PE_OK;
+    }
     if ($chain) {
         $self->logger->notice(
             "Federation registration approved for $entity_id");
@@ -349,9 +379,14 @@ sub federationRegistrationResponse {
 
     # Apply metadata policies to determine RP options
     my $rp_metadata =
-      $self->applyMetadataPolicy( $chain, 'openid_relying_party' );
+      eval { $self->applyMetadataPolicy( $chain, 'openid_relying_party' ) };
+    if ($@) {
+        $self->logger->error(
+            "Federation registration metadata policy failed: $@");
+        return PE_OK;
+    }
 
-    if ($rp_metadata) {
+    if ( ref $rp_metadata eq 'HASH' ) {
 
         # Use entity_id as client_id for federated RPs
         $registration_state->{client_id} = $entity_id;
@@ -396,6 +431,14 @@ sub _findRPByEntityId {
         }
     }
     return;
+}
+
+# A metadata claim that must hold a list of non-empty strings.
+sub _stringArray {
+    my ( $self, $value ) = @_;
+    return 0 unless ref $value eq 'ARRAY';
+    return 0 if grep { !defined $_ || ref $_ || !length $_ } @$value;
+    return 1;
 }
 
 sub _getRPRedirectUris {

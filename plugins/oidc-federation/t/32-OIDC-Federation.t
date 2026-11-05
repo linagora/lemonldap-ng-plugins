@@ -413,5 +413,175 @@ like( $redirect_url, qr/\bstate=xyzstate\b/, "Redirect contains state" );
 
 note "Federation RP enrollment succeeded - trust chain resolved, code issued";
 
+my $plugin =
+  $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OpenIDFederation'};
+
+subtest 'a statement of the wrong JSON type gives no RP and no die' => sub {
+    my $saved_ta  = $ta_entity_config_jwt;
+    my $saved_sub = $ta_sub_statement_jwt;
+
+    for my $payload (
+        '[1,2]',
+        to_json( { %$ta_entity_config_payload, jwks => 'abc' } ),
+        to_json( { %$ta_entity_config_payload, jwks => [1] } ),
+        to_json( { %$ta_entity_config_payload, metadata => 'abc' } ),
+      )
+    {
+        $ta_entity_config_jwt = encode_jwt(
+            payload       => $payload,
+            alg           => 'RS256',
+            key           => \$ta_private_key,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, "no die: $payload" ) or diag $@;
+        ok( !$config{confKey}, 'no virtual RP' );
+    }
+
+    $ta_entity_config_jwt = $saved_ta;
+
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json(
+            { %$ta_sub_statement_payload, metadata_policy => 'abc' }
+        ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die for a scalar metadata_policy' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP for a scalar metadata_policy' );
+
+    $ta_sub_statement_jwt = $saved_sub;
+};
+
+subtest 'a policy operand that is not a list refuses the entity' => sub {
+    my $saved = $ta_sub_statement_jwt;
+
+    for my $operator (qw(one_of subset_of superset_of add)) {
+        $ta_sub_statement_jwt = encode_jwt(
+            payload => to_json( {
+                    %$ta_sub_statement_payload,
+                    metadata_policy => {
+                        openid_relying_party => {
+                            response_types => { $operator => 'scalar' },
+                        },
+                    },
+            } ),
+            alg           => 'RS256',
+            key           => \$ta_private_key,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, "$operator: no die" ) or diag $@;
+        ok( !$config{confKey}, "$operator: no virtual RP" );
+    }
+
+    $ta_sub_statement_jwt = $saved;
+};
+
+subtest 'a valid metadata policy is applied' => sub {
+    my $saved = $ta_sub_statement_jwt;
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json( {
+                %$ta_sub_statement_payload,
+                metadata_policy => {
+                    openid_relying_party => {
+                        client_name    => { value => 'Policy Name' },
+                        response_types => { subset_of => ['code'] },
+                    },
+                },
+        } ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die' ) or diag $@;
+    ok( $config{confKey}, 'virtual RP built' );
+    is( $config{options}->{oidcRPMetaDataOptionsDisplayName},
+        'Policy Name', 'value operator applied' );
+    is( $config{options}->{oidcRPMetaDataOptionsAllowedResponseTypes},
+        'code', 'subset_of operator applied' );
+
+    $ta_sub_statement_jwt = $saved;
+};
+
+subtest 'an essential policy claim that is missing refuses the entity' => sub {
+    my $saved = $ta_sub_statement_jwt;
+    $ta_sub_statement_jwt = encode_jwt(
+        payload => to_json( {
+                %$ta_sub_statement_payload,
+                metadata_policy => {
+                    openid_relying_party => {
+                        missing_claim => { essential => 1 },
+                    },
+                },
+        } ),
+        alg           => 'RS256',
+        key           => \$ta_private_key,
+        extra_headers => { typ => 'entity-statement+jwt', kid => 'ta-key-1' },
+    );
+
+    my %config;
+    my $ok = eval {
+        $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+        1;
+    };
+    ok( $ok, 'no die' ) or diag $@;
+    ok( !$config{confKey}, 'no virtual RP' );
+
+    $ta_sub_statement_jwt = $saved;
+};
+
+subtest 'RP metadata of the wrong JSON type gives no RP and no die' => sub {
+    my $saved = $rp_entity_config_jwt;
+    my $meta  = $rp_entity_config_payload->{metadata}{openid_relying_party};
+
+    for my $rp_meta (
+        { %$meta, redirect_uris  => 'http://x/' },
+        { %$meta, response_types => 'code' },
+        { %$meta, grant_types    => 'authorization_code' },
+        'not an object',
+      )
+    {
+        $rp_entity_config_jwt = encode_jwt(
+            payload => to_json( {
+                    %$rp_entity_config_payload,
+                    metadata => { openid_relying_party => $rp_meta },
+            } ),
+            alg           => 'RS256',
+            key           => $rp_pk,
+            extra_headers => { typ => 'entity-statement+jwt', kid => 'rp-fed-key-1' },
+        );
+        my %config;
+        my $ok = eval {
+            $plugin->resolveRPFromFederation( undef, $rp_entity_id, \%config );
+            1;
+        };
+        ok( $ok, 'no die' ) or diag $@;
+        ok( !$config{confKey}, 'no virtual RP' );
+    }
+
+    $rp_entity_config_jwt = $saved;
+};
+
 clean_sessions();
 done_testing();
