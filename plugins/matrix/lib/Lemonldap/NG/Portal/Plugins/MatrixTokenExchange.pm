@@ -82,8 +82,14 @@ sub validateAudience {
         return 0;
     }
     $req->data->{matrixMailMapping} = $mailMapping;
+
+    # The internal allowlist is only for explicitly listed servers. A server
+    # accepted through "*" is chosen by the caller; applying the allowlist to
+    # it would let anyone reach an allowlisted internal IP from any domain.
     $req->data->{matrixInternalHosts} =
-      $opts->{oidcRPMetaDataOptionsTokenXMatrixInternalHosts} // '';
+      $listed
+      ? ( $opts->{oidcRPMetaDataOptionsTokenXMatrixInternalHosts} // '' )
+      : '';
     return 1;
 }
 
@@ -97,11 +103,20 @@ has paranoidUa => (
     is      => 'rw',
     lazy    => 1,
     builder => sub {
+        my $self = shift;
         require LWPx::ParanoidAgent;
-        my $ua = LWPx::ParanoidAgent->new(
+
+        # LWPx::ParanoidAgent has no proxy support. ssl_opts is read by
+        # LWPx::Protocol::https_paranoid, so a private CA configured through
+        # lwpSslOpts still works; lwpOpts only contributes its timeout.
+        my $lwpOpts = $self->conf->{lwpOpts} || {};
+        my %opts    = (
             agent   => "LemonLDAP-NG/$Lemonldap::NG::Portal::Main::VERSION ",
-            timeout => 10,
+            timeout => $lwpOpts->{timeout} || 10,
         );
+        $opts{ssl_opts} = $self->conf->{lwpSslOpts}
+          if $self->conf->{lwpSslOpts};
+        my $ua = LWPx::ParanoidAgent->new(%opts);
 
         # Shared address space (RFC 6598), often used inside clusters
         $ua->blocked_hosts( qr/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./ );
@@ -109,31 +124,58 @@ has paranoidUa => (
     }
 );
 
+has _internalHostsCache => ( is => 'ro', default => sub { {} } );
+
 # Clone the paranoid agent and allow the RP's configured internal hosts.
 # A hostname is resolved here so the private A records the agent will check
 # are whitelisted too; whitelisting only the name would still block them.
 sub _paranoidUa {
     my ( $self, $allowlist ) = @_;
-    my $ua = $self->paranoidUa->clone;
     my @entries = grep { length } split /[,;\s]+/, $allowlist // '';
-    return $ua unless @entries;
+    return $self->paranoidUa unless @entries;
+
+    my $ua = $self->paranoidUa->clone;
+    $ua->whitelisted_hosts( $self->_internalWhitelist(@entries) );
+    return $ua;
+}
+
+# Resolve the allowlist once and cache the result briefly: the agent rechecks
+# every resolved IP, so a hostname must contribute both its name and its A
+# records. Entries are IPv4 addresses or hostnames; IPv6 is not filtered by
+# LWPx::ParanoidAgent, so it is logged and ignored.
+sub _internalWhitelist {
+    my ( $self, @entries ) = @_;
+    my $key = join "\0", @entries;
+    my $now = time;
+    if ( my $cached = $self->_internalHostsCache->{$key} ) {
+        return @{ $cached->{hosts} } if $now - $cached->{at} < 60;
+    }
 
     my @whitelist;
     my $resolver = $self->paranoidUa->resolver;
     for my $entry (@entries) {
+        if ( $entry =~ /^\[[0-9a-f:.]+\]$/i ) {
+            $self->logger->warn(
+"Matrix internal allowlist: IPv6 entry $entry ignored (only IPv4 is filtered)"
+            );
+            next;
+        }
         push @whitelist, $entry;
+        next if $entry =~ /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
-        # IP literals are whitelisted as-is; hostnames are resolved so the
-        # A records that the agent will check are whitelisted too.
-        next
-          if $entry =~ /^(?:\[[0-9a-f:.]+\]|\d{1,3}(?:\.\d{1,3}){3})$/i;
         my $reply = $resolver->query( $entry, 'A' );
-        next unless $reply;
-        push @whitelist, $_->address
-          for grep { $_->type eq 'A' } $reply->answer;
+        my @addresses =
+          $reply ? map { $_->address } grep { $_->type eq 'A' } $reply->answer
+          : ();
+        unless (@addresses) {
+            $self->logger->warn(
+                "Matrix internal allowlist: no A record for $entry");
+            next;
+        }
+        push @whitelist, @addresses;
     }
-    $ua->whitelisted_hosts(@whitelist);
-    return $ua;
+    $self->_internalHostsCache->{$key} = { at => $now, hosts => \@whitelist };
+    return @whitelist;
 }
 
 sub getUid {

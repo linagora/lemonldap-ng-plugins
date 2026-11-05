@@ -160,6 +160,7 @@ my $op = LLNG::Manager::Test->new( {
             portal                          => 'http://auth.op.com',
             authentication                  => 'Demo',
             userDB                          => 'Same',
+            lwpSslOpts                      => { SSL_verify_mode => 0 },
             customPlugins                   => '::Plugins::MatrixTokenExchange',
             issuerDBOpenIDConnectActivation => 1,
             oidcRPMetaDataExportedVars      => {
@@ -167,6 +168,7 @@ my $op = LLNG::Manager::Test->new( {
                 listed    => { name => "cn" },
                 localpart => { name => "cn" },
                 allow     => { mail => { name => "cn" } },
+                wildallow => { mail => { name => "cn" } },
             },
             oidcRPMetaDataOptions => {
                 mail => rp(
@@ -185,6 +187,13 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsTokenXMatrixInternalHosts =>
                       'host.int.org',
                 ),
+                wildallow => rp(
+                    'wildallowrp',
+                    oidcRPMetaDataOptionsTokenXMatrixUser       => 'mail',
+                    oidcRPMetaDataOptionsTokenXAuthorizedMatrix => '*',
+                    oidcRPMetaDataOptionsTokenXMatrixInternalHosts =>
+                      'host.int.org',
+                ),
                 localpart => rp('localrp'),
             },
             oidcServicePrivateKeySig => oidc_key_op_private_sig,
@@ -197,6 +206,8 @@ my $plugin =
   $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::MatrixTokenExchange'};
 $plugin->paranoidUa->resolver($resolver);
 $plugin->dnsResolver($resolver);
+is( $plugin->paranoidUa->{ssl_opts}->{SSL_verify_mode}, 0,
+    'lwpSslOpts is passed to the paranoid agent' );
 
 foreach my $client (qw(mailrp listedrp)) {
     my $res = exchange(
@@ -274,6 +285,19 @@ ok( expectJSON($res)->{access_token},
     'allowlisted internal target accepted' );
 ok( ( grep { /^host\.int\.org:8080$/ } @contacted ),
     'allowlisted internal target contacted' )
+  or explain \@contacted;
+
+# The allowlist is ignored for a server accepted through "*": the caller
+# chooses the server, so it must stay fully paranoid.
+@contacted = ();
+$res = exchange(
+    $op, 'wildallowrp',
+    subject_token  => 'alice',
+    subject_issuer => 'int.org',
+);
+expectReject( $res, 400 );
+ok( !( grep { !/^int\.org:443$/ } @contacted ),
+    'wildcard + allowlist: internal delegation not contacted' )
   or explain \@contacted;
 
 # "*" authorizes no server when users are looked up by localpart

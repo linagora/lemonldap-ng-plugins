@@ -17,7 +17,13 @@
   SRV target or redirects. Deployments that intentionally target an internal
   server can allow it per Relying Party with
   `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` (comma-separated hostnames
-  or IPv4 addresses); the option is empty by default.
+  or IPv4 addresses); the option is ignored for servers accepted through `*`
+  and is empty by default.
+- **HTTP proxy regression**: `LWPx::ParanoidAgent` does not use
+  `lwpOpts`/`env_proxy`. A portal that only reaches Matrix through an HTTP
+  proxy loses listed-server exchanges; `paranoid_proxy` is a possible
+  follow-up. Private CAs still work through `lwpSslOpts`, and the configured
+  `lwpOpts` timeout is honoured.
 
 ### reports
 

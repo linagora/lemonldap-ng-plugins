@@ -17,7 +17,7 @@
     "liblwpx-paranoidagent-perl"
   ],
   "customPlugins": "::Plugins::MatrixTokenExchange",
-  "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager. To tell apart users of several Matrix servers, set 'oidcRPMetaDataOptionsTokenXMatrixUser' to 'mail' (LDAPFilter must then match the mail attribute); only then may the list be '*'. For an internal Matrix server, also set 'oidcRPMetaDataOptionsTokenXMatrixInternalHosts' to the internal hostnames or IPv4 addresses that may resolve to private addresses.",
+  "post_install": "For each OIDC RP that should accept Matrix token exchange, set 'oidcRPMetaDataOptionsTokenXAuthorizedMatrix' to the list of authorized Matrix server names (comma-separated) in the Manager. To tell apart users of several Matrix servers, set 'oidcRPMetaDataOptionsTokenXMatrixUser' to 'mail' (LDAPFilter must then match the mail attribute); only then may the list be '*'. For an internal Matrix server, also set 'oidcRPMetaDataOptionsTokenXMatrixInternalHosts' to the internal hostnames or IPv4 addresses that may resolve to private addresses; this allowlist is ignored for servers accepted through '*'.",
   "autoload": [
     {
       "condition": "or::oidcRPMetaDataOptions/*/oidcRPMetaDataOptionsTokenXAuthorizedMatrix",

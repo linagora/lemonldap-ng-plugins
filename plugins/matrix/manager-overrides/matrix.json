@@ -6,7 +6,7 @@
     },
     "oidcRPMetaDataOptionsTokenXMatrixInternalHosts": {
       "type": "text",
-      "documentation": "Comma-separated internal Matrix hostnames or IPv4 addresses that may resolve to private addresses for this RP"
+      "documentation": "Comma-separated internal Matrix hostnames or IPv4 addresses that may resolve to private addresses for this RP (ignored when the server is accepted through '*')"
     },
     "oidcRPMetaDataOptionsTokenXMatrixUser": {
       "type": "select",

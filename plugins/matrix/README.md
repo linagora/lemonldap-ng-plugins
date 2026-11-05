@@ -80,30 +80,19 @@ If one of the authorized Matrix servers is internal, also set `oidcRPMetaDataOpt
 - Public Relying Parties can no longer be the target of a Matrix token exchange.
 - An exchange towards another Relying Party needs the caller in its `oidcRPMetaDataOptionsTokenXAuthorizedRP`.
 
+### Upgrading from 0.7.x
+
+- Every listed Matrix server now goes through `LWPx::ParanoidAgent`. Private CAs still work through `lwpSslOpts`, but `LWPx::ParanoidAgent` does not use `lwpOpts`/HTTP proxies: a portal that can only reach Matrix through a proxy will no longer reach listed servers. `paranoid_proxy` is a possible follow-up. An internal server must now be listed in `oidcRPMetaDataOptionsTokenXMatrixInternalHosts`; this allowlist is ignored for servers accepted through `*`.
+
 ### User lookup
 
 By default, `@user:domain.tld` is looked up as `user`. When users of several Matrix servers share the same user database, set `oidcRPMetaDataOptionsTokenXMatrixUser` to `mail` on the Relying Party: `@user:domain.tld` is then looked up as `user@domain.tld`, so your `LDAPFilter` must also match the mail attribute. Matrix servers are then only accepted under a plain domain name, without port or IP address. `LDAPFilter` is shared by every Relying Party and by the login form: a Relying Party still in localpart mode then also matches mail addresses, which is safe because a localpart never contains `@`.
 
 With `mail`, the authorized list may be `*`: any Matrix server is accepted, and each one only reaches the users whose address is on its own domain. This is only safe when, for every mail domain of your user database, the Matrix server of that domain is run by whoever runs its mailboxes: a public Matrix server with open registration on `domain.tld` would get tokens for every `user@domain.tld`. `*` is ignored when the lookup is by localpart.
 
-Every Matrix server, whether explicitly listed or accepted through `*`, is
-chosen by the caller, and so are the hosts its `.well-known`, SRV records and
-redirects point to. All these requests go through
-[LWPx::ParanoidAgent](https://metacpan.org/pod/LWPx::ParanoidAgent), which
-refuses loopback, private, link-local and shared (RFC 6598) IPv4 addresses
-after DNS resolution, and IPv6 targets. Listing a server is therefore not a
-way to reach an internal address.
+Every Matrix server, whether explicitly listed or accepted through `*`, is chosen by the caller, and so are the hosts its `.well-known`, SRV records and redirects point to. All these requests go through [LWPx::ParanoidAgent](https://metacpan.org/pod/LWPx::ParanoidAgent), which refuses loopback, private, link-local and shared (RFC 6598) IPv4 addresses after DNS resolution, and IPv6 targets. Listing a server is therefore not a way to reach an internal address.
 
-When a Relying Party must reach an internal Matrix server on purpose, set
-`oidcRPMetaDataOptionsTokenXMatrixInternalHosts` on that Relying Party to a
-comma-separated list of the internal hostnames or IPv4 addresses that may
-resolve to private addresses. Hostnames are resolved to their A records when
-the exchange runs, and both the name and its addresses are passed to the
-paranoid agent's allowlist. The option is empty by default: leave it empty
-unless you really need an internal target, and only list hosts you control.
-Each exchange still costs the portal a few DNS lookups and up to two HTTPS
-requests towards a domain the caller picks, so rate limit the token endpoint
-if it is reachable by untrusted clients.
+When a Relying Party must reach an internal Matrix server on purpose, set `oidcRPMetaDataOptionsTokenXMatrixInternalHosts` on that Relying Party to a comma-separated list of the internal hostnames or IPv4 addresses that may resolve to private addresses. Hostnames are resolved to their A records when the exchange runs, and both the name and its addresses are passed to the paranoid agent's allowlist. The option is ignored for servers accepted through `*`, because the caller chooses those; it is empty by default. Leave it empty unless you really need an internal target, and only list hosts you control. Each exchange still costs the portal a few DNS lookups and up to two HTTPS requests towards a domain the caller picks, so rate limit the token endpoint if it is reachable by untrusted clients.
 
 ## Prerequisites
 
