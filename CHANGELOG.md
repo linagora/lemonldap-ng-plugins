@@ -10,6 +10,15 @@
   are no longer missing, and a request carrying another user's SSO cookie
   cannot leak that user's menu.
 
+### oidc-rar
+
+- **Non-ASCII `authorization_details`** (#131): the parameter is decoded with
+  a UTF-8 JSON decoder, so raw UTF-8 and `\u` escapes both yield the intended
+  characters. Details stay characters for the token response, introspection
+  and session backends, and are converted to UTF-8 bytes only in the JWT
+  payload, where the core's non-UTF-8 `to_json()` requires them. The consent
+  page also encodes them as UTF-8.
+
 ### pacc
 
 - **Removed the dead dynamic-registration hook** (#206):

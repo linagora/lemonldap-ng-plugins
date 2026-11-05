@@ -2,7 +2,8 @@ use warnings;
 use Test::More;
 use strict;
 use IO::String;
-use MIME::Base64 qw/encode_base64/;
+use MIME::Base64 qw/encode_base64 decode_base64url/;
+use Encode qw/encode/;
 use JSON;
 use Lemonldap::NG::Portal::Main::Request;
 
@@ -383,8 +384,56 @@ subtest "Request without authorization_details still works" => sub {
         "no authorization_details in response when not requested" );
 };
 
+for my $case (
+    [ 'smiley+accent', "\x{263a}\x{e9}",
+      '[{"type":"payment_initiation","note":"\u263a\u00e9"}]' ],
+    [ 'accent', "\x{e9}", '[{"type":"payment_initiation","note":"\u00e9"}]' ],
+    [ 'raw-utf8', "\x{263a}\x{e9}",
+      do {
+          my $note = "\x{263a}\x{e9}";
+          qq([{"type":"payment_initiation","note":"$note"}]);
+      }
+    ],
+  )
+{
+    my ( $name, $label, $detail ) = @$case;
+    subtest "Non-ASCII detail survives the token endpoint: $name" => sub {
+        my $code = codeAuthorize(
+            $op, $id,
+            {
+                %base_authorize,
+                client_id             => "rp",
+                authorization_details => $detail,
+            }
+        );
+        my $token_res = codeGrant( $op, "rp", $code, "http://rp.com/" );
+        is( $token_res->[0], 200, "the token endpoint answers 200" );
+        my $json = JSON->new->utf8->decode( $token_res->[2]->[0] );
+        ok( $json->{authorization_details}, "details echoed in the response" );
+
+        my @parts = split /\./, $json->{access_token};
+        my $payload =
+          JSON->new->utf8->decode( decode_base64url( $parts[1] ) );
+        is( ref $payload, 'HASH', "the access token payload is a JSON object" );
+        is_deeply( $payload->{authorization_details},
+            $json->{authorization_details},
+            "the access token and the response show the same list" );
+        is( encode( 'UTF-8', $payload->{authorization_details}->[0]->{note} ),
+            encode( 'UTF-8', $label ),
+            "the note is decoded correctly" );
+
+        my $intro_res = introspect( $op, "rp", $json->{access_token} );
+        is( $intro_res->[0], 200, "introspection answers 200" );
+        my $intro = JSON->new->utf8->decode( $intro_res->[2]->[0] );
+        is_deeply( $intro->{authorization_details},
+            $json->{authorization_details},
+            "introspection shows the same list" );
+    };
+}
+
 clean_sessions();
 done_testing();
+
 
 sub op {
     return LLNG::Manager::Test->new( {

@@ -152,6 +152,27 @@ sub _parseTypeList {
 # `authorization_details` is not in the core's hardcoded parameter list
 # (Issuer/OpenIDConnect.pm), so it is absent from $oidc_request — read it
 # directly from $req. Echo it back into $oidc_request for downstream hooks.
+# Recursively turn decoded characters into UTF-8 bytes (keys included).
+# Used only for the JWT payload: the core's _createJWT() uses a non-UTF-8
+# to_json(), while sendJSONresponse() and the session backends expect
+# characters.
+sub _utf8Bytes {
+    my ( $self, $value ) = @_;
+    if ( ref $value eq 'HASH' ) {
+        return {
+            map { $self->_utf8Bytes($_) => $self->_utf8Bytes( $value->{$_} ) }
+              keys %$value
+        };
+    }
+    if ( ref $value eq 'ARRAY' ) {
+        return [ map { $self->_utf8Bytes($_) } @$value ];
+    }
+    if ( defined $value && !ref $value && utf8::is_utf8($value) ) {
+        utf8::encode($value);
+    }
+    return $value;
+}
+
 sub parseAuthorizationDetails {
     my ( $self, $req, $oidc_request ) = @_;
 
@@ -178,7 +199,12 @@ sub parseAuthorizationDetails {
         return PE_ERROR;
     }
 
-    my $details = eval { decode_json($raw) };
+    # decode_json() turns \u escapes into Perl characters. The rest of the
+    # OIDC payload uses UTF-8 bytes, so normalise the whole structure before
+    # it is stored, compared by rules, or put into a JWT.
+    my $json = $raw;
+    utf8::encode($json) if utf8::is_utf8($json);
+    my $details = eval { JSON->new->utf8->decode($json) };
     if ($@) {
         $self->logger->error("RAR: malformed authorization_details JSON: $@");
         return PE_ERROR;
@@ -314,7 +340,7 @@ sub addToAccessToken {
     my ( $self, $req, $payload, $rp, $extra_headers ) = @_;
     my $d = $req->data->{ &SESSION_KEY } or return PE_OK;
 
-    $payload->{authorization_details} = $d;
+    $payload->{authorization_details} = $self->_utf8Bytes($d);
     if ( my $jti = $payload->{jti} ) {
         my $update =
           $self->oidc->can('updateState') || $self->oidc->can('updateToken');
@@ -389,7 +415,7 @@ sub injectConsentDetails {
     my $d = $req->data->{ &SESSION_KEY };
     return PE_OK unless $d;
 
-    my $json = JSON->new->canonical->pretty->encode($d);
+    my $json = JSON->new->utf8->canonical->pretty->encode($d);
     $args->{params}->{ &CONSENT_TPL_VAR } = encode_entities($json);
     return PE_OK;
 }
