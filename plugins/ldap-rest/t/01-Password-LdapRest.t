@@ -125,6 +125,12 @@ subtest 'entry path' => sub {
         'DN is URL-escaped'
     );
     is( $obj->_entryPath('dwho'), '/api/v1/ldap/users/dwho', 'plain id' );
+
+    for my $id ( '.', '..' ) {
+        my $path = eval { $obj->_entryPath($id) };
+        is( $path, undef, "dot segment '$id' refused" );
+        like( $@, qr/Invalid ldap-rest entry id/, 'dot segment error' );
+    }
 };
 
 subtest 'password hashing' => sub {
@@ -166,13 +172,60 @@ subtest 'password hashing' => sub {
         ldapRestUrl          => 'http://x',
         ldapRestPasswordHash => 'SHA256',
     );
-    my $pwd = "p\x{e9}rim\x{e8}tre";
+    my $pwd = "p\xc3\xa9rim\xc3\xa8tre";
     my $raw = decode_base64( substr( $utf8->hashPassword($pwd), 8 ) );
     is(
         $raw,
-        sha256( Encode::encode( 'UTF-8', $pwd ) ),
-        'password is UTF-8 encoded before hashing'
+        sha256($pwd),
+        'password bytes are hashed as submitted'
     );
+};
+
+subtest 'cleartext password in UTF-8 bytes' => sub {
+    my $bytes = "p\xc3\xa9rim\xc3\xa8tre";
+
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    my $ua = t::FakeUA->new(
+        sub {
+            my $resp = HTTP::Response->new( 200, 'OK' );
+            $resp->content('{"success":true}');
+            return $resp;
+        }
+    );
+    $obj->ua($ua);
+    $obj->requireOldPwdRule( sub { 0 } );
+
+    my $req = t::FakeRequest->new(
+        data => { dn => 'uid=dwho,ou=users,dc=example,dc=com' } );
+
+    is( $obj->modifyPassword( $req, $bytes ), PE_PASSWORD_OK, 'changed' );
+    my $sent = JSON->new->utf8->decode( $ua->{requests}->[0]->content )
+      ->{replace}->{userPassword};
+    utf8::encode($sent);
+    is( $sent, $bytes, 'cleartext: same bytes' );
+
+    my ($invalid) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    my $invalid_ua = t::FakeUA->new(
+        sub {
+            my $resp = HTTP::Response->new( 200, 'OK' );
+            $resp->content('{"success":true}');
+            return $resp;
+        }
+    );
+    $invalid->ua($invalid_ua);
+    $invalid->requireOldPwdRule( sub { 0 } );
+    is( $invalid->modifyPassword( $req, "\xff" ),
+        PE_ERROR, 'invalid UTF-8 is refused' );
+    is( scalar @{ $invalid_ua->{requests} }, 0, 'no request sent' );
+};
+
+subtest '_isSuccess treats a string false as a refusal' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://x' );
+    ok( !$obj->_isSuccess( { success => 'false' } ), 'string "false"' );
+    ok( !$obj->_isSuccess( { success => 'FALSE' } ), 'uppercase "FALSE"' );
+    ok( !$obj->_isSuccess( { success => JSON::false } ), 'JSON false' );
+    ok( $obj->_isSuccess( { success => JSON::true } ), 'JSON true' );
+    ok( $obj->_isSuccess( {} ), 'no success member' );
 };
 
 subtest 'no authorization header' => sub {
@@ -308,6 +361,27 @@ subtest 'modifyPassword reports ldap-rest failures' => sub {
     is( $obj->modifyPassword( $req, 's3cr3t' ),
         PE_ERROR,
         'HTTP error is reported' );
+};
+
+subtest 'modifyPassword reports a string false as a refusal' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    $obj->ua(
+        t::FakeUA->new(
+            sub {
+                my $resp = HTTP::Response->new( 200, 'OK' );
+                $resp->content('{"success":"false"}');
+                return $resp;
+            }
+        )
+    );
+    $obj->requireOldPwdRule( sub { 0 } );
+
+    my $req = t::FakeRequest->new(
+        data        => {},
+        sessionInfo => { _dn => 'uid=dwho,ou=users,dc=example,dc=com' },
+    );
+    is( $obj->modifyPassword( $req, 's3cr3t' ),
+        PE_ERROR, 'refused, not PE_PASSWORD_OK' );
 };
 
 subtest 'errors never expose the response body' => sub {
