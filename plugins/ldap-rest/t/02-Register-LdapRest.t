@@ -2,6 +2,7 @@ use warnings;
 use strict;
 use Test::More;
 use JSON;
+use Encode qw(decode);
 use HTTP::Response;
 
 BEGIN {
@@ -11,6 +12,7 @@ BEGIN {
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_ERROR
   PE_LDAPERROR
+  PE_MALFORMEDUSER
   PE_OK
 );
 
@@ -91,7 +93,7 @@ subtest 'init' => sub {
         ldapRestMainAttribute => 'cn',
     );
     ok( $res, 'minimal configuration is accepted' );
-    is( $obj->restBase, 'http://ldap-rest.example.com', 'base URL' );
+    is( $obj->restBase,     'http://ldap-rest.example.com', 'base URL' );
     is( $obj->restMainAttr, 'cn', 'main attribute is configurable' );
 
     # No LDAP connection is needed by this backend
@@ -127,7 +129,7 @@ subtest 'computeLogin' => sub {
     $obj->ua( t::FakeUA->new( sub { return notFound() } ) );
 
     my $req = registerReq();
-    is( $obj->computeLogin($req), PE_OK, 'login computed' );
+    is( $obj->computeLogin($req),            PE_OK,  'login computed' );
     is( $req->data->{registerInfo}->{login}, 'jdoe', 'first letter + name' );
 
     # jdoe and jdoe1 are taken, jdoe2 is free
@@ -136,15 +138,14 @@ subtest 'computeLogin' => sub {
         t::FakeUA->new(
             sub {
                 my ($hreq) = @_;
-                my ($id) = ( $hreq->uri->path =~ m#([^/]+)$# );
+                my ($id)   = ( $hreq->uri->path =~ m#([^/]+)$# );
                 return $taken{$id} ? found() : notFound();
             }
         )
     );
     $req = registerReq();
-    is( $obj->computeLogin($req), PE_OK, 'login computed' );
-    is( $req->data->{registerInfo}->{login},
-        'jdoe2', 'a counter is appended' );
+    is( $obj->computeLogin($req),            PE_OK,   'login computed' );
+    is( $req->data->{registerInfo}->{login}, 'jdoe2', 'a counter is appended' );
 
     # ldap-rest down: refuse rather than risk a duplicate
     $obj->ua(
@@ -164,7 +165,7 @@ subtest 'computeLogin' => sub {
     $req = registerReq();
     $req->data->{registerInfo}->{lastname} = "Dupr\x{e9}";
     $obj->ua( t::FakeUA->new( sub { return notFound() } ) );
-    is( $obj->computeLogin($req), PE_OK, 'login computed' );
+    is( $obj->computeLogin($req),            PE_OK,    'login computed' );
     is( $req->data->{registerInfo}->{login}, 'jdupre', 'accents stripped' );
 };
 
@@ -214,6 +215,64 @@ subtest 'createUser' => sub {
     );
 };
 
+subtest 'createUser sends UTF-8 fields once' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    my $created = HTTP::Response->new( 201, 'Created' );
+    $created->content('{}');
+    my $ua = t::FakeUA->new( sub { return $created } );
+    $obj->ua($ua);
+
+    my $first_bytes = "H\xc3\xa9l\xc3\xa8ne";
+    my $last_bytes  = "L\xc3\xa9v\xc3\xaaque";
+    my $mail        = "helene\@example.com";
+    my $first       = "H\x{e9}l\x{e8}ne";
+    my $last        = "L\x{e9}v\x{ea}que";
+    my $req         = registerReq();
+    $req->data->{registerInfo} = {
+        firstname => $first_bytes,
+        lastname  => $last_bytes,
+        mail      => $mail,
+        password  => 's3cr3t',
+        login     => 'hlev',
+    };
+
+    is( $obj->createUser($req), PE_OK, 'user created' );
+    my $body = JSON->new->utf8->decode( $ua->{requests}->[0]->content );
+    diag 'body gn=' . unpack(
+        'H*',
+        do { my $x = $body->{givenName}; utf8::encode($x); $x }
+    );
+
+    my $gn = ucfirst decode( 'UTF-8', $first_bytes );
+    my $sn = uc decode( 'UTF-8', $last_bytes );
+    for my $test (
+        [ $body->{givenName}, $gn,       'givenName' ],
+        [ $body->{sn},        $sn,       'sn' ],
+        [ $body->{cn},        "$gn $sn", 'cn' ],
+        [ $body->{mail},      $mail,     'mail' ]
+      )
+    {
+        my $got = $test->[0];
+        utf8::encode($got);
+        my $expected = $test->[1];
+        utf8::encode($expected);
+        is( $got, $expected, "$test->[2] is decoded once" );
+    }
+
+    my $invalid = registerReq();
+    $invalid->data->{registerInfo} = {
+        firstname => "\xff",
+        lastname  => 'Doe',
+        mail      => 'x\@example.com',
+        password  => 's3cr3t',
+        login     => 'xdoe',
+    };
+    my $before = scalar @{ $ua->{requests} };
+    is( $obj->createUser($invalid),
+        PE_MALFORMEDUSER, 'invalid UTF-8 is refused' );
+    is( scalar @{ $ua->{requests} }, $before, 'no request sent' );
+};
+
 subtest 'createUser honors hashing and attribute names' => sub {
     my ($obj) = newObj(
         ldapRestUrl               => 'http://ldap-rest.example.com',
@@ -244,11 +303,8 @@ subtest 'createUser honors hashing and attribute names' => sub {
     my $body = JSON::from_json( $sent->content );
     is( $body->{cn}, 'John DOE', 'configured main attribute' );
     ok( !exists $body->{uid}, 'no uid sent' );
-    like(
-        $body->{sambaNTPassword},
-        qr/^\{SSHA512\}/,
-        'configured password attribute, hashed'
-    );
+    like( $body->{sambaNTPassword},
+        qr/^\{SSHA512\}/, 'configured password attribute, hashed' );
 };
 
 subtest 'createUser reports ldap-rest failures' => sub {
