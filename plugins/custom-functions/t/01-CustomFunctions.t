@@ -96,6 +96,19 @@ is(
     'uuid() of a wide character'
 );
 
+# uuid(): the internal UTF-8 flag does not change the hashed bytes
+is( uuid("\xc9ric"),
+    '6801c4ae-51b2-5cda-b170-b0dca93ac361',
+    'a Latin-1 value is hashed in its UTF-8 form' );
+is( uuid("\xe9"),
+    '10e1d6de-dc68-53f0-883a-30ec870dd739', 'one Latin-1 byte' );
+for my $value ( "\xe9", "\xc3\xa9", "caf\xe9" ) {
+    my $upgraded = $value;
+    utf8::upgrade($upgraded);
+    is( uuid($upgraded),
+        uuid($value), 'the same Perl string, the same UUID' );
+}
+
 # uuid(): a wrong namespace must not silently return a constant UUID
 ok(
     !eval { uuid( 'dwho', 'not-a-namespace' ); 1 },
@@ -122,6 +135,24 @@ is( isPrivateIp('fd00::1'), 0, 'IPv6 ULA is not in RFC 1918' );
 is( isPrivateIp( 'fd00::1', 'fc00::/7' ), 1, 'IPv6 ULA with an extra network' );
 is( isPrivateIp( '10.1.2.3', 'fc00::/7' ),
     1, 'IPv4 private address with an IPv6 extra network' );
+
+# isPrivateIp(): only a single address is an address
+for my $bad (
+    "10.0.0.1\n",         "10.0.0.1 ",
+    " 10.0.0.1",          "10.0.0.1\0",
+    '10.0.0.1.',          '010.0.0.1',
+    '10.0.0.01',          '10.0.0.1/8',
+    '0.0.0.0/0',          '10.0.0.1-10.0.0.2',
+    '8.8.8.8-10.0.0.1',
+  )
+{
+    ( my $show = $bad ) =~ s/([^ -~])/sprintf '\\x%02x', ord $1/ge;
+    is( isPrivateIp($bad), 0, "'$show' is not an address" );
+}
+is( isPrivateIp( '10.1.2.3', "10.0.0.0/8\n" ),
+    0, 'an extra network with a line break is unparsable' );
+is( isPrivateIp('10.0.0.1'),        1, 'the strict form stays private' );
+is( isPrivateIp('::ffff:10.0.0.1'), 1, 'the IPv4-mapped form stays private' );
 
 # isPrivateIp(): garbage in, 0 out (must never die inside a rule)
 is( isPrivateIp(undef),                   0, 'undefined address' );

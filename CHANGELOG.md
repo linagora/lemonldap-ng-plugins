@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### custom-functions
+
+- **UUIDv5 input normalisation** (#143): `uuid()` now hashes unflagged
+  Latin-1 bytes in their UTF-8 form and treats an upgraded UTF-8 byte string
+  like the original bytes. UUIDs previously computed from unflagged Latin-1
+  input change; ASCII, UTF-8 bytes and ordinary decoded characters are
+  unchanged.
+
 ## v0.7.0 - 2026-11-04
 
 Touched plugin bumped to **0.7.0**: `matrix-token-exchange`.
