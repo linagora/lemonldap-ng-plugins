@@ -79,20 +79,32 @@ sub createUser {
     my ( $self, $req ) = @_;
     my $info = $req->data->{registerInfo};
 
-    my $sn = uc $info->{lastname};
-    my $gn = ucfirst $info->{firstname};
+    my %field;
+    for my $name (qw(firstname lastname mail login)) {
+        my ( $bytes, $chars ) =
+          $self->_utf8Pair( $info->{$name} // '', $name );
+        unless ( defined $chars ) {
+            $self->userLogger->error(
+                "Cannot create entry for " . ( $info->{login} // '' ) );
+            return PE_MALFORMEDUSER;
+        }
+        $field{$name} = $chars;
+    }
+
+    my $sn = uc $field{lastname};
+    my $gn = ucfirst $field{firstname};
     my $cn = "$gn $sn";
 
     my $password = $self->hashPassword( $info->{password} );
     return PE_LDAPERROR unless defined $password;
 
     my $entry = {
-        $self->restMainAttr => $info->{login},
+        $self->restMainAttr => $field{login},
         cn                  => $cn,
         sn                  => $sn,
         givenName           => $gn,
         $self->pwdAttr      => $password,
-        mail                => $info->{mail},
+        mail                => $field{mail},
     };
 
     my $res =

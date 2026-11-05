@@ -162,24 +162,31 @@ sub _isSuccess {
     return $success ? 1 : 0;
 }
 
+# UTF-8 NORMALISATION
+
+# Return (utf8_bytes, characters) for a value coming from Plack or from
+# decoded Perl code. Returns an empty list when the value is not valid UTF-8.
+sub _utf8Pair {
+    my ( $self, $value, $label ) = @_;
+    return unless defined $value && !ref $value;
+
+    my $bytes = utf8::is_utf8($value) ? encode( 'UTF-8', $value ) : $value;
+    my $copy  = $bytes;
+    my $chars = eval { decode( 'UTF-8', $copy, FB_CROAK ) };
+    unless ( defined $chars ) {
+        $self->logger->error( ( $label || 'Value' ) . ' is not valid UTF-8' );
+        return;
+    }
+    return ( $bytes, $chars );
+}
+
 # PASSWORD HASHING
 
 sub hashPassword {
     my ( $self, $pwd ) = @_;
 
-    return undef unless defined $pwd;
-
-    # The portal gives us bytes from Plack::Request, but callers may also
-    # pass a decoded Perl string. Normalise once to UTF-8 bytes, then decode
-    # them back for the cleartext JSON body, which JSON->utf8 expects to hold
-    # characters.
-    my $bytes = utf8::is_utf8($pwd) ? encode( 'UTF-8', $pwd ) : $pwd;
-    my $copy  = $bytes;
-    my $decoded = eval { decode( 'UTF-8', $copy, FB_CROAK ) };
-    unless ( defined $decoded ) {
-        $self->logger->error('Password is not valid UTF-8');
-        return undef;
-    }
+    my ( $bytes, $decoded ) = $self->_utf8Pair( $pwd, 'Password' );
+    return undef unless defined $bytes;
 
     my $scheme = $self->hashScheme;
     return $decoded unless $scheme;
