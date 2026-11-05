@@ -168,6 +168,19 @@ subtest 'computeLogin' => sub {
     is( $req->data->{registerInfo}->{login}, 'jdupre', 'accents stripped' );
 };
 
+subtest 'computeLogin refuses a login made of dots' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    my $ua = t::FakeUA->new( sub { return notFound() } );
+    $obj->ua($ua);
+
+    my $req = registerReq();
+    $req->data->{registerInfo}->{firstname} = '.';
+    $req->data->{registerInfo}->{lastname}  = '.';
+
+    isnt( $obj->computeLogin($req), PE_OK, 'login refused' );
+    is( scalar @{ $ua->{requests} }, 0, 'no request sent' );
+};
+
 subtest 'createUser' => sub {
     my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
     my $created = HTTP::Response->new( 201, 'Created' );
@@ -253,6 +266,23 @@ subtest 'createUser reports ldap-rest failures' => sub {
     my $req = registerReq();
     $req->data->{registerInfo}->{login} = 'jdoe';
     is( $obj->createUser($req), PE_LDAPERROR, 'HTTP error is reported' );
+};
+
+subtest 'createUser reports a string false as a refusal' => sub {
+    my ($obj) = newObj( ldapRestUrl => 'http://ldap-rest.example.com' );
+    $obj->ua(
+        t::FakeUA->new(
+            sub {
+                my $resp = HTTP::Response->new( 200, 'OK' );
+                $resp->content('{"success":"false"}');
+                return $resp;
+            }
+        )
+    );
+
+    my $req = registerReq();
+    $req->data->{registerInfo}->{login} = 'jdoe';
+    is( $obj->createUser($req), PE_LDAPERROR, 'refused creation' );
 };
 
 done_testing();

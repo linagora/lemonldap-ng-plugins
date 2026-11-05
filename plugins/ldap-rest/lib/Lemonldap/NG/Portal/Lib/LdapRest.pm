@@ -18,7 +18,7 @@ package Lemonldap::NG::Portal::Lib::LdapRest;
 
 use strict;
 use Mouse;
-use Encode qw(encode);
+use Encode qw(encode decode FB_CROAK);
 use JSON;
 use MIME::Base64 qw(encode_base64);
 use Digest::SHA  qw(sha1 sha256 sha512 sha256_hex hmac_sha256_hex);
@@ -142,6 +142,8 @@ sub _collectionPath {
 # Single entry endpoint: get (GET), modify (PUT), delete (DELETE)
 sub _entryPath {
     my ( $self, $id ) = @_;
+    die "Invalid ldap-rest entry id\n"
+      if defined $id && ( $id eq '.' || $id eq '..' );
     return $self->_collectionPath . '/' . uri_escape($id);
 }
 
@@ -151,15 +153,36 @@ sub _isSuccess {
     my ( $self, $res ) = @_;
     return 0 unless ref $res eq 'HASH';
     return 1 unless exists $res->{success};
-    return $res->{success} ? 1 : 0;
+
+    my $success = $res->{success};
+    return 0
+      if defined $success
+      && !ref $success
+      && lc($success) eq 'false';
+    return $success ? 1 : 0;
 }
 
 # PASSWORD HASHING
 
 sub hashPassword {
     my ( $self, $pwd ) = @_;
+
+    return undef unless defined $pwd;
+
+    # The portal gives us bytes from Plack::Request, but callers may also
+    # pass a decoded Perl string. Normalise once to UTF-8 bytes, then decode
+    # them back for the cleartext JSON body, which JSON->utf8 expects to hold
+    # characters.
+    my $bytes = utf8::is_utf8($pwd) ? encode( 'UTF-8', $pwd ) : $pwd;
+    my $copy  = $bytes;
+    my $decoded = eval { decode( 'UTF-8', $copy, FB_CROAK ) };
+    unless ( defined $decoded ) {
+        $self->logger->error('Password is not valid UTF-8');
+        return undef;
+    }
+
     my $scheme = $self->hashScheme;
-    return $pwd unless $scheme;
+    return $decoded unless $scheme;
 
     my $def = $hashSchemes{$scheme}
       or do {
@@ -167,8 +190,7 @@ sub hashPassword {
         return undef;
       };
 
-    my $bytes = encode( 'UTF-8', $pwd );
-    my $salt  = '';
+    my $salt = '';
     if ( $def->{salted} ) {
         $salt = eval { require Crypt::URandom; Crypt::URandom::urandom(8) };
         if ($@) {
