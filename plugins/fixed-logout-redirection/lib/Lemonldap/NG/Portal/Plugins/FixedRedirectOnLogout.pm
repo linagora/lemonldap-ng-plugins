@@ -14,7 +14,17 @@ use constant beforeLogout => 'run';
 sub init {
     my ($self) = @_;
     if ( $self->conf->{fixedLogoutRedirection} ) {
-        my $host = URI->new($self->conf->{fixedLogoutRedirection})->host;
+        my $u = URI->new( $self->conf->{fixedLogoutRedirection} );
+        unless ( $u->can('host')
+            and defined $u->scheme
+            and $u->scheme =~ m#^https?$#i
+            and $u->host )
+        {
+            $self->logger->error(
+                'fixedLogoutRedirection must be an http(s) URL with a host');
+            return 0;
+        }
+        my $host = $u->host;
         $self->conf->{trustedDomains} .= " $host";
         $self->conf->{trustedDomains} =~ s/^ //;
     }

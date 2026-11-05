@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### fixed-logout-redirection
+
+- **Invalid `fixedLogoutRedirection` values** (#144): `init` now accepts only
+  an `http` or `https` URL with a non-empty host. Other values are logged and
+  refused instead of dying with `Can't locate object method "host"`.
+
 ### reports
 
 - **CSV escaping** (#137): every field is quoted and embedded double quotes
