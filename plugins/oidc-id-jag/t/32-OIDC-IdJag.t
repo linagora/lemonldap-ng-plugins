@@ -297,6 +297,7 @@ subtest 'ID token of a client without refresh tokens' => sub {
             _client            => 'rpid5',
             subject_token      => $tokens->{id_token},
             subject_token_type => 'urn:ietf:params:oauth:token-type:id_token',
+            scope              => 'openid admin',
         )
     );
     my $payload = eval {
@@ -308,6 +309,12 @@ subtest 'ID token of a client without refresh tokens' => sub {
     ok( $payload, 'Got an assertion' ) or diag $@;
     is( $payload->{sub},       'french', 'Correct subject' );
     is( $payload->{client_id}, 'rpid5',  'Correct client_id' );
+
+    # The ID token was granted "openid profile", but the client bypasses
+    # consent: the index records the fail-closed "openid" only.
+    my %got = map { $_ => 1 } split /\s+/, ( $payload->{scope} || '' );
+    ok( !$got{admin}, 'A scope beyond the ID token grant is not asserted' );
+    ok( $got{openid}, 'openid is kept' );
 };
 
 subtest 'repeated `resource` cannot inject claims' => sub {

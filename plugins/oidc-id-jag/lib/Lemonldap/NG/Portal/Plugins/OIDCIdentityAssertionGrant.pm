@@ -260,13 +260,14 @@ sub _assertedScope {
     my $requested = scalar $req->param('scope');
     $requested = '' unless defined $requested;
 
+    # Fail closed: a subject token without a recorded scope is treated as
+    # granted `openid` only, never as unbounded.
     my $granted = $tokenData->{scope};
-    if ( defined $granted and $granted =~ /\S/ ) {
-        my %ok = map { $_ => 1 } grep { length } split /\s+/, $granted;
-        $requested = join ' ',
-          grep { $ok{$_} } grep { length } split /\s+/,
-          ( $requested =~ /\S/ ? $requested : $granted );
-    }
+    $granted = 'openid' unless defined $granted and $granted =~ /\S/;
+    my %ok = map { $_ => 1 } grep { length } split /\s+/, $granted;
+    $requested = join ' ',
+      grep { $ok{$_} } grep { length } split /\s+/,
+      ( $requested =~ /\S/ ? $requested : $granted );
 
     my $scope = $self->oidc->getScope( $req, $target, $requested );
     return defined $scope ? $scope : '';
@@ -488,6 +489,8 @@ sub indexIdTokenSid {
             _utime          => time() - $self->conf->{timeout} + $ttl,
             user_session_id => $id,
             rp              => $rp,
+            scope           => $self->_consentedScope( $sessionData, $rp )
+              // 'openid',
         },
         force     => 1,
         hashStore => 0,
@@ -495,6 +498,25 @@ sub indexIdTokenSid {
     $self->logger->debug("Unable to index ID Token sid $sid") unless $session;
 
     return PE_OK;
+}
+
+# The scope the user consented to for $rp, from the session's _oidcConsents
+# JSON. Returns undef when the RP bypasses consent or the entry is missing;
+# indexIdTokenSid() then records `openid`, the fail-closed default.
+sub _consentedScope {
+    my ( $self, $sessionData, $rp ) = @_;
+
+    my $raw = $sessionData->{_oidcConsents} or return;
+    my $consents = eval { from_json($raw) };
+    return unless ref $consents eq 'ARRAY';
+
+    for my $entry (@$consents) {
+        next unless ref $entry eq 'HASH';
+        next unless ( $entry->{rp} // '' ) eq $rp;
+        next unless defined $entry->{scope} and $entry->{scope} =~ /\S/;
+        return $entry->{scope};
+    }
+    return;
 }
 
 # The index key is scoped to the relying party. `sid` alone is not a safe key:
@@ -521,8 +543,9 @@ sub _sidIndexId {
 #      refresh token session carrying the same sid. It also covers sessions
 #      opened against an upstream OP, where `_oidc_sid` is the OP's own sid.
 #
-# Route 1 returns the user session id only, so no authorization_details come
-# with it; route 2 returns the full refresh token session data.
+# Route 1 returns the user session id and the recorded scope, so no
+# authorization_details come with it; route 2 returns the full refresh token
+# session data.
 sub _getDataFromIdToken {
     my ( $self, $req, $rp, $idToken ) = @_;
     my $oidc = $self->oidc;
@@ -575,6 +598,9 @@ sub _getDataFromIdToken {
                 rp              => $rp,
                 client_id       => $clientId,
                 user_session_id => $index->data->{user_session_id},
+                ( defined $index->data->{scope}
+                    ? ( scope => $index->data->{scope} )
+                    : () ),
             };
         }
         $self->logger->debug(

@@ -38,6 +38,24 @@
 - **Test suite**: `t/32-OIDC-CIBA.t` covers a refused user on the poll and
   direct paths, a scope refused by a rule, and a public client.
 
+### oidc-id-jag
+
+- **Security fix — an ID Token used as `subject_token` no longer asserts an
+  unbounded scope** (#222): the `sid` index recorded the user session but not
+  the scope granted to the client. For an ID Token resolved through the index
+  — the normal path, and the only one for clients without refresh tokens —
+  `_assertedScope` therefore received no bound, and the client's `scope=`
+  reached the signed assertion as is. The index now records the consented
+  scope, `_assertedScope` treats a missing scope as `openid` only, and the
+  index route returns the recorded scope.
+- **Behaviour change**: a client that bypasses the consent screen
+  (`oidcRPMetaDataOptionsBypassConsent`), or a deployment with
+  `disablePersistentStorage`, has no consent entry, so its ID Token subjects
+  now assert `openid` only. Use a refresh or access token to keep the full
+  granted scope.
+- **Test suite**: the ID Token of a client without refresh tokens is exchanged
+  with `scope=openid admin`; `admin` is not asserted.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,
