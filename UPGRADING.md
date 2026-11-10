@@ -15,6 +15,18 @@ is replaced by `%EMAILADDRESS%`, as any other invalid value already was.
 Non-ASCII addresses and single-label domains such as `user@localhost` are
 also replaced.
 
+`oidc-ciba` now applies `oidcRPMetaDataOptionsRule` and the scope rules
+(`oidcRPMetaDataScopeRules`, `oidcServiceAllowOnlyDeclaredScopes`, and the
+`oidcResolveScope` hooks) on every CIBA path. A rule based on
+`$_oidc_grant_type` must accept the `ciba` value, for example:
+
+```perl
+$_oidc_grant_type =~ /^(?:authorizationcode|ciba)$/
+```
+
+Public clients (`oidcRPMetaDataOptionsPublic`) are now refused on both
+backchannel routes.
+
 ## v0.7.1
 
 Mostly input validation: the plugins below refuse what they used to accept.

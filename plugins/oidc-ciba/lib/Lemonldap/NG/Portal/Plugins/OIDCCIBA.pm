@@ -109,6 +109,13 @@ sub backchannelAuthentication {
         return $self->_cibaError( $req, 'unauthorized_client', 400 );
     }
 
+    # A public client cannot authenticate at the backchannel endpoint: anyone
+    # who knows its client_id could push an authentication to any login_hint.
+    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
+        $self->userLogger->warn("CIBA: public client $rp refused");
+        return $self->_cibaError( $req, 'unauthorized_client', 400 );
+    }
+
     # Extract parameters
     my $scope                     = $req->param('scope') || '';
     my $login_hint                = $req->param('login_hint');
@@ -161,6 +168,22 @@ sub backchannelAuthentication {
     }
 
     $self->logger->debug("CIBA resolved user: $user");
+
+    # The RP rule is evaluated once the user is known, before the pending
+    # session is created.
+    $req->userData($user_info);
+    unless ( $self->_checkCibaRule( $req, $rp, $user_info ) ) {
+        $self->userLogger->warn("CIBA: user $user refused by the RP rule");
+        return $self->_cibaError( $req, 'access_denied', 403 );
+    }
+
+    # Resolve the scope now that the user (and their groups/macros) is known.
+    # Only the result is stored in the CIBA session.
+    $scope = $self->oidc->getScope( $req, $rp, $scope );
+    unless ( $self->_hasOpenidScope($scope) ) {
+        $self->logger->error('CIBA scope resolution removed openid');
+        return $self->_cibaError( $req, 'invalid_scope', 400 );
+    }
 
     # Get CIBA mode for this RP
     my $ciba_mode =
@@ -297,6 +320,12 @@ sub _backchannelAuthenticationAuthImpl {
         return $self->_cibaError( $req, 'unauthorized_client', 400 );
     }
 
+    # See backchannelAuthentication(): a public client is not acceptable here.
+    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
+        $self->userLogger->warn("CIBA: public client $rp refused");
+        return $self->_cibaError( $req, 'unauthorized_client', 400 );
+    }
+
     my $scope      = $req->param('scope') || '';
     my $login_hint = $req->param('login_hint');
 
@@ -318,6 +347,20 @@ sub _backchannelAuthenticationAuthImpl {
         # Fall back to standard flow (notify external channel)
         return $self->_cibaError( $req, 'invalid_request', 403,
             'not the same user' );
+    }
+
+    # The RP rule is evaluated on the authenticated session before any token
+    # is minted, as on /oauth2/authorize.
+    unless ( $self->_checkCibaRule( $req, $rp, $req->userData ) ) {
+        $self->userLogger->warn("CIBA: user $user refused by the RP rule");
+        return $self->_cibaError( $req, 'access_denied', 403 );
+    }
+
+    # Resolve the scope now that the user is known; only the result is used.
+    $scope = $self->oidc->getScope( $req, $rp, $scope );
+    unless ( $self->_hasOpenidScope($scope) ) {
+        $self->logger->error('CIBA scope resolution removed openid');
+        return $self->_cibaError( $req, 'invalid_scope', 400 );
     }
 
     # 5. User matches - approve directly and generate tokens
@@ -649,6 +692,26 @@ sub handleCibaGrant {
         my $client_id =
           $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID};
 
+        # Re-evaluate the RP rule at issuance: the configuration could have
+        # changed between the request and the approval.
+        unless ( $self->_checkCibaRule( $req, $rp, $sessionInfo ) ) {
+            $self->userLogger->warn('CIBA grant: user refused by the RP rule');
+            $self->_deleteCibaSession($auth_req_id);
+            $session->remove;
+            $req->response(
+                $self->oidc->sendOIDCError( $req, 'access_denied', 400 ) );
+            return PE_SENDRESPONSE;
+        }
+
+        # The scope was resolved at /bc-authorize; keep the openid invariant.
+        unless ( $self->_hasOpenidScope($scope) ) {
+            $self->_deleteCibaSession($auth_req_id);
+            $session->remove;
+            $req->response(
+                $self->oidc->sendOIDCError( $req, 'invalid_scope', 400 ) );
+            return PE_SENDRESPONSE;
+        }
+
         # Create access token
         my $access_token = $self->oidc->newAccessToken(
             $req, $rp, $scope,
@@ -770,6 +833,16 @@ sub _hasOpenidScope {
     my ( $self, $scope ) = @_;
     return 0 unless defined $scope && !ref $scope;
     return scalar grep { $_ eq 'openid' } split /\s+/, $scope;
+}
+
+# Evaluate the per-RP access rule once the user is known. Core does this on
+# the authorization endpoint and the other grants; CIBA never did.
+sub _checkCibaRule {
+    my ( $self, $req, $rp, $data ) = @_;
+    my $rule = $self->oidc->rpRules->{$rp} or return 1;
+    return $rule->( $req, { %{ $data || {} }, _oidc_grant_type => 'ciba' } )
+      ? 1
+      : 0;
 }
 
 sub _resolveUserFromHint {
