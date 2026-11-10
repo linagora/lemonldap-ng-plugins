@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### oidc-jarm
+
+- **Fix — JARM response modes work with the stricter core validation**: core
+  now only accepts `query`, `fragment` and `form_post` in
+  `isResponseModeAllowed`, so `query.jwt`, `fragment.jwt`, `form_post.jwt`
+  and `jwt` were refused before the JARM hook ran. The plugin rewrites the
+  JARM mode to its base mode in `oidcGotRequest` and keeps the original for
+  the authorization response, so the response is still wrapped in a JWT.
+- **Test suite**: `t/32-Auth-OIDC-JARM.t` covers the full `query.jwt` flow
+  and the forged-response case on LLNG master.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,

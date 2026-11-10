@@ -12,9 +12,51 @@ our $VERSION = '2.23.0';
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant hook => {
+    oidcGotRequest                    => 'checkJarmRequest',
     oidcGenerateAuthorizationResponse => 'wrapResponseInJwt',
     oidcGenerateMetadata              => 'addJarmMetadata',
 };
+
+# Core validates response_mode before the authorization response hook. JARM
+# modes are not in its base list, so rewrite them here and keep the original
+# for wrapResponseInJwt.
+sub checkJarmRequest {
+    my ( $self, $req, $oidc_request ) = @_;
+
+    my $jarm_mode = $oidc_request->{response_mode} // '';
+    return PE_OK
+      unless ( $jarm_mode =~ /\.jwt$/ or $jarm_mode eq 'jwt' );
+
+    my $client_id = $oidc_request->{client_id};
+    my $rp = $client_id ? $self->oidc->getRP($client_id) : undef;
+    return PE_OK unless $rp;
+
+    my $jarm_setting =
+      $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarm} // '';
+    unless ( $jarm_setting eq 'allowed' or $jarm_setting eq 'required' ) {
+        $self->logger->error(
+"JARM response_mode $jarm_mode requested but not allowed for RP $rp"
+        );
+        return PE_ERROR;
+    }
+
+    my $base;
+    if ( $jarm_mode eq 'jwt' ) {
+        $base = ( ( $oidc_request->{response_type} // '' ) eq 'code' )
+          ? 'query'
+          : 'fragment';
+    }
+    else {
+        $base = $jarm_mode;
+        $base =~ s/\.jwt$//;
+    }
+
+    $req->data->{jarm_response_mode} = $jarm_mode;
+    $oidc_request->{response_mode}   = $base;
+    $self->logger->debug(
+        "JARM response_mode $jarm_mode rewritten to $base for RP $rp");
+    return PE_OK;
+}
 
 sub addJarmMetadata {
     my ( $self, $req, $metadata ) = @_;
@@ -37,7 +79,10 @@ sub addJarmMetadata {
 sub wrapResponseInJwt {
     my ( $self, $req, $oidc_request, $rp, $response_params ) = @_;
 
-    my $response_mode = $oidc_request->{response_mode} // '';
+    my $response_mode =
+      $req->data->{jarm_response_mode}
+      // $oidc_request->{response_mode}
+      // '';
     my $jarm_setting =
       $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarm} // '';
 
