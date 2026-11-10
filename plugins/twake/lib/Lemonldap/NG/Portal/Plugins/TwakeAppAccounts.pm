@@ -4,6 +4,7 @@ use strict;
 use List::Util   qw(shuffle);
 use MIME::Base64 qw/encode_base64/;
 use Mouse;
+use Net::LDAP::Util qw(escape_dn_value escape_filter_value);
 use String::Random;
 
 use Lemonldap::NG::Portal::Main::Constants qw(
@@ -200,9 +201,11 @@ sub addAccount {
           unless $newEntry->[$i] eq 'uid';
     }
     push @$newEntry, uid => $uid;
-    my $mesg =
-      $self->ldap->add( "uid=$uid," . $self->conf->{twakeAppLdapBranch},
-        attrs => $newEntry );
+    my $mesg = $self->ldap->add(
+        'uid=' . escape_dn_value($uid) . ','
+          . $self->conf->{twakeAppLdapBranch},
+        attrs => $newEntry
+    );
     return $self->sendError( $req,
         "$prefix LDAP Add error " . $mesg->code . ': ' . $mesg->error,
         PE_LDAPERROR )
@@ -210,12 +213,14 @@ sub addAccount {
     $mesg = $self->ldap->search(
         base   => $self->conf->{twakeAppLdapBranch},
         scope  => 'sub',
-        filter => '(uid=' . $req->userData->{mail} . ')',
+        filter => '(uid=' . escape_filter_value( $req->userData->{mail} ) . ')',
         deref  => 'find',
     );
     push @outlookEntry, uid => $req->userData->{mail};
     my $dn =
-      'uid=' . $req->userData->{mail} . ',' . $self->conf->{twakeAppLdapBranch};
+        'uid='
+      . escape_dn_value( $req->userData->{mail} ) . ','
+      . $self->conf->{twakeAppLdapBranch};
     my @tmp = eval { $mesg->entries };
 
     if ( $mesg->code() != 0 or !@tmp ) {
@@ -270,29 +275,41 @@ sub delAccount {
     return $self->sendError( $req, 'Bad content', PE_ERROR, 400 )
       unless ref $query eq 'HASH';
 
-    my $accounts = $self->getAccounts($req);
+    my ( $accounts, $err ) = $self->getAccounts($req);
+    return $err unless $accounts;
     return $self->sendError( $req, 'No accounts', PE_ERROR, 400 )
       if scalar(@$accounts) == 0;
+
+    my $uid = $query->{uid};
+
+    # Only the caller's own accounts can be deleted. getAccounts() never lists
+    # the caller's aggregate Outlook entry (uid=<mail>), so it stays protected
+    # even when the caller knows its DN.
+    return $self->sendError( $req, 'No such accounts', PE_ERROR, 400 )
+      unless defined $uid
+      and !ref $uid
+      and grep { $_->{uid} eq $uid } @$accounts;
 
     my $mesg = $self->ldap->search(
         base   => $self->conf->{twakeAppLdapBranch},
         scope  => 'sub',
-        filter => "(uid=$query->{uid})",
+        filter => '(uid=' . escape_filter_value($uid) . ')',
         deref  => 'find',
     );
     if ( $mesg->code() != 0 ) {
-        $self->userLogger->error("Account $query->{uid} already deleted");
-        return $self->p->sendJSONresponse( $req, { uid => $query->{uid} } );
+        $self->userLogger->error("Account $uid already deleted");
+        return $self->p->sendJSONresponse( $req, { uid => $uid } );
     }
     my ($entry) = $mesg->entries;
     return $self->sendError( $req, 'No such accounts', PE_ERROR, 400 )
       unless $entry;
     my $passwordToDelete = $entry->get_value('userPassword');
 
-    # TODO
-    my $outlookDn = $req->userData->{mail};
-    $outlookDn = "uid=$outlookDn," . $self->conf->{twakeAppLdapBranch};
-    $mesg      = $self->ldap->modify(
+    my $outlookDn =
+        'uid='
+      . escape_dn_value( $req->userData->{mail} ) . ','
+      . $self->conf->{twakeAppLdapBranch};
+    $mesg = $self->ldap->modify(
         $outlookDn,
         delete => {
             userPassword => $passwordToDelete,
@@ -304,13 +321,14 @@ sub delAccount {
       if $mesg->code;
 
     $mesg = $self->ldap->delete(
-        "uid=$query->{uid}," . $self->conf->{twakeAppLdapBranch} );
+        'uid=' . escape_dn_value($uid) . ','
+          . $self->conf->{twakeAppLdapBranch} );
     return $self->sendError( $req,
         "$prefix LDAP Delete error " . $mesg->code . ': ' . $mesg->error,
         PE_LDAPERROR )
       if $mesg->code;
 
-    return $self->p->sendJSONresponse( $req, { uid => $query->{uid} } );
+    return $self->p->sendJSONresponse( $req, { uid => $uid } );
 }
 
 # INTERNAL METHODS
@@ -318,7 +336,9 @@ sub delAccount {
 # Get IMAP accounts list
 sub getAccounts {
     my ( $self, $req ) = @_;
-    $self->validateLdap;
+    # validateLdap() only exists since LLNG 2.19; bind() does the connection
+    # check on older versions, which the plugin still supports.
+    $self->validateLdap if $self->can('validateLdap');
     return ( 0,
         $self->sendError( $req, "$prefix LDAP error", PE_LDAPCONNECTFAILED ) )
       unless $self->ldap and $self->bind();
@@ -337,10 +357,10 @@ sub getAccounts {
     my $mesg = $self->ldap->search(
         base   => $self->conf->{twakeAppLdapBranch},
         scope  => 'sub',
-        filter => "(mail=$mail)",
+        filter => '(mail=' . escape_filter_value($mail) . ')',
         deref  => 'find',
     );
-    $self->logger->debug( "Look to $mail IMAP accounts, (mail=$mail) into "
+    $self->logger->debug( "Look to $mail IMAP accounts into "
           . $self->conf->{twakeAppLdapBranch} );
     my $count = 0;
     return (

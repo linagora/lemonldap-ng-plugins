@@ -90,6 +90,25 @@
   **Update `oidc-par` and `oidc-jarm` together**: with an older `oidc-jarm`
   the call is skipped with a warning.
 
+### twake
+
+- **Security fix — `/deviceaccounts/del` only deletes the caller's own
+  accounts** (#219): the handler checked that the caller had at least one app
+  account, but never that the `uid` in the body belonged to them. It also
+  interpolated the value unescaped into the LDAP filter and DN, so `*` became
+  a presence filter, `(` a malformed filter, and a wildcard turned the
+  endpoint into an existence oracle. `getAccounts()` is now read in list
+  context, the `uid` must be in the caller's list, and the filter and DN are
+  escaped with `Net::LDAP::Util`. The aggregate Outlook entry, which
+  `getAccounts()` hides, is no longer deletable. The same escaping is applied
+  to `mail` in `getAccounts()` and `addAccount()`. The token API
+  (`delAccountByToken`) goes through the same check: a script must now send
+  the `user` that owns the `uid`, and the interactive route can no longer
+  delete `HIDDEN__` accounts.
+- **Test suite**: `t/02-TwakeAppAccounts-del.t` covers a foreign uid, a
+  wildcard, a malformed filter, a normal delete, a uid with filter and DN
+  metacharacters, and an LDAP error from `getAccounts()`.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,
