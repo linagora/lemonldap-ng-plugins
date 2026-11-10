@@ -1056,6 +1056,75 @@ subtest "CIBA: the RP access rule is evaluated on the poll path" => sub {
         length => length($query),
     );
     expectReject( $res, 403, 'access_denied' );
+
+    # dwho is allowed by the rule: the negative case above is not a blanket
+    # refusal.
+    $query = buildForm( {
+            client_id     => 'rpid_ruled',
+            client_secret => 'rpsecret_ruled',
+            scope         => 'openid',
+            login_hint    => 'dwho',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $payload = expectJSON($res);
+    ok( $payload->{auth_req_id}, 'an allowed user gets an auth_req_id' );
+    $ENV{CIBA_RULED_AUTH_REQ_ID} = $payload->{auth_req_id};
+};
+
+subtest "CIBA: the RP rule is re-checked at issuance" => sub {
+    my $auth_req_id = $ENV{CIBA_RULED_AUTH_REQ_ID};
+    ok( $auth_req_id, 'Have auth_req_id from the previous test' );
+
+    my $callback_body = to_json( {
+            auth_req_id => $auth_req_id,
+            status      => 'approved',
+    } );
+    $res = $op->_post(
+        '/oauth2/ciba-callback',
+        IO::String->new($callback_body),
+        accept => 'application/json',
+        length => length($callback_body),
+        type   => 'application/json',
+        custom => { HTTP_AUTHORIZATION => 'Bearer callback_secret' },
+    );
+    expectJSON($res);
+
+    # Deny at issuance, as a configuration change would.
+    my $oidc =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'};
+    my $saved = $oidc->rpRules->{rp_ruled};
+    $oidc->rpRules->{rp_ruled} = sub { 0 };
+
+    my $query = buildForm( {
+            client_id     => 'rpid_ruled',
+            client_secret => 'rpsecret_ruled',
+            grant_type    => 'urn:openid:params:grant-type:ciba',
+            auth_req_id   => $auth_req_id,
+    } );
+    $res = $op->_post(
+        '/oauth2/token',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 400, 'access_denied' );
+
+    # The CIBA session is deleted, so a second poll cannot succeed.
+    $res = $op->_post(
+        '/oauth2/token',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 400, 'invalid_grant' );
+
+    $oidc->rpRules->{rp_ruled} = $saved;
 };
 
 subtest "CIBA: the RP access rule is evaluated on the direct path" => sub {

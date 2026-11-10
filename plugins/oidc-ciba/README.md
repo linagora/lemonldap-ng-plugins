@@ -79,6 +79,13 @@ Only the exact `openid` token satisfies the required scope: `-openid` and
 non-negative integer that is not in the future; anything else falls back to
 the current time.
 
+The per-RP access rule (`oidcRPMetaDataOptionsRule`) is evaluated once the
+user is known, and again when the tokens are issued, with
+`_oidc_grant_type => 'ciba'`. The requested scope goes through `getScope`, so
+`oidcRPMetaDataScopeRules`, `oidcServiceAllowOnlyDeclaredScopes` and the
+`oidcResolveScope` hooks apply. Public clients
+(`oidcRPMetaDataOptionsPublic`) are refused on both backchannel routes.
+
 ## How It Works
 
 1. **RP sends POST to `/oauth2/bc-authorize`** with client auth + user hint
