@@ -118,6 +118,51 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsCIBANotificationEndpoint =>
                       'http://rp-ping.example.com/ciba/notify',
                 },
+                rp_ruled => {
+                    oidcRPMetaDataOptionsDisplayName           => "RP ruled",
+                    oidcRPMetaDataOptionsIDTokenExpiration     => 3600,
+                    oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
+                    oidcRPMetaDataOptionsClientID              => "rpid_ruled",
+                    oidcRPMetaDataOptionsClientSecret          => "rpsecret_ruled",
+                    oidcRPMetaDataOptionsUserIDAttr            => "",
+                    oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                    oidcRPMetaDataOptionsBypassConsent         => 1,
+                    oidcRPMetaDataOptionsRefreshToken          => 1,
+                    oidcRPMetaDataOptionsAllowCIBA             => 1,
+                    oidcRPMetaDataOptionsCIBAMode              => 'poll',
+                    oidcRPMetaDataOptionsRule                  => '$uid eq "dwho"',
+                    oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
+                },
+                rp_scope => {
+                    oidcRPMetaDataOptionsDisplayName           => "RP scope",
+                    oidcRPMetaDataOptionsIDTokenExpiration     => 3600,
+                    oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
+                    oidcRPMetaDataOptionsClientID              => "rpid_scope",
+                    oidcRPMetaDataOptionsClientSecret          => "rpsecret_scope",
+                    oidcRPMetaDataOptionsUserIDAttr            => "",
+                    oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                    oidcRPMetaDataOptionsBypassConsent         => 1,
+                    oidcRPMetaDataOptionsRefreshToken          => 1,
+                    oidcRPMetaDataOptionsAllowCIBA             => 1,
+                    oidcRPMetaDataOptionsCIBAMode              => 'poll',
+                    oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
+                },
+                rp_public => {
+                    oidcRPMetaDataOptionsDisplayName           => "RP public",
+                    oidcRPMetaDataOptionsIDTokenExpiration     => 3600,
+                    oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
+                    oidcRPMetaDataOptionsClientID              => "rpid_public",
+                    oidcRPMetaDataOptionsPublic                => 1,
+                    oidcRPMetaDataOptionsUserIDAttr            => "",
+                    oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                    oidcRPMetaDataOptionsBypassConsent         => 1,
+                    oidcRPMetaDataOptionsAllowCIBA             => 1,
+                    oidcRPMetaDataOptionsCIBAMode              => 'poll',
+                    oidcRPMetaDataOptionsRedirectUris => 'http://rp.com/',
+                },
+            },
+            oidcRPMetaDataScopeRules => {
+                rp_scope => { never => '0' },
             },
             oidcServicePrivateKeySig => oidc_key_op_private_sig,
             oidcServicePublicKeySig  => oidc_cert_op_public_sig,
@@ -995,6 +1040,112 @@ subtest "CIBA: near-matches of the openid scope" => sub {
         );
         expectReject( $res, 400, 'invalid_scope' );
     }
+};
+
+subtest "CIBA: the RP access rule is evaluated on the poll path" => sub {
+    my $query = buildForm( {
+            client_id     => 'rpid_ruled',
+            client_secret => 'rpsecret_ruled',
+            scope         => 'openid',
+            login_hint    => 'rtyler',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 403, 'access_denied' );
+};
+
+subtest "CIBA: the RP access rule is evaluated on the direct path" => sub {
+    my $id = $op->login('rtyler');
+
+    my $query = buildForm( {
+            client_id     => 'rpid_ruled',
+            client_secret => 'rpsecret_ruled',
+            scope         => 'openid',
+            login_hint    => 'rtyler',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        cookie => "lemonldap=$id",
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 403, 'access_denied' );
+
+    $op->_get( '/', cookie => "lemonldap=$id", query => 'logout' );
+};
+
+subtest "CIBA: a scope refused by a rule is not granted" => sub {
+    my $query = buildForm( {
+            client_id     => 'rpid_scope',
+            client_secret => 'rpsecret_scope',
+            scope         => 'openid never',
+            login_hint    => 'dwho',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $payload    = expectJSON($res);
+    my $auth_req_id = $payload->{auth_req_id};
+    ok( $auth_req_id, 'Got auth_req_id' );
+
+    my $callback_body = to_json( {
+            auth_req_id => $auth_req_id,
+            status      => 'approved',
+    } );
+    $res = $op->_post(
+        '/oauth2/ciba-callback',
+        IO::String->new($callback_body),
+        accept => 'application/json',
+        length => length($callback_body),
+        type   => 'application/json',
+        custom => { HTTP_AUTHORIZATION => 'Bearer callback_secret' },
+    );
+    expectJSON($res);
+
+    $query = buildForm( {
+            client_id     => 'rpid_scope',
+            client_secret => 'rpsecret_scope',
+            grant_type    => 'urn:openid:params:grant-type:ciba',
+            auth_req_id   => $auth_req_id,
+    } );
+    $res = $op->_post(
+        '/oauth2/token',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $tokens = expectJSON($res);
+    ok( $tokens->{access_token}, 'Got access_token' );
+
+    my $at =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'}
+      ->getAccessToken( $tokens->{access_token} );
+    unlike( $at->data->{scope}, qr/\bnever\b/,
+        'the refused scope is not in the access token' );
+};
+
+subtest "CIBA: a public client is refused" => sub {
+    my $query = buildForm( {
+            client_id  => 'rpid_public',
+            scope      => 'openid',
+            login_hint => 'dwho',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        accept => 'application/json',
+        length => length($query),
+    );
+    expectReject( $res, 400, 'unauthorized_client' );
 };
 
 clean_sessions();

@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### oidc-ciba
+
+- **Security fix — the per-RP access rule is evaluated on every CIBA path**
+  (#220): `oidcRPMetaDataOptionsRule` was never consulted by
+  `backchannelAuthentication`, the authenticated `/bc-authorize` route or
+  `handleCibaGrant`. A user excluded by the rule still received access, ID
+  and refresh tokens. The rule is now evaluated once the user is known, and
+  again at issuance, with `_oidc_grant_type => 'ciba'`.
+- **Security fix — the requested scope goes through `getScope`** (#221): the
+  client-supplied scope was stored and minted as is, so
+  `oidcRPMetaDataOptionsScopeRules`, `oidcServiceAllowOnlyDeclaredScopes` and
+  the `oidcResolveScope` hooks were bypassed. The scope is now resolved once
+  the user is known, only the result is stored, and `openid` is re-checked.
+- **Public clients are refused** on both backchannel routes: anyone who knows
+  the `client_id` could otherwise push an authentication to any `login_hint`.
+- **Test suite**: `t/32-OIDC-CIBA.t` covers a refused user on the poll and
+  direct paths, a scope refused by a rule, and a public client.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,
