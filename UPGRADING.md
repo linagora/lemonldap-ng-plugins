@@ -7,6 +7,14 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
+## Unreleased
+
+`mail-autodiscover` now accepts only a dot-atom local part and a DNS domain in
+the `email` parameter. An address with a quoted local part or RFC 822 comments
+is replaced by `%EMAILADDRESS%`, as any other invalid value already was.
+Non-ASCII addresses and single-label domains such as `user@localhost` are
+also replaced.
+
 ## v0.7.1
 
 Mostly input validation: the plugins below refuse what they used to accept.

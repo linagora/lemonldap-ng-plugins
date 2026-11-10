@@ -41,6 +41,15 @@ Each value is resolved with the following precedence: **environment variable**
 (highest priority) → LLNG custom parameter → built-in default. This makes the
 plugin convenient to configure in containerized deployments (Docker, Helm).
 
+## Address validation
+
+The `email` parameter must be a dot-atom local part followed by a DNS domain
+(a strict subset of the RFC 5322 addr-spec: no comments, no quoted local
+part). Any other value is replaced by the `%EMAILADDRESS%` placeholder, as
+before. The accepted value is then XML-escaped before it is copied into the
+response, and every response of the plugin carries
+`X-Content-Type-Options: nosniff` and a restrictive `Content-Security-Policy`.
+
 ## Files
 
 - `lib/Lemonldap/NG/Portal/Plugins/MailAutodiscover.pm` — Plugin module
