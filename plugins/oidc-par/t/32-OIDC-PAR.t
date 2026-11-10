@@ -87,6 +87,34 @@ subtest "Basic PAR flow works" => sub {
     ok( $token_res->{access_token}, "Access token received" );
 };
 
+subtest "PAR + JARM in the JARM-first order" => sub {
+
+    # JARM is loaded before PAR: its oidcGotRequest hook sees the PAR URN and
+    # must skip it, then process the response_mode resolved by oidc-par.
+    my $par_res = parRequest(
+        $op, "rp",
+        {
+            %test_authorize_params,
+            client_id     => "rp",
+            response_mode => "query.jwt",
+        }
+    );
+    is( $par_res->[0], 201, "PAR request returns 201 Created" );
+    my $par_json = parJSON($par_res);
+
+    my $auth_res = authorize(
+        $op, $id,
+        {
+            client_id   => "rp",
+            request_uri => $par_json->{request_uri},
+        }
+    );
+    my ($url) = expectRedirection( $auth_res, qr#(http://rp\.com/.*)# );
+    my $uri = URI->new($url);
+    ok( $uri->query_param('response'), "JARM response parameter found" );
+    ok( !defined $uri->query_param('code'), "no plain code in the response" );
+};
+
 subtest "PAR with PKCE works" => sub {
 
     # Step 1: Push authorization request with PKCE
@@ -378,7 +406,10 @@ sub op {
                 portal                          => 'http://auth.op.com/',
                 authentication                  => 'Demo',
                 userDB                          => 'Same',
-                customPlugins                   => '::Plugins::OIDCPushedAuthRequest',
+                # JARM first: its hook must skip the PAR URN and process the
+                # resolved request, whatever the plugin order.
+                customPlugins =>
+                  '::Plugins::OIDCJarm, ::Plugins::OIDCPushedAuthRequest',
                 issuerDBOpenIDConnectActivation => "1",
                 restSessionServer               => 1,
 
@@ -420,6 +451,8 @@ sub op {
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsRedirectUris          => 'http://rp.com/',
                         oidcRPMetaDataOptionsPAR                   => 'allowed',
+                        oidcRPMetaDataOptionsJarm                  => 'allowed',
+                        oidcRPMetaDataOptionsJarmSignAlg           => 'RS256',
                     },
                     rp2 => {
                         oidcRPMetaDataOptionsDisplayName           => "RP2",

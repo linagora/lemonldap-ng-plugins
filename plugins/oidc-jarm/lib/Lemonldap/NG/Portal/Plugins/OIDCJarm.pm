@@ -2,6 +2,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCJarm;
 
 use strict;
 use Mouse;
+use Lemonldap::NG::Common::JWT qw(getJWTPayload);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -12,9 +13,96 @@ our $VERSION = '2.23.0';
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant hook => {
+    oidcGotRequest                    => 'processJarmRequest',
     oidcGenerateAuthorizationResponse => 'wrapResponseInJwt',
     oidcGenerateMetadata              => 'addJarmMetadata',
 };
+
+# Core validates response_mode before the authorization response hook. JARM
+# modes are not in its base list, so rewrite them here and keep the original
+# for wrapResponseInJwt.
+#
+# PAR and JAR also run on oidcGotRequest. A PAR request_uri carries no
+# response_mode yet, so leave it to oidc-par, which calls us back on the
+# request it resolved. This keeps JARM working whatever the plugin order.
+sub processJarmRequest {
+    my ( $self, $req, $oidc_request ) = @_;
+
+    return PE_OK if $oidc_request->{_jarmRequestProcessed};
+
+    my $client_id = $oidc_request->{client_id};
+    my $rp = $client_id ? $self->oidc->getRP($client_id) : undef;
+    return PE_OK unless $rp;
+
+    if (    $oidc_request->{request_uri}
+        and $oidc_request->{request_uri} =~
+        /\Aurn:ietf:params:oauth:request_uri:/
+        and $self->_parPlugin )
+    {
+        return PE_OK;
+    }
+
+    $oidc_request->{_jarmRequestProcessed} = 1;
+
+    my $jarm_mode = $oidc_request->{response_mode} // '';
+
+    # A signed request object takes precedence over the query string
+    # (OIDC Core 6.1). oidc-jar validates it but does not copy its values into
+    # $oidc_request, so read response_mode from the payload here.
+    if ( my $jwt = $oidc_request->{request} ) {
+        my $payload = eval { getJWTPayload($jwt) };
+        if (    $payload
+            and ref $payload eq 'HASH'
+            and defined $payload->{response_mode} )
+        {
+            $jarm_mode = $payload->{response_mode};
+
+            # Core validates $oidc_request->{response_mode} before it applies
+            # the request object; copy the value now so a non-JARM override
+            # replaces a query.jwt that core would refuse.
+            $oidc_request->{response_mode} = $jarm_mode;
+        }
+    }
+
+    # Not a JARM request: drop a mode recorded by an earlier pass.
+    unless ( $jarm_mode =~ /\.jwt$/ or $jarm_mode eq 'jwt' ) {
+        delete $req->data->{jarm_response_mode};
+        return PE_OK;
+    }
+
+    my $jarm_setting =
+      $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarm} // '';
+    unless ( $jarm_setting eq 'allowed' or $jarm_setting eq 'required' ) {
+        $self->logger->error(
+"JARM response_mode $jarm_mode requested but not allowed for RP $rp"
+        );
+        return PE_ERROR;
+    }
+
+    my $base;
+    if ( $jarm_mode eq 'jwt' ) {
+        $base = ( ( $oidc_request->{response_type} // '' ) eq 'code' )
+          ? 'query'
+          : 'fragment';
+    }
+    else {
+        $base = $jarm_mode;
+        $base =~ s/\.jwt$//;
+    }
+
+    $req->data->{jarm_response_mode} = $jarm_mode;
+    $oidc_request->{response_mode}   = $base;
+    $self->logger->debug(
+        "JARM response_mode $jarm_mode rewritten to $base for RP $rp");
+    return PE_OK;
+}
+
+# Return the loaded PAR plugin, if any.
+sub _parPlugin {
+    my ($self) = @_;
+    return $self->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest'};
+}
 
 sub addJarmMetadata {
     my ( $self, $req, $metadata ) = @_;
@@ -37,7 +125,10 @@ sub addJarmMetadata {
 sub wrapResponseInJwt {
     my ( $self, $req, $oidc_request, $rp, $response_params ) = @_;
 
-    my $response_mode = $oidc_request->{response_mode} // '';
+    my $response_mode =
+      $req->data->{jarm_response_mode}
+      // $oidc_request->{response_mode}
+      // '';
     my $jarm_setting =
       $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarm} // '';
 

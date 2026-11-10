@@ -56,6 +56,40 @@
 - **Test suite**: the ID Token of a client without refresh tokens is exchanged
   with `scope=openid admin`; `admin` is not asserted.
 
+### oidc-jarm
+
+- **Fix — JARM response modes work with the stricter core validation**: core
+  now only accepts `query`, `fragment` and `form_post` in
+  `isResponseModeAllowed`, so `query.jwt`, `fragment.jwt`, `form_post.jwt`
+  and `jwt` were refused before the JARM hook ran. The plugin rewrites the
+  JARM mode to its base mode in `oidcGotRequest` and keeps the original for
+  the authorization response, so the response is still wrapped in a JWT.
+- **PAR compatibility**: a PAR `request_uri` carries no `response_mode`, so
+  the hook skips it; `oidc-par` calls it back once the pushed request is
+  resolved. JARM works whatever the plugin order, including JARM loaded
+  before PAR.
+- **Request object precedence**: a signed request object overrides the query
+  string (OIDC Core 6.1); its response mode is read from the payload and
+  copied before core validation.
+- **Limitation**: an encrypted request object (JWE), or a `request_uri`
+  outside PAR, is resolved later by the core. A JARM mode inside it still
+  applies, but a non-JARM override is not visible to this hook.
+- **`query.jwt` on implicit/hybrid flows** is now refused: the core only
+  allows `fragment` and `form_post` there. Use `fragment.jwt` instead.
+- **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
+  `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, for the PAR skip,
+  for the request-object override and for the early refusal when the RP does
+  not allow JARM. The existing full `query.jwt` flow and forged-response
+  cases pass again on LLNG master.
+
+### oidc-par
+
+- **Fix — JARM compatibility**: after resolving a pushed request, call
+  `processJarmRequest` on `oidc-jarm` when it is loaded, so JARM works with
+  PAR whatever the plugin order. `test_depends` gains `oidc-jarm`.
+  **Update `oidc-par` and `oidc-jarm` together**: with an older `oidc-jarm`
+  the call is skipped with a warning.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,

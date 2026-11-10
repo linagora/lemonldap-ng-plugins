@@ -7,6 +7,7 @@ use LWP::Protocol::PSGI;
 use URI::QueryParam;
 use Crypt::JWT qw(encode_jwt);
 use JSON qw(to_json);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_ERROR);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -240,6 +241,137 @@ subtest 'a response whose payload is not an object is refused' => sub {
     }
 };
 
+subtest 'JARM response mode rewriting' => sub {
+    my $plugin =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'};
+    ok( $plugin, 'JARM plugin loaded' );
+
+    # processJarmRequest only needs ->data on the request object.
+    {
+        package t::JarmReq;
+        sub new  { bless { data => {} }, shift }
+        sub data { $_[0]{data} }
+    }
+
+    my @cases = (
+        [ 'query.jwt',      'code',     'query' ],
+        [ 'fragment.jwt',   'code',     'fragment' ],
+        [ 'form_post.jwt',  'code',     'form_post' ],
+        [ 'jwt',            'code',     'query' ],
+        [ 'jwt',            'id_token', 'fragment' ],
+    );
+    for my $case (@cases) {
+        my ( $mode, $response_type, $base ) = @$case;
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => $mode,
+            response_type => $response_type,
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, "$mode/$response_type: accepted" );
+        is( $oidc_request->{response_mode},
+            $base, "$mode/$response_type: base mode" );
+        is( $req->data->{jarm_response_mode},
+            $mode, "$mode/$response_type: original kept" );
+    }
+
+    # A signed request object takes precedence over the query string.
+    {
+        my $request_object = encode_jwt(
+            payload => { response_mode => 'query' },
+            alg     => 'HS256',
+            key     => 'request-object-key',
+        );
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query.jwt',
+            request       => $request_object,
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'request object query: accepted' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'request object query: no JARM mode' );
+        is( $oidc_request->{response_mode},
+            'query', 'request object query: mode copied' );
+
+        # A request object that asks for JARM wins over a plain query string.
+        $request_object = encode_jwt(
+            payload => { response_mode => 'query.jwt' },
+            alg     => 'HS256',
+            key     => 'request-object-key',
+        );
+        $req          = t::JarmReq->new;
+        $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query',
+            request       => $request_object,
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'request object JARM: accepted' );
+        is( $req->data->{jarm_response_mode},
+            'query.jwt', 'request object JARM: mode recorded' );
+        is( $oidc_request->{response_mode},
+            'query', 'request object JARM: base mode' );
+    }
+
+    # A PAR request_uri carries no response_mode yet: leave it to oidc-par,
+    # which calls processJarmRequest() back on the resolved request.
+    {
+        my $par_module =
+          'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest';
+        my $saved = $plugin->p->loadedModules->{$par_module};
+        $plugin->p->loadedModules->{$par_module} = bless {}, 't::FakePAR';
+
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            request_uri   => 'urn:ietf:params:oauth:request_uri:abc',
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'PAR request_uri: skipped' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'PAR request_uri: no JARM mode recorded' );
+
+        if ( defined $saved ) {
+            $plugin->p->loadedModules->{$par_module} = $saved;
+        }
+        else {
+            delete $plugin->p->loadedModules->{$par_module};
+        }
+    }
+
+    # The request object, resolved after our first pass, can override the
+    # query string: a non-JARM mode clears the stored JARM mode.
+    {
+        my $req = t::JarmReq->new;
+        $req->data->{jarm_response_mode} = 'query.jwt';
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query',
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'non-JARM request: accepted' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'non-JARM request: stored JARM mode cleared' );
+    }
+
+    # An RP without oidcRPMetaDataOptionsJarm must be refused early.
+    my $req = t::JarmReq->new;
+    my $oidc_request = {
+        client_id     => 'rpid2',
+        response_mode => 'query.jwt',
+        response_type => 'code',
+    };
+    is( $plugin->processJarmRequest( $req, $oidc_request ),
+        PE_ERROR, 'JARM disabled: refused with PE_ERROR' );
+};
+
 clean_sessions();
 done_testing();
 
@@ -279,6 +411,14 @@ sub op {
                         # Enable JARM on OP side
                         oidcRPMetaDataOptionsJarm        => 'allowed',
                         oidcRPMetaDataOptionsJarmSignAlg => 'RS256',
+                    },
+                    rp2 => {
+                        oidcRPMetaDataOptionsDisplayName  => "RP2",
+                        oidcRPMetaDataOptionsClientID     => "rpid2",
+                        oidcRPMetaDataOptionsClientSecret => "rpsecret2",
+                        oidcRPMetaDataOptionsUserIDAttr   => "",
+                        oidcRPMetaDataOptionsRedirectUris =>
+                          'http://auth.rp.com/?openidconnectcallback=1',
                     }
                 },
                 oidcOPMetaDataOptions           => {},

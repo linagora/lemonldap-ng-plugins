@@ -257,6 +257,21 @@ sub resolvePushedRequest {
         return $h unless $h == PE_OK;
     }
 
+    # Same for oidc-jarm: its own hook may have skipped the PAR URN. Process
+    # the resolved request, including any request object it carries.
+    if ( my $jarm = $self->p->loadedModules
+        ->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'} )
+    {
+        if ( $jarm->can('processJarmRequest') ) {
+            my $h = $jarm->processJarmRequest( $req, $oidc_request );
+            return $h unless $h == PE_OK;
+        }
+        else {
+            $self->logger->warn(
+'oidc-par: oidc-jarm is too old to re-evaluate response_mode');
+        }
+    }
+
     return PE_OK;
 }
 
