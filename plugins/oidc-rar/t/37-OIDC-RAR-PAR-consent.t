@@ -90,7 +90,6 @@ my $res = authorize(
     }
 );
 my ( $host, $uri, $query ) = expectForm( $res, '#', undef, 'confirm' );
-$query =~ s/(^|&)confirm=[^&]*/$1confirm=1/;
 
 $res = $op->_post(
     '/oauth2/authorize',

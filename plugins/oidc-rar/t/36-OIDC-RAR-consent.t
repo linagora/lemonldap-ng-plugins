@@ -79,9 +79,6 @@ my $res = authorize_with( $id, 'consent-1', '10.00' );
 my ( $host, $uri, $query ) = expectForm( $res, '#', undef, 'confirm' );
 like( $query, qr/authorization_details=/, 'details carried by the form' );
 
-# The hidden confirm field holds the CSRF stamp; accepting sends confirm=1.
-$query =~ s/(^|&)confirm=[^&]*/$1confirm=1/;
-
 $res = $op->_post(
     '/oauth2/authorize',
     IO::String->new($query),
@@ -106,7 +103,6 @@ unlike( $location, qr/[?&]code=/,
 # Accept the second form: the new details, not the stored ones, must be
 # carried through.
 ( $host, $uri, $query ) = expectForm( $res, '#', undef, 'confirm' );
-$query =~ s/(^|&)confirm=[^&]*/$1confirm=1/;
 $res = $op->_post(
     '/oauth2/authorize',
     IO::String->new($query),
