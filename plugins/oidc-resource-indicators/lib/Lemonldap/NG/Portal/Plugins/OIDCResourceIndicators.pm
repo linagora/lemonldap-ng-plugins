@@ -10,7 +10,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCResourceIndicators;
 use strict;
 use Mouse;
 use JSON qw(decode_json);
-use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_SENDRESPONSE);
 use Lemonldap::NG::Common::JWT qw(getAccessTokenSessionId);
 
 our $VERSION = '2.23.0';
@@ -179,6 +179,30 @@ sub handleTokenRequest {
         }
     }
 
+    # For refresh_token: the resource must stay within the grant. This runs
+    # before the core rotates the refresh token, so a refused request does
+    # not consume it. handleRefreshRSScopes keeps the same check as defence.
+    elsif ( $grant_type eq 'refresh_token' ) {
+        my @resources = $req->param('resource');
+        my $rt        = $req->param('refresh_token');
+        if ( @resources and $rt ) {
+            my $session = $self->oidc->getRefreshToken($rt);
+            my $client_id = $self->oidc->rpOptions->{$rp}
+              ->{oidcRPMetaDataOptionsClientID};
+
+            # Unknown token or one belonging to another client: leave the
+            # answer to the core (invalid_grant).
+            if (    $session
+                and ( $session->data->{client_id} // '' ) eq $client_id )
+            {
+                my @outside =
+                  $self->_resourcesOutsideGrant( $session->data, @resources );
+                return $self->_refuseOutsideGrant( $req, @outside )
+                  if @outside;
+            }
+        }
+    }
+
     # For client_credentials: capture resource param (possibly multi-valued)
     elsif ( $grant_type eq 'client_credentials' ) {
         my @resources = $req->param('resource');
@@ -195,6 +219,30 @@ sub handleTokenRequest {
     return PE_OK;
 }
 
+# Return the resources that are not part of the grant stored in a refresh
+# session. A missing or malformed rs_audiences is an empty grant.
+sub _resourcesOutsideGrant {
+    my ( $self, $session_data, @resources ) = @_;
+    my $stored = $session_data->{rs_audiences};
+    my %allowed =
+      ref($stored) eq 'ARRAY' ? map { $_ => 1 } @$stored : ();
+    return grep { !$allowed{$_} } @resources;
+}
+
+sub _refuseOutsideGrant {
+    my ( $self, $req, @outside ) = @_;
+    $self->userLogger->error(
+        "OIDCResourceIndicators: refresh requested resource(s) outside "
+          . "the grant: " . join( ', ', @outside ) );
+    $req->response(
+        $self->oidc->sendOIDCError(
+            $req, 'invalid_target', 400,
+            'resource is not covered by the original authorization'
+        )
+    );
+    return PE_SENDRESPONSE;
+}
+
 # Hook: Handle RS scopes during refresh token grant
 # Called via oidcGotOnlineRefresh or oidcGotOfflineRefresh
 sub handleRefreshRSScopes {
@@ -206,6 +254,15 @@ sub handleRefreshRSScopes {
     if (@resources) {
         my %seen;
         @resources = grep { !$seen{$_}++ } @resources;
+
+        # RFC 8707 section 2: a resource sent on a refresh may only narrow
+        # the audiences of the original authorization. A value outside the
+        # grant is refused, even when it names a known resource server. The
+        # same check runs earlier, in handleTokenRequest.
+        my @outside =
+          $self->_resourcesOutsideGrant( $session_data, @resources );
+        return $self->_refuseOutsideGrant( $req, @outside ) if @outside;
+
         $req->data->{rs_audiences} = \@resources;
         $self->logger->debug(
             "OIDCResourceIndicators: Captured resource param for refresh: "
