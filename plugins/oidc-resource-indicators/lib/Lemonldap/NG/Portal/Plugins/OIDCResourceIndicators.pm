@@ -10,7 +10,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCResourceIndicators;
 use strict;
 use Mouse;
 use JSON qw(decode_json);
-use Lemonldap::NG::Portal::Main::Constants qw(PE_OK);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_SENDRESPONSE);
 use Lemonldap::NG::Common::JWT qw(getAccessTokenSessionId);
 
 our $VERSION = '2.23.0';
@@ -206,6 +206,27 @@ sub handleRefreshRSScopes {
     if (@resources) {
         my %seen;
         @resources = grep { !$seen{$_}++ } @resources;
+
+        # RFC 8707 section 2: a resource sent on a refresh may only narrow
+        # the audiences of the original authorization. A value outside the
+        # grant is refused, even when it names a known resource server.
+        my $stored = $session_data->{rs_audiences};
+        my %allowed =
+          ref($stored) eq 'ARRAY' ? map { $_ => 1 } @$stored : ();
+        my @outside = grep { !$allowed{$_} } @resources;
+        if (@outside) {
+            $self->logger->error(
+                "OIDCResourceIndicators: refresh requested resource(s) "
+                  . "outside the grant: " . join( ', ', @outside ) );
+            $req->response(
+                $self->oidc->sendOIDCError(
+                    $req, 'invalid_target', 400,
+                    'resource is not covered by the original authorization'
+                )
+            );
+            return PE_SENDRESPONSE;
+        }
+
         $req->data->{rs_audiences} = \@resources;
         $self->logger->debug(
             "OIDCResourceIndicators: Captured resource param for refresh: "

@@ -32,6 +32,9 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   resolved (`#230`); the other plugins that read the raw front-channel
   parameters get their own fix (`scope` in #227, `resource` in #234, the
   grant parameters in #235).
+- **oidc-resource-indicators**: a `resource` sent on a refresh must be part
+  of the original authorization; a value outside it is refused with
+  `invalid_target` instead of widening the token audience (`#234`).
 - **oidc-rar**: `authorization_details` added to the front channel are
   ignored once a pushed request is resolved (`#229`, with the matching
   oidc-par), and the per-RP rules are enforced before an implicit access

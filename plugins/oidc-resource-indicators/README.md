@@ -45,6 +45,8 @@ Client → API at https://api.example.com with Bearer <token>
 
 `resource` may be repeated (multiple RS) and may also appear on the token endpoint for `client_credentials` grants and on refresh. Refresh sessions persist the resolved audiences so subsequent refreshes echo them automatically.
 
+On a refresh, `resource` may only **narrow** the audiences of the original authorization: each value must be one of those granted at `/authorize`. A value outside them is refused with `invalid_target` (RFC 8707 §2), so a refresh token cannot reach a resource server the user never authorized.
+
 ## Hook strategy
 
 The plugin uses **only existing LLNG ≥ 2.23 hooks**, no core change required. The only subtlety is the access token _session_ (where introspection reads its data from): there is no `oidcGenerateAccessTokenSession` hook in 2.23, so we patch the AT session post-creation via `oidcGenerateTokenResponse` + `Lemonldap::NG::Common::JWT::getAccessTokenSessionId` (which handles JWT ⇒ jti and opaque ⇒ token-as-id).
