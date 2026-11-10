@@ -32,7 +32,9 @@ the subset that requires a decision.
   granted at `/authorize` (`invalid_target`, HTTP 400). Clients that widened
   the audience on refresh must request the resource during the authorization.
   A refresh token whose grant stores no audience list (for example one issued
-  by `oidc-ciba`) cannot add a resource on refresh.
+  by `oidc-ciba`) cannot add a resource on refresh, and a token exchange that
+  sends `resource` is refused the same way instead of adding that audience
+  unchecked.
 - **oidc-par**, **oidc-jarm**, **oidc-rar** and **oidc-grant-management**
   must be updated together: `oidc-par` calls `processJarmRequest` on a loaded
   `oidc-jarm` and replays the RAR and grant-management hooks on a resolved

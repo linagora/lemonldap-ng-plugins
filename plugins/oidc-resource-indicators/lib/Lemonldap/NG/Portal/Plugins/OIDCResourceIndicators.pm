@@ -186,7 +186,7 @@ sub handleTokenRequest {
         my @resources = $req->param('resource');
         my $rt        = $req->param('refresh_token');
         if ( @resources and $rt ) {
-            my $session  = $self->oidc->getRefreshToken($rt);
+            my $session = $self->oidc->getRefreshToken($rt);
             my $client_id = $self->oidc->rpOptions->{$rp}
               ->{oidcRPMetaDataOptionsClientID};
 
