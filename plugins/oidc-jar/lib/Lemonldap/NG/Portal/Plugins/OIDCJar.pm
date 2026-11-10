@@ -281,8 +281,6 @@ sub _checkAndStoreJti {
     return undef;
 }
 
-# Download a request_uri, enforcing timeout / Content-Type / size.
-# Uses a dedicated UA so the shared OIDC UA is never mutated.
 # Wrap the issuer's getRequestJWT once per process. The wrapper resolves the
 # plugin instance from the issuer it is called on, so a portal without this
 # plugin keeps the core behaviour.
@@ -296,8 +294,7 @@ sub _installCoreFetchGuard {
     my $orig   = $pkg->can('getRequestJWT') or return;
     return 1 if $coreFetchWrapper and $orig == $coreFetchWrapper;
 
-    my $wrapper;
-    $wrapper = sub {
+    my $wrapper = sub {
         my ( $issuer, $uri ) = @_;
         my $jar = eval {
             $issuer->p->loadedModules
@@ -314,6 +311,8 @@ sub _installCoreFetchGuard {
     return 1;
 }
 
+# Download a request_uri, enforcing timeout / Content-Type / size.
+# Uses a dedicated UA so the shared OIDC UA is never mutated.
 sub _fetchRequestUri {
     my ( $self, $uri ) = @_;
 
@@ -322,11 +321,25 @@ sub _fetchRequestUri {
 
     # Never follow a redirect: only the URL checked against the RP allowlist
     # may be contacted, and a 302 is not a request object. max_size bounds
-    # the raw response before it is read; the decoded size is checked below.
+    # the raw response before it is read.
     my $ua = LWP::UserAgent->new(
         timeout      => $timeout,
         max_redirect => 0,
         max_size     => $max,
+        send_te      => 0,
+    );
+
+    # Net::HTTP decodes a gzip transfer coding itself, buffering the whole
+    # body outside max_size. Refuse any transfer coding but chunked before
+    # the body is read; LWP moves the header to Client-Transfer-Encoding.
+    $ua->add_handler(
+        response_header => sub {
+            my ($resp) = @_;
+            my $te = lc( $resp->header('Client-Transfer-Encoding') // '' );
+            $te =~ s/\s+//g;
+            die "unsupported Transfer-Encoding: $te\n"
+              if length $te and $te !~ /\A(?:chunked,?)+\z/;
+        }
     );
 
     my $resp = eval {
@@ -366,8 +379,9 @@ sub _fetchRequestUri {
     # LWP marks a response cut by max_size in Client-Aborted but still
     # reports it as a success.
     if ( my $aborted = $resp->header('Client-Aborted') ) {
-        $self->logger->error( "JAR request_uri response aborted ($aborted):"
-              . " size limit $max reached" );
+        my $why = $resp->header('X-Died') // "size limit $max reached";
+        $self->logger->error(
+            "JAR request_uri response aborted ($aborted): $why" );
         return undef;
     }
 
