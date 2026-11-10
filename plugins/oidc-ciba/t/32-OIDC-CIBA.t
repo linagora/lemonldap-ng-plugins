@@ -1148,6 +1148,36 @@ subtest "CIBA: the RP access rule is evaluated on the direct path" => sub {
     $op->_get( '/', cookie => "lemonldap=$id", query => 'logout' );
 };
 
+subtest "CIBA: a scope refused by a rule is not granted on the direct path" =>
+  sub {
+    my $id = $op->login('dwho');
+
+    my $query = buildForm( {
+            client_id     => 'rpid_scope',
+            client_secret => 'rpsecret_scope',
+            scope         => 'openid never',
+            login_hint    => 'dwho',
+    } );
+    $res = $op->_post(
+        '/oauth2/bc-authorize',
+        IO::String->new($query),
+        cookie => "lemonldap=$id",
+        accept => 'application/json',
+        length => length($query),
+    );
+    my $payload = expectJSON($res);
+    ok( $payload->{access_token}, 'Got access_token directly' );
+
+    my $at =
+      $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'}
+      ->getAccessToken( $payload->{access_token} );
+    unlike( $at->data->{scope}, qr/\bnever\b/,
+        'the refused scope is not in the access token' );
+
+    $op->_get( '/', cookie => "lemonldap=$id", query => 'logout' );
+  };
+
 subtest "CIBA: a scope refused by a rule is not granted" => sub {
     my $query = buildForm( {
             client_id     => 'rpid_scope',

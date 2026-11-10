@@ -12,7 +12,7 @@
   again at issuance, with `_oidc_grant_type => 'ciba'`.
 - **Security fix — the requested scope goes through `getScope`** (#221): the
   client-supplied scope was stored and minted as is, so
-  `oidcRPMetaDataOptionsScopeRules`, `oidcServiceAllowOnlyDeclaredScopes` and
+  `oidcRPMetaDataScopeRules`, `oidcServiceAllowOnlyDeclaredScopes` and
   the `oidcResolveScope` hooks were bypassed. The scope is now resolved once
   the user is known, only the result is stored, and `openid` is re-checked.
 - **Public clients are refused** on both backchannel routes: anyone who knows

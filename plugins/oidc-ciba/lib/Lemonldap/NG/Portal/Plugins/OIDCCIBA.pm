@@ -695,14 +695,9 @@ sub handleCibaGrant {
         # Re-evaluate the RP rule at issuance: the configuration could have
         # changed between the request and the approval.
         unless ( $self->_checkCibaRule( $req, $rp, $sessionInfo ) ) {
-            $self->userLogger->warn(
-                'CIBA grant: user refused by the RP rule');
+            $self->userLogger->warn('CIBA grant: user refused by the RP rule');
             $self->_deleteCibaSession($auth_req_id);
-            if ( my $s =
-                $self->p->getApacheSession( $user_session_id, kind => 'SSO' ) )
-            {
-                $s->remove;
-            }
+            $session->remove;
             $req->response(
                 $self->oidc->sendOIDCError( $req, 'access_denied', 400 ) );
             return PE_SENDRESPONSE;
@@ -710,6 +705,8 @@ sub handleCibaGrant {
 
         # The scope was resolved at /bc-authorize; keep the openid invariant.
         unless ( $self->_hasOpenidScope($scope) ) {
+            $self->_deleteCibaSession($auth_req_id);
+            $session->remove;
             $req->response(
                 $self->oidc->sendOIDCError( $req, 'invalid_scope', 400 ) );
             return PE_SENDRESPONSE;
@@ -843,7 +840,9 @@ sub _hasOpenidScope {
 sub _checkCibaRule {
     my ( $self, $req, $rp, $data ) = @_;
     my $rule = $self->oidc->rpRules->{$rp} or return 1;
-    return $rule->( $req, { %$data, _oidc_grant_type => 'ciba' } ) ? 1 : 0;
+    return $rule->( $req, { %{ $data || {} }, _oidc_grant_type => 'ciba' } )
+      ? 1
+      : 0;
 }
 
 sub _resolveUserFromHint {
