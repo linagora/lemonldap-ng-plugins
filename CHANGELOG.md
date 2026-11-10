@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### twake
+
+- **Security fix — the empty admin token alternative is no longer accepted**
+  (#223): an empty field in `twakeAdminTokens` became `\Q\E` in the
+  runtime-built regex, which matches the literal header value `QE`. With a
+  leading or doubled separator, `Authorization: QE` passed the check and the
+  admin API accepted `{"user":"victim"}`. The list is now split on
+  `[;,\s]+`, empty fields are dropped, and each token is compared by its
+  SHA-256 digest. This also fixes the `\Q`/`\E` bug that made a configured
+  token match only the literal `Q<token>E`.
+- **Fix — `twakeAppEntryFields`**: the value was split into a list and passed
+  to an arrayref attribute, so the module failed to load with more than one
+  field and account creation crashed with one. It is now an arrayref of
+  non-empty fields.
+- **Test suite**: `t/03-TwakeAppAccounts-token.t` covers a leading space, a
+  space before a comma and a doubled semicolon, with no header, an empty
+  header, the `QE` bypass and the old `Q<token>E` literal.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,

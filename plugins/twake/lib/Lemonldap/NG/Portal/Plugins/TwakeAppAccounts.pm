@@ -1,6 +1,7 @@
 package Lemonldap::NG::Portal::Plugins::TwakeAppAccounts;
 
 use strict;
+use Digest::SHA  qw(sha256);
 use List::Util   qw(shuffle);
 use MIME::Base64 qw/encode_base64/;
 use Mouse;
@@ -54,16 +55,22 @@ sub init {
         return 0;
     }
 
-    if ( $self->conf->{twakeAdminTokens} ) {
-        my $str = '^(?:'
-          . join( '|',
-            map { "\\Q$_\\E" } split /[;,\s]\s*/,
-            $self->conf->{twakeAdminTokens} ) . ')$';
-        $self->validTokens(qr/$str/);
+    if ( my $raw = $self->conf->{twakeAdminTokens} ) {
+        my @tokens = grep { length } split /[;,\s]+/, $raw;
+        if (@tokens) {
+            $self->validTokens( { map { sha256($_) => 1 } @tokens } );
+        }
+        else {
+            $self->logger->error('twakeAdminTokens contains no token');
+        }
     }
     if ( $self->conf->{twakeAppEntryFields} ) {
-        $self->fieldsToMap( split /[;,\s]\s*/,
-            $self->conf->{twakeAppEntryFields} );
+        $self->fieldsToMap(
+            [
+                grep { length }
+                  split /[;,\s]+/, $self->conf->{twakeAppEntryFields}
+            ]
+        );
     }
 
     # Catch /deviceaccounts url and launch "deviceAccounts" metho
@@ -453,11 +460,12 @@ sub apiCall {
 
 sub missingToken {
     my ( $self, $req ) = @_;
+    my $tokens = $self->validTokens;
     return $self->p->sendError( $req, 'Tokens not allowed', 403 )
-      unless $self->validTokens;
-    my $authorization = $req->{env}->{HTTP_AUTHORIZATION};
+      unless $tokens and ref $tokens eq 'HASH' and %$tokens;
+    my $authorization = $req->{env}->{HTTP_AUTHORIZATION} // '';
     return $self->p->sendError( $req, 'Bad token', 403 )
-      unless $authorization =~ $self->validTokens;
+      unless length $authorization and $tokens->{ sha256($authorization) };
     return;
 }
 
