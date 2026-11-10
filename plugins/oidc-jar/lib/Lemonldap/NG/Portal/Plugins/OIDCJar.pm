@@ -308,7 +308,21 @@ sub _fetchRequestUri {
         return undef;
     }
 
+    # LWP marks a response cut by max_size in Client-Aborted but still
+    # reports it as a success.
+    if ( my $aborted = $resp->header('Client-Aborted') ) {
+        $self->logger->error( "JAR request_uri response aborted ($aborted):"
+              . " size limit $max reached" );
+        return undef;
+    }
+
     my $body = $resp->decoded_content;
+    unless ( defined $body ) {
+        $self->logger->error(
+            "JAR request_uri response could not be decoded: "
+              . ( $resp->header('X-Died') // 'unknown error' ) );
+        return undef;
+    }
     if ( length($body) > $max ) {
         $self->logger->error( "JAR request_uri response size "
               . length($body)

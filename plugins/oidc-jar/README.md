@@ -9,8 +9,11 @@ This plugin completes LemonLDAP::NG's built-in support of the OIDC Core
 - **Encrypted request objects (JWE)**: decrypts JWE-wrapped request objects
   using the OP service encryption key before the core verifies the signature.
 - **Hardened `request_uri` fetch**: configurable timeout, `Content-Type` check
-  (`application/jwt`, `application/oauth-authz-req+jwt`) and response size
-  limit.
+  (`application/jwt`, `application/oauth-authz-req+jwt`), response size limit,
+  and no HTTP redirect is followed: the URL must match the RP's
+  `oidcRPMetaDataOptionsRequestUris` and answer with a 2xx status. Register the
+  final URL (for example the `https` one after an `http` to `https`
+  redirect).
 - **`Require Signed Request Object`**: per-RP option that rejects plain
   authorization requests with the RFC 9101 `request_not_supported` error.
 - **RFC 9101 error codes**: emits `invalid_request_object`,
