@@ -276,6 +276,30 @@ subtest 'JARM response mode rewriting' => sub {
             $mode, "$mode/$response_type: original kept" );
     }
 
+    # A signed request object takes precedence over the query string
+    # (OIDC Core 6.1): skip until oidc-jar resolves it, then use its mode.
+    {
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query.jwt',
+            request       => 'signed.jwt',
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'request object before JAR: skipped' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'request object before JAR: no JARM mode recorded' );
+
+        # oidc-jar resolved the request object to a non-JARM mode.
+        $oidc_request->{_jarRequestProcessed} = 1;
+        $oidc_request->{response_mode}        = 'query';
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'request object overrides to query: accepted' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'request object overrides to query: no JARM mode' );
+    }
+
     # A PAR request_uri carries no response_mode yet: leave it to oidc-par,
     # which calls processJarmRequest() back on the resolved request.
     {

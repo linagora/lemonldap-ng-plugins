@@ -29,6 +29,11 @@ sub processJarmRequest {
 
     return PE_OK if $oidc_request->{_jarmRequestProcessed};
 
+    # A signed request object takes precedence over the query string
+    # (OIDC Core 6.1). Let oidc-jar resolve it first; it calls us back.
+    return PE_OK
+      if $oidc_request->{request} and !$oidc_request->{_jarRequestProcessed};
+
     my $client_id = $oidc_request->{client_id};
     my $rp = $client_id ? $self->oidc->getRP($client_id) : undef;
     return PE_OK unless $rp;

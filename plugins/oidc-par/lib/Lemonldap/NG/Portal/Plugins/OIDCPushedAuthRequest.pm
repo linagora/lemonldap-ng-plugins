@@ -263,9 +263,14 @@ sub resolvePushedRequest {
     if ( my $jarm = $self->p->loadedModules
         ->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'} )
     {
-        delete $oidc_request->{_jarmRequestProcessed};
-        my $h = $jarm->processJarmRequest( $req, $oidc_request );
-        return $h unless $h == PE_OK;
+        if ( $jarm->can('processJarmRequest') ) {
+            my $h = $jarm->processJarmRequest( $req, $oidc_request );
+            return $h unless $h == PE_OK;
+        }
+        else {
+            $self->logger->warn(
+'oidc-par: oidc-jarm is too old to re-evaluate response_mode');
+        }
     }
 
     return PE_OK;

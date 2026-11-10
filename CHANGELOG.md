@@ -14,10 +14,24 @@
   the hook skips it; `oidc-par` calls it back once the pushed request is
   resolved. JARM works whatever the plugin order, including JARM loaded
   before PAR.
+- **Request object precedence**: a signed request object overrides the query
+  string (OIDC Core 6.1); JARM waits for `oidc-jar` to resolve it and
+  re-evaluates the mode.
+- **`query.jwt` on implicit/hybrid flows** is now refused: the core only
+  allows `fragment` and `form_post` there. Use `fragment.jwt` instead.
 - **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
-  `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, and for the early
-  refusal when the RP does not allow JARM. The existing full `query.jwt` flow
-  and forged-response cases pass again on LLNG master.
+  `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, for the PAR skip,
+  for the request-object override and for the early refusal when the RP does
+  not allow JARM. The existing full `query.jwt` flow and forged-response
+  cases pass again on LLNG master.
+
+### oidc-par
+
+- **Fix — JARM compatibility**: after resolving a pushed request, call
+  `processJarmRequest` on `oidc-jarm` when it is loaded, so JARM works with
+  PAR whatever the plugin order. `test_depends` gains `oidc-jarm`.
+  **Update `oidc-par` and `oidc-jarm` together**: with an older `oidc-jarm`
+  the call is skipped with a warning.
 
 ## v0.7.1 - 2026-11-05
 
