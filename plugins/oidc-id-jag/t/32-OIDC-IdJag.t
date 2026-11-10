@@ -312,7 +312,7 @@ subtest 'ID token of a client without refresh tokens' => sub {
 
     # The ID token was granted "openid profile", but the client bypasses
     # consent: the index records the fail-closed "openid" only.
-    my %got = map { $_ => 1 } split /\s+/, ( $json->{scope} || '' );
+    my %got = map { $_ => 1 } split /\s+/, ( $payload->{scope} || '' );
     ok( !$got{admin}, 'A scope beyond the ID token grant is not asserted' );
     ok( $got{openid}, 'openid is kept' );
 };
