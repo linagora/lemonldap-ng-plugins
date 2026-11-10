@@ -2,6 +2,7 @@ package Lemonldap::NG::Portal::Plugins::OIDCJarm;
 
 use strict;
 use Mouse;
+use Lemonldap::NG::Common::JWT qw(getJWTPayload);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_ERROR
@@ -29,11 +30,6 @@ sub processJarmRequest {
 
     return PE_OK if $oidc_request->{_jarmRequestProcessed};
 
-    # A signed request object takes precedence over the query string
-    # (OIDC Core 6.1). Let oidc-jar resolve it first; it calls us back.
-    return PE_OK
-      if $oidc_request->{request} and !$oidc_request->{_jarRequestProcessed};
-
     my $client_id = $oidc_request->{client_id};
     my $rp = $client_id ? $self->oidc->getRP($client_id) : undef;
     return PE_OK unless $rp;
@@ -50,8 +46,20 @@ sub processJarmRequest {
 
     my $jarm_mode = $oidc_request->{response_mode} // '';
 
-    # The request object may override the query string; drop a mode recorded
-    # from an earlier pass.
+    # A signed request object takes precedence over the query string
+    # (OIDC Core 6.1). oidc-jar validates it but does not copy its values into
+    # $oidc_request, so read response_mode from the payload here.
+    if ( my $jwt = $oidc_request->{request} ) {
+        my $payload = eval { getJWTPayload($jwt) };
+        if (    $payload
+            and ref $payload eq 'HASH'
+            and defined $payload->{response_mode} )
+        {
+            $jarm_mode = $payload->{response_mode};
+        }
+    }
+
+    # Not a JARM request: drop a mode recorded by an earlier pass.
     unless ( $jarm_mode =~ /\.jwt$/ or $jarm_mode eq 'jwt' ) {
         delete $req->data->{jarm_response_mode};
         return PE_OK;

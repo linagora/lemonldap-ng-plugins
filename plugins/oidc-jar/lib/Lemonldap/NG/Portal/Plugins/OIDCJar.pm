@@ -106,21 +106,6 @@ sub processJarRequest {
         }
     }
 
-    # The request object may override response_mode. Let oidc-jarm re-evaluate
-    # it now that the claims are resolved, whatever the plugin order.
-    if ( my $jarm = $self->p->loadedModules
-        ->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'} )
-    {
-        if ( $jarm->can('processJarmRequest') ) {
-            my $h = $jarm->processJarmRequest( $req, $oidc_request );
-            return $h unless $h == PE_OK;
-        }
-        else {
-            $self->logger->warn(
-'oidc-jar: oidc-jarm is too old to re-evaluate response_mode');
-        }
-    }
-
     return PE_OK;
 }
 

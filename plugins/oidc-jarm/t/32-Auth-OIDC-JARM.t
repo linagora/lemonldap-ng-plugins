@@ -276,28 +276,46 @@ subtest 'JARM response mode rewriting' => sub {
             $mode, "$mode/$response_type: original kept" );
     }
 
-    # A signed request object takes precedence over the query string
-    # (OIDC Core 6.1): skip until oidc-jar resolves it, then use its mode.
+    # A signed request object takes precedence over the query string.
     {
+        my $request_object = encode_jwt(
+            payload => { response_mode => 'query' },
+            alg     => 'HS256',
+            key     => 'request-object-key',
+        );
         my $req          = t::JarmReq->new;
         my $oidc_request = {
             client_id     => 'rpid',
             response_mode => 'query.jwt',
-            request       => 'signed.jwt',
+            request       => $request_object,
             response_type => 'code',
         };
         is( $plugin->processJarmRequest( $req, $oidc_request ),
-            PE_OK, 'request object before JAR: skipped' );
+            PE_OK, 'request object query: accepted' );
         ok( !exists $req->data->{jarm_response_mode},
-            'request object before JAR: no JARM mode recorded' );
+            'request object query: no JARM mode' );
+        is( $oidc_request->{response_mode},
+            'query.jwt', 'request object query: mode not rewritten' );
 
-        # oidc-jar resolved the request object to a non-JARM mode.
-        $oidc_request->{_jarRequestProcessed} = 1;
-        $oidc_request->{response_mode}        = 'query';
+        # A request object that asks for JARM wins over a plain query string.
+        $request_object = encode_jwt(
+            payload => { response_mode => 'query.jwt' },
+            alg     => 'HS256',
+            key     => 'request-object-key',
+        );
+        $req          = t::JarmReq->new;
+        $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query',
+            request       => $request_object,
+            response_type => 'code',
+        };
         is( $plugin->processJarmRequest( $req, $oidc_request ),
-            PE_OK, 'request object overrides to query: accepted' );
-        ok( !exists $req->data->{jarm_response_mode},
-            'request object overrides to query: no JARM mode' );
+            PE_OK, 'request object JARM: accepted' );
+        is( $req->data->{jarm_response_mode},
+            'query.jwt', 'request object JARM: mode recorded' );
+        is( $oidc_request->{response_mode},
+            'query', 'request object JARM: base mode' );
     }
 
     # A PAR request_uri carries no response_mode yet: leave it to oidc-par,

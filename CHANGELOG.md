@@ -15,8 +15,7 @@
   resolved. JARM works whatever the plugin order, including JARM loaded
   before PAR.
 - **Request object precedence**: a signed request object overrides the query
-  string (OIDC Core 6.1); JARM waits for `oidc-jar` to resolve it and
-  re-evaluates the mode.
+  string (OIDC Core 6.1); the response mode is read from its payload.
 - **`query.jwt` on implicit/hybrid flows** is now refused: the core only
   allows `fragment` and `form_post` there. Use `fragment.jwt` instead.
 - **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
