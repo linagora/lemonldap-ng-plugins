@@ -118,23 +118,23 @@ sub refresh {
 
 # RFC 8707 section 2: a resource outside the grant is refused with
 # invalid_target, and never reaches `aud`.
-sub no_audience {
-    my ( $res, $forbidden, $name ) = @_;
+sub expect_invalid_target {
+    my ( $res, $name ) = @_;
     is( $res->[0], 400, "$name: refused" );
     my $json = from_json( $res->[2]->[0] );
     is( $json->{error}, 'invalid_target', "$name: invalid_target" );
 }
 
-subtest 'resource on the refresh alone adds nothing' => sub {
+subtest 'resource on the refresh alone is refused' => sub {
     my $t = grant();
-    no_audience( refresh( $t->{refresh_token}, $API ),
-        $API, 'never authorized' );
+    expect_invalid_target( refresh( $t->{refresh_token}, $API ),
+        'never authorized' );
 };
 
-subtest 'resource wider than the authorization adds nothing' => sub {
+subtest 'resource wider than the authorization is refused' => sub {
     my $t = grant($API);
-    no_audience( refresh( $t->{refresh_token}, $API, $API2 ),
-        $API2, 'second RS' );
+    expect_invalid_target( refresh( $t->{refresh_token}, $API, $API2 ),
+        'second RS' );
 };
 
 subtest 'a refused refresh does not consume the token (rotation)' => sub {
@@ -158,6 +158,22 @@ subtest 'online refresh: the same check applies' => sub {
 
     my $ok = refresh( $t->{refresh_token}, $API );
     is( $ok->[0], 200, 'narrower online refresh accepted' );
+};
+
+subtest 'a narrowed refresh does not shrink the grant' => sub {
+    my $t     = grant( $API, $API2 );
+    my $first = refresh( $t->{refresh_token}, $API );
+    is( $first->[0], 200, 'narrowed refresh accepted' );
+    my $json = from_json( $first->[2]->[0] );
+
+    # RFC 8707: the refresh picks the audience of one token; it does not
+    # remove the other resource from the grant.
+    my $again = refresh( $json->{refresh_token}, $API2 );
+    is( $again->[0], 200, 'the other resource is still allowed' );
+    my @aud =
+      auds( id_token_payload( from_json( $again->[2]->[0] )->{access_token} )
+          ->{aud} );
+    ok( ( grep { $_ eq $API2 } @aud ), 'other RS in aud' ) or diag "aud: @aud";
 };
 
 subtest 'a narrower resource stays possible' => sub {
