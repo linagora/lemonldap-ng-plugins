@@ -336,7 +336,9 @@ sub delAccount {
 # Get IMAP accounts list
 sub getAccounts {
     my ( $self, $req ) = @_;
-    $self->validateLdap;
+    # validateLdap() only exists since LLNG 2.19; bind() does the connection
+    # check on older versions, which the plugin still supports.
+    $self->validateLdap if $self->can('validateLdap');
     return ( 0,
         $self->sendError( $req, "$prefix LDAP error", PE_LDAPCONNECTFAILED ) )
       unless $self->ldap and $self->bind();
