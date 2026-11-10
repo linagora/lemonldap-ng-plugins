@@ -12,7 +12,7 @@ our $VERSION = '2.23.0';
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant hook => {
-    oidcGotRequest                    => 'checkJarmRequest',
+    oidcGotRequest                    => 'processJarmRequest',
     oidcGenerateAuthorizationResponse => 'wrapResponseInJwt',
     oidcGenerateMetadata              => 'addJarmMetadata',
 };
@@ -20,16 +20,37 @@ use constant hook => {
 # Core validates response_mode before the authorization response hook. JARM
 # modes are not in its base list, so rewrite them here and keep the original
 # for wrapResponseInJwt.
-sub checkJarmRequest {
+#
+# PAR and JAR also run on oidcGotRequest. A PAR request_uri carries no
+# response_mode yet, so leave it to oidc-par, which calls us back on the
+# request it resolved. This keeps JARM working whatever the plugin order.
+sub processJarmRequest {
     my ( $self, $req, $oidc_request ) = @_;
 
-    my $jarm_mode = $oidc_request->{response_mode} // '';
-    return PE_OK
-      unless ( $jarm_mode =~ /\.jwt$/ or $jarm_mode eq 'jwt' );
+    return PE_OK if $oidc_request->{_jarmRequestProcessed};
 
     my $client_id = $oidc_request->{client_id};
     my $rp = $client_id ? $self->oidc->getRP($client_id) : undef;
     return PE_OK unless $rp;
+
+    if (    $oidc_request->{request_uri}
+        and $oidc_request->{request_uri} =~
+        /\Aurn:ietf:params:oauth:request_uri:/
+        and $self->_parPlugin )
+    {
+        return PE_OK;
+    }
+
+    $oidc_request->{_jarmRequestProcessed} = 1;
+
+    my $jarm_mode = $oidc_request->{response_mode} // '';
+
+    # The request object may override the query string; drop a mode recorded
+    # from an earlier pass.
+    unless ( $jarm_mode =~ /\.jwt$/ or $jarm_mode eq 'jwt' ) {
+        delete $req->data->{jarm_response_mode};
+        return PE_OK;
+    }
 
     my $jarm_setting =
       $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsJarm} // '';
@@ -56,6 +77,13 @@ sub checkJarmRequest {
     $self->logger->debug(
         "JARM response_mode $jarm_mode rewritten to $base for RP $rp");
     return PE_OK;
+}
+
+# Return the loaded PAR plugin, if any.
+sub _parPlugin {
+    my ($self) = @_;
+    return $self->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest'};
 }
 
 sub addJarmMetadata {

@@ -257,6 +257,17 @@ sub resolvePushedRequest {
         return $h unless $h == PE_OK;
     }
 
+    # Same for oidc-jarm: its own hook may have skipped the PAR URN. Reprocess
+    # the resolved request, and clear its guard so a request object that
+    # overrides response_mode wins over the query string.
+    if ( my $jarm = $self->p->loadedModules
+        ->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'} )
+    {
+        delete $oidc_request->{_jarmRequestProcessed};
+        my $h = $jarm->processJarmRequest( $req, $oidc_request );
+        return $h unless $h == PE_OK;
+    }
+
     return PE_OK;
 }
 

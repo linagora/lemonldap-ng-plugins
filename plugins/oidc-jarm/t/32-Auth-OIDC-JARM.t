@@ -7,6 +7,7 @@ use LWP::Protocol::PSGI;
 use URI::QueryParam;
 use Crypt::JWT qw(encode_jwt);
 use JSON qw(to_json);
+use Lemonldap::NG::Portal::Main::Constants qw(PE_OK PE_ERROR);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -245,7 +246,7 @@ subtest 'JARM response mode rewriting' => sub {
       $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'};
     ok( $plugin, 'JARM plugin loaded' );
 
-    # checkJarmRequest only needs ->data on the request object.
+    # processJarmRequest only needs ->data on the request object.
     {
         package t::JarmReq;
         sub new  { bless { data => {} }, shift }
@@ -267,12 +268,55 @@ subtest 'JARM response mode rewriting' => sub {
             response_mode => $mode,
             response_type => $response_type,
         };
-        is( $plugin->checkJarmRequest( $req, $oidc_request ),
-            0, "$mode/$response_type: accepted" );
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, "$mode/$response_type: accepted" );
         is( $oidc_request->{response_mode},
             $base, "$mode/$response_type: base mode" );
         is( $req->data->{jarm_response_mode},
             $mode, "$mode/$response_type: original kept" );
+    }
+
+    # A PAR request_uri carries no response_mode yet: leave it to oidc-par,
+    # which calls processJarmRequest() back on the resolved request.
+    {
+        my $par_module =
+          'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest';
+        my $saved = $plugin->p->loadedModules->{$par_module};
+        $plugin->p->loadedModules->{$par_module} = bless {}, 't::FakePAR';
+
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            request_uri   => 'urn:ietf:params:oauth:request_uri:abc',
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'PAR request_uri: skipped' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'PAR request_uri: no JARM mode recorded' );
+
+        if ( defined $saved ) {
+            $plugin->p->loadedModules->{$par_module} = $saved;
+        }
+        else {
+            delete $plugin->p->loadedModules->{$par_module};
+        }
+    }
+
+    # The request object, resolved after our first pass, can override the
+    # query string: a non-JARM mode clears the stored JARM mode.
+    {
+        my $req = t::JarmReq->new;
+        $req->data->{jarm_response_mode} = 'query.jwt';
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => 'query',
+            response_type => 'code',
+        };
+        is( $plugin->processJarmRequest( $req, $oidc_request ),
+            PE_OK, 'non-JARM request: accepted' );
+        ok( !exists $req->data->{jarm_response_mode},
+            'non-JARM request: stored JARM mode cleared' );
     }
 
     # An RP without oidcRPMetaDataOptionsJarm must be refused early.
@@ -282,8 +326,8 @@ subtest 'JARM response mode rewriting' => sub {
         response_mode => 'query.jwt',
         response_type => 'code',
     };
-    is( $plugin->checkJarmRequest( $req, $oidc_request ),
-        24, 'JARM disabled: refused with PE_ERROR' );
+    is( $plugin->processJarmRequest( $req, $oidc_request ),
+        PE_ERROR, 'JARM disabled: refused with PE_ERROR' );
 };
 
 clean_sessions();

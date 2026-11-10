@@ -10,6 +10,10 @@
   and `jwt` were refused before the JARM hook ran. The plugin rewrites the
   JARM mode to its base mode in `oidcGotRequest` and keeps the original for
   the authorization response, so the response is still wrapped in a JWT.
+- **PAR compatibility**: a PAR `request_uri` carries no `response_mode`, so
+  the hook skips it; `oidc-par` calls it back once the pushed request is
+  resolved. JARM works whatever the plugin order, including JARM loaded
+  before PAR.
 - **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
   `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, and for the early
   refusal when the RP does not allow JARM. The existing full `query.jwt` flow
