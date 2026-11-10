@@ -10,8 +10,10 @@
   and `jwt` were refused before the JARM hook ran. The plugin rewrites the
   JARM mode to its base mode in `oidcGotRequest` and keeps the original for
   the authorization response, so the response is still wrapped in a JWT.
-- **Test suite**: `t/32-Auth-OIDC-JARM.t` covers the full `query.jwt` flow
-  and the forged-response case on LLNG master.
+- **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
+  `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, and for the early
+  refusal when the RP does not allow JARM. The existing full `query.jwt` flow
+  and forged-response cases pass again on LLNG master.
 
 ## v0.7.1 - 2026-11-05
 

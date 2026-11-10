@@ -240,6 +240,52 @@ subtest 'a response whose payload is not an object is refused' => sub {
     }
 };
 
+subtest 'JARM response mode rewriting' => sub {
+    my $plugin =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCJarm'};
+    ok( $plugin, 'JARM plugin loaded' );
+
+    # checkJarmRequest only needs ->data on the request object.
+    {
+        package t::JarmReq;
+        sub new  { bless { data => {} }, shift }
+        sub data { $_[0]{data} }
+    }
+
+    my @cases = (
+        [ 'query.jwt',      'code',     'query' ],
+        [ 'fragment.jwt',   'code',     'fragment' ],
+        [ 'form_post.jwt',  'code',     'form_post' ],
+        [ 'jwt',            'code',     'query' ],
+        [ 'jwt',            'id_token', 'fragment' ],
+    );
+    for my $case (@cases) {
+        my ( $mode, $response_type, $base ) = @$case;
+        my $req          = t::JarmReq->new;
+        my $oidc_request = {
+            client_id     => 'rpid',
+            response_mode => $mode,
+            response_type => $response_type,
+        };
+        is( $plugin->checkJarmRequest( $req, $oidc_request ),
+            0, "$mode/$response_type: accepted" );
+        is( $oidc_request->{response_mode},
+            $base, "$mode/$response_type: base mode" );
+        is( $req->data->{jarm_response_mode},
+            $mode, "$mode/$response_type: original kept" );
+    }
+
+    # An RP without oidcRPMetaDataOptionsJarm must be refused early.
+    my $req = t::JarmReq->new;
+    my $oidc_request = {
+        client_id     => 'rpid2',
+        response_mode => 'query.jwt',
+        response_type => 'code',
+    };
+    is( $plugin->checkJarmRequest( $req, $oidc_request ),
+        24, 'JARM disabled: refused with PE_ERROR' );
+};
+
 clean_sessions();
 done_testing();
 
@@ -279,6 +325,14 @@ sub op {
                         # Enable JARM on OP side
                         oidcRPMetaDataOptionsJarm        => 'allowed',
                         oidcRPMetaDataOptionsJarmSignAlg => 'RS256',
+                    },
+                    rp2 => {
+                        oidcRPMetaDataOptionsDisplayName  => "RP2",
+                        oidcRPMetaDataOptionsClientID     => "rpid2",
+                        oidcRPMetaDataOptionsClientSecret => "rpsecret2",
+                        oidcRPMetaDataOptionsUserIDAttr   => "",
+                        oidcRPMetaDataOptionsRedirectUris =>
+                          'http://auth.rp.com/?openidconnectcallback=1',
                     }
                 },
                 oidcOPMetaDataOptions           => {},
