@@ -53,6 +53,8 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
                     oidcRPMetaDataOptionsIDTokenSignAlg => 'HS512',
                     oidcRPMetaDataOptionsAllowOffline   => 1,
+                    oidcRPMetaDataOptionsRefreshToken   => 1,
+                    oidcRPMetaDataOptionsRefreshTokenRotation => 1,
                 },
                 api  => rs( 'api',  $API ),
                 api2 => rs( 'api2', $API2 ),
@@ -70,12 +72,12 @@ sub auds {
 }
 
 # Runs authorize + code grant with these resources, returns the token response
-sub grant {
-    my (@resources) = @_;
+sub grant_with_scope {
+    my ( $scope, @resources ) = @_;
     my $query = join '&',
       buildForm( {
             response_type => 'code',
-            scope         => 'openid offline_access',
+            scope         => $scope,
             client_id     => 'rpid',
             state         => 's',
             redirect_uri  => 'http://client.com/',
@@ -91,6 +93,9 @@ sub grant {
     my ($code) = expectRedirection( $res, qr#http://.*code=([^\&]*)# );
     return expectJSON( codeGrant( $op, 'rpid', $code, 'http://client.com/' ) );
 }
+
+sub grant        { grant_with_scope( 'openid offline_access', @_ ) }
+sub grant_online { grant_with_scope( 'openid',                @_ ) }
 
 sub refresh {
     my ( $refresh_token, @resources ) = @_;
@@ -111,27 +116,13 @@ sub refresh {
     );
 }
 
-# A resource outside the grant is either refused (invalid_target) or left out
-# of the token; in no case does it reach `aud`.
+# RFC 8707 section 2: a resource outside the grant is refused with
+# invalid_target, and never reaches `aud`.
 sub no_audience {
     my ( $res, $forbidden, $name ) = @_;
-    if ( $res->[0] != 200 ) {
-        is( $res->[0], 400, "$name: refused" );
-        my $json = from_json( $res->[2]->[0] );
-        is( $json->{error}, 'invalid_target', "$name: invalid_target" );
-        return;
-    }
+    is( $res->[0], 400, "$name: refused" );
     my $json = from_json( $res->[2]->[0] );
-    my @aud  = auds( id_token_payload( $json->{access_token} )->{aud} );
-    ok( !( grep { $_ eq $forbidden } @aud ), "$name: not in the JWT aud" )
-      or diag "aud: @aud";
-
-    my $intro =
-      from_json( introspect( $op, 'rpid', $json->{access_token} )->[2]->[0] );
-    my @iaud = auds( $intro->{aud} );
-    ok( !( grep { $_ eq $forbidden } @iaud ),
-        "$name: not in the introspection aud" )
-      or diag "introspection aud: @iaud";
+    is( $json->{error}, 'invalid_target', "$name: invalid_target" );
 }
 
 subtest 'resource on the refresh alone adds nothing' => sub {
@@ -144,6 +135,29 @@ subtest 'resource wider than the authorization adds nothing' => sub {
     my $t = grant($API);
     no_audience( refresh( $t->{refresh_token}, $API, $API2 ),
         $API2, 'second RS' );
+};
+
+subtest 'a refused refresh does not consume the token (rotation)' => sub {
+    my $t       = grant($API);
+    my $refused = refresh( $t->{refresh_token}, $API2 );
+    is( $refused->[0], 400, 'wider refresh refused' );
+
+    # Rotation must not have removed the presented token before the refusal.
+    my $again = refresh( $t->{refresh_token} );
+    is( $again->[0], 200, 'the same refresh token still works' );
+    my $json = from_json( $again->[2]->[0] );
+    ok( $json->{refresh_token}, 'rotation issued a new refresh token' );
+};
+
+subtest 'online refresh: the same check applies' => sub {
+    my $t = grant_online($API);
+    ok( $t->{refresh_token}, 'online refresh token issued' );
+
+    my $refused = refresh( $t->{refresh_token}, $API, $API2 );
+    is( $refused->[0], 400, 'wider online refresh refused' );
+
+    my $ok = refresh( $t->{refresh_token}, $API );
+    is( $ok->[0], 200, 'narrower online refresh accepted' );
 };
 
 subtest 'a narrower resource stays possible' => sub {
