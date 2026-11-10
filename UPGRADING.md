@@ -38,7 +38,9 @@ the subset that requires a decision.
 - **oidc-par** keeps a pushed request usable for a consent round-trip: the
   PAR session is removed when the authorization response is produced, not at
   resolution. A `request_uri` remains single-use once the code or tokens are
-  issued.
+  issued. `oidcServicePushedAuthExpiration` must cover the time spent on the
+  consent page (default 60 s), because the session has to exist when the form
+  is submitted.
 - **oidc-rar** forces the consent screen when `authorization_details` are
   present and the RP does not bypass consent. A `prompt=none` request that
   carries details now fails closed, and every request with details shows the

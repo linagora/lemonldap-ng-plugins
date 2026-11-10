@@ -80,8 +80,13 @@ the OP's discovery document.
 2. **LLNG validates** the request, stores parameters in a short-lived session,
    and returns `{ "request_uri": "urn:ietf:params:oauth:request_uri:<id>", "expires_in": 60 }`
 3. **RP redirects** user to `/oauth2/authorize?client_id=...&request_uri=urn:...`
-4. **LLNG resolves** the `request_uri`, loads stored parameters, deletes the
-   session (single-use), and proceeds with normal authorization flow
+4. **LLNG resolves** the `request_uri`, loads the stored parameters and
+   proceeds with the normal authorization flow. The session is deleted once
+   the authorization response is produced (code, or implicit/hybrid tokens),
+   so a consent form that posts the `request_uri` again can complete; it
+   remains single-use after that. Give `oidcServicePushedAuthExpiration`
+   enough time to cover the consent screen: the session must still exist when
+   the form is submitted.
 
 ## Security Benefits
 

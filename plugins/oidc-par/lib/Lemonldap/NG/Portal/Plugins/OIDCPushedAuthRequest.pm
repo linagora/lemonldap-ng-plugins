@@ -312,7 +312,7 @@ sub resolvePushedRequest {
 sub consumePushedRequest {
     my ( $self, $req, $oidc_request ) = @_;
 
-    my $session_id = $oidc_request->{_parSessionId}
+    my $session_id = delete $oidc_request->{_parSessionId}
       or return PE_OK;
 
     my $session =
