@@ -145,7 +145,12 @@ sub autodiscoverJson {
 
         # Handle AutodiscoverV1 protocol - redirect to XML autodiscover
         if ( $protocol =~ /^AutodiscoverV1$/i ) {
-            my $portal = $req->portal;
+            # $req->portal only exists since LLNG 2.19; the plugin supports
+            # 2.0.0, where the configured portal URL is the only source.
+            my $portal =
+              $req->can('portal') && $req->portal
+              ? $req->portal
+              : $self->conf->{portal};
             $portal =~ s#/+$##;
             my $url  = $portal . '/autodiscover/autodiscover.xml';
             my $json = qq({"Protocol":"AutodiscoverV1","Url":"$url"});

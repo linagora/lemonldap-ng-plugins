@@ -14,6 +14,9 @@
   XML-escaped before substitution, and every response carries
   `X-Content-Type-Options: nosniff` and
   `Content-Security-Policy: default-src 'none'; sandbox`.
+- **Fix — the AutodiscoverV1 JSON route works on LLNG < 2.19**: it used
+  `$req->portal`, which only exists since 2.19, so the route crashed with a
+  500; it now falls back to the configured `portal` URL.
 - **Test suite**: `t/01-MailAutodiscover.t` covers a valid address, RFC 822
   comment and quoted-local-part payloads, the JSON route and the EWS fallback.
 
