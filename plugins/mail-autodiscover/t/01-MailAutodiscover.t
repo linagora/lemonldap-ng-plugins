@@ -61,7 +61,7 @@ my @payloads = (
 for my $payload (@payloads) {
     my $r = xml($payload);
     is( $r->[0], 200, 'malformed address: 200' );
-    like( body($r), qr/%EMAILADDRESS%/,
+    like( body($r), qr{<LoginName>%EMAILADDRESS%</LoginName>},
         'malformed address is replaced by the placeholder' );
     unlike( body($r), qr/<x:script|<foo>/,
         'malformed address is not reflected' );

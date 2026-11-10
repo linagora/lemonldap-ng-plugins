@@ -12,6 +12,8 @@ the subset that requires a decision.
 `mail-autodiscover` now accepts only a dot-atom local part and a DNS domain in
 the `email` parameter. An address with a quoted local part or RFC 822 comments
 is replaced by `%EMAILADDRESS%`, as any other invalid value already was.
+Non-ASCII addresses and single-label domains such as `user@localhost` are
+also replaced.
 
 ## v0.7.1
 

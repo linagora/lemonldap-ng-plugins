@@ -128,8 +128,9 @@ sub autodiscover {
 }
 
 # Escape a value before it is copied into the autodiscover XML. The strict
-# addr-spec above already refuses quotes and comments; this is the second
-# barrier, so a future change to the grammar cannot turn into XML injection.
+# addr-spec above already refuses double quotes and comments; this is the
+# second barrier, so a future change to the grammar cannot turn into XML
+# injection.
 sub _xml_escape {
     my ($value) = @_;
     $value =~ s/([&<>"'])/'&#' . ord($1) . ';'/ge;
