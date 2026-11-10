@@ -222,6 +222,8 @@ subtest "Perl rule is enforced on implicit and hybrid flows" => sub {
         state                 => "s",
         nonce                 => "n",
         redirect_uri          => "http://rp.com/",
+        # Must not be usable to skip the rule from the authorize URL.
+        grant_type => "x",
     );
 
     # Implicit: the rule rejection stops the token; the core returns an

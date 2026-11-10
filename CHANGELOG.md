@@ -22,8 +22,9 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   parameters (`scope` in #227, and the resource/grant-management readers)
   still need their own fix.
 - **oidc-rar**: `authorization_details` added to the front channel are
-  ignored once a pushed request is resolved (`#229`), and the per-RP rules
-  are enforced before an implicit access token is signed (`#228`).
+  ignored once a pushed request is resolved (`#229`, with the matching
+  oidc-par), and the per-RP rules are enforced before an implicit access
+  token is signed (`#228`).
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
   compared by SHA-256 digest (`#223`).

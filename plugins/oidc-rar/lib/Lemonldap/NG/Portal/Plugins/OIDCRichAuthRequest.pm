@@ -257,7 +257,8 @@ sub parseAuthorizationDetails {
         }
     }
 
-    $req->data->{ &SESSION_KEY } = $details;
+    $req->data->{ &SESSION_KEY }  = $details;
+    $req->data->{_rar_unchecked}  = 1;
     $self->logger->debug(
         "RAR: validated " . scalar(@$details) . " authorization_details" );
 
@@ -273,6 +274,7 @@ sub enforceRulesAndStoreOnCode {
 
     my $details = $req->data->{ &SESSION_KEY } or return PE_OK;
     return PE_ERROR unless $self->_enforceRules( $req, $rp, $details );
+    delete $req->data->{_rar_unchecked};
 
     $code_payload->{ &SESSION_KEY } = $details;
     return PE_OK;
@@ -386,11 +388,13 @@ sub addToAccessToken {
     my ( $self, $req, $payload, $rp, $extra_headers ) = @_;
     my $d = $req->data->{ &SESSION_KEY } or return PE_OK;
 
-    # Implicit and hybrid flows never fire oidcGenerateCode: enforce the
-    # per-RP rules here before the details reach the access token. On the
-    # token endpoint (grant_type present) the code flow already enforced them.
-    unless ( $req->param('grant_type') ) {
+    # Details parsed from the authorize request are not checked yet. The
+    # code flow clears this flag in enforceRulesAndStoreOnCode(); implicit
+    # and hybrid flows reach this hook with it set. Never use a request
+    # parameter to decide: grant_type can be injected in the authorize URL.
+    if ( $req->data->{_rar_unchecked} ) {
         return PE_ERROR unless $self->_enforceRules( $req, $rp, $d );
+        delete $req->data->{_rar_unchecked};
     }
 
     $payload->{authorization_details} = $self->_utf8Bytes($d);
