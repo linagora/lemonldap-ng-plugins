@@ -44,8 +44,9 @@ the subset that requires a decision.
 - **oidc-rar** forces the consent screen when `authorization_details` are
   present and the RP does not bypass consent. A `prompt=none` request that
   carries details now fails closed, and every request with details shows the
-  consent page. A signed request object cannot override the forced prompt:
-  the details are refused when the effective prompt has no `consent`. As
+  consent page. Granting details requires a consent token bound to the
+  relying party and to those details, issued when the page is rendered: a
+  bare `confirm=1` or a signed request object cannot skip the screen. As
   consent is then present, an RP that sends `offline_access` with details
   gets a refresh token where it used to get none (OIDC Core section 11).
 - **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the

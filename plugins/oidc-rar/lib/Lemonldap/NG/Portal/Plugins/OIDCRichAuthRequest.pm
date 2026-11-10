@@ -11,6 +11,7 @@ use strict;
 use Mouse;
 use JSON qw(decode_json);
 use Encode qw(decode);
+use Digest::SHA qw(sha256_hex);
 use HTML::Entities qw(encode_entities);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
@@ -154,6 +155,14 @@ sub _parseTypeList {
     return \%set;
 }
 
+# Digest binding a consent token to a relying party and its details.
+sub _detailsHash {
+    my ( $rp, $raw ) = @_;
+    my $bytes = $raw // '';
+    utf8::encode($bytes) if utf8::is_utf8($bytes);
+    return sha256_hex( $rp . "\0" . $bytes );
+}
+
 # Hook: oidcGotRequest
 # Layer 1 only (type allowlist). The Perl rule is enforced later, once user
 # attributes are known, in oidcGenerateCode.
@@ -276,12 +285,40 @@ sub parseAuthorizationDetails {
     # Consent is decided from the scopes alone, and the stored consent does
     # not record authorization_details: without this, new details would be
     # granted silently once the scopes were accepted. Force the consent screen
-    # unless the RP bypasses consent; prompt=none then fails closed.
-    if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent} )
+    # and require a token bound to these details, issued by the page below.
+    # This does not depend on the core's confirm handling.
+    unless ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent} )
     {
         my $prompt = $oidc_request->{prompt} // '';
         $oidc_request->{prompt} = join ' ', grep { length } $prompt, 'consent'
           unless $prompt =~ /\bconsent\b/;
+
+        my $cipher = $self->conf->{cipher};
+        unless ($cipher) {
+            $self->logger->error(
+                'RAR: no cipher configured, cannot bind consent to details');
+            return PE_ERROR;
+        }
+
+        my $hash = _detailsHash( $rp, $raw );
+        if ( my $token = $self->p->getHiddenFormValue( $req, 'rar_consent' ) ) {
+            my $decoded = eval { $cipher->decrypt($token) };
+            my ( $time, $got ) =
+              split /:/, ( defined $decoded ? $decoded : '' ), 2;
+            if (   $time
+                and $got
+                and $time > time - 600
+                and $got eq $hash )
+            {
+                $req->data->{_rar_consented} = 1;
+            }
+            else {
+                $self->logger->error('RAR: invalid or stale consent token');
+                return PE_ERROR;
+            }
+        }
+        $self->p->setHiddenFormValue( $req, 'rar_consent',
+            $cipher->encrypt( time() . ':' . $hash ) );
     }
 
     $req->data->{ &SESSION_KEY }  = $details;
@@ -313,18 +350,15 @@ sub enforceRulesAndStoreOnCode {
 sub enforceRules {
     my ( $self, $req, $rp, $details ) = @_;
 
-    # The prompt forced in parseAuthorizationDetails can be overwritten
-    # afterwards: the core applies a request object after oidcGotRequest.
-    # Past its consent step, the core only carries prompt=consent when the
-    # user confirmed in this request, so check the effective value.
-    if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent} )
+    # bindConsentToDetails() issues a token when the page is built; only a
+    # form that posts it back can grant the details. This does not depend on
+    # the core accepting a bare confirm=1, nor on a request object's prompt.
+    if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent}
+        and !$req->data->{_rar_consented} )
     {
-        my $prompt = ( $req->data->{_oidc_request} || {} )->{prompt} // '';
-        unless ( $prompt =~ /\bconsent\b/ ) {
-            $self->logger->error(
-                'RAR: authorization_details granted without consent');
-            return 0;
-        }
+        $self->logger->error(
+            'RAR: authorization_details granted without consent');
+        return 0;
     }
 
     if ( $self->rpRarBroken->{$rp} ) {

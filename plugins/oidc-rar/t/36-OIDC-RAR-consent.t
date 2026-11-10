@@ -93,6 +93,23 @@ my $tok = expectJSON( codeGrant( $op, 'rp_consent', $code, 'http://rp.com/' ) );
 is( $tok->{authorization_details}->[0]->{instructedAmount}->{amount},
     '10.00', 'the consented details are in the token' );
 
+# The core accepts a bare confirm=1 without the encrypted stamp, so an RP
+# could append it to the authorize URL to skip the consent page. The plugin
+# binds the consent to a token of its own, so the details are refused.
+$res = authorize(
+    $op, $id,
+    {
+        response_type         => 'code',
+        scope                 => 'openid',
+        client_id             => 'rp_consent',
+        state                 => 'confirm-bypass',
+        redirect_uri          => 'http://rp.com/',
+        authorization_details => details('9999.00'),
+        confirm               => 1,
+    }
+);
+expectPortalError( $res, 24, 'a bare confirm=1 does not grant details' );
+
 # Second authorization with the same scope but other details: consent is
 # required again, because the stored consent records scopes only.
 $res = authorize_with( $id, 'consent-2', '20.00' );
