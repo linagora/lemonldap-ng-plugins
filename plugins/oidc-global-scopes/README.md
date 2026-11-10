@@ -81,7 +81,9 @@ The plugin uses three OIDC hooks:
    filtering when `oidcServiceAllowOnlyDeclaredScopes` is enabled. The scope
    resolved by the flow decides (PAR, signed request object, ID-JAG): a value
    added to the authorization URL does not re-add one. A global scope refused
-   by a per-RP `oidcRPMetaDataScopeRules` stays refused.
+   by a per-RP `oidcRPMetaDataScopeRules` stays refused. A flow with no
+   authorization request (ID-JAG) records its bounded scope in
+   `$req->data->{_oidc_effective_scope}` for the hook.
 2. **`oidcGenerateUserInfoResponse`**: adds the configured claims to the
    userinfo response for each granted global scope
 3. **`oidcGenerateMetadata`**: advertises the global scopes and their

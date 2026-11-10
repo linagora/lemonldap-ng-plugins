@@ -498,7 +498,7 @@ sub _grantedScope {
 
     # The oidcResolveScope hooks get no scope argument and would read the
     # client's wider parameter otherwise.
-    $req->data->{_oidc_effective_scope} = $requested;
+    local $req->data->{_oidc_effective_scope} = $requested;
     return $self->oidc->getScope( $req, $rp, $requested );
 }
 

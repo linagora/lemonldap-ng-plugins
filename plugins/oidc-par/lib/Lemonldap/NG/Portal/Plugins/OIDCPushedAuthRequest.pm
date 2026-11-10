@@ -252,10 +252,6 @@ sub resolvePushedRequest {
     # front-channel parameters any more.
     $oidc_request->{_parResolved} = 1;
 
-    # The oidcResolveScope hooks get no scope argument: record the resolved
-    # one so they do not read a value added to the browser URL.
-    $req->data->{_oidc_effective_scope} = $oidc_request->{scope}
-      if defined $oidc_request->{scope};
 
     # Delete the PAR session (one-time use)
     # RFC 9126 Section 2.2: request_uri is intended for single use

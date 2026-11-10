@@ -60,9 +60,10 @@ sub resolveAppScope {
     # scope and must not bring "applications" back. The request parameter is
     # not authoritative: PAR, a signed request object or a bounded flow can
     # narrow the scope, and a per-RP rule already decided.
+    my $oidc_request = $req->data->{_oidc_request};
     my $requested =
          $req->data->{_oidc_effective_scope}
-      // $req->data->{_oidc_request}->{scope}
+      // ( ref $oidc_request eq 'HASH' ? $oidc_request->{scope} : undef )
       // $req->param('scope')
       // '';
     my %requested =

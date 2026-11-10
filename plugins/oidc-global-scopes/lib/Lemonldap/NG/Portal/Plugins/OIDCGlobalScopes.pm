@@ -103,11 +103,12 @@ sub resolveGlobalScopes {
     my ( $self, $req, $scope_values, $rp ) = @_;
 
     # The request parameter is not authoritative: with PAR or a signed
-    # request object, the resolved request decides the scope. A plugin that
-    # computes a bounded scope (ID-JAG) records it first.
+    # request object, the resolved request decides the scope. A flow with no
+    # authorization request (ID-JAG) records its bounded scope first.
+    my $oidc_request = $req->data->{_oidc_request};
     my $requested =
          $req->data->{_oidc_effective_scope}
-      // $req->data->{_oidc_request}->{scope}
+      // ( ref $oidc_request eq 'HASH' ? $oidc_request->{scope} : undef )
       // $req->param('scope')
       // '';
     my %requested = map { $_ => 1 } grep { length } split /\s+/, $requested;
