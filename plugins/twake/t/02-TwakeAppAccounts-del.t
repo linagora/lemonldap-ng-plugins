@@ -177,6 +177,28 @@ $accounts_error = 1;
 $res            = del('dwho_acc1');
 is( $res->[0], 500, 'an LDAP error from getAccounts is propagated' );
 
+# Hidden accounts created by the token API count towards the limit, even
+# though the list shows only the visible ones.
+{
+    no warnings 'redefine';
+    no warnings 'once';
+    *Lemonldap::NG::Portal::Plugins::TwakeAppAccounts::getAccounts = sub {
+        return ( [ { uid => 'dwho_acc1' }, { uid => 'dwho_acc2' } ],
+            undef, 5 );
+    };
+}
+my $add_body = to_json( { name => 'ok' } );
+$res = $client->_post(
+    '/deviceaccounts/add',
+    IO::String->new($add_body),
+    accept => 'application/json',
+    type   => 'application/json',
+    length => length($add_body),
+    cookie => "lemonldap=$id",
+);
+is( $res->[0], 400, 'the limit counts hidden accounts' );
+like( $res->[2]->[0], qr/Too many accounts/, 'the limit error is returned' );
+
 # Restore the real getAccounts(): the aggregate Outlook entry (uid=<mail>) is
 # never listed, so it cannot be deleted either.
 {

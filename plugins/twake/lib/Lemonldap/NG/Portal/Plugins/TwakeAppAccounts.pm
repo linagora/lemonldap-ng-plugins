@@ -188,7 +188,8 @@ sub addAccount {
     my ( $accounts, $err, $total ) = $self->getAccounts($req);
     return $err unless $accounts;
     return $self->sendError( $req, 'Too many accounts', PE_ERROR, 400 )
-      if !$req->data->{skipMaxAccounts} and ( $total // scalar(@$accounts) ) >= MAX_ACCOUNTS;
+      if !$req->data->{skipMaxAccounts}
+      and ( $total // scalar(@$accounts) ) >= MAX_ACCOUNTS;
     my @uids = map { $_->{uid} } @$accounts;
 
     my $newAccount;

@@ -11,7 +11,10 @@ the subset that requires a decision.
 
 - **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is
   reserved for the token API, and hidden accounts now count towards the
-  five-account limit.
+  five-account limit. A user whose applications created accounts through the
+  token API can therefore get `Too many accounts` while fewer than five are
+  listed; those accounts are only visible to the API and must be removed
+  through it.
 - **mail-autodiscover** accepts only a dot-atom local part and a DNS domain:
   no comments, no quoted local part, no non-ASCII or single-label domain.
   Invalid values get `%EMAILADDRESS%`.
@@ -32,10 +35,16 @@ the subset that requires a decision.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded. A client-credentials access token can
   no longer be used as `subject_token`.
+- **oidc-par** keeps a pushed request usable for a consent round-trip: the
+  PAR session is removed when the authorization response is produced, not at
+  resolution. A `request_uri` remains single-use once the code or tokens are
+  issued.
 - **oidc-rar** forces the consent screen when `authorization_details` are
   present and the RP does not bypass consent. A `prompt=none` request that
   carries details now fails closed, and every request with details shows the
-  consent page.
+  consent page. As consent is then present, an RP that sends `offline_access`
+  with details gets a refresh token where it used to get none (OIDC Core
+  section 11).
 - **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the
   authorization URL no longer comes back when the pushed (PAR) or signed
   request, or the ID-JAG assertion, does not carry it. A global scope that

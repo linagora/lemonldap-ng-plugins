@@ -102,8 +102,22 @@ $res = authorize_with( $id, 'consent-2', '20.00' );
 my $location = getRedirection($res) // '';
 unlike( $location, qr/[?&]code=/,
     'a different authorization_details requires consent again' );
-like( $res->[2]->[0], qr/confirm/,
-    'the consent form is shown for the new details' );
+
+# Accept the second form: the new details, not the stored ones, must be
+# carried through.
+( $host, $uri, $query ) = expectForm( $res, '#', undef, 'confirm' );
+$query =~ s/(^|&)confirm=[^&]*/$1confirm=1/;
+$res = $op->_post(
+    '/oauth2/authorize',
+    IO::String->new($query),
+    accept => 'text/html',
+    cookie => "lemonldap=$id",
+    length => length($query),
+);
+($code) = expectRedirection( $res, qr#http://rp\.com/.*code=([^\&]*)# );
+$tok = expectJSON( codeGrant( $op, 'rp_consent', $code, 'http://rp.com/' ) );
+is( $tok->{authorization_details}->[0]->{instructedAmount}->{amount},
+    '20.00', 'the second consent carries the new details' );
 
 clean_sessions();
 done_testing();

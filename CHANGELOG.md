@@ -37,7 +37,9 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   pushed request is resolved, oidc-par drops the front-channel values it
   resolved (`#230`); the other plugins that read the raw front-channel
   parameters get their own fix (`scope` in #227, `resource` in #234, the
-  grant parameters in #235).
+  grant parameters in #235). The PAR session is now removed when the
+  authorization response is produced, not when it is resolved, so a consent
+  form that posts the `request_uri` again can complete.
 - **oidc-resource-indicators**: a `resource` sent on a refresh must be part
   of the original authorization; a value outside it is refused with
   `invalid_target` instead of widening the token audience (`#234`).
