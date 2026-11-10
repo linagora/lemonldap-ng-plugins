@@ -28,6 +28,10 @@ the subset that requires a decision.
   identity` now gets `invalid_request_uri`.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded.
+- **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the
+  authorization URL no longer comes back when the pushed (PAR) or signed
+  request, or the ID-JAG assertion, does not carry it. A global scope that
+  `oidcRPMetaDataScopeRules` refuses stays refused.
 - **oidc-resource-indicators** refuses a `resource` on refresh that was not
   granted at `/authorize` (`invalid_target`, HTTP 400). Clients that widened
   the audience on refresh must request the resource during the authorization.

@@ -269,6 +269,7 @@ sub _assertedScope {
       grep { $ok{$_} } grep { length } split /\s+/,
       ( $requested =~ /\S/ ? $requested : $granted );
 
+    $req->data->{_oidc_effective_scope} = $requested;
     my $scope = $self->oidc->getScope( $req, $target, $requested );
     return defined $scope ? $scope : '';
 }

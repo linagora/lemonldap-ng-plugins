@@ -57,12 +57,20 @@ sub resolveAppScope {
 
     # If "applications" was requested but filtered out (oidcServiceAllowOnlyDeclaredScopes),
     # re-add it. Compare whole scope tokens: "my-applications" is another
-    # scope and must not bring "applications" back.
-    my $requested = $req->param('scope') || '';
+    # scope and must not bring "applications" back. The request parameter is
+    # not authoritative: PAR, a signed request object or a bounded flow can
+    # narrow the scope, and a per-RP rule already decided.
+    my $requested =
+         $req->data->{_oidc_effective_scope}
+      // $req->data->{_oidc_request}->{scope}
+      // $req->param('scope')
+      // '';
     my %requested =
       map { $_ => 1 } grep { length } split /\s+/, $requested;
+    my $rules = $self->oidc->rpScopeRules->{$rp} || {};
     if ( $requested{applications}
-        and !grep { $_ eq 'applications' } @$scope_values )
+        and !grep { $_ eq 'applications' } @$scope_values
+        and !$rules->{applications} )
     {
         push @$scope_values, 'applications';
         $self->logger->debug(
