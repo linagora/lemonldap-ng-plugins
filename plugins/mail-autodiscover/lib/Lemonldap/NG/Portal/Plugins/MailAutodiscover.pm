@@ -49,8 +49,12 @@ my $autodiscover = <<'EOF';
 </Autodiscover>
 EOF
 
+# A dot-atom local part and a DNS domain: no CFWS comments, no quoted local
+# part. The RFC 5322 atext characters are accepted; the value is XML-escaped
+# before it is copied into the response.
+my $atext = qr/[A-Za-z0-9!#\$%&'*+\-\/=?^_`{|}~]/;
 my $validEmail =
-qr/^[A-Za-z0-9._%+\-]+\@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?)+\z/;
+qr/^$atext+(?:\.$atext+)*\@[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9\-]*[A-Za-z0-9])?)+\z/;
 
 has imapServer => ( is => 'rw' );
 has smtpServer => ( is => 'rw' );
@@ -103,7 +107,7 @@ sub autodiscover {
       unless defined $mail
       and !ref $mail
       and $mail =~ $validEmail;
-    $mail = _xml_escape($mail) unless $mail eq '%EMAILADDRESS%';
+    $mail = _xml_escape($mail);
     $data =~ s/%IMAPSERVER%/$self->imapServer/sge;
     $data =~ s/%SMTPSERVER%/$self->smtpServer/sge;
     $data =~ s/%IMAPPORT%/$self->imapPort/sge;
@@ -140,7 +144,9 @@ sub autodiscoverJson {
 
         # Handle AutodiscoverV1 protocol - redirect to XML autodiscover
         if ( $protocol =~ /^AutodiscoverV1$/i ) {
-            my $url  = $req->portal . '/autodiscover/autodiscover.xml';
+            my $portal = $req->portal;
+            $portal =~ s#/+$##;
+            my $url  = $portal . '/autodiscover/autodiscover.xml';
             my $json = qq({"Protocol":"AutodiscoverV1","Url":"$url"});
             return [
                 200,

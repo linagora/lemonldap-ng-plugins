@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.12 - 2026-11-10
+## Unreleased
 
 ### mail-autodiscover
 

@@ -43,12 +43,12 @@ plugin convenient to configure in containerized deployments (Docker, Helm).
 
 ## Address validation
 
-The `email` parameter must be a plain `local@domain` address (RFC 5322
-addr-spec, without comments or a quoted local part). Any other value is
-replaced by the `%EMAILADDRESS%` placeholder, as before. The accepted value is
-then XML-escaped before it is copied into the response, and every response of
-the plugin carries `X-Content-Type-Options: nosniff` and a restrictive
-`Content-Security-Policy`.
+The `email` parameter must be a dot-atom local part followed by a DNS domain
+(a strict subset of the RFC 5322 addr-spec: no comments, no quoted local
+part). Any other value is replaced by the `%EMAILADDRESS%` placeholder, as
+before. The accepted value is then XML-escaped before it is copied into the
+response, and every response of the plugin carries
+`X-Content-Type-Options: nosniff` and a restrictive `Content-Security-Policy`.
 
 ## Files
 

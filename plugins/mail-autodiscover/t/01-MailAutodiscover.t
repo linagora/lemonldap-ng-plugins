@@ -17,14 +17,34 @@ my $op = LLNG::Manager::Test->new( {
 sub body    { join '', @{ $_[0]->[2] } }
 sub headers { my %h = @{ $_[0]->[1] }; \%h }
 
-# A valid address is reflected in both LoginName elements.
-my $res = $op->_get(
-    '/autodiscover/autodiscover.xml',
-    query => { email => 'alice@example.com' }
-);
-is( $res->[0], 200, 'valid address: 200' );
-like( body($res), qr{<LoginName>alice\@example\.com</LoginName>},
-    'valid address is reflected in LoginName' );
+sub xml {
+    my ($email) = @_;
+    return $op->_get(
+        '/autodiscover/autodiscover.xml',
+        query => { email => $email }
+    );
+}
+
+sub xml_expected {
+    my ($value) = @_;
+    $value =~ s/([&<>"'])/'&#' . ord($1) . ';'/ge;
+    return $value;
+}
+
+# Valid dot-atom addresses are reflected in both LoginName elements. atext
+# characters such as ', ! and / are part of the local part; the reflected
+# value is XML-escaped.
+for my $addr ( 'alice@example.com', "o'brien\@example.com",
+    'a!b/c@example.com' )
+{
+    my $res = xml($addr);
+    is( $res->[0], 200, "$addr: 200" );
+    like( body($res),
+        qr{<LoginName>\Q@{[xml_expected($addr)]}\E</LoginName>},
+        "$addr: reflected in LoginName" );
+}
+
+my $res = xml('alice@example.com');
 is( headers($res)->{'X-Content-Type-Options'},
     'nosniff', 'XML response carries nosniff' );
 like( headers($res)->{'Content-Security-Policy'},
@@ -39,25 +59,36 @@ my @payloads = (
 );
 
 for my $payload (@payloads) {
-    my $r = $op->_get(
-        '/autodiscover/autodiscover.xml',
-        query => { email => $payload }
-    );
+    my $r = xml($payload);
     is( $r->[0], 200, 'malformed address: 200' );
+    like( body($r), qr/%EMAILADDRESS%/,
+        'malformed address is replaced by the placeholder' );
     unlike( body($r), qr/<x:script|<foo>/,
         'malformed address is not reflected' );
 }
 
-# The JSON route uses the same strict check.
+# The escaping helper is the second barrier; test it directly.
+is( Lemonldap::NG::Portal::Plugins::MailAutodiscover::_xml_escape(q{<>&"'}),
+    '&#60;&#62;&#38;&#34;&#39;', '_xml_escape encodes the XML metacharacters' );
+
+# The JSON route reads the version and the address from the path:
+# /autodiscover/autodiscover.json/<version>/<email>
 my $json = $op->_get(
-    '/autodiscover/autodiscover.json',
-    query => {
-        version  => 'v1.0',
-        email    => 'a@b.c(<x:script>)',
-        Protocol => 'AutodiscoverV1',
-    }
+    '/autodiscover/autodiscover.json/v1.0/alice@example.com',
+    query => { Protocol => 'AutodiscoverV1' }
 );
-is( $json->[0], 404, 'JSON route refuses the malformed address' );
+is( $json->[0], 200, 'JSON route accepts a valid address' );
+like( body($json),
+    qr{"Url":"http://auth\.example\.com/autodiscover/autodiscover\.xml"},
+    'JSON route returns the XML URL without a double slash' );
+is( headers($json)->{'X-Content-Type-Options'},
+    'nosniff', 'JSON 200 carries nosniff' );
+
+$json = $op->_get(
+    '/autodiscover/autodiscover.json/v1.0/not-an-address',
+    query => { Protocol => 'AutodiscoverV1' }
+);
+is( $json->[0], 404, 'JSON route refuses a malformed address' );
 is( headers($json)->{'X-Content-Type-Options'},
     'nosniff', 'JSON 404 carries nosniff' );
 
