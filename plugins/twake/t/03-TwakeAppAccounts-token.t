@@ -19,8 +19,9 @@ sub call {
     );
 }
 
-# A leading or doubled separator used to leave an empty alternative in the
-# token regex, which made an absent Authorization header match.
+# A leading or doubled separator used to leave an empty field in the token
+# list. In the runtime-built regex it became \Q\E, which matches the literal
+# header value QE: that, not a missing header, was the bypass.
 for my $value ( ' secret', 'a ,b', 'a;;b' ) {
     my ($token) = grep { length } split /[;,\s]+/, $value;
 
@@ -55,7 +56,10 @@ for my $value ( ' secret', 'a ,b', 'a;;b' ) {
     is( $res->[0], 403, "$value: the old Q<token>E literal is refused" );
 
     $res = call( $client, $token );
-    isnt( $res->[0], 403, "$value: the configured token is accepted" );
+
+    # apiCall answers 200 with an error body instead of 400 (pre-existing);
+    # the point here is that the token check let the request through.
+    is( $res->[0], 200, "$value: the configured token is accepted" );
 }
 
 # twakeAppEntryFields is an arrayref attribute: a list used to make the

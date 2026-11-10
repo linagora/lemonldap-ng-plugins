@@ -11,7 +11,8 @@
   admin API accepted `{"user":"victim"}`. The list is now split on
   `[;,\s]+`, empty fields are dropped, and each token is compared by its
   SHA-256 digest. This also fixes the `\Q`/`\E` bug that made a configured
-  token match only the literal `Q<token>E`.
+  token match only the literal `Q<token>E`. Note: a script that had adapted
+  to that bug must now send the configured token itself.
 - **Fix — `twakeAppEntryFields`**: the value was split into a list and passed
   to an arrayref attribute, so the module failed to load with more than one
   field and account creation crashed with one. It is now an arrayref of

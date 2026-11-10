@@ -58,7 +58,16 @@ sub init {
     if ( my $raw = $self->conf->{twakeAdminTokens} ) {
         my @tokens = grep { length } split /[;,\s]+/, $raw;
         if (@tokens) {
-            $self->validTokens( { map { sha256($_) => 1 } @tokens } );
+            my %digests;
+            for my $token (@tokens) {
+
+                # HTTP headers are bytes; a token read from a decoded
+                # configuration may be a character string.
+                my $bytes = $token;
+                utf8::encode($bytes) if utf8::is_utf8($bytes);
+                $digests{ sha256($bytes) } = 1;
+            }
+            $self->validTokens( \%digests );
         }
         else {
             $self->logger->error('twakeAdminTokens contains no token');
