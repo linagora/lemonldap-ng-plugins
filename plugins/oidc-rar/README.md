@@ -83,12 +83,15 @@ Every requested `authorization_details` entry must clear all three:
    no entry skip layer 2 (granted subject to layer 1). Invalid JSON or
    uncompilable rule = deny-all (fail-closed).
 3. **User consent** _(optional, depending on the use case)_ — when
-   `BypassConsent=0` for the RP, the operator's consent template
-   (`oidcGiveConsent.tpl` / `oidcConsents.tpl`) can display `RAR_DETAILS`
-   (a pretty-printed JSON summary of the pending entries). The variable is
-   **HTML-escaped before injection** (`HTML::Entities::encode_entities`), so
-   it is safe to render verbatim inside `<pre>` / `<code>` without
-   `ESCAPE=HTML`. Example template snippet:
+   `BypassConsent=0` for the RP, the plugin **forces the consent screen**
+   whenever `authorization_details` are present: the stored consent records
+   scopes only, so without this new details would be granted silently. The
+   operator's consent template (`oidcGiveConsent.tpl` / `oidcConsents.tpl`)
+   can display `RAR_DETAILS` (a pretty-printed JSON summary of the pending
+   entries). The variable is **HTML-escaped before injection**
+   (`HTML::Entities::encode_entities`), so it is safe to render verbatim
+   inside `<pre>` / `<code>` without `ESCAPE=HTML`. Example template
+   snippet:
 
    ```html
    <TMPL_IF NAME="RAR_DETAILS">
@@ -113,7 +116,9 @@ matches your environment:
 In B2C the user is the gatekeeper; the consent screen _is_ the policy.
 In B2B the user is just identified; the policy is fully expressed in the
 allowlist and rules, and the consent screen is unnecessary friction. The
-plugin supports both — it never forces a consent screen.
+plugin supports both: with `BypassConsent=1` it never forces a consent
+screen; with `BypassConsent=0` it forces one whenever `authorization_details`
+are present, and a `prompt=none` request carrying details then fails closed.
 
 #### Example rules
 

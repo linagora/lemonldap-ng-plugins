@@ -9,6 +9,9 @@ the subset that requires a decision.
 
 ## Unreleased
 
+- **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is
+  reserved for the token API, and hidden accounts now count towards the
+  five-account limit.
 - **mail-autodiscover** accepts only a dot-atom local part and a DNS domain:
   no comments, no quoted local part, no non-ASCII or single-label domain.
   Invalid values get `%EMAILADDRESS%`.
@@ -27,7 +30,12 @@ the subset that requires a decision.
   `chunked`. A server that compresses regardless of `Accept-Encoding:
   identity` now gets `invalid_request_uri`.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
-  `openid` when no consent is recorded.
+  `openid` when no consent is recorded. A client-credentials access token can
+  no longer be used as `subject_token`.
+- **oidc-rar** forces the consent screen when `authorization_details` are
+  present and the RP does not bypass consent. A `prompt=none` request that
+  carries details now fails closed, and every request with details shows the
+  consent page.
 - **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the
   authorization URL no longer comes back when the pushed (PAR) or signed
   request, or the ID-JAG assertion, does not carry it. A global scope that

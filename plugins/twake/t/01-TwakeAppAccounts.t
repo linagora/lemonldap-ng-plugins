@@ -71,6 +71,21 @@ for my $path (qw(add del)) {
     }
 }
 
+# HIDDEN__ marks a token-API account: a user cannot create one, which would
+# be invisible in the list and would bypass the account limit.
+for my $name ( 'HIDDEN__x', 'HIDDEN__HIDDEN__x', '  HIDDEN__x' ) {
+    my $body = '{"name":"' . $name . '"}';
+    $res = $client->_post(
+        '/deviceaccounts/add',
+        IO::String->new($body),
+        accept => 'application/json',
+        type   => 'application/json',
+        length => length($body),
+        cookie => "lemonldap=$id",
+    );
+    is( $res->[0], 400, "a name starting with HIDDEN__ is refused ($name)" );
+}
+
 # The HTML error path uses the template that ships with the plugin
 $res = $client->_post(
     '/deviceaccounts/add',

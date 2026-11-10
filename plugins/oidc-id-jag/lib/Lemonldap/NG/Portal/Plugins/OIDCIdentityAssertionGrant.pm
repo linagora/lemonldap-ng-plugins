@@ -372,6 +372,14 @@ sub _getUserData {
         return;
     }
 
+    # A client-credentials token stands for the client, not for a user. It
+    # must never become an identity assertion.
+    if ( ( $tokenData->{grant_type} // '' ) eq 'clientcredentials' ) {
+        $self->userLogger->error(
+            'ID-JAG subject_token is a client credentials token');
+        return;
+    }
+
     # The subject_token MUST have been issued to the authenticated client
     my $clientId = $oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID};
     my $tokenClientId = $tokenData->{client_id} || '';
@@ -397,6 +405,14 @@ sub _getUserData {
     unless ($userData) {
         $self->logger->error(
             'Unable to find the user session tied to ID-JAG subject_token');
+        return;
+    }
+
+    # A session created for a client (not a user authentication) must not be
+    # turned into a user identity.
+    if ( $userData->{_clientConfKey} and !$userData->{_auth} ) {
+        $self->userLogger->error(
+            'ID-JAG subject_token is not tied to a user authentication');
         return;
     }
 

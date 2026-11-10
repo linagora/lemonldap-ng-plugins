@@ -169,8 +169,13 @@ sub parseAuthorizationDetails {
     # resolved, only its authorization_details are valid: never fall back to
     # a value added to the front-channel URL.
     my $raw = $oidc_request->{authorization_details};
-    $raw //= $req->param('authorization_details')
-      unless $oidc_request->{_parResolved};
+    unless ( $oidc_request->{_parResolved} ) {
+        $raw //= $req->param('authorization_details');
+
+        # The consent form carries the details as a base64 hidden field, so
+        # that the JSON quotes do not break the HTML attribute.
+        $raw //= $self->p->getHiddenFormValue( $req, 'authorization_details' );
+    }
 
     unless ( defined $raw and length $raw ) {
         delete $req->data->{ &SESSION_KEY };
@@ -256,6 +261,26 @@ sub parseAuthorizationDetails {
                 "RAR: type `$type` not in RP `$rp` allowlist");
             return PE_ERROR;
         }
+    }
+
+    # The consent form is built from the core's parameter list, which does
+    # not include authorization_details: carry it through explicitly. The
+    # default base64 encoding keeps the JSON quotes out of the HTML attribute,
+    # and encoding the characters first keeps encode_base64() from dying on a
+    # non-ASCII detail.
+    my $hidden = $raw;
+    utf8::encode($hidden) if utf8::is_utf8($hidden);
+    $self->p->setHiddenFormValue( $req, 'authorization_details', $hidden );
+
+    # Consent is decided from the scopes alone, and the stored consent does
+    # not record authorization_details: without this, new details would be
+    # granted silently once the scopes were accepted. Force the consent screen
+    # unless the RP bypasses consent; prompt=none then fails closed.
+    if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent} )
+    {
+        my $prompt = $oidc_request->{prompt} // '';
+        $oidc_request->{prompt} = join ' ', grep { length } $prompt, 'consent'
+          unless $prompt =~ /\bconsent\b/;
     }
 
     $req->data->{ &SESSION_KEY }  = $details;

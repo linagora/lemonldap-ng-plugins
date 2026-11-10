@@ -175,10 +175,20 @@ sub addAccount {
     return $self->sendError( $req, 'Bad content', PE_ERROR, 400 )
       unless ref $query eq 'HASH';
 
-    my ( $accounts, $err ) = $self->getAccounts($req);
+    # HIDDEN__ marks an account created by the token API. A user must not be
+    # able to create one: it would stay invisible in the list and bypass the
+    # account limit.
+    if ( !$req->data->{skipMaxAccounts}
+        and defined $query->{name}
+        and ( ref $query->{name} or $query->{name} =~ /^\s*HIDDEN__/i ) )
+    {
+        return $self->sendError( $req, 'Bad name', PE_ERROR, 400 );
+    }
+
+    my ( $accounts, $err, $total ) = $self->getAccounts($req);
     return $err unless $accounts;
     return $self->sendError( $req, 'Too many accounts', PE_ERROR, 400 )
-      if !$req->data->{skipMaxAccounts} and scalar(@$accounts) >= MAX_ACCOUNTS;
+      if !$req->data->{skipMaxAccounts} and ( $total // scalar(@$accounts) ) >= MAX_ACCOUNTS;
     my @uids = map { $_->{uid} } @$accounts;
 
     my $newAccount;
@@ -189,8 +199,8 @@ sub addAccount {
     } while ( grep { $_ eq $newAccount } @uids );
 
     my $uid = $req->userData->{uid} . "_$newAccount";
-    $query->{name} =~ s/^HIDDEN__// if defined $query->{name};
     if ( $req->data->{skipMaxAccounts} ) {
+        $query->{name} =~ s/^HIDDEN__// if defined $query->{name};
         $query->{name} = 'HIDDEN__' . ( $query->{name} // '' );
     }
     my $newEntry = [
@@ -398,10 +408,13 @@ sub getAccounts {
           or $_->get_value('uid') eq $req->userData->{mail};
     }
     @accounts = sort { $a->{uid} cmp $b->{uid} } @accounts;
+
+    # The limit counts every entry, including the hidden API-created ones.
+    my $total = scalar @accounts;
     unless ( $req->data->{skipMaxAccounts} ) {
         @accounts = grep { !$_->{name} or $_->{name} !~ /^HIDDEN__/ } @accounts;
     }
-    return \@accounts;
+    return ( \@accounts, undef, $total );
 }
 
 # Manage error display
