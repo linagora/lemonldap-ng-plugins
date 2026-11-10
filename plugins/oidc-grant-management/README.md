@@ -112,6 +112,8 @@ client with `client_secret_basic`, `client_secret_post` or a signed
 `invalid_client`. A public client must use a JWS method (`private_key_jwt` or
 `client_secret_jwt`): the core always verifies those, whatever the client
 type, while a client certificate is only checked for a confidential client.
+A static secret is refused even when one is registered: a public client
+cannot keep a secret (RFC 6749 section 2.1), so it is not a credential here.
 A client cannot read or revoke a grant that doesn't belong to it (returns
 403).
 

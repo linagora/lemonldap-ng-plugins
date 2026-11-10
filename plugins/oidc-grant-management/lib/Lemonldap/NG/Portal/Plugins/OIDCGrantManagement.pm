@@ -214,23 +214,24 @@ sub materializeGrantAndStoreOnCode {
     }
 
     # oidc-rar applies its per-RP rules in its own oidcGenerateCode hook,
-    # whose order relative to this one is not guaranteed. Apply them now
-    # when the details are still unchecked: never record in the grant
-    # authorization_details that oidc-rar refuses. Its own hook runs the
-    # same rules again afterwards, which is harmless.
-    if ( $req->data->{_rar_unchecked} ) {
+    # whose order relative to this one is not guaranteed. Apply them now when
+    # they have not run yet: never record authorization_details in the grant
+    # that oidc-rar refuses. Its own hook runs the same rules again
+    # afterwards, which is harmless.
+    if ( my $details = $req->data->{_rar_details} ) {
         my $rar = $self->p->loadedModules
           ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
         if ( $rar and $rar->can('enforceRules') ) {
-            return PE_ERROR
-              unless $rar->enforceRules( $req, $rp,
-                $req->data->{_rar_details} );
+            if ( $req->data->{_rar_unchecked} ) {
+                return PE_ERROR
+                  unless $rar->enforceRules( $req, $rp, $details );
+            }
         }
         else {
 
-            # oidc-rar is older than this plugin: its rules cannot run
-            # before the grant is written. Fail closed instead of recording
-            # authorization_details that may be refused afterwards.
+            # oidc-rar is older than this plugin: its rules cannot run here
+            # and its own hook may run after this one. Fail closed instead of
+            # recording details that may be refused afterwards.
             $self->logger->error(
                 "OIDCGrantManagement: oidc-rar is too old to enforce the "
                   . "authorization_details rules before storing the grant" );
@@ -463,8 +464,9 @@ sub handleGrantEndpoint {
     # For a public client, only a JWS method is always verified by the core,
     # whatever the client type: client_secret_jwt and private_key_jwt. A
     # client certificate (tls_client_auth) is only checked for a confidential
-    # client, and a static secret is not treated as a credential for a public
-    # client, so only the JWS methods are accepted here.
+    # client, so it is refused here. A static secret is refused too, even
+    # when the core verifies a registered one: RFC 6749 section 2.1 says a
+    # public client cannot keep a secret, so it is not a credential here.
     if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
         unless ( $auth_method =~ /^(?:client_secret_jwt|private_key_jwt)$/ ) {
             $self->logger->error(
