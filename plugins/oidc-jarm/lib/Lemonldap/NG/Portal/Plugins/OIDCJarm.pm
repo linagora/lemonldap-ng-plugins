@@ -56,6 +56,11 @@ sub processJarmRequest {
             and defined $payload->{response_mode} )
         {
             $jarm_mode = $payload->{response_mode};
+
+            # Core validates $oidc_request->{response_mode} before it applies
+            # the request object; copy the value now so a non-JARM override
+            # replaces a query.jwt that core would refuse.
+            $oidc_request->{response_mode} = $jarm_mode;
         }
     }
 

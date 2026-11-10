@@ -295,7 +295,7 @@ subtest 'JARM response mode rewriting' => sub {
         ok( !exists $req->data->{jarm_response_mode},
             'request object query: no JARM mode' );
         is( $oidc_request->{response_mode},
-            'query.jwt', 'request object query: mode not rewritten' );
+            'query', 'request object query: mode copied' );
 
         # A request object that asks for JARM wins over a plain query string.
         $request_object = encode_jwt(
