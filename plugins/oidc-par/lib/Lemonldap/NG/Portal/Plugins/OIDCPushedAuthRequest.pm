@@ -231,6 +231,11 @@ sub resolvePushedRequest {
       login_hint acr_values request code_challenge code_challenge_method
       authorization_details/;
 
+    # The core filled $oidc_request from the front channel first. Drop those
+    # values: once a request_uri is resolved, only the pushed parameters may
+    # be used (RFC 9126 section 3).
+    delete $oidc_request->{$_} for @par_params;
+
     for my $param (@par_params) {
         if ( defined $parSession->data->{$param} ) {
             $self->logger->debug("PAR: Setting $param from PAR session");

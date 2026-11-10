@@ -16,7 +16,9 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   rewritten to their base mode before core validation, including with PAR and
   signed request objects.
 - **oidc-par**: calls the JARM hook after resolving a pushed request;
-  `test_depends` gains `oidc-jarm`, which must be updated with it.
+  `test_depends` gains `oidc-jarm`, which must be updated with it. Once a
+  pushed request is resolved, only its parameters are used: values added to
+  the front-channel URL are ignored (`#230`).
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
   compared by SHA-256 digest (`#223`).
