@@ -87,6 +87,18 @@ sub parseGrantManagementParam {
     my $mode = $self->oidc->rpOptions->{$rp}
       ->{oidcRPMetaDataOptionsGrantManagement} // '';
 
+    # A PAR request_uri is resolved by oidc-par later in the same hook chain.
+    # Until then the request is not known: neither enforce the required mode
+    # nor reject a browser-side value. oidc-par calls this hook back once the
+    # pushed request is resolved, whatever the plugin order.
+    if (   $oidc_request->{request_uri}
+        and not $oidc_request->{_parResolved}
+        and $oidc_request->{request_uri} =~
+        m{^urn:ietf:params:oauth:request_uri:} )
+    {
+        return PE_OK;
+    }
+
     # Once a pushed request is resolved, only its values are valid: never
     # fall back to the front-channel parameters (RFC 9126 section 3).
     my $action   = $oidc_request->{grant_management_action};
@@ -316,6 +328,12 @@ sub restoreOnTokenEndpoint {
         my $code = $req->param('code') or return PE_OK;
         my $cs = $self->oidc->getAuthorizationCode($code) or return PE_OK;
         if ( my $ctx = $cs->data->{ &DATA_KEY } ) {
+
+            # Anything stored on a code session was materialized by
+            # materializeGrantAndStoreOnCode. The flag is absent from grants
+            # created before it existed: set it so their grant_id keeps
+            # flowing after an upgrade.
+            $ctx->{materialized} = 1;
             $req->data->{ &DATA_KEY } = $ctx;
         }
     }
@@ -323,6 +341,7 @@ sub restoreOnTokenEndpoint {
         my $rt = $req->param('refresh_token') or return PE_OK;
         my $rs = $self->oidc->getRefreshToken($rt) or return PE_OK;
         if ( my $ctx = $rs->data->{ &DATA_KEY } ) {
+            $ctx->{materialized} = 1;
             $req->data->{ &DATA_KEY } = $ctx;
         }
     }
@@ -424,23 +443,26 @@ sub handleGrantEndpoint {
 
     # The grant endpoint serves only a caller that proved it is the client.
     # A bare client_id (`none`) proves nothing; the token endpoint accepts it
-    # because PKCE protects the code there, which is not the case here. For
-    # a public client, a shared secret is not verified by the core, so it is
-    # not a proof either: a signed client_assertion (or mTLS) remains
-    # accepted, as getEndPointAuthenticationCredentials verifies it.
+    # because PKCE protects the code there, which is not the case here.
     if ( !$auth_method or $auth_method eq 'none' ) {
         $self->logger->error(
             "OIDCGrantManagement: grant endpoint called without client "
               . "authentication" );
         return $self->oidc->invalidClientResponse($req);
     }
-    if (    $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic}
-        and $auth_method =~ /^client_secret_(?:basic|post)$/ )
-    {
-        $self->logger->error(
-            "OIDCGrantManagement: public client `$rp` cannot authenticate "
-              . "with $auth_method on the grant endpoint" );
-        return $self->oidc->invalidClientResponse($req);
+
+    # For a public client, only a signed assertion proves the caller: the
+    # core verifies client_secret_jwt and private_key_jwt, while a client
+    # certificate (tls_client_auth) is only checked for a confidential
+    # client. A shared secret is refused too, even when the core happens to
+    # verify a registered one: a public client should not hold a secret.
+    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
+        unless ( $auth_method =~ /^(?:client_secret_jwt|private_key_jwt)$/ ) {
+            $self->logger->error(
+                "OIDCGrantManagement: public client `$rp` cannot authenticate "
+                  . "with $auth_method on the grant endpoint" );
+            return $self->oidc->invalidClientResponse($req);
+        }
     }
 
     my $client_id =

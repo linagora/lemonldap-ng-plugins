@@ -46,6 +46,21 @@ sub gm_delete {
     );
 }
 
+sub par_push {
+    my ( $op, $client_id, %params ) = @_;
+    my $q = buildForm( { client_id => $client_id, %params } );
+    return $op->_post(
+        "/oauth2/par",
+        IO::String->new($q),
+        accept => 'application/json',
+        length => length($q),
+        custom => {
+            HTTP_AUTHORIZATION => "Basic "
+              . encode_base64( "$client_id:$client_id", '' ),
+        },
+    );
+}
+
 subtest "Discovery advertises grant_management endpoint and actions" => sub {
     my $res = $op->_get(
         "/.well-known/openid-configuration",
@@ -407,6 +422,19 @@ subtest "Public client: the grant endpoint requires an authentication" => sub {
         ok( $res->[0] == 400 || $res->[0] == 401,
             "$method with a client secret is refused for a public client" )
           or explain( $res->[0], '400 or 401' );
+
+        # The core reports tls_client_auth for any certificate, but only
+        # verifies it for a confidential client.
+        $res = $op->_get(
+            "/oauth2/grants/$grant_id",
+            method => $method,
+            accept => 'application/json',
+            query  => 'client_id=rpid_pub',
+            custom => { SSL_CLIENT_S_DN => 'CN=anything' },
+        );
+        ok( $res->[0] == 400 || $res->[0] == 401,
+            "$method with a certificate is refused for a public client" )
+          or explain( $res->[0], '400 or 401' );
     }
 
     # The DELETE was refused: another client still sees the grant as owned by
@@ -469,6 +497,82 @@ subtest "A refused RAR detail is not recorded in the grant" => sub {
         ["10.00"],
         "The refused detail is not recorded in the grant"
     );
+};
+
+subtest "PAR: the pushed action is applied whatever the plugin order" => sub {
+    for my $order (qw(gm_first par_first)) {
+        my $op_p = register( "op_gm_par_$order", sub { op_with_par($order) } );
+        my $id_p = login( $op_p, "french" );
+
+        # The action is pushed, not on the browser side.
+        my $res = par_push(
+            $op_p, "rpid_par",
+            response_type           => "code",
+            scope                   => "openid",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+            state                   => "par1",
+        );
+        is( $res->[0], 201, "$order: PAR push with an action accepted" );
+        my $uri = from_json( $res->[2]->[0] )->{request_uri};
+
+        # A value added to the browser parameters must not break it.
+        my $code = codeAuthorize(
+            $op_p, $id_p,
+            {
+                client_id               => "rpid_par",
+                request_uri             => $uri,
+                grant_management_action => "merge",
+            }
+        );
+        my $tok = expectJSON(
+            codeGrant( $op_p, "rpid_par", $code, "http://client.com/" ) );
+        ok( $tok->{grant_id}, "$order: the pushed action creates the grant" );
+
+        # required mode: the action only exists in the pushed request, so the
+        # hook must not refuse the browser-side request before resolution.
+        $res = par_push(
+            $op_p, "rpid_par_strict",
+            response_type           => "code",
+            scope                   => "openid",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        );
+        is( $res->[0], 201, "$order: strict PAR push accepted" );
+        $uri = from_json( $res->[2]->[0] )->{request_uri};
+        $code = codeAuthorize(
+            $op_p, $id_p,
+            {
+                client_id   => "rpid_par_strict",
+                request_uri => $uri,
+            }
+        );
+        $tok = expectJSON(
+            codeGrant( $op_p, "rpid_par_strict", $code, "http://client.com/" )
+        );
+        ok( $tok->{grant_id}, "$order: required mode reads the pushed action" );
+
+        # A front-channel action is ignored for a pushed request.
+        $res = par_push(
+            $op_p, "rpid_par",
+            response_type => "code",
+            scope         => "openid",
+            redirect_uri  => "http://client.com/",
+        );
+        is( $res->[0], 201, "$order: PAR push without action accepted" );
+        $uri = from_json( $res->[2]->[0] )->{request_uri};
+        $code = codeAuthorize(
+            $op_p, $id_p,
+            {
+                client_id               => "rpid_par",
+                request_uri             => $uri,
+                grant_management_action => "create",
+            }
+        );
+        $tok = expectJSON(
+            codeGrant( $op_p, "rpid_par", $code, "http://client.com/" ) );
+        ok( !$tok->{grant_id}, "$order: front-channel action ignored" );
+    }
 };
 
 subtest "_mergeRar deduplicates by structural equality" => sub {
@@ -754,6 +858,69 @@ sub op_gm_rar {
                         # Only allow payments up to 50 EUR
                         oidcRPMetaDataOptionsAuthorizationDetailsRules =>
                           '{"payment_initiation": "$detail->{instructedAmount}->{amount} <= 50"}',
+                    },
+                },
+                oidcServicePrivateKeySig => oidc_key_op_private_sig,
+                oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            }
+        }
+    );
+}
+
+sub op_with_par {
+    my ($order) = @_;
+    my $plugins =
+        $order eq 'gm_first'
+      ? '::Plugins::OIDCGrantManagement, ::Plugins::OIDCPushedAuthRequest'
+      : '::Plugins::OIDCPushedAuthRequest, ::Plugins::OIDCGrantManagement';
+    return LLNG::Manager::Test->new( {
+            ini => {
+                domain        => 'idp.com',
+                portal        => 'http://auth.op.com/',
+                authentication => 'Demo',
+                userDB         => 'Same',
+                customPlugins  => $plugins,
+                issuerDBOpenIDConnectActivation => "1",
+                restSessionServer               => 1,
+
+                oidcServiceMetaDataGrantManagementURI => 'grants',
+                oidcServiceGrantExpiration            => 3600,
+                oidcServiceMetaDataPushedAuthURI      => 'par',
+                oidcServicePushedAuthExpiration       => 60,
+
+                oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowOnlyDeclaredScopes    => 0,
+
+                oidcRPMetaDataExportedVars => {
+                    rp_par        => { email => "mail", name => "cn" },
+                    rp_par_strict => { email => "mail", name => "cn" },
+                },
+                oidcRPMetaDataOptions => {
+                    rp_par => {
+                        oidcRPMetaDataOptionsDisplayName           => "PAR RP",
+                        oidcRPMetaDataOptionsClientID              => "rpid_par",
+                        oidcRPMetaDataOptionsClientSecret          => "rpid_par",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenJWT        => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg    => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsPAR             => 'allowed',
+                        oidcRPMetaDataOptionsGrantManagement => 'allowed',
+                    },
+                    rp_par_strict => {
+                        oidcRPMetaDataOptionsDisplayName           => "PAR strict",
+                        oidcRPMetaDataOptionsClientID              => "rpid_par_strict",
+                        oidcRPMetaDataOptionsClientSecret          => "rpid_par_strict",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenJWT        => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg    => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsPAR             => 'allowed',
+                        oidcRPMetaDataOptionsGrantManagement => 'required',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,

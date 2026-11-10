@@ -15,6 +15,11 @@ the subset that requires a decision.
 - **oidc-ciba** applies `oidcRPMetaDataOptionsRule` and the scope rules on
   every path, and refuses public clients. A rule based on
   `$_oidc_grant_type` must accept `ciba`.
+- **oidc-grant-management** supports `grant_management_action` on the
+  authorization code flow only: implicit and hybrid requests that carry it
+  are now refused. `/oauth2/grants/{id}` needs a real client authentication,
+  and a public client must use a signed assertion (`client_secret_jwt` or
+  `private_key_jwt`).
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded.
 - **oidc-par** and **oidc-jarm** must be updated together: `oidc-par` calls
