@@ -2,6 +2,7 @@ use warnings;
 use strict;
 use Test::More;
 use IO::String;
+use Digest::SHA qw(sha256);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -99,7 +100,7 @@ is( $res->[0], 200, 'the HTML error page is displayed' );
 }
 
 my $twake = bless {
-    validTokens => qr/^(?:secret)$/,
+    validTokens => { sha256('secret') => 1 },
     p           => t::ApiPortal->new,
 }, 'Lemonldap::NG::Portal::Plugins::TwakeAppAccounts';
 $res = $twake->apiCall( t::ApiRequest->new, 'addAccount' );
