@@ -30,14 +30,18 @@ our %mockResponse = (
     content_type => 'application/jwt',
     status       => 200,
 );
+our %hosts;
 
 LWP::Protocol::PSGI->register(
     sub {
         my $req = Plack::Request->new(@_);
+        $hosts{ $req->uri->host }++;
         is( $req->uri->host, 'request.uri', 'only authorized URI is called' );
 
         my $res = Plack::Response->new( $mockResponse{status} );
         $res->content_type( $mockResponse{content_type} );
+        $res->header( Location => $mockResponse{location} )
+          if $mockResponse{location};
         $res->body( defined $mockResponse{body} ? $mockResponse{body} : '' );
         return $res->finalize;
     }
@@ -201,6 +205,72 @@ subtest 'request_uri: HTTP error' => sub {
     );
     expectRedirection( $res,
         qr,http://redirect.uri/.*error=invalid_request_uri, );
+};
+
+subtest 'request_uri: a redirect is not followed' => sub {
+    local %mockResponse = (
+        body => signedRequestObject( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+            }
+        ),
+        content_type => 'application/jwt',
+        status       => 302,
+        location     => 'http://evil.example.com/x',
+    );
+    local %hosts;
+
+    my $idpId = login( $op, 'french' );
+    my $res   = authorize(
+        $op, $idpId,
+        {
+            response_type => 'code',
+            client_id     => 'rpid',
+            scope         => 'openid',
+            state         => 'uri5',
+            redirect_uri  => 'http://redirect.uri/',
+            request_uri   => 'http://request.uri/redirect',
+        }
+    );
+    ok( !$hosts{'evil.example.com'}, 'no request outside the allowlist' );
+    unlike( getHeader( $res, 'Location' ) // '', qr/[?&]code=/,
+        'a 302 is not a request object' );
+    expectRedirection( $res,
+        qr,http://redirect.uri/.*error=invalid_request_uri, );
+};
+
+subtest 'request_uri: the pre-authentication fetch does not redirect' => sub {
+    local %mockResponse = (
+        body => signedRequestObject( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+            }
+        ),
+        content_type => 'application/jwt',
+        status       => 302,
+        location     => 'http://evil.example.com/x',
+    );
+    local %hosts;
+
+    # No session: exportRequestParameters() (beforeAuth) fetches the
+    # request_uri before oidcGotRequest runs.
+    my $res = $op->_get(
+        '/oauth2/authorize',
+        query => buildForm( {
+                response_type => 'code',
+                client_id     => 'rpid',
+                scope         => 'openid',
+                state         => 'uri6',
+                redirect_uri  => 'http://redirect.uri/',
+                request_uri   => 'http://request.uri/redirect-pre',
+            }
+        ),
+        accept => 'text/html',
+    );
+    ok( $hosts{'request.uri'}, 'the allowed request_uri was fetched' );
+    ok( !$hosts{'evil.example.com'}, 'no request outside the allowlist' );
+    unlike( getHeader( $res, 'Location' ) // '', qr/[?&]code=/,
+        'no code issued' );
 };
 
 subtest 'require_signed_request_object enforces presence' => sub {
