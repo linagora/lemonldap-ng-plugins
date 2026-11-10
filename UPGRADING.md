@@ -9,6 +9,12 @@ the subset that requires a decision.
 
 ## Unreleased
 
+- **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is
+  reserved for the token API, and hidden accounts now count towards the
+  five-account limit. A user whose applications created accounts through the
+  token API can therefore get `Too many accounts` while fewer than five are
+  listed; those accounts are only visible to the API and must be removed
+  through it.
 - **mail-autodiscover** accepts only a dot-atom local part and a DNS domain:
   no comments, no quoted local part, no non-ASCII or single-label domain.
   Invalid values get `%EMAILADDRESS%`.
@@ -27,7 +33,22 @@ the subset that requires a decision.
   `chunked`. A server that compresses regardless of `Accept-Encoding:
   identity` now gets `invalid_request_uri`.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
-  `openid` when no consent is recorded.
+  `openid` when no consent is recorded. A client-credentials access token can
+  no longer be used as `subject_token`.
+- **oidc-par** keeps a pushed request usable for a consent round-trip: the
+  PAR session is removed when the authorization response is produced, not at
+  resolution. A `request_uri` remains single-use once the code or tokens are
+  issued. `oidcServicePushedAuthExpiration` must cover the time spent on the
+  consent page (default 60 s), because the session has to exist when the form
+  is submitted.
+- **oidc-rar** forces the consent screen when `authorization_details` are
+  present and the RP does not bypass consent. A `prompt=none` request that
+  carries details now fails closed, and every request with details shows the
+  consent page. Granting details requires a consent token bound to the
+  relying party and to those details, issued when the page is rendered: a
+  bare `confirm=1` or a signed request object cannot skip the screen. As
+  consent is then present, an RP that sends `offline_access` with details
+  gets a refresh token where it used to get none (OIDC Core section 11).
 - **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the
   authorization URL no longer comes back when the pushed (PAR) or signed
   request, or the ID-JAG assertion, does not carry it. A global scope that

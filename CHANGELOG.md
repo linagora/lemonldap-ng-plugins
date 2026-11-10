@@ -23,7 +23,8 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   (`#227`).
 - **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
   consented scope (or `openid`); a client that bypasses consent gets `openid`
-  only (`#222`).
+  only (`#222`). A client-credentials access token is refused as
+  `subject_token` (`#225`).
 - **oidc-jar**: a `request_uri` fetch no longer follows HTTP redirects and
   reads only an uncompressed 2xx answer, so the portal contacts only the URLs
   allowed by `oidcRPMetaDataOptionsRequestUris`, before and after login
@@ -36,17 +37,23 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   pushed request is resolved, oidc-par drops the front-channel values it
   resolved (`#230`); the other plugins that read the raw front-channel
   parameters get their own fix (`scope` in #227, `resource` in #234, the
-  grant parameters in #235).
+  grant parameters in #235). The PAR session is now removed when the
+  authorization response is produced, not when it is resolved, so a consent
+  form that posts the `request_uri` again can complete.
 - **oidc-resource-indicators**: a `resource` sent on a refresh must be part
   of the original authorization; a value outside it is refused with
   `invalid_target` instead of widening the token audience (`#234`).
 - **oidc-rar**: `authorization_details` added to the front channel are
   ignored once a pushed request is resolved (`#229`, with the matching
-  oidc-par), and the per-RP rules are enforced before an implicit access
-  token is signed (`#228`).
+  oidc-par), the per-RP rules are enforced before an implicit access token is
+  signed (`#228`), and the consent screen is forced when details are present
+  and consent is not bypassed; granting them requires a token bound to those
+  details, so neither a bare `confirm=1` nor a signed request object can skip
+  the screen (`#226`).
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
-  compared by SHA-256 digest (`#223`).
+  compared by SHA-256 digest (`#223`); a user cannot create a `HIDDEN__`
+  account, and hidden accounts count towards the limit (`#224`).
 
 See [UPGRADING.md](UPGRADING.md#unreleased) for the operator-visible changes.
 

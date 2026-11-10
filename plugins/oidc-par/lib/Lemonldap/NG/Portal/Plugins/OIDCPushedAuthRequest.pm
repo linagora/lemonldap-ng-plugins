@@ -20,8 +20,10 @@ our $VERSION = '2.23.0';
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant hook => {
-    oidcGotRequest       => 'resolvePushedRequest',
-    oidcGenerateMetadata => 'addParEndpoint',
+    oidcGotRequest                    => 'resolvePushedRequest',
+    oidcGenerateCode                  => 'consumePushedRequest',
+    oidcGenerateAuthorizationResponse => 'consumePushedRequest',
+    oidcGenerateMetadata              => 'addParEndpoint',
 };
 
 use constant sessionKind => 'OIDCI';
@@ -252,10 +254,10 @@ sub resolvePushedRequest {
     # front-channel parameters any more.
     $oidc_request->{_parResolved} = 1;
 
-    # Delete the PAR session (one-time use)
-    # RFC 9126 Section 2.2: request_uri is intended for single use
-    $parSession->remove;
-    $self->logger->debug("PAR: Session $session_id consumed");
+    # The session must survive a consent round-trip: the form posts the
+    # request_uri again, and a PAR session consumed here would fail before
+    # the code is issued. It is removed once the authorization is complete.
+    $oidc_request->{_parSessionId} = $session_id;
 
     # oidc-jar may have run before us and skipped the PAR URN. Run its checks
     # now on the request we resolved, so JAR validation does not depend on
@@ -301,6 +303,32 @@ sub resolvePushedRequest {
         return $h unless $h == PE_OK;
     }
 
+    return PE_OK;
+}
+
+# Remove the pushed request once an authorization response is produced.
+# RFC 9126 section 2.2 makes request_uri single-use; doing it here keeps the
+# consent round-trip possible (the same user agent may repeat the request).
+sub consumePushedRequest {
+    my ( $self, $req, $oidc_request ) = @_;
+
+    my $session_id = delete $oidc_request->{_parSessionId}
+      or return PE_OK;
+
+    my $session =
+      $self->oidc->getOpenIDConnectSession( $session_id,
+        "pushed_auth_request" );
+
+    # The session is still there when this request resolved it a moment ago:
+    # a missing session means another request already consumed it, so this
+    # one must not produce a second code.
+    unless ($session) {
+        $self->logger->error(
+            "PAR: pushed request $session_id already consumed");
+        return PE_ERROR;
+    }
+    $session->remove;
+    $self->logger->debug("PAR: Session $session_id consumed");
     return PE_OK;
 }
 

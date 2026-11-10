@@ -54,6 +54,7 @@ my $baseConfig = {
                 oidcRPMetaDataOptionsUserIDAttr      => "",
                 oidcRPMetaDataOptionsRedirectUris    => 'http://test/',
                 oidcRPMetaDataOptionsAllowIdJagGrant => 1,
+                oidcRPMetaDataOptionsAllowClientCredentialsGrant => 1,
             },
 
             # The Resource Authorization Server
@@ -202,6 +203,32 @@ subtest 'ID-JAG from an access token' => sub {
         );
     };
     is( $payload->{sub}, 'french', 'Correct subject' );
+};
+
+subtest 'a client credentials token is not a subject' => sub {
+    my $body = buildForm( {
+            grant_type    => 'client_credentials',
+            client_id     => 'rpid',
+            client_secret => 'rpid',
+            scope         => 'openid profile',
+    } );
+    my $res = $op->_post(
+        '/oauth2/token',
+        IO::String->new($body),
+        accept => 'application/json',
+        length => length($body),
+    );
+    my $json = expectJSON($res);
+    ok( $json->{access_token}, 'client credentials token issued' );
+
+    expectError(
+        getIdJag(
+            subject_token      => $json->{access_token},
+            subject_token_type =>
+              'urn:ietf:params:oauth:token-type:access_token',
+        ),
+        'invalid_grant', 'client credentials subject_token'
+    );
 };
 
 subtest 'ID-JAG from an ID token' => sub {
