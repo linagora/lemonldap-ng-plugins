@@ -252,7 +252,6 @@ sub resolvePushedRequest {
     # front-channel parameters any more.
     $oidc_request->{_parResolved} = 1;
 
-
     # Delete the PAR session (one-time use)
     # RFC 9126 Section 2.2: request_uri is intended for single use
     $parSession->remove;

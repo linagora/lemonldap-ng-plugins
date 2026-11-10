@@ -32,10 +32,12 @@ sub conf {
             authentication                  => 'Demo',
             userDB                          => 'Same',
             customPlugins                   =>
-              '::Plugins::OIDCIdentityAssertionGrant, '
+              '::Plugins::OIDCGlobalScopes, '
+              . '::Plugins::OIDCIdentityAssertionGrant, '
               . '::Plugins::OIDCIdentityAssertionGrantServer',
             issuerDBOpenIDConnectActivation => 1,
             oidcServiceIdJagAudience        => $AUDIENCE,
+            oidcServiceGlobalExtraScopes    => { corporate => 'department' },
             oidcRPMetaDataExportedVars      => {
                 rp  => { email => "mail", name => "cn" },
                 rp2 => { email => "mail", name => "cn" },
@@ -221,6 +223,28 @@ subtest 'scope is bounded by the assertion' => sub {
     my $json =
       expectJSON( jwtBearer( $ras, 'rpid', assertion => $a, scope => 'openid' ) );
     is( $json->{scope}, 'openid', 'Narrower scope is honoured' );
+};
+
+subtest 'a global scope outside the assertion is not re-added' => sub {
+    my $a = expectJSON(
+        tokenExchange(
+            $op, 'rpid',
+            requested_token_type => $ID_JAG,
+            audience             => $AUDIENCE,
+            subject_token        => $refresh_token,
+            subject_token_type   =>
+              'urn:ietf:params:oauth:token-type:refresh_token',
+            scope => 'openid',
+        )
+    )->{access_token};
+
+    # The assertion holds openid only: the client cannot add a global scope.
+    my $json = expectJSON(
+        jwtBearer( $ras, 'rpid', assertion => $a, scope => 'openid corporate' )
+    );
+    my %scope = map { $_ => 1 } split /\s+/, $json->{scope} // '';
+    ok( !$scope{corporate}, 'the global scope is not re-added' );
+    ok( $scope{openid},     'the assertion scope is granted' );
 };
 
 subtest 'errors' => sub {
