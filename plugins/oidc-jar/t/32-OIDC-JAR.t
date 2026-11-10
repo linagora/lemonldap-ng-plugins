@@ -239,6 +239,40 @@ subtest 'request_uri: a redirect is not followed' => sub {
         qr,http://redirect.uri/.*error=invalid_request_uri, );
 };
 
+subtest 'request_uri: the pre-authentication fetch does not redirect' => sub {
+    local %mockResponse = (
+        body => signedRequestObject( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+            }
+        ),
+        content_type => 'application/jwt',
+        status       => 302,
+        location     => 'http://evil.example.com/x',
+    );
+    local %hosts;
+
+    # No session: exportRequestParameters() (beforeAuth) fetches the
+    # request_uri before oidcGotRequest runs.
+    my $res = $op->_get(
+        '/oauth2/authorize',
+        query => buildForm( {
+                response_type => 'code',
+                client_id     => 'rpid',
+                scope         => 'openid',
+                state         => 'uri6',
+                redirect_uri  => 'http://redirect.uri/',
+                request_uri   => 'http://request.uri/redirect-pre',
+            }
+        ),
+        accept => 'text/html',
+    );
+    ok( $hosts{'request.uri'}, 'the allowed request_uri was fetched' );
+    ok( !$hosts{'evil.example.com'}, 'no request outside the allowlist' );
+    unlike( getHeader( $res, 'Location' ) // '', qr/[?&]code=/,
+        'no code issued' );
+};
+
 subtest 'require_signed_request_object enforces presence' => sub {
     my $idpId = login( $op, 'french' );
     my $res   = authorize(

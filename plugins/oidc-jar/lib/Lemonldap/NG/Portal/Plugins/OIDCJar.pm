@@ -20,6 +20,18 @@ use constant hook => {
     oidcGenerateMetadata => 'advertiseJarMetadata',
 };
 
+sub init {
+    my ($self) = @_;
+    return unless $self->SUPER::init;
+
+    # The core fetches a request_uri in exportRequestParameters() (beforeAuth)
+    # before our oidcGotRequest hook, including for an unauthenticated
+    # request. Route that fetch through the hardened one while this plugin is
+    # loaded, so the pre-auth path does not follow redirects either.
+    $self->_installCoreFetchGuard;
+    return 1;
+}
+
 sub _supportedSigAlg {
     my ($self) = @_;
     my @algs = qw/HS256 HS384 HS512/;
@@ -271,6 +283,37 @@ sub _checkAndStoreJti {
 
 # Download a request_uri, enforcing timeout / Content-Type / size.
 # Uses a dedicated UA so the shared OIDC UA is never mutated.
+# Wrap the issuer's getRequestJWT once per process. The wrapper resolves the
+# plugin instance from the issuer it is called on, so a portal without this
+# plugin keeps the core behaviour.
+our $coreFetchWrapper;
+
+sub _installCoreFetchGuard {
+    my ($self) = @_;
+
+    my $issuer = $self->oidc or return;
+    my $pkg    = ref($issuer)   or return;
+    my $orig   = $pkg->can('getRequestJWT') or return;
+    return 1 if $coreFetchWrapper and $orig == $coreFetchWrapper;
+
+    my $wrapper;
+    $wrapper = sub {
+        my ( $issuer, $uri ) = @_;
+        my $jar = eval {
+            $issuer->p->loadedModules
+              ->{'Lemonldap::NG::Portal::Plugins::OIDCJar'};
+        };
+        return $jar->_fetchRequestUri($uri) if $jar;
+        return $orig->( $issuer, $uri );
+    };
+
+    no strict 'refs';
+    no warnings 'redefine';
+    *{"${pkg}::getRequestJWT"} = $wrapper;
+    $coreFetchWrapper = $wrapper;
+    return 1;
+}
+
 sub _fetchRequestUri {
     my ( $self, $uri ) = @_;
 
@@ -287,8 +330,11 @@ sub _fetchRequestUri {
     );
 
     my $resp = eval {
-        $ua->get( $uri,
-            Accept => 'application/oauth-authz-req+jwt, application/jwt' );
+        $ua->get(
+            $uri,
+            Accept => 'application/oauth-authz-req+jwt, application/jwt',
+            'Accept-Encoding' => 'identity',
+        );
     };
     my $err = $@;
 
@@ -308,6 +354,15 @@ sub _fetchRequestUri {
         return undef;
     }
 
+    # A request object is a few KB and never needs compression: reading a
+    # compressed body would decompress it in memory before the size check.
+    my $ce = $resp->header('Content-Encoding') // '';
+    if ( length $ce and lc($ce) ne 'identity' ) {
+        $self->logger->error(
+            "JAR request_uri unexpected Content-Encoding: $ce" );
+        return undef;
+    }
+
     # LWP marks a response cut by max_size in Client-Aborted but still
     # reports it as a success.
     if ( my $aborted = $resp->header('Client-Aborted') ) {
@@ -316,13 +371,7 @@ sub _fetchRequestUri {
         return undef;
     }
 
-    my $body = $resp->decoded_content;
-    unless ( defined $body ) {
-        $self->logger->error(
-            "JAR request_uri response could not be decoded: "
-              . ( $resp->header('X-Died') // 'unknown error' ) );
-        return undef;
-    }
+    my $body = $resp->content // '';
     if ( length($body) > $max ) {
         $self->logger->error( "JAR request_uri response size "
               . length($body)
