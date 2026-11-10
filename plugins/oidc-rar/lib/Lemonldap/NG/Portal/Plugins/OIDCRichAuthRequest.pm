@@ -155,12 +155,14 @@ sub _parseTypeList {
     return \%set;
 }
 
-# Digest binding a consent token to a relying party and its details.
+# Digest binding a consent token to a user, a relying party and its details.
+# The user binding stops another session from replaying a token it obtained
+# on its own consent page.
 sub _detailsHash {
-    my ( $rp, $raw ) = @_;
+    my ( $rp, $raw, $user ) = @_;
     my $bytes = $raw // '';
     utf8::encode($bytes) if utf8::is_utf8($bytes);
-    return sha256_hex( $rp . "\0" . $bytes );
+    return sha256_hex( join( "\0", $rp, $user // '', $bytes ) );
 }
 
 # Hook: oidcGotRequest
@@ -300,7 +302,7 @@ sub parseAuthorizationDetails {
             return PE_ERROR;
         }
 
-        my $hash = _detailsHash( $rp, $raw );
+        my $hash = _detailsHash( $rp, $raw, $req->id );
         if ( my $token = $self->p->getHiddenFormValue( $req, 'rar_consent' ) ) {
             my $decoded = eval { $cipher->decrypt($token) };
             my ( $time, $got ) =
@@ -350,9 +352,10 @@ sub enforceRulesAndStoreOnCode {
 sub enforceRules {
     my ( $self, $req, $rp, $details ) = @_;
 
-    # bindConsentToDetails() issues a token when the page is built; only a
-    # form that posts it back can grant the details. This does not depend on
-    # the core accepting a bare confirm=1, nor on a request object's prompt.
+    # parseAuthorizationDetails() issues a token when the page is built;
+    # only the same user's form can post it back and grant the details. This
+    # does not depend on the core accepting a bare confirm=1, nor on a
+    # request object's prompt.
     if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent}
         and !$req->data->{_rar_consented} )
     {

@@ -3,6 +3,7 @@ use Test::More;
 use strict;
 use IO::String;
 use JSON;
+use URI::Escape qw(uri_unescape);
 
 BEGIN {
     require 't/test-lib.pm';
@@ -109,6 +110,32 @@ $res = authorize(
     }
 );
 expectPortalError( $res, 24, 'a bare confirm=1 does not grant details' );
+
+# A consent token from another user's page cannot be replayed: it is bound to
+# the session that rendered it.
+my $attacker = login( $op, 'dwho' );
+my $atk_res  = authorize_with( $attacker, 'atk', '9999.00' );
+my ( undef, undef, $atk_query ) = expectForm( $atk_res, '#', undef, 'confirm' );
+my ($atk_token) = $atk_query =~ /lmhidden_rar_consent=([^&]+)/;
+ok( $atk_token, 'attacker consent token extracted' );
+$atk_token = uri_unescape($atk_token);
+
+my $victim = login( $op, 'rtyler' );
+$res = authorize(
+    $op, $victim,
+    {
+        response_type         => 'code',
+        scope                 => 'openid',
+        client_id             => 'rp_consent',
+        state                 => 'token-replay',
+        redirect_uri          => 'http://rp.com/',
+        authorization_details => details('9999.00'),
+        confirm               => 1,
+        lmhidden_rar_consent  => $atk_token,
+    }
+);
+expectPortalError( $res, 24,
+    "another user's consent token cannot be replayed" );
 
 # Second authorization with the same scope but other details: consent is
 # required again, because the stored consent records scopes only.
