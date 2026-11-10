@@ -173,7 +173,8 @@ sub parseAuthorizationDetails {
         $raw //= $req->param('authorization_details');
 
         # The consent form carries the details as a base64 hidden field, so
-        # that the JSON quotes do not break the HTML attribute.
+        # that the JSON quotes do not break the HTML attribute. It is
+        # user-controlled: it is re-validated like the parameter above.
         $raw //= $self->p->getHiddenFormValue( $req, 'authorization_details' );
     }
 
@@ -311,6 +312,20 @@ sub enforceRulesAndStoreOnCode {
 # core never fires oidcGenerateCode and addToAccessToken must enforce them.
 sub enforceRules {
     my ( $self, $req, $rp, $details ) = @_;
+
+    # The prompt forced in parseAuthorizationDetails can be overwritten
+    # afterwards: the core applies a request object after oidcGotRequest.
+    # Past its consent step, the core only carries prompt=consent when the
+    # user confirmed in this request, so check the effective value.
+    if ( !$self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsBypassConsent} )
+    {
+        my $prompt = ( $req->data->{_oidc_request} || {} )->{prompt} // '';
+        unless ( $prompt =~ /\bconsent\b/ ) {
+            $self->logger->error(
+                'RAR: authorization_details granted without consent');
+            return 0;
+        }
+    }
 
     if ( $self->rpRarBroken->{$rp} ) {
         $self->logger->error( "RAR: denying authorization_details for RP $rp "

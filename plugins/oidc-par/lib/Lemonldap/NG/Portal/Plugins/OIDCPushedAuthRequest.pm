@@ -318,10 +318,17 @@ sub consumePushedRequest {
     my $session =
       $self->oidc->getOpenIDConnectSession( $session_id,
         "pushed_auth_request" );
-    if ($session) {
-        $session->remove;
-        $self->logger->debug("PAR: Session $session_id consumed");
+
+    # The session is still there when this request resolved it a moment ago:
+    # a missing session means another request already consumed it, so this
+    # one must not produce a second code.
+    unless ($session) {
+        $self->logger->error(
+            "PAR: pushed request $session_id already consumed");
+        return PE_ERROR;
     }
+    $session->remove;
+    $self->logger->debug("PAR: Session $session_id consumed");
     return PE_OK;
 }
 

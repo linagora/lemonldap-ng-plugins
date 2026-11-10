@@ -115,5 +115,36 @@ $tok = expectJSON( codeGrant( $op, 'rp_consent', $code, 'http://rp.com/' ) );
 is( $tok->{authorization_details}->[0]->{instructedAmount}->{amount},
     '20.00', 'the second consent carries the new details' );
 
+# A signed request object is applied after the oidcGotRequest hook, so it can
+# override the prompt the plugin forced. It must not skip the consent screen.
+subtest 'a request object cannot drop the consent prompt' => sub {
+    my $issuer = $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Issuer::OpenIDConnect'};
+    my $jar = $issuer->createJWT(
+        {
+            client_id     => 'rp_consent',
+            response_type => 'code',
+            prompt        => 'none',
+        },
+        'HS256', 'rp_consent'
+    );
+    ok( defined $jar, 'signed request object built' );
+
+    my $res = authorize(
+        $op, $id,
+        {
+            response_type         => 'code',
+            scope                 => 'openid',
+            client_id             => 'rp_consent',
+            state                 => 'jar-bypass',
+            redirect_uri          => 'http://rp.com/',
+            authorization_details => details('9999.00'),
+            request               => $jar,
+        }
+    );
+    expectPortalError( $res, 24,
+        'details with a prompt=none request object are refused' );
+};
+
 clean_sessions();
 done_testing();
