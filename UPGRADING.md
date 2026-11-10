@@ -9,23 +9,16 @@ the subset that requires a decision.
 
 ## Unreleased
 
-`mail-autodiscover` now accepts only a dot-atom local part and a DNS domain in
-the `email` parameter. An address with a quoted local part or RFC 822 comments
-is replaced by `%EMAILADDRESS%`, as any other invalid value already was.
-Non-ASCII addresses and single-label domains such as `user@localhost` are
-also replaced.
-
-`oidc-ciba` now applies `oidcRPMetaDataOptionsRule` and the scope rules
-(`oidcRPMetaDataScopeRules`, `oidcServiceAllowOnlyDeclaredScopes`, and the
-`oidcResolveScope` hooks) on every CIBA path. A rule based on
-`$_oidc_grant_type` must accept the `ciba` value, for example:
-
-```perl
-$_oidc_grant_type =~ /^(?:authorizationcode|ciba)$/
-```
-
-Public clients (`oidcRPMetaDataOptionsPublic`) are now refused on both
-backchannel routes.
+- **mail-autodiscover** accepts only a dot-atom local part and a DNS domain:
+  no comments, no quoted local part, no non-ASCII or single-label domain.
+  Invalid values get `%EMAILADDRESS%`.
+- **oidc-ciba** applies `oidcRPMetaDataOptionsRule` and the scope rules on
+  every path, and refuses public clients. A rule based on
+  `$_oidc_grant_type` must accept `ciba`.
+- **oidc-id-jag** ID Token subjects assert only the consented scope, or
+  `openid` when no consent is recorded.
+- **oidc-par** and **oidc-jarm** must be updated together: `oidc-par` calls
+  `processJarmRequest` on a loaded `oidc-jarm`.
 
 ## v0.7.1
 

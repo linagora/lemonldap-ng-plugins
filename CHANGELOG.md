@@ -2,131 +2,26 @@
 
 ## Unreleased
 
-### mail-autodiscover
+Security and compatibility fixes from the 2026-11-09/10 review:
 
-- **Security fix — reflected XSS through the `email` parameter** (advisory
-  `GHSA-5vpp-vm97-fgv6`): the parameter was validated with
-  the full RFC 822 grammar, which accepts CFWS comments and quoted local
-  parts, then copied verbatim into the `application/xml` response. A value
-  such as `a@b.c(<x:script xmlns:x="http://www.w3.org/1999/xhtml" ...>)`
-  produced a well-formed XML document whose XHTML `script` runs in the portal
-  origin. The parameter now uses a strict `local@domain` addr-spec, is
-  XML-escaped before substitution, and every response carries
-  `X-Content-Type-Options: nosniff` and
-  `Content-Security-Policy: default-src 'none'; sandbox`.
-- **Fix — the AutodiscoverV1 JSON route works on LLNG < 2.19**: it used
-  `$req->portal`, which only exists since 2.19, so the route crashed with a
-  500; it now falls back to the configured `portal` URL.
-- **Test suite**: `t/01-MailAutodiscover.t` covers a valid address, RFC 822
-  comment and quoted-local-part payloads, the JSON route and the EWS fallback.
+- **mail-autodiscover**: the `email` parameter uses a strict `local@domain`
+  addr-spec, is XML-escaped, and every response carries `nosniff` and a
+  restrictive CSP. The AutodiscoverV1 JSON route works on LLNG < 2.19.
+- **oidc-ciba**: the per-RP access rule and the scope rules now apply on
+  every CIBA path, and public clients are refused (`#220`, `#221`).
+- **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
+  consented scope (or `openid`); a client that bypasses consent gets `openid`
+  only (`#222`).
+- **oidc-jarm**: `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt` are
+  rewritten to their base mode before core validation, including with PAR and
+  signed request objects.
+- **oidc-par**: calls the JARM hook after resolving a pushed request;
+  `test_depends` gains `oidc-jarm`, which must be updated with it.
+- **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
+  escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
+  compared by SHA-256 digest (`#223`).
 
-### oidc-ciba
-
-- **Security fix — the per-RP access rule is evaluated on every CIBA path**
-  (#220): `oidcRPMetaDataOptionsRule` was never consulted by
-  `backchannelAuthentication`, the authenticated `/bc-authorize` route or
-  `handleCibaGrant`. A user excluded by the rule still received access, ID
-  and refresh tokens. The rule is now evaluated once the user is known, and
-  again at issuance, with `_oidc_grant_type => 'ciba'`.
-- **Security fix — the requested scope goes through `getScope`** (#221): the
-  client-supplied scope was stored and minted as is, so
-  `oidcRPMetaDataScopeRules`, `oidcServiceAllowOnlyDeclaredScopes` and
-  the `oidcResolveScope` hooks were bypassed. The scope is now resolved once
-  the user is known, only the result is stored, and `openid` is re-checked.
-- **Public clients are refused** on both backchannel routes: anyone who knows
-  the `client_id` could otherwise push an authentication to any `login_hint`.
-- **Test suite**: `t/32-OIDC-CIBA.t` covers a refused user on the poll and
-  direct paths, a scope refused by a rule, and a public client.
-
-### oidc-id-jag
-
-- **Security fix — an ID Token used as `subject_token` no longer asserts an
-  unbounded scope** (#222): the `sid` index recorded the user session but not
-  the scope granted to the client. For an ID Token resolved through the index
-  — the normal path, and the only one for clients without refresh tokens —
-  `_assertedScope` therefore received no bound, and the client's `scope=`
-  reached the signed assertion as is. The index now records the consented
-  scope, `_assertedScope` treats a missing scope as `openid` only, and the
-  index route returns the recorded scope.
-- **Behaviour change**: a client that bypasses the consent screen
-  (`oidcRPMetaDataOptionsBypassConsent`), or a deployment with
-  `disablePersistentStorage`, has no consent entry, so its ID Token subjects
-  now assert `openid` only. Use a refresh or access token to keep the full
-  granted scope.
-- **Test suite**: the ID Token of a client without refresh tokens is exchanged
-  with `scope=openid admin`; `admin` is not asserted.
-
-### oidc-jarm
-
-- **Fix — JARM response modes work with the stricter core validation**: core
-  now only accepts `query`, `fragment` and `form_post` in
-  `isResponseModeAllowed`, so `query.jwt`, `fragment.jwt`, `form_post.jwt`
-  and `jwt` were refused before the JARM hook ran. The plugin rewrites the
-  JARM mode to its base mode in `oidcGotRequest` and keeps the original for
-  the authorization response, so the response is still wrapped in a JWT.
-- **PAR compatibility**: a PAR `request_uri` carries no `response_mode`, so
-  the hook skips it; `oidc-par` calls it back once the pushed request is
-  resolved. JARM works whatever the plugin order, including JARM loaded
-  before PAR.
-- **Request object precedence**: a signed request object overrides the query
-  string (OIDC Core 6.1); its response mode is read from the payload and
-  copied before core validation.
-- **Limitation**: an encrypted request object (JWE), or a `request_uri`
-  outside PAR, is resolved later by the core. A JARM mode inside it still
-  applies, but a non-JARM override is not visible to this hook.
-- **`query.jwt` on implicit/hybrid flows** is now refused: the core only
-  allows `fragment` and `form_post` there. Use `fragment.jwt` instead.
-- **Test suite**: `t/32-Auth-OIDC-JARM.t` gains a subtest for the rewriting of
-  `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt`, for the PAR skip,
-  for the request-object override and for the early refusal when the RP does
-  not allow JARM. The existing full `query.jwt` flow and forged-response
-  cases pass again on LLNG master.
-
-### oidc-par
-
-- **Fix — JARM compatibility**: after resolving a pushed request, call
-  `processJarmRequest` on `oidc-jarm` when it is loaded, so JARM works with
-  PAR whatever the plugin order. `test_depends` gains `oidc-jarm`.
-  **Update `oidc-par` and `oidc-jarm` together**: with an older `oidc-jarm`
-  the call is skipped with a warning.
-
-### twake
-
-- **Security fix — `/deviceaccounts/del` only deletes the caller's own
-  accounts** (#219): the handler checked that the caller had at least one app
-  account, but never that the `uid` in the body belonged to them. It also
-  interpolated the value unescaped into the LDAP filter and DN, so `*` became
-  a presence filter, `(` a malformed filter, and a wildcard turned the
-  endpoint into an existence oracle. `getAccounts()` is now read in list
-  context, the `uid` must be in the caller's list, and the filter and DN are
-  escaped with `Net::LDAP::Util`. The aggregate Outlook entry, which
-  `getAccounts()` hides, is no longer deletable. The same escaping is applied
-  to `mail` in `getAccounts()` and `addAccount()`. The token API
-  (`delAccountByToken`) goes through the same check: a script must now send
-  the `user` that owns the `uid`, and the interactive route can no longer
-  delete `HIDDEN__` accounts.
-- **Test suite**: `t/02-TwakeAppAccounts-del.t` covers a foreign uid, a
-  wildcard, a malformed filter, a normal delete, a uid with filter and DN
-  metacharacters, and an LDAP error from `getAccounts()`.
-
-### twake
-
-- **Security fix — the empty admin token alternative is no longer accepted**
-  (#223): an empty field in `twakeAdminTokens` became `\Q\E` in the
-  runtime-built regex, which matches the literal header value `QE`. With a
-  leading or doubled separator, `Authorization: QE` passed the check and the
-  admin API accepted `{"user":"victim"}`. The list is now split on
-  `[;,\s]+`, empty fields are dropped, and each token is compared by its
-  SHA-256 digest. This also fixes the `\Q`/`\E` bug that made a configured
-  token match only the literal `Q<token>E`. Note: a script that had adapted
-  to that bug must now send the configured token itself.
-- **Fix — `twakeAppEntryFields`**: the value was split into a list and passed
-  to an arrayref attribute, so the module failed to load with more than one
-  field and account creation crashed with one. It is now an arrayref of
-  non-empty fields.
-- **Test suite**: `t/03-TwakeAppAccounts-token.t` covers a leading space, a
-  space before a comma and a doubled semicolon, with no header, an empty
-  header, the `QE` bypass and the old `Q<token>E` literal.
+See [UPGRADING.md](UPGRADING.md#unreleased) for the operator-visible changes.
 
 ## v0.7.1 - 2026-11-05
 
