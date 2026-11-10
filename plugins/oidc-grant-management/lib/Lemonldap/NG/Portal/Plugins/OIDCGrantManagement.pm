@@ -108,8 +108,8 @@ sub parseGrantManagementParam {
         $grant_id //= $req->param('grant_id');
     }
 
-    # A hook that ran before PAR resolution may have stored a context from
-    # the front channel: drop it when the resolved request has no action.
+    # Defensive: drop any context an earlier hook may have stored, so a
+    # resolved request without an action cannot reuse a browser-side value.
     unless ( defined $action and length $action ) {
         delete $req->data->{ &DATA_KEY };
 
@@ -142,9 +142,8 @@ sub parseGrantManagementParam {
     # The grant is materialized in materializeGrantAndStoreOnCode, which the
     # core only fires on the authorization code flow. On implicit and hybrid
     # flows the action would be accepted and never applied: refuse it, so the
-    # client knows the grant did not change. When PAR or JAR fills the
-    # response type after this hook, the request is not known yet: the
-    # materialized flag checked in addGrantIdToAccessToken fails closed.
+    # client knows the grant did not change. The materialized flag checked in
+    # addGrantIdToAccessToken is a second guard.
     my $response_type = $oidc_request->{response_type};
     if (    defined $response_type
         and length $response_type
@@ -226,6 +225,16 @@ sub materializeGrantAndStoreOnCode {
             return PE_ERROR
               unless $rar->enforceRules( $req, $rp,
                 $req->data->{_rar_details} );
+        }
+        else {
+
+            # oidc-rar is older than this plugin: its rules cannot run
+            # before the grant is written. Fail closed instead of recording
+            # authorization_details that may be refused afterwards.
+            $self->logger->error(
+                "OIDCGrantManagement: oidc-rar is too old to enforce the "
+                  . "authorization_details rules before storing the grant" );
+            return PE_ERROR;
         }
     }
 
@@ -451,11 +460,11 @@ sub handleGrantEndpoint {
         return $self->oidc->invalidClientResponse($req);
     }
 
-    # For a public client, only a signed assertion proves the caller: the
-    # core verifies client_secret_jwt and private_key_jwt, while a client
-    # certificate (tls_client_auth) is only checked for a confidential
-    # client. A shared secret is refused too, even when the core happens to
-    # verify a registered one: a public client should not hold a secret.
+    # For a public client, only a JWS method is always verified by the core,
+    # whatever the client type: client_secret_jwt and private_key_jwt. A
+    # client certificate (tls_client_auth) is only checked for a confidential
+    # client, and a static secret is not treated as a credential for a public
+    # client, so only the JWS methods are accepted here.
     if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
         unless ( $auth_method =~ /^(?:client_secret_jwt|private_key_jwt)$/ ) {
             $self->logger->error(

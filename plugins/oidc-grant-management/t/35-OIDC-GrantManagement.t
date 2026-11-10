@@ -256,6 +256,44 @@ subtest "offline_access: grant_id survives a refresh-token grant" => sub {
         "GET on the grant still returns 200 after refreshing" );
 };
 
+subtest "Refresh session created before the materialized flag keeps it" => sub {
+    # A refresh token issued before this version has no `materialized` key in
+    # its grant context. restoreOnTokenEndpoint must mark it, or the access
+    # token loses its grant_id after an upgrade.
+    my $code = codeAuthorize(
+        $op, $idpId,
+        {
+            response_type           => "code",
+            scope                   => "openid offline_access",
+            client_id               => "rpid",
+            state                   => "old-refresh",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    my $first =
+      expectJSON( codeGrant( $op, "rpid", $code, "http://client.com/" ) );
+    my $grant_id = $first->{grant_id};
+    ok( $grant_id, "Grant created" );
+    ok( $first->{refresh_token}, "Refresh token issued" );
+
+    my $gm = $op->p->loadedModules
+      ->{'Lemonldap::NG::Portal::Plugins::OIDCGrantManagement'};
+    my $refresh_session = $gm->oidc->getRefreshToken( $first->{refresh_token} );
+    ok( $refresh_session, "Refresh session loaded" );
+    my $ctx = $refresh_session->data->{_grant_ctx};
+    is( ref($ctx), 'HASH', "Grant context stored on the refresh session" );
+    delete $ctx->{materialized};
+    $refresh_session->update( { _grant_ctx => $ctx } );
+
+    my $second =
+      expectJSON( _refresh( $op, "rpid", $first->{refresh_token} ) );
+    is( $second->{grant_id}, $grant_id,
+        "Response still echoes the grant_id" );
+    is( jwt_payload( $second->{access_token} )->{grant_id}, $grant_id,
+        "Access token still carries the grant_id claim" );
+};
+
 subtest "Refresh-token rotation preserves grant_id across rotations" => sub {
 
     # Rotation enabled = each refresh issues a NEW refresh_token. The

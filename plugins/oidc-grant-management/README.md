@@ -108,11 +108,12 @@ DELETE /oauth2/grants/{grant_id}    →  204 No Content; grant revoked
 
 Authenticated as the OAuth client that owns the grant: a confidential
 client with `client_secret_basic`, `client_secret_post` or a signed
-`client_assertion`. A caller that only sends its `client_id`, or a public
-client that sends a shared secret, is refused with `invalid_client`: neither
-proves who the caller is. Public clients must use a signed assertion
-(`private_key_jwt` or `client_secret_jwt`). A client cannot read or revoke a
-grant that doesn't belong to it (returns 403).
+`client_assertion`. A caller that only sends its `client_id` is refused with
+`invalid_client`. A public client must use a JWS method (`private_key_jwt` or
+`client_secret_jwt`): the core always verifies those, whatever the client
+type, while a client certificate is only checked for a confidential client.
+A client cannot read or revoke a grant that doesn't belong to it (returns
+403).
 
 ## Installation
 

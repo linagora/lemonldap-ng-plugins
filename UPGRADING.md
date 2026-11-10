@@ -22,8 +22,12 @@ the subset that requires a decision.
   `private_key_jwt`).
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded.
-- **oidc-par** and **oidc-jarm** must be updated together: `oidc-par` calls
-  `processJarmRequest` on a loaded `oidc-jarm`.
+- **oidc-par**, **oidc-jarm**, **oidc-rar** and **oidc-grant-management**
+  must be updated together: `oidc-par` calls `processJarmRequest` on a loaded
+  `oidc-jarm` and replays the RAR and grant-management hooks on a resolved
+  request, and `oidc-grant-management` calls `enforceRules` on a loaded
+  `oidc-rar` (it refuses to record `authorization_details` when `oidc-rar` is
+  too old).
 
 ## v0.7.1
 
