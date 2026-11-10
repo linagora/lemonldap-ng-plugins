@@ -225,11 +225,17 @@ sub resolvePushedRequest {
         return PE_ERROR;
     }
 
-    # RFC 9126 Section 3: Parameters in the PAR response take precedence
+    # RFC 9126 Section 3: only the pushed parameters are used; front-channel
+    # values are dropped before the session values are copied.
     my @par_params = qw/response_type scope client_id state redirect_uri nonce
       response_mode display prompt max_age ui_locales id_token_hint
       login_hint acr_values request code_challenge code_challenge_method
       authorization_details/;
+
+    # The core filled $oidc_request from the front channel first. Drop those
+    # values: once a request_uri is resolved, only the pushed parameters may
+    # be used (RFC 9126 section 3).
+    delete $oidc_request->{$_} for @par_params;
 
     for my $param (@par_params) {
         if ( defined $parSession->data->{$param} ) {

@@ -115,6 +115,33 @@ subtest "PAR + JARM in the JARM-first order" => sub {
     ok( !defined $uri->query_param('code'), "no plain code in the response" );
 };
 
+subtest "Front-channel parameters do not alter a pushed request" => sub {
+    my $par = parRequest(
+        $op, "rp",
+        {
+            response_type => "code",
+            scope         => "openid",
+            redirect_uri  => "http://rp.com/",
+            client_id     => "rp",
+        }
+    );
+    my $auth_res = authorize(
+        $op, $id,
+        {
+            client_id      => "rp",
+            request_uri    => parJSON($par)->{request_uri},
+            state          => "front-state",
+            code_challenge => "front-challenge",
+        }
+    );
+    my ($loc) = expectRedirection( $auth_res, qr#(http://rp\.com/.*)# );
+    unlike( $loc, qr/[?&#]state=/, "no state: none was pushed" );
+    my ($code) = $loc =~ /[?&#]code=([^&]*)/;
+
+    # No challenge was pushed: the code needs no verifier.
+    expectJSON( codeGrant( $op, "rp", $code, "http://rp.com/" ) );
+};
+
 subtest "PAR with PKCE works" => sub {
 
     # Step 1: Push authorization request with PKCE
