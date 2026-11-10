@@ -19,8 +19,11 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   `test_depends` gains `oidc-jarm`, which must be updated with it. Once a
   pushed request is resolved, oidc-par drops the front-channel values it
   resolved (`#230`); the other plugins that read the raw front-channel
-  parameters (`scope` in #227, `authorization_details` in #229) still need
-  their own fix.
+  parameters (`scope` in #227, and the resource/grant-management readers)
+  still need their own fix.
+- **oidc-rar**: `authorization_details` added to the front channel are
+  ignored once a pushed request is resolved (`#229`), and the per-RP rules
+  are enforced before an implicit access token is signed (`#228`).
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
   compared by SHA-256 digest (`#223`).

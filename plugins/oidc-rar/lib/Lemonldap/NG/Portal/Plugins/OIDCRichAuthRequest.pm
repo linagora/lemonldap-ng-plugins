@@ -165,10 +165,17 @@ sub parseAuthorizationDetails {
     my ( $self, $req, $oidc_request ) = @_;
 
     # PAR (oidc-par plugin) populates $oidc_request from a stored PAR session;
-    # direct authorize calls go through $req->param. Try both.
-    my $raw = $oidc_request->{authorization_details}
-      // $req->param('authorization_details');
-    return PE_OK unless defined $raw and length $raw;
+    # direct authorize calls go through $req->param. Once a pushed request is
+    # resolved, only its authorization_details are valid: never fall back to
+    # a value added to the front-channel URL.
+    my $raw = $oidc_request->{authorization_details};
+    $raw //= $req->param('authorization_details')
+      unless $oidc_request->{_parResolved};
+
+    unless ( defined $raw and length $raw ) {
+        delete $req->data->{ &SESSION_KEY };
+        return PE_OK;
+    }
     $oidc_request->{authorization_details} = $raw;
 
     my $client_id = $oidc_request->{client_id};
@@ -265,32 +272,42 @@ sub enforceRulesAndStoreOnCode {
     my ( $self, $req, $oidc_request, $rp, $code_payload ) = @_;
 
     my $details = $req->data->{ &SESSION_KEY } or return PE_OK;
+    return PE_ERROR unless $self->_enforceRules( $req, $rp, $details );
+
+    $code_payload->{ &SESSION_KEY } = $details;
+    return PE_OK;
+}
+
+# Evaluate the per-RP Perl rules against the current user. Used by the code
+# flow (enforceRulesAndStoreOnCode) and by implicit/hybrid flows, where the
+# core never fires oidcGenerateCode and addToAccessToken must enforce them.
+sub _enforceRules {
+    my ( $self, $req, $rp, $details ) = @_;
 
     if ( $self->rpRarBroken->{$rp} ) {
         $self->logger->error( "RAR: denying authorization_details for RP $rp "
               . "(rules JSON failed to decode at init)" );
-        return PE_ERROR;
+        return 0;
     }
 
     my $rpRules = $self->rpRarRule->{$rp};
     if ( $rpRules and %$rpRules ) {
+        my $user = $req->userData || $req->sessionInfo || {};
         for my $detail (@$details) {
             my $type = $detail->{type};
             my $rule = $rpRules->{$type} or next;
             my $attrs = {
-                %{ $req->userData || {} },
+                %$user,
                 detail => $detail,
             };
             unless ( $rule->( $req, $attrs ) ) {
                 $self->logger->error( "RAR: Perl rule rejected detail of "
                       . "type `$type` for RP $rp" );
-                return PE_ERROR;
+                return 0;
             }
         }
     }
-
-    $code_payload->{ &SESSION_KEY } = $details;
-    return PE_OK;
+    return 1;
 }
 
 # Hook: oidcGotTokenRequest
@@ -368,6 +385,13 @@ sub _utf8Bytes {
 sub addToAccessToken {
     my ( $self, $req, $payload, $rp, $extra_headers ) = @_;
     my $d = $req->data->{ &SESSION_KEY } or return PE_OK;
+
+    # Implicit and hybrid flows never fire oidcGenerateCode: enforce the
+    # per-RP rules here before the details reach the access token. On the
+    # token endpoint (grant_type present) the code flow already enforced them.
+    unless ( $req->param('grant_type') ) {
+        return PE_ERROR unless $self->_enforceRules( $req, $rp, $d );
+    }
 
     $payload->{authorization_details} = $self->_utf8Bytes($d);
     if ( my $jti = $payload->{jti} ) {

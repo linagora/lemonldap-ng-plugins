@@ -248,6 +248,10 @@ sub resolvePushedRequest {
     # from trying to process it as a regular Request Object URI
     delete $oidc_request->{request_uri};
 
+    # Marks a resolved pushed request: plugins must not fall back to the
+    # front-channel parameters any more.
+    $oidc_request->{_parResolved} = 1;
+
     # Delete the PAR session (one-time use)
     # RFC 9126 Section 2.2: request_uri is intended for single use
     $parSession->remove;
@@ -276,6 +280,16 @@ sub resolvePushedRequest {
             $self->logger->warn(
 'oidc-par: oidc-jarm is too old to re-evaluate response_mode');
         }
+    }
+
+    # oidc-rar may have run before us on the front channel. Reprocess the
+    # resolved request; with no pushed authorization_details it clears the
+    # browser value and returns PE_OK.
+    if ( my $rar = $self->p->loadedModules
+        ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'} )
+    {
+        my $h = $rar->parseAuthorizationDetails( $req, $oidc_request );
+        return $h unless $h == PE_OK;
     }
 
     return PE_OK;
