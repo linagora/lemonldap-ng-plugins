@@ -231,7 +231,7 @@ sub _resourcesOutsideGrant {
 
 sub _refuseOutsideGrant {
     my ( $self, $req, @outside ) = @_;
-    $self->logger->error(
+    $self->userLogger->error(
         "OIDCResourceIndicators: refresh requested resource(s) outside "
           . "the grant: " . join( ', ', @outside ) );
     $req->response(
