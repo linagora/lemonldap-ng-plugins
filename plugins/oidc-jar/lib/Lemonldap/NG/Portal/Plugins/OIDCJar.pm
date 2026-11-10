@@ -275,7 +275,16 @@ sub _fetchRequestUri {
     my ( $self, $uri ) = @_;
 
     my $timeout = $self->conf->{oidcJarRequestUriTimeout} || 10;
-    my $ua      = LWP::UserAgent->new( timeout => $timeout );
+    my $max     = $self->conf->{oidcJarRequestUriMaxSize} || 65536;
+
+    # Never follow a redirect: only the URL checked against the RP allowlist
+    # may be contacted, and a 302 is not a request object. max_size bounds
+    # the raw response before it is read; the decoded size is checked below.
+    my $ua = LWP::UserAgent->new(
+        timeout      => $timeout,
+        max_redirect => 0,
+        max_size     => $max,
+    );
 
     my $resp = eval {
         $ua->get( $uri,
@@ -287,7 +296,7 @@ sub _fetchRequestUri {
         $self->logger->error("JAR request_uri fetch error: $err");
         return undef;
     }
-    if ( $resp->is_error ) {
+    unless ( $resp->is_success ) {
         $self->logger->error(
             "JAR request_uri fetch failed: " . $resp->status_line );
         return undef;
@@ -300,7 +309,6 @@ sub _fetchRequestUri {
     }
 
     my $body = $resp->decoded_content;
-    my $max  = $self->conf->{oidcJarRequestUriMaxSize} || 65536;
     if ( length($body) > $max ) {
         $self->logger->error( "JAR request_uri response size "
               . length($body)

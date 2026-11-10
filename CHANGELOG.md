@@ -19,6 +19,10 @@ Security and compatibility fixes from the 2026-11-09/10 review:
 - **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
   consented scope (or `openid`); a client that bypasses consent gets `openid`
   only (`#222`).
+- **oidc-jar**: a `request_uri` fetch no longer follows HTTP redirects and
+  reads only a 2xx answer, so the portal contacts only the URLs allowed by
+  `oidcRPMetaDataOptionsRequestUris` (`#232`). The raw response size is
+  bounded before it is read.
 - **oidc-jarm**: `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt` are
   rewritten to their base mode before core validation, including with PAR and
   signed request objects.

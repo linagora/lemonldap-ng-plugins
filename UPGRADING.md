@@ -21,6 +21,9 @@ the subset that requires a decision.
   and a public client must present a credential that is verified: a
   registered secret or a signed assertion (`client_secret_jwt`,
   `private_key_jwt`). A client certificate is refused for a public client.
+- **oidc-jar** refuses a `request_uri` that answers with a redirect: only a
+  2xx answer is read, and the size limit applies to the raw response before
+  decompression.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded.
 - **oidc-par**, **oidc-jarm**, **oidc-rar** and **oidc-grant-management**
