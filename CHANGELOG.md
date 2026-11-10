@@ -13,7 +13,10 @@
   context, the `uid` must be in the caller's list, and the filter and DN are
   escaped with `Net::LDAP::Util`. The aggregate Outlook entry, which
   `getAccounts()` hides, is no longer deletable. The same escaping is applied
-  to `mail` in `getAccounts()` and `addAccount()`.
+  to `mail` in `getAccounts()` and `addAccount()`. The token API
+  (`delAccountByToken`) goes through the same check: a script must now send
+  the `user` that owns the `uid`, and the interactive route can no longer
+  delete `HIDDEN__` accounts.
 - **Test suite**: `t/02-TwakeAppAccounts-del.t` covers a foreign uid, a
   wildcard, a malformed filter, a normal delete, a uid with filter and DN
   metacharacters, and an LDAP error from `getAccounts()`.

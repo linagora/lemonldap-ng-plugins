@@ -201,10 +201,11 @@ sub addAccount {
           unless $newEntry->[$i] eq 'uid';
     }
     push @$newEntry, uid => $uid;
-    my $mesg =
-      $self->ldap->add(
-        'uid=' . escape_dn_value($uid) . ',' . $self->conf->{twakeAppLdapBranch},
-        attrs => $newEntry );
+    my $mesg = $self->ldap->add(
+        'uid=' . escape_dn_value($uid) . ','
+          . $self->conf->{twakeAppLdapBranch},
+        attrs => $newEntry
+    );
     return $self->sendError( $req,
         "$prefix LDAP Add error " . $mesg->code . ': ' . $mesg->error,
         PE_LDAPERROR )
@@ -320,7 +321,8 @@ sub delAccount {
       if $mesg->code;
 
     $mesg = $self->ldap->delete(
-        'uid=' . escape_dn_value($uid) . ',' . $self->conf->{twakeAppLdapBranch} );
+        'uid=' . escape_dn_value($uid) . ','
+          . $self->conf->{twakeAppLdapBranch} );
     return $self->sendError( $req,
         "$prefix LDAP Delete error " . $mesg->code . ': ' . $mesg->error,
         PE_LDAPERROR )

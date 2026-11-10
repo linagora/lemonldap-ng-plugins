@@ -54,10 +54,27 @@ ok( $plugin, 'the plugin is loaded' );
 
     package t::Ldap;
     our ( @SEARCHES, @DELETES, @MODIFIES );
-    sub new { bless {}, shift }
+    sub new      { bless {}, shift }
+    sub root_dse { return 1 }
+    sub bind     { return t::Mesg->new }
     sub search {
         my ( $self, %args ) = @_;
         push @SEARCHES, $args{filter};
+        if ( $args{filter} =~ /^\(mail=/ ) {
+            return t::Mesg->new(
+                entries => [
+                    t::Entry->new(
+                        uid          => 'dwho_acc1',
+                        mail         => 'dwho@badwolf.org',
+                        userPassword => '{SSHA}hash',
+                    ),
+                    t::Entry->new(
+                        uid  => 'dwho@badwolf.org',
+                        mail => 'dwho@badwolf.org',
+                    ),
+                ]
+            );
+        }
         return t::Mesg->new(
             entries => [
                 t::Entry->new(
@@ -75,10 +92,13 @@ my $ldap = t::Ldap->new;
 $plugin->ldap($ldap);
 
 # The caller's accounts, as getAccounts() would return them.
+my $real_getAccounts =
+  \&Lemonldap::NG::Portal::Plugins::TwakeAppAccounts::getAccounts;
 our $accounts       = [ { uid => 'dwho_acc1' } ];
 our $accounts_error = 0;
 {
     no warnings 'redefine';
+    no warnings 'once';
     *Lemonldap::NG::Portal::Plugins::TwakeAppAccounts::getAccounts = sub {
         return ( 0, [ 500, [], ['LDAP error'] ] ) if $accounts_error;
         return $accounts;
@@ -107,13 +127,17 @@ is_deeply( \@t::Ldap::DELETES, [], 'nothing is deleted' );
 is_deeply( \@t::Ldap::SEARCHES, [], 'no LDAP search for a foreign uid' );
 
 # Filter metacharacters do not turn into a wildcard or a malformed filter.
+@t::Ldap::SEARCHES = ();
 $res = del('*');
 is( $res->[0], 400, 'a wildcard uid is refused' );
-is_deeply( \@t::Ldap::DELETES, [], 'nothing is deleted for a wildcard' );
+is_deeply( \@t::Ldap::DELETES,  [], 'nothing is deleted for a wildcard' );
+is_deeply( \@t::Ldap::SEARCHES, [], 'no LDAP search for a wildcard' );
 
+@t::Ldap::SEARCHES = ();
 $res = del('(');
 is( $res->[0], 400, 'a malformed uid is refused' );
 is_deeply( \@t::Ldap::DELETES, [], 'nothing is deleted for a malformed uid' );
+is_deeply( \@t::Ldap::SEARCHES, [], 'no LDAP search for a malformed uid' );
 
 # The caller's own account is deleted, with an escaped filter and DN.
 @t::Ldap::SEARCHES = ();
@@ -152,6 +176,22 @@ is_deeply(
 $accounts_error = 1;
 $res            = del('dwho_acc1');
 is( $res->[0], 500, 'an LDAP error from getAccounts is propagated' );
+
+# Restore the real getAccounts(): the aggregate Outlook entry (uid=<mail>) is
+# never listed, so it cannot be deleted either.
+{
+    no warnings 'redefine';
+    no warnings 'once';
+    *Lemonldap::NG::Portal::Plugins::TwakeAppAccounts::getAccounts =
+      $real_getAccounts;
+}
+@t::Ldap::SEARCHES = ();
+@t::Ldap::DELETES  = ();
+$res = del('dwho@badwolf.org');
+is( $res->[0], 400, 'the aggregate Outlook entry is refused' );
+is_deeply( \@t::Ldap::DELETES, [], 'nothing is deleted' );
+is_deeply( \@t::Ldap::SEARCHES, ['(mail=dwho@badwolf.org)'],
+    'getAccounts uses an equality filter on the escaped mail' );
 
 clean_sessions();
 done_testing();
