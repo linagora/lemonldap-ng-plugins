@@ -47,7 +47,8 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   ignored once a pushed request is resolved (`#229`, with the matching
   oidc-par), the per-RP rules are enforced before an implicit access token is
   signed (`#228`), and the consent screen is forced when details are present
-  and consent is not bypassed (`#226`).
+  and consent is not bypassed; a signed request object cannot drop that
+  prompt (`#226`).
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
   compared by SHA-256 digest (`#223`); a user cannot create a `HIDDEN__`

@@ -44,9 +44,10 @@ the subset that requires a decision.
 - **oidc-rar** forces the consent screen when `authorization_details` are
   present and the RP does not bypass consent. A `prompt=none` request that
   carries details now fails closed, and every request with details shows the
-  consent page. As consent is then present, an RP that sends `offline_access`
-  with details gets a refresh token where it used to get none (OIDC Core
-  section 11).
+  consent page. A signed request object cannot override the forced prompt:
+  the details are refused when the effective prompt has no `consent`. As
+  consent is then present, an RP that sends `offline_access` with details
+  gets a refresh token where it used to get none (OIDC Core section 11).
 - **oidc-global-scopes** / **oidc-scope-applications**: a scope added to the
   authorization URL no longer comes back when the pushed (PAR) or signed
   request, or the ID-JAG assertion, does not carry it. A global scope that
