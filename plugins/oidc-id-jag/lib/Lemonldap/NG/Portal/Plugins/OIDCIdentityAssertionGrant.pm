@@ -543,8 +543,9 @@ sub _sidIndexId {
 #      refresh token session carrying the same sid. It also covers sessions
 #      opened against an upstream OP, where `_oidc_sid` is the OP's own sid.
 #
-# Route 1 returns the user session id only, so no authorization_details come
-# with it; route 2 returns the full refresh token session data.
+# Route 1 returns the user session id and the recorded scope, so no
+# authorization_details come with it; route 2 returns the full refresh token
+# session data.
 sub _getDataFromIdToken {
     my ( $self, $req, $rp, $idToken ) = @_;
     my $oidc = $self->oidc;

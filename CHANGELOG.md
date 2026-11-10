@@ -13,9 +13,10 @@
   scope, `_assertedScope` treats a missing scope as `openid` only, and the
   index route returns the recorded scope.
 - **Behaviour change**: a client that bypasses the consent screen
-  (`oidcRPMetaDataOptionsBypassConsent`) has no consent entry, so its ID
-  Token subjects now assert `openid` only. Use a refresh or access token to
-  keep the full granted scope.
+  (`oidcRPMetaDataOptionsBypassConsent`), or a deployment with
+  `disablePersistentStorage`, has no consent entry, so its ID Token subjects
+  now assert `openid` only. Use a refresh or access token to keep the full
+  granted scope.
 - **Test suite**: the ID Token of a client without refresh tokens is exchanged
   with `scope=openid admin`; `admin` is not asserted.
 
