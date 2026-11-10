@@ -236,7 +236,12 @@ subtest "Perl rule is enforced on implicit and hybrid flows" => sub {
         }
     );
     my ($loc) = expectRedirection( $auth_res, qr#(http://rp\.com/.*)# );
-    like( $loc, qr/error=server_error/, "implicit: rule rejection" );
+
+    # LLNG 2.23.2 still sends the ID token when the access token hook fails,
+    # while 2.23.4 answers with an error. In both cases the refused detail
+    # must not reach an access token.
+    ok( $loc =~ /error=server_error/ || $loc =~ /[#&?]id_token=/,
+        "implicit: the rule stops the access token" );
     unlike( $loc, qr/access_token=/, "implicit: no access token" );
 
     # Hybrid: the core creates the code before any plugin hook, so the code
