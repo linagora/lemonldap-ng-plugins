@@ -87,28 +87,36 @@ sub parseGrantManagementParam {
     my $mode = $self->oidc->rpOptions->{$rp}
       ->{oidcRPMetaDataOptionsGrantManagement} // '';
 
-    my $action =
-         $oidc_request->{grant_management_action}
-      || $req->param('grant_management_action');
-    my $grant_id =
-         $oidc_request->{grant_id}
-      || $req->param('grant_id');
+    # Once a pushed request is resolved, only its values are valid: never
+    # fall back to the front-channel parameters (RFC 9126 section 3).
+    my $action   = $oidc_request->{grant_management_action};
+    my $grant_id = $oidc_request->{grant_id};
+    unless ( $oidc_request->{_parResolved} ) {
+        $action   //= $req->param('grant_management_action');
+        $grant_id //= $req->param('grant_id');
+    }
 
-    # If the RP requires Grant Management, every authorize MUST carry an
-    # action. In `allowed` mode the action is strictly opt-in: requests
-    # without `grant_management_action` produce no `grant_id`. (The FAPI
-    # draft has gone back and forth on whether `create` is the implicit
-    # default; this plugin currently treats absence as "no grant", which
-    # is also what the test suite asserts.)
-    if ( $mode eq 'required' and not $action ) {
-        $self->logger->error(
-            "OIDCGrantManagement: RP `$rp` requires grant_management_action "
-              . "and the request did not provide one" );
-        return PE_ERROR;
+    # A hook that ran before PAR resolution may have stored a context from
+    # the front channel: drop it when the resolved request has no action.
+    unless ( defined $action and length $action ) {
+        delete $req->data->{ &DATA_KEY };
+
+        # If the RP requires Grant Management, every authorize MUST carry an
+        # action. In `allowed` mode the action is strictly opt-in: requests
+        # without `grant_management_action` produce no `grant_id`. (The FAPI
+        # draft has gone back and forth on whether `create` is the implicit
+        # default; this plugin currently treats absence as "no grant", which
+        # is also what the test suite asserts.)
+        if ( $mode eq 'required' ) {
+            $self->logger->error(
+                "OIDCGrantManagement: RP `$rp` requires grant_management_action "
+                  . "and the request did not provide one" );
+            return PE_ERROR;
+        }
+        return PE_OK;
     }
 
     return PE_OK unless $mode eq 'allowed' or $mode eq 'required';
-    return PE_OK unless $action;
 
     unless ( grep { $_ eq $action } @{ &SUPPORTED_ACTIONS } ) {
         $self->logger->error(
@@ -116,6 +124,24 @@ sub parseGrantManagementParam {
               . "`$action` (only "
               . join( '/', @{ &SUPPORTED_ACTIONS } )
               . " are supported)" );
+        return PE_ERROR;
+    }
+
+    # The grant is materialized in materializeGrantAndStoreOnCode, which the
+    # core only fires on the authorization code flow. On implicit and hybrid
+    # flows the action would be accepted and never applied: refuse it, so the
+    # client knows the grant did not change. When PAR or JAR fills the
+    # response type after this hook, the request is not known yet: the
+    # materialized flag checked in addGrantIdToAccessToken fails closed.
+    my $response_type = $oidc_request->{response_type};
+    if (    defined $response_type
+        and length $response_type
+        and $response_type ne 'code' )
+    {
+        $self->logger->error(
+            "OIDCGrantManagement: grant_management_action is only supported on "
+              . "the authorization code flow (got response_type "
+              . "`$response_type` for RP $rp)" );
         return PE_ERROR;
     }
 
@@ -143,9 +169,10 @@ sub parseGrantManagementParam {
     }
 
     $req->data->{ &DATA_KEY } = {
-        action   => $action,
-        grant_id => $grant_id,
-        rp       => $rp,
+        action       => $action,
+        grant_id     => $grant_id,
+        rp           => $rp,
+        materialized => 0,
     };
     return PE_OK;
 }
@@ -160,6 +187,35 @@ sub parseGrantManagementParam {
 sub materializeGrantAndStoreOnCode {
     my ( $self, $req, $oidc_request, $rp, $code_payload ) = @_;
     my $ctx = $req->data->{ &DATA_KEY } or return PE_OK;
+
+    # The core fires this hook on the authorization code flow only. Keep a
+    # guard in case that changes: implicit and hybrid flows must not end up
+    # with a grant that the plugin cannot apply.
+    my $response_type = $oidc_request->{response_type};
+    if (    defined $response_type
+        and length $response_type
+        and $response_type ne 'code' )
+    {
+        $self->logger->error(
+            "OIDCGrantManagement: cannot materialize a grant outside the "
+              . "authorization code flow (response_type `$response_type`)" );
+        return PE_ERROR;
+    }
+
+    # oidc-rar applies its per-RP rules in its own oidcGenerateCode hook,
+    # whose order relative to this one is not guaranteed. Apply them now
+    # when the details are still unchecked: never record in the grant
+    # authorization_details that oidc-rar refuses. Its own hook runs the
+    # same rules again afterwards, which is harmless.
+    if ( $req->data->{_rar_unchecked} ) {
+        my $rar = $self->p->loadedModules
+          ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'};
+        if ( $rar and $rar->can('enforceRules') ) {
+            return PE_ERROR
+              unless $rar->enforceRules( $req, $rp,
+                $req->data->{_rar_details} );
+        }
+    }
 
     my $action    = $ctx->{action};
     my $grant_id  = $ctx->{grant_id};
@@ -241,7 +297,8 @@ sub materializeGrantAndStoreOnCode {
         } );
     }
 
-    $ctx->{grant_id} = $grant_id;
+    $ctx->{grant_id}     = $grant_id;
+    $ctx->{materialized} = 1;
     $code_payload->{ &DATA_KEY } = $ctx;
     return PE_OK;
 }
@@ -304,6 +361,19 @@ sub addGrantIdToAccessToken {
     my $ctx = $req->data->{ &DATA_KEY } or return PE_OK;
     my $grant_id = $ctx->{grant_id} or return PE_OK;
 
+    # Fail closed: only a grant materialized for this authorization, or
+    # restored from a code or refresh session, may be attached to a token.
+    # On implicit and hybrid flows the action is not processed, and a
+    # grant_id taken from the request may belong to another user, so drop
+    # the claim. Returning PE_ERROR would not be enough: the implicit branch
+    # of the core still issues the ID token when the access token fails.
+    unless ( $ctx->{materialized} ) {
+        $self->logger->error(
+            "OIDCGrantManagement: not adding grant `$grant_id` to the access "
+              . "token: the grant was not materialized for this request" );
+        return PE_OK;
+    }
+
     $payload->{grant_id} = $grant_id;
     if ( my $jti = $payload->{jti} ) {
         my $update =
@@ -351,6 +421,27 @@ sub handleGrantEndpoint {
     my ( $rp, $auth_method ) =
       $self->oidc->checkEndPointAuthenticationCredentials($req);
     return $self->oidc->invalidClientResponse($req) unless $rp;
+
+    # The grant endpoint serves only a caller that proved it is the client.
+    # A bare client_id (`none`) proves nothing; the token endpoint accepts it
+    # because PKCE protects the code there, which is not the case here. For
+    # a public client, a shared secret is not verified by the core, so it is
+    # not a proof either: a signed client_assertion (or mTLS) remains
+    # accepted, as getEndPointAuthenticationCredentials verifies it.
+    if ( !$auth_method or $auth_method eq 'none' ) {
+        $self->logger->error(
+            "OIDCGrantManagement: grant endpoint called without client "
+              . "authentication" );
+        return $self->oidc->invalidClientResponse($req);
+    }
+    if (    $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic}
+        and $auth_method =~ /^client_secret_(?:basic|post)$/ )
+    {
+        $self->logger->error(
+            "OIDCGrantManagement: public client `$rp` cannot authenticate "
+              . "with $auth_method on the grant endpoint" );
+        return $self->oidc->invalidClientResponse($req);
+    }
 
     my $client_id =
       $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsClientID};

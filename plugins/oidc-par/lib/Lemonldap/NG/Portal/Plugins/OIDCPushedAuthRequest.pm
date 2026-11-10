@@ -89,7 +89,7 @@ sub pushAuthRequest {
         qw/response_type scope client_id state redirect_uri nonce
         response_mode display prompt max_age ui_locales id_token_hint
         login_hint acr_values request code_challenge code_challenge_method
-        authorization_details/
+        authorization_details grant_management_action grant_id/
       )
     {
         if ( defined( my $val = $req->param($param) ) ) {
@@ -230,7 +230,7 @@ sub resolvePushedRequest {
     my @par_params = qw/response_type scope client_id state redirect_uri nonce
       response_mode display prompt max_age ui_locales id_token_hint
       login_hint acr_values request code_challenge code_challenge_method
-      authorization_details/;
+      authorization_details grant_management_action grant_id/;
 
     # The core filled $oidc_request from the front channel first. Drop those
     # values: once a request_uri is resolved, only the pushed parameters may
@@ -289,6 +289,15 @@ sub resolvePushedRequest {
         ->{'Lemonldap::NG::Portal::Plugins::OIDCRichAuthRequest'} )
     {
         my $h = $rar->parseAuthorizationDetails( $req, $oidc_request );
+        return $h unless $h == PE_OK;
+    }
+
+    # Same for oidc-grant-management: with no pushed action, this drops the
+    # context built from the front-channel value.
+    if ( my $gm = $self->p->loadedModules
+        ->{'Lemonldap::NG::Portal::Plugins::OIDCGrantManagement'} )
+    {
+        my $h = $gm->parseGrantManagementParam( $req, $oidc_request );
         return $h unless $h == PE_OK;
     }
 

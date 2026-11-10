@@ -306,6 +306,171 @@ subtest "Subject check: another user cannot update someone else's grant" => sub 
         "Cross-subject update is rejected (security)" );
 };
 
+subtest "grant_management_action is refused outside the code flow" => sub {
+    # The grant is only materialized on the code flow. On implicit and hybrid
+    # flows the action used to be accepted and never applied, and the
+    # grant_id of the request (possibly another user's) reached the token.
+    my $code = codeAuthorize(
+        $op, $idpId,
+        {
+            response_type           => "code",
+            scope                   => "openid",
+            client_id               => "rpid",
+            state                   => "gm-code",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    my $grant_id =
+      expectJSON( codeGrant( $op, "rpid", $code, "http://client.com/" ) )
+      ->{grant_id};
+    ok( $grant_id, "Grant created on the code flow" );
+
+    for my $response_type ( "id_token token", "code id_token token" ) {
+        my $res = authorize(
+            $op, $idpId,
+            {
+                response_type           => $response_type,
+                scope                   => "openid",
+                client_id               => "rpid",
+                state                   => "outside-code",
+                nonce                   => "n",
+                redirect_uri            => "http://client.com/",
+                grant_management_action => "replace",
+                grant_id                => $grant_id,
+            }
+        );
+        expectPortalError( $res, 24, "$response_type: action refused" );
+    }
+
+    # create is refused too: it would mint a grant the plugin cannot apply.
+    my $res = authorize(
+        $op, $idpId,
+        {
+            response_type           => "id_token token",
+            scope                   => "openid",
+            client_id               => "rpid",
+            state                   => "outside-code-create",
+            nonce                   => "n",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    expectPortalError( $res, 24, "implicit create refused" );
+
+    # The refused requests must not have changed the grant.
+    my $json = expectJSON( gm_get( $op, "rpid", $grant_id ) );
+    is_deeply(
+        [ sort map { $_->{scope} } @{ $json->{scopes} || [] } ],
+        [qw(openid)],
+        "Grant unchanged by the refused requests"
+    );
+};
+
+subtest "Public client: the grant endpoint requires an authentication" => sub {
+    my $code = codeAuthorize(
+        $op, $idpId,
+        {
+            response_type           => "code",
+            scope                   => "openid",
+            client_id               => "rpid_pub",
+            state                   => "pub-create",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        }
+    );
+    my $grant_id = expectJSON(
+        codeGrantNoSecret( $op, "rpid_pub", $code, "http://client.com/" ) )
+      ->{grant_id};
+    ok( $grant_id, "Public client got a grant_id" );
+
+    for my $method (qw(GET DELETE)) {
+        my $res = $op->_get(
+            "/oauth2/grants/$grant_id",
+            method => $method,
+            accept => 'application/json',
+            query  => 'client_id=rpid_pub',
+        );
+        ok( $res->[0] == 400 || $res->[0] == 401,
+            "$method with a client_id alone is refused" )
+          or explain( $res->[0], '400 or 401' );
+
+        $res = $op->_get(
+            "/oauth2/grants/$grant_id",
+            method => $method,
+            accept => 'application/json',
+            custom => {
+                HTTP_AUTHORIZATION => "Basic "
+                  . encode_base64( "rpid_pub:anything", '' ),
+            },
+        );
+        ok( $res->[0] == 400 || $res->[0] == 401,
+            "$method with a client secret is refused for a public client" )
+          or explain( $res->[0], '400 or 401' );
+    }
+
+    # The DELETE was refused: another client still sees the grant as owned by
+    # someone else (a removed grant would be a 404).
+    is( gm_get( $op, "rpid", $grant_id )->[0], 403,
+        "Grant still exists and belongs to rpid_pub" );
+};
+
+subtest "A refused RAR detail is not recorded in the grant" => sub {
+    # oidc-grant-management materializes the grant in oidcGenerateCode, like
+    # oidc-rar applies its per-RP rules. With the former loaded first, the
+    # grant used to record details that the RAR rule then refused.
+    my $op_gr = register( 'op_gm_rar', sub { op_gm_rar() } );
+    my $id_gr = login( $op_gr, "french" );
+
+    my $small = encode_json( [ {
+            type             => "payment_initiation",
+            instructedAmount => { currency => "EUR", amount => "10.00" },
+    } ] );
+    my $code = codeAuthorize(
+        $op_gr, $id_gr,
+        {
+            response_type           => "code",
+            scope                   => "openid",
+            client_id               => "rpid_rar",
+            state                   => "rar-1",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+            authorization_details   => $small,
+        }
+    );
+    my $grant_id =
+      expectJSON( codeGrant( $op_gr, "rpid_rar", $code, "http://client.com/" ) )
+      ->{grant_id};
+    ok( $grant_id, "Grant created with the accepted detail" );
+
+    my $big = encode_json( [ {
+            type             => "payment_initiation",
+            instructedAmount => { currency => "EUR", amount => "9999.00" },
+    } ] );
+    my $res = authorize(
+        $op_gr, $id_gr,
+        {
+            response_type           => "code",
+            scope                   => "openid",
+            client_id               => "rpid_rar",
+            state                   => "rar-2",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "update",
+            grant_id                => $grant_id,
+            authorization_details   => $big,
+        }
+    );
+    expectPortalError( $res, 24, "RAR rule refuses the update" );
+
+    my $json = expectJSON( gm_get( $op_gr, "rpid_rar", $grant_id ) );
+    is_deeply(
+        [ map { $_->{instructedAmount}->{amount} }
+              @{ $json->{authorization_details} || [] } ],
+        ["10.00"],
+        "The refused detail is not recorded in the grant"
+    );
+};
+
 subtest "_mergeRar deduplicates by structural equality" => sub {
     require Lemonldap::NG::Portal::Plugins::OIDCGrantManagement;
     my $existing = [
@@ -435,6 +600,8 @@ sub op {
                 oidcServiceGrantExpiration            => 3600,
 
                 oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowImplicitFlow          => 1,
+                oidcServiceAllowHybridFlow            => 1,
                 oidcServiceAllowOnlyDeclaredScopes    => 0,
                 oidcServiceAllowOffline               => 1,
 
@@ -442,6 +609,7 @@ sub op {
                     rp           => { email => "mail", name => "cn" },
                     rp_other     => { email => "mail", name => "cn" },
                     rp_strict    => { email => "mail", name => "cn" },
+                    rp_pub       => { email => "mail", name => "cn" },
                 },
                 oidcRPMetaDataOptions => {
                     rp => {
@@ -464,6 +632,18 @@ sub op {
                         oidcRPMetaDataOptionsIDTokenSignAlg        => "HS512",
                         oidcRPMetaDataOptionsAccessTokenJWT        => 1,
                         oidcRPMetaDataOptionsAccessTokenSignAlg    => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsGrantManagement => 'allowed',
+                    },
+                    rp_pub => {
+                        oidcRPMetaDataOptionsDisplayName           => "Public RP",
+                        oidcRPMetaDataOptionsClientID              => "rpid_pub",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
+                        oidcRPMetaDataOptionsPublic                => 1,
+                        oidcRPMetaDataOptionsAccessTokenJWT        => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg    => "RS256",
                         oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
                         oidcRPMetaDataOptionsBypassConsent         => 1,
                         oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
@@ -524,6 +704,56 @@ sub op_with_rotation {
                         oidcRPMetaDataOptionsAllowOffline          => 1,
                         oidcRPMetaDataOptionsRefreshTokenRotation  => 1,
                         oidcRPMetaDataOptionsGrantManagement       => 'allowed',
+                    },
+                },
+                oidcServicePrivateKeySig => oidc_key_op_private_sig,
+                oidcServicePublicKeySig  => oidc_cert_op_public_sig,
+            }
+        }
+    );
+}
+
+sub op_gm_rar {
+    return LLNG::Manager::Test->new( {
+            ini => {
+                domain        => 'idp.com',
+                portal        => 'http://auth.op.com/',
+                authentication => 'Demo',
+                userDB         => 'Same',
+                # Grant management first: it must not record a detail that
+                # oidc-rar refuses when its own hook runs afterwards.
+                customPlugins =>
+                  '::Plugins::OIDCGrantManagement, '
+                  . '::Plugins::OIDCRichAuthRequest',
+                issuerDBOpenIDConnectActivation => "1",
+                restSessionServer               => 1,
+
+                oidcServiceMetaDataGrantManagementURI => 'grants',
+                oidcServiceGrantExpiration            => 3600,
+
+                oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowOnlyDeclaredScopes    => 0,
+
+                oidcRPMetaDataExportedVars =>
+                  { rp_rar => { email => "mail", name => "cn" } },
+                oidcRPMetaDataOptions => {
+                    rp_rar => {
+                        oidcRPMetaDataOptionsDisplayName           => "RAR RP",
+                        oidcRPMetaDataOptionsClientID              => "rpid_rar",
+                        oidcRPMetaDataOptionsClientSecret          => "rpid_rar",
+                        oidcRPMetaDataOptionsIDTokenSignAlg        => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenJWT        => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg    => "HS512",
+                        oidcRPMetaDataOptionsAccessTokenExpiration => 3600,
+                        oidcRPMetaDataOptionsBypassConsent         => 1,
+                        oidcRPMetaDataOptionsRedirectUris   => 'http://client.com/',
+                        oidcRPMetaDataOptionsGrantManagement => 'allowed',
+                        oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
+                        oidcRPMetaDataOptionsAuthorizationDetailsTypes =>
+                          'payment_initiation',
+                        # Only allow payments up to 50 EUR
+                        oidcRPMetaDataOptionsAuthorizationDetailsRules =>
+                          '{"payment_initiation": "$detail->{instructedAmount}->{amount} <= 50"}',
                     },
                 },
                 oidcServicePrivateKeySig => oidc_key_op_private_sig,

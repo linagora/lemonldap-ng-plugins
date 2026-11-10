@@ -9,6 +9,13 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   restrictive CSP. The AutodiscoverV1 JSON route works on LLNG < 2.19.
 - **oidc-ciba**: the per-RP access rule and the scope rules now apply on
   every CIBA path, and public clients are refused (`#220`, `#221`).
+- **oidc-grant-management**: `grant_management_action` is refused outside
+  the authorization code flow, where it was accepted but never applied, and a
+  `grant_id` reaches a token only when the grant was materialized for that
+  request (`#235`). The action and `grant_id` now travel in pushed
+  authorization requests. The grant endpoint requires a real client
+  authentication: a bare `client_id` and a shared secret from a public client
+  are refused (`#236`).
 - **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
   consented scope (or `openid`); a client that bypasses consent gets `openid`
   only (`#222`).
@@ -19,8 +26,8 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   `test_depends` gains `oidc-jarm`, which must be updated with it. Once a
   pushed request is resolved, oidc-par drops the front-channel values it
   resolved (`#230`); the other plugins that read the raw front-channel
-  parameters (`scope` in #227, and the resource/grant-management readers)
-  still need their own fix.
+  parameters get their own fix (`scope` in #227, `resource` in #234, the
+  grant parameters in #235).
 - **oidc-rar**: `authorization_details` added to the front channel are
   ignored once a pushed request is resolved (`#229`, with the matching
   oidc-par), and the per-RP rules are enforced before an implicit access

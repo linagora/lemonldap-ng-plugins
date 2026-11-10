@@ -174,6 +174,7 @@ sub parseAuthorizationDetails {
 
     unless ( defined $raw and length $raw ) {
         delete $req->data->{ &SESSION_KEY };
+        delete $req->data->{_rar_unchecked};
         return PE_OK;
     }
     $oidc_request->{authorization_details} = $raw;
@@ -273,7 +274,7 @@ sub enforceRulesAndStoreOnCode {
     my ( $self, $req, $oidc_request, $rp, $code_payload ) = @_;
 
     my $details = $req->data->{ &SESSION_KEY } or return PE_OK;
-    return PE_ERROR unless $self->_enforceRules( $req, $rp, $details );
+    return PE_ERROR unless $self->enforceRules( $req, $rp, $details );
     delete $req->data->{_rar_unchecked};
 
     $code_payload->{ &SESSION_KEY } = $details;
@@ -283,7 +284,7 @@ sub enforceRulesAndStoreOnCode {
 # Evaluate the per-RP Perl rules against the current user. Used by the code
 # flow (enforceRulesAndStoreOnCode) and by implicit/hybrid flows, where the
 # core never fires oidcGenerateCode and addToAccessToken must enforce them.
-sub _enforceRules {
+sub enforceRules {
     my ( $self, $req, $rp, $details ) = @_;
 
     if ( $self->rpRarBroken->{$rp} ) {
@@ -393,7 +394,7 @@ sub addToAccessToken {
     # and hybrid flows reach this hook with it set. Never use a request
     # parameter to decide: grant_type can be injected in the authorize URL.
     if ( $req->data->{_rar_unchecked} ) {
-        return PE_ERROR unless $self->_enforceRules( $req, $rp, $d );
+        return PE_ERROR unless $self->enforceRules( $req, $rp, $d );
         delete $req->data->{_rar_unchecked};
     }
 
