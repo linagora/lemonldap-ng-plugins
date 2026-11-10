@@ -210,6 +210,53 @@ subtest "Perl rule rejects detail when condition fails" => sub {
         "rule rejection returns portal error" );
 };
 
+subtest "Perl rule is enforced on implicit and hybrid flows" => sub {
+    my $over = encode_json( [ {
+            type             => "payment_initiation",
+            instructedAmount => { currency => "EUR", amount => "9999.00" },
+    } ] );
+    my %params = (
+        scope                 => "openid",
+        client_id             => "rp_strict",
+        authorization_details => $over,
+        state                 => "s",
+        nonce                 => "n",
+        redirect_uri          => "http://rp.com/",
+        # Must not be usable to skip the rule from the authorize URL.
+        grant_type => "x",
+    );
+
+    # Implicit: the rule rejection stops the token; the core returns an
+    # OIDC error redirect instead of an access token.
+    my $auth_res = authorize(
+        $op, $id,
+        {
+            %params,
+            response_type => 'id_token token',
+        }
+    );
+    my ($loc) = expectRedirection( $auth_res, qr#(http://rp\.com/.*)# );
+    like( $loc, qr/error=server_error/, "implicit: rule rejection" );
+    unlike( $loc, qr/access_token=/, "implicit: no access token" );
+
+    # Hybrid: the core creates the code before any plugin hook, so the code
+    # is issued. It carries no authorization_details, and exchanging it gives
+    # a token without the refused rights.
+    $auth_res = authorize(
+        $op, $id,
+        {
+            %params,
+            response_type => 'code id_token',
+        }
+    );
+    my ($code) = expectRedirection( $auth_res, qr#http://.*code=([^\&]*)# );
+    ok( $code, "hybrid: code issued" );
+    my $token_res =
+      expectJSON( codeGrant( $op, "rp_strict", $code, "http://rp.com/" ) );
+    ok( !$token_res->{authorization_details},
+        "hybrid: no refused authorization_details in the token" );
+};
+
 subtest "Perl rule grants detail when condition holds" => sub {
     my $ok_detail = encode_json( [ {
             type             => "payment_initiation",
@@ -420,6 +467,51 @@ SKIP: {
             "raw UTF-8 detail survives the PAR round-trip"
         );
     };
+
+    subtest "PAR without authorization_details ignores a front-channel value" =>
+      sub {
+        my $op3 = register( 'op_par_rar', sub { op_par_rar() } );
+        my $id3 = login( $op3, 'french' );
+
+        my $par_query = buildForm(
+            {
+                response_type => "code",
+                scope         => "openid",
+                redirect_uri  => "http://rp.com/",
+                client_id     => "rp",
+            }
+        );
+        my $par_res = $op3->_post(
+            "/oauth2/par",
+            IO::String->new($par_query),
+            accept => 'application/json',
+            length => length($par_query),
+            custom => {
+                HTTP_AUTHORIZATION => "Basic "
+                  . encode_base64( "rp:rp", '' ),
+            },
+        );
+        is( $par_res->[0], 201, "PAR push without details accepted" );
+        my $par_json = from_json( $par_res->[2]->[0] );
+
+        my $auth_res = authorize(
+            $op3, $id3,
+            {
+                client_id             => "rp",
+                request_uri           => $par_json->{request_uri},
+                authorization_details => $valid_details,
+            }
+        );
+        my ($code) =
+          expectRedirection( $auth_res, qr#http://.*code=([^\&]*)# );
+        ok( $code, "Authorization code received" );
+
+        my $token_res = expectJSON(
+            codeGrant( $op3, "rp", $code, "http://rp.com/" )
+        );
+        ok( !$token_res->{authorization_details},
+            "front-channel authorization_details are ignored" );
+      };
 }
 
 subtest "Request without authorization_details still works" => sub {
@@ -591,6 +683,8 @@ sub op {
                     rp_badrule => { email => "mail", name => "cn", groups => "groups" },
                 },
                 oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowImplicitFlow          => 1,
+                oidcServiceAllowHybridFlow            => 1,
                 oidcServiceAllowOffline               => 1,
                 oidcRPMetaDataOptions                 => {
                     rp => {
@@ -617,6 +711,8 @@ sub op {
                         oidcRPMetaDataOptionsIDTokenSignAlg         => "RS256",
                         oidcRPMetaDataOptionsBypassConsent          => 1,
                         oidcRPMetaDataOptionsAccessTokenExpiration  => 3600,
+                        oidcRPMetaDataOptionsAccessTokenJWT         => 1,
+                        oidcRPMetaDataOptionsAccessTokenSignAlg     => "RS256",
                         oidcRPMetaDataOptionsRedirectUris           => 'http://rp.com/',
                         oidcRPMetaDataOptionsAuthorizationDetailsEnabled => 1,
                         oidcRPMetaDataOptionsAuthorizationDetailsTypes =>
