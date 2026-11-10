@@ -1,6 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
+use URI::Escape qw(uri_escape);
 
 BEGIN { require 't/test-lib.pm'; }
 
@@ -21,7 +22,7 @@ sub xml {
     my ($email) = @_;
     return $op->_get(
         '/autodiscover/autodiscover.xml',
-        query => buildForm( { email => $email } )
+        query => 'email=' . uri_escape($email)
     );
 }
 
@@ -75,7 +76,7 @@ is( Lemonldap::NG::Portal::Plugins::MailAutodiscover::_xml_escape(q{<>&"'}),
 # /autodiscover/autodiscover.json/<version>/<email>
 my $json = $op->_get(
     '/autodiscover/autodiscover.json/v1.0/alice@example.com',
-    query => buildForm( { Protocol => 'AutodiscoverV1' } )
+    query => 'Protocol=AutodiscoverV1'
 );
 is( $json->[0], 200, 'JSON route accepts a valid address' );
 like( body($json),
@@ -86,7 +87,7 @@ is( headers($json)->{'X-Content-Type-Options'},
 
 $json = $op->_get(
     '/autodiscover/autodiscover.json/v1.0/not-an-address',
-    query => buildForm( { Protocol => 'AutodiscoverV1' } )
+    query => 'Protocol=AutodiscoverV1'
 );
 is( $json->[0], 404, 'JSON route refuses a malformed address' );
 is( headers($json)->{'X-Content-Type-Options'},
