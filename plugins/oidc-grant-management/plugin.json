@@ -6,6 +6,10 @@
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.2",
+  "test_depends": [
+    "oidc-par",
+    "oidc-rar"
+  ],
   "customPlugins": "::Plugins::OIDCGrantManagement",
   "tags": [
     "oidc",

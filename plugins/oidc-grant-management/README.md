@@ -80,6 +80,11 @@ Three things, with a **`grant_id`** that ties them together:
 
 ### 1. `grant_management_action` parameter on `/oauth2/authorize`
 
+The action is supported on the **authorization code flow** only (including
+through PAR): the grant is materialized when the authorization code is
+issued. On the implicit and hybrid flows the request is refused with an
+error, so the client knows the grant did not change.
+
 | Action    | Effect                                                                                                                                                                                                                                                                                  |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `create`  | Mint a fresh grant. The new `grant_id` is returned in the token response. (Action is opt-in: an authorize call without `grant_management_action` does NOT create a grant — the FAPI draft has gone back and forth on whether `create` is implicit; this plugin requires it explicitly.) |
@@ -101,7 +106,15 @@ GET    /oauth2/grants/{grant_id}    →  200 JSON describing the grant
 DELETE /oauth2/grants/{grant_id}    →  204 No Content; grant revoked
 ```
 
-Authenticated as the OAuth client that owns the grant (`Authorization: Basic` or any of the standard token-endpoint client auth methods). A client cannot read or revoke a grant that doesn't belong to it (returns 403).
+Authenticated as the OAuth client that owns the grant, with a token-endpoint
+client authentication method. A caller that only sends its `client_id`
+(`none`) is refused with `invalid_client`: it proves nothing. For a public
+client, a client certificate is refused: the core only verifies it for a
+confidential client. A registered client secret and the JWS methods
+(`client_secret_jwt`, `private_key_jwt`) are accepted; the plugin checks the
+secret itself, so the older cores that ignore it for a public client are
+covered. A client cannot read or revoke a grant that doesn't belong to it
+(returns 403).
 
 ## Installation
 
@@ -143,6 +156,14 @@ When at least one RP has Grant Management enabled, the plugin advertises:
 
 - **Token cascade revocation is best-effort.** `DELETE /oauth2/grants/{id}` removes the grant session, but already-issued access tokens stay valid until they expire. Operators wanting hard cascade can shorten access-token TTLs or pair this plugin with a custom userinfo/introspection hook that re-checks the grant. A hooked re-check feature can land in v2.
 - **`merge` action not supported.** RFC says it's optional and the semantics are ambiguous.
+- **Authorization code flow only.** `grant_management_action` is refused on
+  the implicit and hybrid flows, where the plugin cannot apply it before the
+  tokens are issued. Use the code flow (PAR is supported) for grant
+  management.
+- **Request objects are not read.** A `grant_management_action` or `grant_id`
+  carried only inside a signed JAR request object (`request=`, outside PAR) is
+  ignored: the core decodes the object after this plugin's hook. Push the
+  request with PAR, or send those parameters on the front channel.
 - **No native consent-screen integration.** When an `update` or `replace` action arrives with `BypassConsent=0`, the user sees the standard consent UI, not a delta-aware one. Operators wanting a delta UI need a custom template.
 - **Grant ownership tied to `client_id`, not the RP confKey.** As long as the OAuth `client_id` stays the same, renaming the RP in the manager (changing its confKey) preserves access. Changing a client's `client_id` is what loses access — that's by design (it's a different client).
 
@@ -154,7 +175,7 @@ When at least one RP has Grant Management enabled, the plugin advertises:
 | `oidcGenerateCode`                  | Materialize the grant (mint or update/replace) so its id is known before any AT is built; persist on the code session |
 | `oidcGotTokenRequest`               | At /token, restore grant context from the code or refresh session                                                     |
 | `oidcGenerateRefreshToken`          | Carry the grant context onto refresh sessions (survives rotation)                                                     |
-| `oidcGenerateAccessToken`           | Add `grant_id` claim to JWT AT and patch the AT session for introspection                                             |
+| `oidcGenerateAccessToken`           | Add `grant_id` claim to JWT AT and patch the AT session for introspection, only for a grant materialized for this request |
 | `oidcGenerateTokenResponse`         | Echo `grant_id` in the JSON token response                                                                            |
 | `oidcGenerateIntrospectionResponse` | Surface `grant_id` in introspection                                                                                   |
 | `oidcGenerateMetadata`              | Advertise `grant_management_endpoint` + `_actions_supported`                                                          |
