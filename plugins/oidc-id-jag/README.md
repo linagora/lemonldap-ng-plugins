@@ -183,6 +183,10 @@ plugin therefore keeps its own reverse index: one short-lived record per ID
 Token issued to a relying party that is allowed to request an ID-JAG, living
 exactly as long as the ID Token it describes. Clients without refresh tokens
 work out of the box; only RPs with the grant enabled pay for the extra record.
+The index also records the scope consented for that client (`openid` when the
+client bypasses consent or has no consent entry), so an assertion requested
+from an ID Token is narrowed to that scope: a client granted `openid profile`
+cannot assert `admin`.
 
 > Resolution falls back to the historical `sid` search when the index has no
 > entry — ID Tokens issued before this plugin was installed, and sessions
