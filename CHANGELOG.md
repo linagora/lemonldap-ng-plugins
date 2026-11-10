@@ -17,8 +17,9 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   signed request objects.
 - **oidc-par**: calls the JARM hook after resolving a pushed request;
   `test_depends` gains `oidc-jarm`, which must be updated with it. Once a
-  pushed request is resolved, only its parameters are used: values added to
-  the front-channel URL are ignored (`#230`).
+  pushed request is resolved, oidc-par drops the front-channel values it
+  resolved (`#230`); the other plugins that read `$req->param('scope')` still
+  need their own fix.
 - **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
   escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
   compared by SHA-256 digest (`#223`).
