@@ -57,9 +57,13 @@ for my $value ( ' secret', 'a ,b', 'a;;b' ) {
 
     $res = call( $client, $token );
 
-    # apiCall answers 200 with an error body instead of 400 (pre-existing);
-    # the point here is that the token check let the request through.
-    is( $res->[0], 200, "$value: the configured token is accepted" );
+    # The request then reaches the LDAP backend, whose availability depends
+    # on the test environment: some cores answer 200, others an LDAP error
+    # (an HTTP 500 through the PE_LDAPCONNECTFAILED path). The point here is
+    # that the token check let the request through.
+    isnt( $res->[0], 403, "$value: the configured token is accepted" );
+    unlike( $res->[2]->[0], qr/Bad token/,
+        "$value: the token is not refused" );
 }
 
 # twakeAppEntryFields is an arrayref attribute: a list used to make the
