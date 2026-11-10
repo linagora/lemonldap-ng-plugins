@@ -109,10 +109,12 @@ DELETE /oauth2/grants/{grant_id}    →  204 No Content; grant revoked
 Authenticated as the OAuth client that owns the grant, with a token-endpoint
 client authentication method. A caller that only sends its `client_id`
 (`none`) is refused with `invalid_client`: it proves nothing. For a public
-client, a client certificate is refused because the core only verifies it for
-a confidential client; a registered client secret and the JWS methods
-(`client_secret_jwt`, `private_key_jwt`) are accepted. A client cannot read or
-revoke a grant that doesn't belong to it (returns 403).
+client, a client certificate is refused: the core only verifies it for a
+confidential client. A registered client secret and the JWS methods
+(`client_secret_jwt`, `private_key_jwt`) are accepted; the plugin checks the
+secret itself, so the older cores that ignore it for a public client are
+covered. A client cannot read or revoke a grant that doesn't belong to it
+(returns 403).
 
 ## Installation
 
@@ -158,6 +160,10 @@ When at least one RP has Grant Management enabled, the plugin advertises:
   the implicit and hybrid flows, where the plugin cannot apply it before the
   tokens are issued. Use the code flow (PAR is supported) for grant
   management.
+- **Request objects are not read.** A `grant_management_action` or `grant_id`
+  carried only inside a signed JAR request object (`request=`, outside PAR) is
+  ignored: the core decodes the object after this plugin's hook. Push the
+  request with PAR, or send those parameters on the front channel.
 - **No native consent-screen integration.** When an `update` or `replace` action arrives with `BypassConsent=0`, the user sees the standard consent UI, not a delta-aware one. Operators wanting a delta UI need a custom template.
 - **Grant ownership tied to `client_id`, not the RP confKey.** As long as the OAuth `client_id` stays the same, renaming the RP in the manager (changing its confKey) preserves access. Changing a client's `client_id` is what loses access — that's by design (it's a different client).
 

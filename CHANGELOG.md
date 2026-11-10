@@ -14,8 +14,8 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   `grant_id` reaches a token only when the grant was materialized for that
   request (`#235`). The action and `grant_id` now travel in pushed
   authorization requests. The grant endpoint requires a real client
-  authentication: a bare `client_id` and a shared secret from a public client
-  are refused (`#236`).
+  authentication: a bare `client_id`, a certificate from a public client and a
+  wrong public-client secret are refused (`#236`).
 - **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
   consented scope (or `openid`); a client that bypasses consent gets `openid`
   only (`#222`).

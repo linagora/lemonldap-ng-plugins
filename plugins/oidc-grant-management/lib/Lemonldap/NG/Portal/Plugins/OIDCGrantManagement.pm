@@ -463,17 +463,33 @@ sub handleGrantEndpoint {
         return $self->oidc->invalidClientResponse($req);
     }
 
-    # A public client certificate is not checked by the core: tls_client_auth
-    # is only validated in its confidential branch. A registered client
-    # secret and the JWS methods are accepted, as the core verifies them for
-    # a public client too.
-    if (    $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic}
-        and $auth_method eq 'tls_client_auth' )
-    {
-        $self->logger->error(
-            "OIDCGrantManagement: public client `$rp` cannot authenticate "
-              . "with a client certificate on the grant endpoint" );
-        return $self->oidc->invalidClientResponse($req);
+    # The core does not check a public client's certificate at all, and
+    # before 2.23.4 it did not check its secret either: check both here so
+    # the endpoint does not depend on the core version. The JWS methods are
+    # verified by the core whatever the client type.
+    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
+        if ( $auth_method eq 'tls_client_auth' ) {
+            $self->logger->error(
+                "OIDCGrantManagement: public client `$rp` cannot authenticate "
+                  . "with a client certificate on the grant endpoint" );
+            return $self->oidc->invalidClientResponse($req);
+        }
+        if ( $auth_method =~ /^client_secret_(?:basic|post)$/ ) {
+            my ( undef, $given ) =
+              $self->oidc->getEndPointAuthenticationCredentials($req);
+            my $registered = $self->oidc->rpOptions->{$rp}
+              ->{oidcRPMetaDataOptionsClientSecret} // '';
+            unless ( length $registered
+                and defined $given
+                and length $given
+                and $given eq $registered )
+            {
+                $self->logger->error(
+                    "OIDCGrantManagement: wrong client secret for public "
+                      . "client `$rp` on the grant endpoint" );
+                return $self->oidc->invalidClientResponse($req);
+            }
+        }
     }
 
     my $client_id =

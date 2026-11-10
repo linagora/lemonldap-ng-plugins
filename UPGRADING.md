@@ -18,8 +18,9 @@ the subset that requires a decision.
 - **oidc-grant-management** supports `grant_management_action` on the
   authorization code flow only: implicit and hybrid requests that carry it
   are now refused. `/oauth2/grants/{id}` needs a real client authentication,
-  and a public client must use a signed assertion (`client_secret_jwt` or
-  `private_key_jwt`).
+  and a public client must present a credential that is verified: a
+  registered secret or a signed assertion (`client_secret_jwt`,
+  `private_key_jwt`). A client certificate is refused for a public client.
 - **oidc-id-jag** ID Token subjects assert only the consented scope, or
   `openid` when no consent is recorded.
 - **oidc-par**, **oidc-jarm**, **oidc-rar** and **oidc-grant-management**
