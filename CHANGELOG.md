@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.12 - 2026-11-10
+
+### mail-autodiscover
+
+- **Security fix — reflected XSS through the `email` parameter** (advisory
+  `GHSA-5vpp-vm97-fgv6`): the parameter was validated with
+  the full RFC 822 grammar, which accepts CFWS comments and quoted local
+  parts, then copied verbatim into the `application/xml` response. A value
+  such as `a@b.c(<x:script xmlns:x="http://www.w3.org/1999/xhtml" ...>)`
+  produced a well-formed XML document whose XHTML `script` runs in the portal
+  origin. The parameter now uses a strict `local@domain` addr-spec, is
+  XML-escaped before substitution, and every response carries
+  `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: default-src 'none'; sandbox`.
+- **Test suite**: `t/01-MailAutodiscover.t` covers a valid address, RFC 822
+  comment and quoted-local-part payloads, the JSON route and the EWS fallback.
+
 ## v0.7.1 - 2026-11-05
 
 Touched plugins bumped to **0.7.1** in lockstep: `custom-functions`,
