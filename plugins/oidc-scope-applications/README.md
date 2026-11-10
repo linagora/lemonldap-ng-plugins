@@ -9,7 +9,10 @@ the user's portal application menu in the userinfo response.
   includes an `applications` claim containing the JSON-encoded portal
   application list for the authenticated user
 - **Per-RP control**: enable via `oidcRPMetaDataOptionsAllowScopeApplications`
-- **Hooks**: uses `oidcResolveScope` and `oidcGenerateUserInfoResponse`
+- **Hooks**: uses `oidcResolveScope` and `oidcGenerateUserInfoResponse`. The
+  scope resolved by the flow decides: a browser-side value does not add
+  `applications` to a pushed (PAR) or signed request, and a per-RP rule that
+  refuses it is not overridden.
 
 ## Requirements
 

@@ -5,6 +5,9 @@
   "description": "Adds an 'applications' scope that returns the user's portal application list in the OIDC userinfo response. Allows OIDC clients to display the same application menu as the LemonLDAP::NG portal.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
+  "test_depends": [
+    "oidc-par"
+  ],
   "llng_compat": ">=2.23.2",
   "perl_requires": {
     "JSON": "2.0"

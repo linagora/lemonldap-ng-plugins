@@ -16,6 +16,11 @@ Security and compatibility fixes from the 2026-11-09/10 review:
   authorization requests. The grant endpoint requires a real client
   authentication: a bare `client_id`, a certificate from a public client and a
   wrong public-client secret are refused (`#236`).
+- **oidc-global-scopes** and **oidc-scope-applications**: their
+  `oidcResolveScope` hooks use the scope resolved by the flow (PAR, signed
+  request object, ID-JAG) instead of the raw request parameter, and no longer
+  re-add a global scope or `applications` that a per-RP rule refused
+  (`#227`).
 - **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
   consented scope (or `openid`); a client that bypasses consent gets `openid`
   only (`#222`).

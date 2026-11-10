@@ -496,6 +496,9 @@ sub _grantedScope {
       grep { $granted{$_} } grep { length } split /\s+/, $requested;
     return unless $requested;
 
+    # The oidcResolveScope hooks get no scope argument and would read the
+    # client's wider parameter otherwise.
+    local $req->data->{_oidc_effective_scope} = $requested;
     return $self->oidc->getScope( $req, $rp, $requested );
 }
 

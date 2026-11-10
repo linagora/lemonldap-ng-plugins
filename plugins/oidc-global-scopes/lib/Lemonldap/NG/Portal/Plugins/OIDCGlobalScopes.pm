@@ -102,9 +102,21 @@ sub init {
 sub resolveGlobalScopes {
     my ( $self, $req, $scope_values, $rp ) = @_;
 
-    my $requested = $req->param('scope') || '';
+    # The request parameter is not authoritative: with PAR or a signed
+    # request object, the resolved request decides the scope. A flow with no
+    # authorization request (ID-JAG) records its bounded scope first.
+    my $oidc_request = $req->data->{_oidc_request};
+    my $requested =
+         $req->data->{_oidc_effective_scope}
+      // ( ref $oidc_request eq 'HASH' ? $oidc_request->{scope} : undef )
+      // $req->param('scope')
+      // '';
     my %requested = map { $_ => 1 } grep { length } split /\s+/, $requested;
     my %granted = map { $_ => 1 } @$scope_values;
+
+    # A scope with a per-RP rule was already decided by the core: it is in
+    # @$scope_values when granted and must stay out when refused.
+    my $rules = $self->oidc->rpScopeRules->{$rp} || {};
 
     foreach my $scope ( keys %{ $self->globalScopes } ) {
 
@@ -112,7 +124,7 @@ sub resolveGlobalScopes {
         # but got filtered out by oidcServiceAllowOnlyDeclaredScopes.
         # Split on whitespace so scope names containing non-word
         # characters (e.g. "api:read") match correctly.
-        if ( $requested{$scope} && !$granted{$scope} ) {
+        if ( $requested{$scope} && !$granted{$scope} && !$rules->{$scope} ) {
             push @$scope_values, $scope;
             $self->logger->debug(
                 "OIDCGlobalScopes: re-added global scope '$scope' for RP $rp");
