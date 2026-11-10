@@ -93,6 +93,8 @@ sub parseGrantManagementParam {
     # pushed request is resolved, whatever the plugin order.
     if (   $oidc_request->{request_uri}
         and not $oidc_request->{_parResolved}
+        and $self->p->loadedModules->{
+            'Lemonldap::NG::Portal::Plugins::OIDCPushedAuthRequest'}
         and $oidc_request->{request_uri} =~
         m{^urn:ietf:params:oauth:request_uri:} )
     {
@@ -452,7 +454,7 @@ sub handleGrantEndpoint {
     return $self->oidc->invalidClientResponse($req) unless $rp;
 
     # The grant endpoint serves only a caller that proved it is the client.
-    # A bare client_id (`none`) proves nothing; the token endpoint accepts it
+    # A bare client_id (`none`) proves nothing: the token endpoint accepts it
     # because PKCE protects the code there, which is not the case here.
     if ( !$auth_method or $auth_method eq 'none' ) {
         $self->logger->error(
@@ -461,19 +463,17 @@ sub handleGrantEndpoint {
         return $self->oidc->invalidClientResponse($req);
     }
 
-    # For a public client, only a JWS method is always verified by the core,
-    # whatever the client type: client_secret_jwt and private_key_jwt. A
-    # client certificate (tls_client_auth) is only checked for a confidential
-    # client, so it is refused here. A static secret is refused too, even
-    # when the core verifies a registered one: RFC 6749 section 2.1 says a
-    # public client cannot keep a secret, so it is not a credential here.
-    if ( $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic} ) {
-        unless ( $auth_method =~ /^(?:client_secret_jwt|private_key_jwt)$/ ) {
-            $self->logger->error(
-                "OIDCGrantManagement: public client `$rp` cannot authenticate "
-                  . "with $auth_method on the grant endpoint" );
-            return $self->oidc->invalidClientResponse($req);
-        }
+    # A public client certificate is not checked by the core: tls_client_auth
+    # is only validated in its confidential branch. A registered client
+    # secret and the JWS methods are accepted, as the core verifies them for
+    # a public client too.
+    if (    $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsPublic}
+        and $auth_method eq 'tls_client_auth' )
+    {
+        $self->logger->error(
+            "OIDCGrantManagement: public client `$rp` cannot authenticate "
+              . "with a client certificate on the grant endpoint" );
+        return $self->oidc->invalidClientResponse($req);
     }
 
     my $client_id =

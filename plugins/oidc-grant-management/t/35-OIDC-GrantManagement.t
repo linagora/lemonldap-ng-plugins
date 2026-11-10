@@ -458,7 +458,7 @@ subtest "Public client: the grant endpoint requires an authentication" => sub {
             },
         );
         ok( $res->[0] == 400 || $res->[0] == 401,
-            "$method with a client secret is refused for a public client" )
+            "$method with a wrong client secret is refused" )
           or explain( $res->[0], '400 or 401' );
 
         # The core reports tls_client_auth for any certificate, but only
@@ -475,8 +475,13 @@ subtest "Public client: the grant endpoint requires an authentication" => sub {
           or explain( $res->[0], '400 or 401' );
     }
 
-    # The DELETE was refused: another client still sees the grant as owned by
-    # someone else (a removed grant would be a 404).
+    # The refusals did not remove the grant, and a registered secret is a
+    # real authentication for a public client.
+    is( gm_get( $op, "rpid_pub", $grant_id )->[0], 200,
+        "Correct client secret accepted for a public client" );
+
+    # Another client still sees the grant as owned by someone else (a
+    # removed grant would be a 404).
     is( gm_get( $op, "rpid", $grant_id )->[0], 403,
         "Grant still exists and belongs to rpid_pub" );
 };
@@ -610,6 +615,27 @@ subtest "PAR: the pushed action is applied whatever the plugin order" => sub {
         $tok = expectJSON(
             codeGrant( $op_p, "rpid_par", $code, "http://client.com/" ) );
         ok( !$tok->{grant_id}, "$order: front-channel action ignored" );
+
+        # The action is refused on a pushed implicit request too.
+        $res = par_push(
+            $op_p, "rpid_par",
+            response_type           => "id_token token",
+            scope                   => "openid",
+            nonce                   => "n",
+            redirect_uri            => "http://client.com/",
+            grant_management_action => "create",
+        );
+        is( $res->[0], 201, "$order: implicit PAR push accepted" );
+        $uri = from_json( $res->[2]->[0] )->{request_uri};
+        my $auth = authorize(
+            $op_p, $id_p,
+            {
+                client_id   => "rpid_par",
+                request_uri => $uri,
+            }
+        );
+        expectPortalError( $auth, 24,
+            "$order: pushed implicit action refused" );
     }
 };
 
@@ -782,6 +808,7 @@ sub op {
                     rp_pub => {
                         oidcRPMetaDataOptionsDisplayName           => "Public RP",
                         oidcRPMetaDataOptionsClientID              => "rpid_pub",
+                        oidcRPMetaDataOptionsClientSecret          => "rpid_pub",
                         oidcRPMetaDataOptionsIDTokenSignAlg        => "RS256",
                         oidcRPMetaDataOptionsPublic                => 1,
                         oidcRPMetaDataOptionsAccessTokenJWT        => 1,
@@ -927,6 +954,7 @@ sub op_with_par {
                 oidcServicePushedAuthExpiration       => 60,
 
                 oidcServiceAllowAuthorizationCodeFlow => 1,
+                oidcServiceAllowImplicitFlow          => 1,
                 oidcServiceAllowOnlyDeclaredScopes    => 0,
 
                 oidcRPMetaDataExportedVars => {

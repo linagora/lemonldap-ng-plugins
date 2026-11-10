@@ -106,16 +106,13 @@ GET    /oauth2/grants/{grant_id}    →  200 JSON describing the grant
 DELETE /oauth2/grants/{grant_id}    →  204 No Content; grant revoked
 ```
 
-Authenticated as the OAuth client that owns the grant: a confidential
-client with `client_secret_basic`, `client_secret_post` or a signed
-`client_assertion`. A caller that only sends its `client_id` is refused with
-`invalid_client`. A public client must use a JWS method (`private_key_jwt` or
-`client_secret_jwt`): the core always verifies those, whatever the client
-type, while a client certificate is only checked for a confidential client.
-A static secret is refused even when one is registered: a public client
-cannot keep a secret (RFC 6749 section 2.1), so it is not a credential here.
-A client cannot read or revoke a grant that doesn't belong to it (returns
-403).
+Authenticated as the OAuth client that owns the grant, with a token-endpoint
+client authentication method. A caller that only sends its `client_id`
+(`none`) is refused with `invalid_client`: it proves nothing. For a public
+client, a client certificate is refused because the core only verifies it for
+a confidential client; a registered client secret and the JWS methods
+(`client_secret_jwt`, `private_key_jwt`) are accepted. A client cannot read or
+revoke a grant that doesn't belong to it (returns 403).
 
 ## Installation
 
