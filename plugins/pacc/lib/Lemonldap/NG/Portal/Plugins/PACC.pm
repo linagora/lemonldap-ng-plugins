@@ -68,6 +68,9 @@ sub checkRegistrationAllowed {
 
     if ($all_loopback) {
         if ( $self->conf->{paccAllowNativeClientRegistration} ) {
+            return PE_OIDC_SERVICE_NOT_ALLOWED
+              if $self->conf->{paccStrictNativeClientOnly}
+              and !$self->_checkNativeMetadata($client_metadata);
             $self->logger->debug(
 "PACC: Allowing registration for native client with loopback redirect_uris"
             );
@@ -88,6 +91,42 @@ sub checkRegistrationAllowed {
     }
 
     return PE_OK;
+}
+
+## @method boolean _checkNativeMetadata($client_metadata)
+# Strict mode: refuse the client metadata that a native app does not need
+# and that make the portal request a URL or insert it in a page. The portal
+# requests request_uris, jwks_uri and backchannel_logout_uri itself, so an
+# anonymous client could make it reach internal hosts; frontchannel_logout_uri
+# and logo_uri are inserted in portal pages, unescaped before LLNG 2.24
+# (LLNG issues #3827 and #3838). A logo is kept if it is a plain http(s) URL.
+# @param $client_metadata hashref Client registration metadata
+# @return 1 if acceptable, 0 otherwise
+sub _checkNativeMetadata {
+    my ( $self, $client_metadata ) = @_;
+
+    foreach my $field (
+        qw(request_uris jwks_uri backchannel_logout_uri frontchannel_logout_uri)
+      )
+    {
+        my $value = $client_metadata->{$field};
+        next unless defined $value;
+        next if ref($value) eq 'ARRAY' and !@$value;
+        $self->logger->error(
+                "PACC: Rejecting native client registration with $field "
+              . '(strict mode enabled)' );
+        return 0;
+    }
+
+    my $logo = $client_metadata->{logo_uri};
+    if ( defined $logo
+        and ( ref $logo or $logo !~ m{\Ahttps?://[^\s"'<>\\`]+\z}i ) )
+    {
+        $self->logger->error( 'PACC: Rejecting native client registration '
+              . 'with a malformed logo_uri (strict mode enabled)' );
+        return 0;
+    }
+    return 1;
 }
 
 ## @method int allowAnyLoopbackPort($req, $rp, $uri, $endpoint, $state)

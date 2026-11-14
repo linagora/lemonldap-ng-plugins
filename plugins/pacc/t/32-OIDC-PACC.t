@@ -210,6 +210,68 @@ subtest 'PACC strict mode rejects non-loopback redirect URIs' => sub {
     }
 };
 
+subtest 'PACC strict mode refuses metadata a native client does not need' =>
+  sub {
+    my %native = (
+        redirect_uris              => ['http://127.0.0.1/'],
+        token_endpoint_auth_method => 'none',
+    );
+    for my $extra (
+        { request_uris            => ['https://client.example.org/req'] },
+        { jwks_uri                => 'https://client.example.org/jwks' },
+        { backchannel_logout_uri  => 'https://client.example.org/logout' },
+        { frontchannel_logout_uri => 'http://127.0.0.1/logout' },
+        { logo_uri                => 'https://client.example.org/"><b>' },
+        { logo_uri                => 'javascript:alert(1)' },
+        { logo_uri                => ['https://client.example.org/logo.png'] },
+      )
+    {
+        my $res = register_native( $reg_op, { %native, %$extra } );
+        is( $res->[0], 400, 'refused in strict mode: ' . to_json($extra) );
+    }
+    for my $extra (
+        { logo_uri     => 'https://client.example.org/logo.png' },
+        { request_uris => [] },
+        { jwks_uri     => undef },
+      )
+    {
+        my $res = register_native( $reg_op, { %native, %$extra } );
+        is( $res->[0], 201, 'accepted in strict mode: ' . to_json($extra) );
+    }
+  };
+
+my $reg_op_lax = LLNG::Manager::Test->new( {
+        ini => {
+            domain                              => 'op.com',
+            portal                              => 'http://auth.op.com/',
+            authentication                      => 'Demo',
+            userDB                              => 'Same',
+            issuerDBOpenIDConnectActivation     => 1,
+            oidcServiceMetaDataIssuer           => 'http://auth.op.com',
+            oidcServiceMetaDataRegistrationURI  => 'register',
+            oidcServiceAllowDynamicRegistration => 2,
+            customPlugins => 'Lemonldap::NG::Portal::Plugins::PACC',
+            paccEnabled   => 1,
+            paccAllowNativeClientRegistration => 1,
+            paccStrictNativeClientOnly        => 0,
+            oidcServicePrivateKeySig          => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig           => oidc_cert_op_public_sig(),
+        }
+    }
+);
+
+subtest 'PACC does not filter native metadata out of strict mode' => sub {
+    my $res = register_native(
+        $reg_op_lax,
+        {
+            redirect_uris              => ['http://127.0.0.1/'],
+            token_endpoint_auth_method => 'none',
+            frontchannel_logout_uri    => 'http://127.0.0.1/logout',
+        }
+    );
+    is( $res->[0], 201, 'front-channel logout URI accepted' );
+};
+
 my $reg_op_no_native = LLNG::Manager::Test->new( {
         ini => {
             domain                              => 'op.com',
