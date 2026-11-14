@@ -1,61 +1,37 @@
 # Changelog
 
-## Unreleased
+## v0.7.2 - 2026-11-14
 
-Security and compatibility fixes from the 2026-11-09/10 review:
+Touched plugins bumped to **0.7.2** in lockstep: `mail-autodiscover`,
+`oidc-ciba`, `oidc-global-scopes`, `oidc-grant-management`, `oidc-id-jag`,
+`oidc-jar`, `oidc-jarm`, `oidc-par`, `oidc-rar`, `oidc-resource-indicators`,
+`oidc-scope-applications`, `pacc`, `twake`. Security fixes from the
+2026-11-09/10 review; several plugins now refuse what they used to accept,
+**check [UPGRADING.md](UPGRADING.md#v072) before deploying**.
 
-- **mail-autodiscover**: the `email` parameter uses a strict `local@domain`
-  addr-spec, is XML-escaped, and every response carries `nosniff` and a
-  restrictive CSP. The AutodiscoverV1 JSON route works on LLNG < 2.19.
-- **oidc-ciba**: the per-RP access rule and the scope rules now apply on
-  every CIBA path, and public clients are refused (`#220`, `#221`).
-- **oidc-grant-management**: `grant_management_action` is refused outside
-  the authorization code flow, where it was accepted but never applied, and a
-  `grant_id` reaches a token only when the grant was materialized for that
-  request (`#235`). The action and `grant_id` now travel in pushed
-  authorization requests. The grant endpoint requires a real client
-  authentication: a bare `client_id`, a certificate from a public client and a
-  wrong public-client secret are refused (`#236`).
-- **oidc-global-scopes** and **oidc-scope-applications**: their
-  `oidcResolveScope` hooks use the scope resolved by the flow (PAR, signed
-  request object, ID-JAG) instead of the raw request parameter, and no longer
-  re-add a global scope or `applications` that a per-RP rule refused
-  (`#227`).
-- **oidc-id-jag**: an ID Token used as `subject_token` is bounded by the
-  consented scope (or `openid`); a client that bypasses consent gets `openid`
-  only (`#222`). A client-credentials access token is refused as
-  `subject_token` (`#225`).
-- **oidc-jar**: a `request_uri` fetch no longer follows HTTP redirects and
-  reads only an uncompressed 2xx answer, so the portal contacts only the URLs
-  allowed by `oidcRPMetaDataOptionsRequestUris`, before and after login
-  (`#232`). The raw response size is bounded before it is read.
-- **oidc-jarm**: `query.jwt`, `fragment.jwt`, `form_post.jwt` and `jwt` are
-  rewritten to their base mode before core validation, including with PAR and
-  signed request objects.
-- **oidc-par**: calls the JARM hook after resolving a pushed request;
-  `test_depends` gains `oidc-jarm`, which must be updated with it. Once a
-  pushed request is resolved, oidc-par drops the front-channel values it
-  resolved (`#230`); the other plugins that read the raw front-channel
-  parameters get their own fix (`scope` in #227, `resource` in #234, the
-  grant parameters in #235). The PAR session is now removed when the
-  authorization response is produced, not when it is resolved, so a consent
-  form that posts the `request_uri` again can complete.
-- **oidc-resource-indicators**: a `resource` sent on a refresh must be part
-  of the original authorization; a value outside it is refused with
-  `invalid_target` instead of widening the token audience (`#234`).
-- **oidc-rar**: `authorization_details` added to the front channel are
-  ignored once a pushed request is resolved (`#229`, with the matching
-  oidc-par), the per-RP rules are enforced before an implicit access token is
-  signed (`#228`), and the consent screen is forced when details are present
-  and consent is not bypassed; granting them requires a token bound to those
-  details, so neither a bare `confirm=1` nor a signed request object can skip
-  the screen (`#226`).
-- **twake**: `/deviceaccounts/del` only deletes the caller's accounts and
-  escapes LDAP filters/DNs (`#219`); empty admin tokens are dropped and
-  compared by SHA-256 digest (`#223`); a user cannot create a `HIDDEN__`
-  account, and hidden accounts count towards the limit (`#224`).
-
-See [UPGRADING.md](UPGRADING.md#unreleased) for the operator-visible changes.
+- **mail-autodiscover**: strict `local@domain` email, XML-escaped, with
+  `nosniff` and a restrictive CSP (#239).
+- **oidc-ciba**: RP rule and scope rules on every path; public clients
+  refused (#220, #221).
+- **oidc-global-scopes**, **oidc-scope-applications**: scope resolved by the
+  flow (PAR, JAR, ID-JAG), per-RP refusals kept (#227).
+- **oidc-grant-management**: code flow only; the grant endpoint requires real
+  client authentication (#235, #236).
+- **oidc-id-jag**: ID Token subjects bounded by the consented scope;
+  client-credentials tokens refused (#222, #225).
+- **oidc-jar**: `request_uri` fetch follows no redirect and reads only an
+  uncompressed 2xx answer (#232).
+- **oidc-jarm**: JWT response modes rewritten before core validation (#244).
+- **oidc-par**: front-channel values ignored once a request is pushed; PAR
+  session kept until the authorization response (#230).
+- **oidc-rar**: front-channel details ignored on PAR, rules enforced on
+  implicit, consent screen forced when details are present (#226, #228,
+  #229).
+- **oidc-resource-indicators**: refresh cannot widen the audience (#234).
+- **pacc**: any port accepted on a declared loopback redirect URI (RFC 8252
+  §7.3), option `paccLoopbackAnyPort` (#253).
+- **twake**: account deletion limited to the caller, admin tokens compared by
+  digest, `HIDDEN__` names reserved (#219, #223, #224).
 
 ## v0.7.1 - 2026-11-05
 

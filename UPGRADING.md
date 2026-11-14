@@ -7,7 +7,7 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
-## Unreleased
+## v0.7.2
 
 - **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is
   reserved for the token API, and hidden accounts now count towards the
@@ -60,6 +60,12 @@ the subset that requires a decision.
   by `oidc-ciba`) cannot add a resource on refresh, and a token exchange that
   sends `resource` is refused the same way instead of adding that audience
   unchecked.
+- **pacc** (when `paccEnabled`) accepts any port on a loopback redirect URI
+  declared on an RP, at the authorization endpoint: an RP declaring
+  `http://127.0.0.1/` now also accepts `http://127.0.0.1:56170/`. This applies
+  to existing RPs too. Require PKCE on such RPs, or set
+  `paccLoopbackAnyPort = 0` to keep exact matching. Run
+  `llng-build-manager-files` to show the new option in the Manager.
 - **oidc-par**, **oidc-jarm**, **oidc-rar** and **oidc-grant-management**
   must be updated together: `oidc-par` calls `processJarmRequest` on a loaded
   `oidc-jarm` and replays the RAR and grant-management hooks on a resolved
