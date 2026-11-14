@@ -7,6 +7,14 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
+## Unreleased
+
+- **pacc** in strict mode (`paccStrictNativeClientOnly`, on by default)
+  refuses native client registrations that carry `request_uris`, `jwks_uri`,
+  `backchannel_logout_uri` or `frontchannel_logout_uri`, or a `logo_uri` that
+  is not a plain http(s) URL. Such clients now get `400`. A native client
+  that really needs these fields must be declared by an administrator.
+
 ## v0.7.2
 
 - **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is

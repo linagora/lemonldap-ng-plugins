@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **pacc**: in strict mode, native clients cannot register `request_uris`,
+  `jwks_uri`, `backchannel_logout_uri`, `frontchannel_logout_uri` or a
+  malformed `logo_uri` (LLNG #3827, #3838).
+
 ## v0.7.2 - 2026-11-14
 
 Touched plugins bumped to **0.7.2** in lockstep: `mail-autodiscover`,

@@ -13,7 +13,7 @@
     "paccStrictNativeClientOnly": {
       "type": "bool",
       "default": 1,
-      "documentation": "Reject registration if not all redirect_uris are loopback (native client)"
+      "documentation": "Reject registration if not all redirect_uris are loopback (native client), or if a native client sends request_uris, jwks_uri, logout URIs or a malformed logo_uri"
     },
     "paccLoopbackAnyPort": {
       "type": "bool",
