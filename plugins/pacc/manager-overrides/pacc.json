@@ -15,6 +15,11 @@
       "default": 1,
       "documentation": "Reject registration if not all redirect_uris are loopback (native client)"
     },
+    "paccLoopbackAnyPort": {
+      "type": "bool",
+      "default": 1,
+      "documentation": "Accept any port on a declared loopback redirect URI (RFC 8252 section 7.3)"
+    },
     "paccImapEnabled": {
       "type": "bool",
       "default": 0,
@@ -92,6 +97,7 @@
           "paccEnabled",
           "paccAllowNativeClientRegistration",
           "paccStrictNativeClientOnly",
+          "paccLoopbackAnyPort",
           {
             "title": "paccImapSettings",
             "help": "pacc.html#imap-settings",
@@ -155,6 +161,12 @@
       "fr": "Mode strict clients natifs uniquement",
       "es": "Modo estricto solo clientes nativos",
       "it": "Modalità rigorosa solo client nativi"
+    },
+    "paccLoopbackAnyPort": {
+      "en": "Accept any port on loopback redirect URIs",
+      "fr": "Accepter tout port sur les URI de redirection locales",
+      "es": "Aceptar cualquier puerto en las URI de redirección locales",
+      "it": "Accetta qualsiasi porta sugli URI di reindirizzamento locali"
     },
     "paccImapSettings": {
       "en": "IMAP Settings",

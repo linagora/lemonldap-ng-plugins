@@ -7,7 +7,7 @@ use strict;
 use Mouse;
 use JSON qw(to_json);
 use Lemonldap::NG::Portal::Main::Constants
-  qw(PE_OK PE_OIDC_SERVICE_NOT_ALLOWED);
+  qw(PE_OK PE_DONE PE_OIDC_SERVICE_NOT_ALLOWED);
 
 our $VERSION = '2.0.0';
 
@@ -16,7 +16,12 @@ extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 # INTERFACE
 use constant hook => {
     oidcGotRegistrationRequest => 'checkRegistrationAllowed',
+    oidcValidateRedirectUri    => 'allowAnyLoopbackPort',
 };
+
+# Loopback redirect URI, split into scheme, host, port and path (with query)
+my $LOOPBACK_URI =
+  qr{\A(https?)://(localhost|127\.0\.0\.1|\[::1\])(?::(\d{1,5}))?(/\S*)?\z}i;
 
 # INITIALIZATION
 
@@ -83,6 +88,62 @@ sub checkRegistrationAllowed {
     }
 
     return PE_OK;
+}
+
+## @method int allowAnyLoopbackPort($req, $rp, $uri, $endpoint, $state)
+# Hook accepting a loopback redirect URI on any port (RFC 8252 section 7.3):
+# a native app listens on a port chosen by the system at each login, so the
+# port of a declared loopback redirect URI is ignored. Scheme, host, path
+# and query must still match exactly. Never refuses: when the URI does not
+# qualify, the core performs its usual exact comparison.
+# @param $rp configuration key of the RP
+# @param $uri redirect URI to validate
+# @param $endpoint endpoint that received the URI
+# @param $state hashref receiving the validation result
+# @return PE_DONE (accepted) or PE_OK (let the core decide)
+sub allowAnyLoopbackPort {
+    my ( $self, $req, $rp, $uri, $endpoint, $state ) = @_;
+
+    # Enabled by default, also when DefaultValues was not rebuilt
+    return PE_OK
+      unless ( $self->conf->{paccLoopbackAnyPort} // 1 )
+      and $endpoint
+      and $endpoint eq 'authorization'
+      and defined $uri
+      and !ref $uri;
+
+    my $requested = _parseLoopbackUri($uri) or return PE_OK;
+    my $allowed =
+      $self->oidc->rpOptions->{$rp}->{oidcRPMetaDataOptionsRedirectUris} // '';
+
+    foreach my $declared ( split /\s+/, $allowed ) {
+        my $candidate = _parseLoopbackUri($declared) or next;
+        next
+          unless $candidate->{scheme} eq $requested->{scheme}
+          and $candidate->{host} eq $requested->{host}
+          and $candidate->{path} eq $requested->{path};
+        $self->logger->debug(
+            "PACC: loopback redirect URI $uri accepted for $rp (any port)");
+        $state->{result} = 1;
+        return PE_DONE;
+    }
+    return PE_OK;
+}
+
+## @function hashref _parseLoopbackUri($uri)
+# Split a loopback URI; scheme and host are lowercased, an empty path is
+# read as "/" (RFC 3986 section 6.2.3)
+# @return hashref (scheme, host, port, path) or undef if not a loopback URI
+sub _parseLoopbackUri {
+    my ($uri) = @_;
+    my ( $scheme, $host, $port, $path ) = $uri =~ $LOOPBACK_URI or return;
+    return if defined $port and ( $port < 1 or $port > 65535 );
+    return {
+        scheme => lc $scheme,
+        host   => lc $host,
+        port   => $port,
+        path   => ( defined $path and length $path ) ? $path : '/',
+    };
 }
 
 ## @method PSGI-JSON-response paccMetadata($req)

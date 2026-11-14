@@ -12,6 +12,12 @@ standardized JSON endpoint.
   apps with loopback redirect URIs (localhost, 127.0.0.1, [::1]) when dynamic
   registration is enabled. Public clients need
   `oidcServiceAllowDynamicRegistration = 2`.
+- **Any port on loopback redirect URIs**: a native app listens on a port
+  chosen by the system at each login, so a declared loopback redirect URI
+  (`http://127.0.0.1/`, `http://[::1]/`, `http://localhost/`) also accepts
+  the same URI on any port, as required by
+  [RFC 8252 section 7.3](https://www.rfc-editor.org/rfc/rfc8252#section-7.3).
+  Applies to every RP, declared in the Manager or registered dynamically.
 - **Public client support**: the core honours
   `token_endpoint_auth_method: "none"` when
   `oidcServiceAllowDynamicRegistration = 2`; PACC only filters which clients
@@ -44,6 +50,7 @@ In the Manager, go to **OpenID Connect Service** > **PACC Configuration**:
 | `paccEnabled`                       | 0       | Enable the PACC endpoint                                         |
 | `paccAllowNativeClientRegistration` | 1       | Allow loopback native clients; when disabled, loopback registrations are refused (dynamic registration must be enabled) |
 | `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations in strict mode            |
+| `paccLoopbackAnyPort`               | 1       | Accept any port on a declared loopback redirect URI (RFC 8252 §7.3) |
 
 ### IMAP Settings
 
@@ -105,6 +112,12 @@ curl https://auth.example.com/.well-known/pacc.json
 - **Strict Mode**: when `paccStrictNativeClientOnly` is enabled, registration
   requests with non-loopback URIs are rejected
 - **PKCE**: public clients should always use PKCE for authorization
+- **Loopback ports**: with `paccLoopbackAnyPort`, only the port may differ
+  from a declared loopback redirect URI: scheme, host (no switch between
+  `127.0.0.1`, `[::1]` and `localhost`), path and query must match exactly.
+  This applies to the authorization endpoint only, not to
+  `post_logout_redirect_uri`. Require PKCE on such RPs: another local
+  process listening on a different port could otherwise receive the code
 - **Loopback URIs**: only `localhost`, `127.0.0.1`, and `[::1]` are accepted
   per [RFC 8252](https://tools.ietf.org/html/rfc8252)
 

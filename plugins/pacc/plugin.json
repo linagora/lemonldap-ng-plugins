@@ -2,7 +2,7 @@
   "name": "pacc",
   "version": "0.7.1",
   "summary": "PACC - Provider Automatic Configuration for Clients (draft-ietf-mailmaint-pacc)",
-  "description": "Implements draft-ietf-mailmaint-pacc for automatic mail client configuration. Provides a /.well-known/pacc.json endpoint returning IMAP/SMTP/JMAP/CalDAV/CardDAV configuration with OAuth2 issuer information. Also filters OIDC dynamic registration to support native clients with loopback redirect URIs; public clients are handled by the core when dynamic registration allows them.",
+  "description": "Implements draft-ietf-mailmaint-pacc for automatic mail client configuration. Provides a /.well-known/pacc.json endpoint returning IMAP/SMTP/JMAP/CalDAV/CardDAV configuration with OAuth2 issuer information. Also filters OIDC dynamic registration to support native clients with loopback redirect URIs, and accepts any port on a declared loopback redirect URI (RFC 8252); public clients are handled by the core when dynamic registration allows them.",
   "author": "Xavier Guimard <yadd@debian.org>",
   "license": "GPL-2.0",
   "llng_compat": ">=2.23.2",
