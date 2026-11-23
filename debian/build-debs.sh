@@ -625,11 +625,12 @@ open-bastion-plugins installed.
 To bootstrap the LemonLDAP::NG configuration for an open-bastion
 deployment, run (idempotent, safe to re-run):
 
-  sudo open-bastion-plugins-autoconfig --verbose
+  sudo open-bastion-plugins-autoconfig --verbose \
+      --server-admin-rule 'inGroup("server-admins")'
 
-Preview first with:
-
-  sudo open-bastion-plugins-autoconfig --dry-run --verbose
+Only the users matching that rule can enroll servers; without the option
+nobody can until you set it. Preview first with --dry-run, and follow the
+checklist printed at the end.
 
 MSG
     ;;

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **open-bastion-plugins-autoconfig**: server enrollment on the `pam-access`
+  RP is closed by default instead of open to every user, and set to the new
+  `--server-admin-rule`; a re-run closes an RP left open by earlier versions.
+  New deployments get `pamAccessAllowedRps`. `--require-fingerprint` sets
+  `pamAccessRequireFingerprint`. Every run prints the checklist of portal and
+  backend settings still to make (**see [UPGRADING.md](UPGRADING.md#unreleased)**).
+
 ## v0.7.2 - 2026-11-14
 
 Touched plugins bumped to **0.7.2** in lockstep: `mail-autodiscover`,
