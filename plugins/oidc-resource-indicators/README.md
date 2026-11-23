@@ -18,12 +18,22 @@ Manually: copy `lib/` into your Perl `@INC` path, copy `manager-overrides/` into
 
 For each RP that represents an API (Resource Server), in **Manager → _OIDC Relying Parties_ → `<rp>`** :
 
-| Parameter                           | Type     | Description                                                                                                                                                                                                                                                                             |
-| ----------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `oidcRPMetaDataOptionsEnableRI`     | bool     | Mark this RP as a Resource Server target                                                                                                                                                                                                                                                |
-| `oidcRPMetaDataOptionsRIIdentifier` | text     | RS identifier (audience). Defaults to `clientId` when empty                                                                                                                                                                                                                             |
-| `oidcRPMetaDataOptionsRIScopes`     | longtext | JSON object `{"<scope>": "<description>"}`. Declares which scopes belong to this RS. Empty string = no RS scopes                                                                                                                                                                        |
-| `oidcRPMetaDataOptionsRIScopeRules` | longtext | JSON object `{"<scope>": "<perl_expression>"}`. Each rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies. Invalid JSON at init: rules ignored |
+| Parameter                             | Type     | Description                                                                                                                                                                                                                                                                             |
+| ------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `oidcRPMetaDataOptionsEnableRI`       | bool     | Mark this RP as a Resource Server target                                                                                                                                                                                                                                                |
+| `oidcRPMetaDataOptionsRIIdentifier`   | text     | RS identifier (audience). Defaults to `clientId` when empty                                                                                                                                                                                                                             |
+| `oidcRPMetaDataOptionsRIAuthorizedRP` | text     | Configuration keys of the RPs (clients) allowed to request a token bound to this RS, separated by commas or spaces. Empty = no client (a client may always target itself)                                                                                                               |
+| `oidcRPMetaDataOptionsRIScopes`       | longtext | JSON object `{"<scope>": "<description>"}`. Declares which scopes belong to this RS. Empty string = no RS scopes                                                                                                                                                                        |
+| `oidcRPMetaDataOptionsRIScopeRules`   | longtext | JSON object `{"<scope>": "<perl_expression>"}`. Each rule is evaluated against `$req->sessionInfo` whenever a client targets this RS and asks for the scope. Truthy grants, falsy denies. `1` / `accept` always grants, `0` / `deny` always denies. Invalid JSON at init: rules ignored |
+
+### Which client may target which RS
+
+A `resource` value is bound to the token only when the RS accepts it:
+
+- the requesting client is listed in the RS's `oidcRPMetaDataOptionsRIAuthorizedRP` (or is the RS itself). The list is empty by default, so an RS accepts no client until it names them;
+- the RS's access rule (`oidcRPMetaDataOptionsRule`), when set, accepts the subject of the token. It sees the same variables as the client's own rule in core: the user session and `$_oidc_grant_type` (`authorizationcode`, `implicit`, `hybrid`), or, for `client_credentials`, the session built for the client (`$_clientId`, `$_clientConfKey`) with `$_oidc_grant_type` set to `clientcredentials`. A rule written for users must accept `clientcredentials` explicitly to let machine-to-machine clients through.
+
+A refused `resource` is dropped, exactly like an unknown one: the token is still issued, without that audience, so the RS rejects it. The scopes it declares in `oidcRPMetaDataOptionsRIScopes` are removed from the token too, unless another RS of the request, which accepts the client, declares and grants them. The same check runs again on each refresh: an RS that stops accepting a client, or whose rule stops accepting the user, is removed from the audience of the next access tokens.
 
 ## Flow
 
@@ -31,6 +41,7 @@ For each RP that represents an API (Resource Server), in **Manager → _OIDC Rel
 Client → /oauth2/authorize?...&scope=read:users&resource=https://api.example.com
        ↓
        OP looks up the RP whose RIIdentifier == "https://api.example.com" (= the RS)
+       Checks that the RS lists the client and that its access rule accepts the user
        Evaluates oidcRPMetaDataOptionsRIScopeRules{<rs>}{read:users} against the user
        If granted: binds the access token to the RS audience
        ↓
@@ -51,18 +62,19 @@ On a refresh, `resource` may only **narrow** the audiences of the original autho
 
 The plugin uses **only existing LLNG ≥ 2.23 hooks**, no core change required. The only subtlety is the access token _session_ (where introspection reads its data from): there is no `oidcGenerateAccessTokenSession` hook in 2.23, so we patch the AT session post-creation via `oidcGenerateTokenResponse` + `Lemonldap::NG::Common::JWT::getAccessTokenSessionId` (which handles JWT ⇒ jti and opaque ⇒ token-as-id).
 
-| Hook                                | Role                                                                                |
-| ----------------------------------- | ----------------------------------------------------------------------------------- |
-| `oidcGotRequest`                    | Capture `resource` param at /authorize                                              |
-| `oidcGotTokenRequest`               | Restore RS audiences from code session (auth_code) / capture for client_credentials |
-| `oidcGotOnlineRefresh`              | Re-evaluate RS scopes and audiences on online refresh                               |
-| `oidcGotOfflineRefresh`             | Same for offline refresh                                                            |
-| `oidcResolveScope`                  | Filter scope list against per-RS rules                                              |
-| `oidcGenerateCode`                  | Persist resolved audiences on code session                                          |
-| `oidcGenerateRefreshToken`          | Persist resolved audiences on refresh session                                       |
-| `oidcGenerateAccessToken`           | Add resolved audiences to JWT `aud` claim                                           |
-| `oidcGenerateTokenResponse`         | Patch AT session post-creation so introspection sees the audiences                  |
-| `oidcGenerateIntrospectionResponse` | Surface RS audiences in introspection response                                      |
+| Hook                                | Role                                                                               |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `oidcGotRequest`                    | Capture `resource` param at /authorize                                             |
+| `oidcGotTokenRequest`               | Restore RS audiences from code session (auth_code) / keep refresh within the grant |
+| `oidcGotClientCredentialsGrant`     | Capture and check `resource` for client_credentials                                |
+| `oidcGotOnlineRefresh`              | Re-check RS audiences (and scopes when `resource` is sent) on online refresh       |
+| `oidcGotOfflineRefresh`             | Same for offline refresh                                                           |
+| `oidcResolveScope`                  | Filter scope list against per-RS rules                                             |
+| `oidcGenerateCode`                  | Persist resolved audiences on code session                                         |
+| `oidcGenerateRefreshToken`          | Persist resolved audiences on refresh session                                      |
+| `oidcGenerateAccessToken`           | Add resolved audiences to JWT `aud` claim                                          |
+| `oidcGenerateTokenResponse`         | Patch AT session post-creation so introspection sees the audiences                 |
+| `oidcGenerateIntrospectionResponse` | Surface RS audiences in introspection response                                     |
 
 ## Origin
 

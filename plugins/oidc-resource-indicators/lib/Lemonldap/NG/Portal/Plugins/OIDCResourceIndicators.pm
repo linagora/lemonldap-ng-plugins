@@ -24,6 +24,7 @@ extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 use constant hook => {
     oidcGotRequest                    => 'captureResourceParam',
     oidcGotTokenRequest               => 'handleTokenRequest',
+    oidcGotClientCredentialsGrant     => 'handleClientCredentials',
     oidcGotOnlineRefresh              => 'handleRefreshRSScopes',
     oidcGotOfflineRefresh             => 'handleRefreshRSScopes',
     oidcResolveScope                  => 'evaluateRSScopes',
@@ -155,8 +156,8 @@ sub captureResourceParam {
     return PE_OK;
 }
 
-# Hook: Handle token request - captures resource param for client_credentials
-# and restores RS audiences from code session for authorization_code
+# Hook: Handle token request - restores RS audiences from code session for
+# authorization_code and keeps a refresh within the grant
 sub handleTokenRequest {
     my ( $self, $req, $rp, $grant_type ) = @_;
 
@@ -203,19 +204,34 @@ sub handleTokenRequest {
         }
     }
 
-    # For client_credentials: capture resource param (possibly multi-valued)
-    elsif ( $grant_type eq 'client_credentials' ) {
-        my @resources = $req->param('resource');
-        if (@resources) {
-            my %seen;
-            @resources = grep { !$seen{$_}++ } @resources;
-            $req->data->{rs_audiences} = \@resources;
-            $self->logger->debug(
-                "OIDCResourceIndicators: Captured resource param "
-                  . "for client_credentials: " . join( ', ', @resources ) );
-        }
-    }
+    return PE_OK;
+}
 
+# Hook: client_credentials grant. The core plugin answers the grant from its
+# own oidcGotTokenRequest hook, which runs before ours, so the resource is
+# read here. $infos is the session built for the client: the RS access rules
+# see the same variables as the client's own rule in core.
+sub handleClientCredentials {
+    my ( $self, $req, $infos, $rp ) = @_;
+
+    my @resources = $req->param('resource');
+    return PE_OK unless @resources;
+
+    my %seen;
+    @resources = grep { !$seen{$_}++ } @resources;
+    $req->data->{rs_audiences}  = \@resources;
+    $req->data->{rs_grant_type} = 'clientcredentials';
+    $self->logger->debug( "OIDCResourceIndicators: Captured resource param "
+          . "for client_credentials: " . join( ', ', @resources ) );
+
+    my $original_session_info = $req->sessionInfo;
+    $req->sessionInfo($infos);
+
+    my @scope_values = split( /\s+/, $infos->{_scope} // '' );
+    $self->evaluateRSScopes( $req, \@scope_values, $rp );
+    $infos->{_scope} = join( ' ', @scope_values );
+
+    $req->sessionInfo($original_session_info);
     return PE_OK;
 }
 
@@ -269,17 +285,14 @@ sub handleRefreshRSScopes {
               . join( ', ', @resources ) );
     }
 
-    # If no new resource param, restore from refresh session
-    elsif ( my $stored_aud = $session_data->{rs_audiences} ) {
-        $req->data->{rs_resolved_audiences} = $stored_aud;
-        $self->logger->debug(
-            "OIDCResourceIndicators: Restored RS audiences from refresh "
-              . "session: " . join( ', ', @$stored_aud ) );
-        return PE_OK;
-    }
+    # Only continue if a resource was sent or the grant stores audiences
+    my $stored_aud = $session_data->{rs_audiences};
+    return PE_OK
+      unless @resources
+      or ( ref($stored_aud) eq 'ARRAY' and @$stored_aud );
 
-    # Only continue if new resource param was provided
-    return PE_OK unless $req->data->{rs_audiences};
+    # The RS access rules see the grant type of the original authorization
+    $req->data->{rs_grant_type} = $session_data->{grant_type} // '';
 
     # For online refresh, $userData is passed; for offline, use $session_data
     my $user_info = $userData || $session_data;
@@ -291,16 +304,38 @@ sub handleRefreshRSScopes {
     my $original_session_info = $req->sessionInfo;
     $req->sessionInfo($user_info) unless $had_session_info;
 
-    # Get scope from session and evaluate RS scopes
-    my $scope = $session_data->{scope} || '';
-    my @scope_values = split( /\s+/, $scope );
+    if (@resources) {
 
-    # Call the same evaluation logic as oidcResolveScope. This may strip
-    # denied RS scopes from @scope_values; persist the filtered list back
-    # into the refresh session data so downstream token generation uses
-    # only granted scopes.
-    $self->evaluateRSScopes( $req, \@scope_values, $rp );
-    $session_data->{scope} = join( ' ', @scope_values );
+        # Get scope from session and evaluate RS scopes
+        my $scope = $session_data->{scope} || '';
+        my @scope_values = split( /\s+/, $scope );
+
+        # Call the same evaluation logic as oidcResolveScope. This may strip
+        # denied RS scopes from @scope_values; persist the filtered list back
+        # into the refresh session data so downstream token generation uses
+        # only granted scopes.
+        $self->evaluateRSScopes( $req, \@scope_values, $rp );
+        $session_data->{scope} = join( ' ', @scope_values );
+    }
+
+    # No new resource param: restore the audiences of the grant, minus those
+    # an RS no longer accepts (client removed from its list, rule changed).
+    # The refresh session keeps the original list on purpose: it is the
+    # grant, and it is filtered again on every refresh, so an RS that
+    # accepts the client again gets its audience back.
+    else {
+        my $vars = $self->_ruleVariables($req);
+        my @kept = grep {
+            my $rs_rp = $self->_findRPByAudience($_);
+            $rs_rp and $self->_rsAuthorized( $req, $rp, $rs_rp, $vars )
+        } @$stored_aud;
+        if (@kept) {
+            $req->data->{rs_resolved_audiences} = \@kept;
+            $self->logger->debug(
+                "OIDCResourceIndicators: Restored RS audiences from refresh "
+                  . "session: " . join( ', ', @kept ) );
+        }
+    }
 
     # Restore original sessionInfo, even if it was undef
     $req->sessionInfo($original_session_info) unless $had_session_info;
@@ -394,9 +429,13 @@ sub evaluateRSScopes {
     return PE_OK unless @$audiences;
 
     my @resolved_audiences;
+    my $vars = $self->_ruleVariables($req);
 
     # Track scope decisions per RS
     my %rs_scope_decisions;    # scope => 1 (granted) or 0 (denied)
+
+    # Requested scopes of refused resource servers
+    my %refused_scopes;
 
     for my $aud (@$audiences) {
 
@@ -406,6 +445,17 @@ sub evaluateRSScopes {
             $self->logger->debug(
                 "OIDCResourceIndicators: No RS found for audience '$aud', "
                   . "ignoring" );
+            next;
+        }
+
+        # The RS must accept this client and the subject of the token. A
+        # refused RS is dropped like an unknown one: the token is issued
+        # without that audience, so the RS rejects it. Its own scopes are
+        # stripped too, unless an authorized RS grants them (see below).
+        unless ( $self->_rsAuthorized( $req, $rp, $rs_rp, $vars ) ) {
+            my $rs_scopes = $self->_rsScopes->{$rs_rp} // {};
+            $refused_scopes{$_} = 1
+              for grep { exists $rs_scopes->{$_} } @$scopeList;
             next;
         }
 
@@ -442,6 +492,11 @@ sub evaluateRSScopes {
             }
         }
     }
+
+    # A scope of a refused RS is denied, unless an authorized RS decided on
+    # it: its decision stands (granted, or already denied by its rule).
+    # Done after the loop so that the order of the resources does not matter.
+    $rs_scope_decisions{$_} //= 0 for keys %refused_scopes;
 
     # Now modify the scope list to remove denied RS scopes
     if (%rs_scope_decisions) {
@@ -523,6 +578,49 @@ sub _findRPByAudience {
     }
 
     return;
+}
+
+# Helper: may client $rp get a token bound to resource server $rs_rp?
+# The RS lists the clients it accepts in oidcRPMetaDataOptionsRIAuthorizedRP
+# (empty = none; a client may always target itself), and its access rule
+# must accept $vars, as for a token issued to the RS itself.
+sub _rsAuthorized {
+    my ( $self, $req, $rp, $rs_rp, $vars ) = @_;
+
+    if ( $rs_rp ne $rp ) {
+        my $list = ( $self->oidc->rpOptions->{$rs_rp} // {} )
+          ->{oidcRPMetaDataOptionsRIAuthorizedRP} // '';
+        unless ( grep { $_ eq $rp } split /[,;\s]+/, $list ) {
+            $self->userLogger->warn( "OIDCResourceIndicators: RP $rp is not "
+                  . "authorized to request a token for resource server $rs_rp"
+            );
+            return 0;
+        }
+    }
+
+    if ( my $rule = $self->oidc->rpRules->{$rs_rp} ) {
+        my $ok = eval { $rule->( $req, $vars ) };
+        $self->logger->error(
+            "OIDCResourceIndicators: Error evaluating the access rule of "
+              . "resource server $rs_rp: $@" )
+          if $@;
+        unless ($ok) {
+            $self->userLogger->warn( "OIDCResourceIndicators: access rule of "
+                  . "resource server $rs_rp refused the token for RP $rp" );
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+# Helper: variables for the RS access rules, as core builds them for the
+# access rule of the client itself: the session plus _oidc_grant_type
+sub _ruleVariables {
+    my ( $self, $req ) = @_;
+    my $grant_type = $req->data->{rs_grant_type}
+      // $req->data->{_oidc_flow} // '';
+    return { %{ $req->sessionInfo || {} }, _oidc_grant_type => $grant_type };
 }
 
 # Helper: Evaluate a Perl rule

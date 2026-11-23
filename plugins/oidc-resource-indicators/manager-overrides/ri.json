@@ -9,6 +9,11 @@
       "type": "text",
       "documentation": "RFC 8707 — Resource Server identifier (audience). Defaults to clientId when empty."
     },
+    "oidcRPMetaDataOptionsRIAuthorizedRP": {
+      "type": "text",
+      "default": "",
+      "documentation": "RFC 8707 — Relying parties (configuration keys, separated by commas or spaces) allowed to request a token bound to this Resource Server. Empty = no client. A client may always target itself."
+    },
     "oidcRPMetaDataOptionsRIScopes": {
       "type": "longtext",
       "default": "",
@@ -30,6 +35,7 @@
           "nodes": [
             "oidcRPMetaDataOptionsEnableRI",
             "oidcRPMetaDataOptionsRIIdentifier",
+            "oidcRPMetaDataOptionsRIAuthorizedRP",
             "oidcRPMetaDataOptionsRIScopes",
             "oidcRPMetaDataOptionsRIScopeRules"
           ]
@@ -49,6 +55,12 @@
       "fr": "Identifiant du Resource Server (audience)",
       "es": "Identificador del Resource Server (audience)",
       "it": "Identificatore del Resource Server (audience)"
+    },
+    "oidcRPMetaDataOptionsRIAuthorizedRP": {
+      "en": "Clients allowed to target this Resource Server",
+      "fr": "Clients autorisés à cibler ce Resource Server",
+      "es": "Clientes autorizados a apuntar a este Resource Server",
+      "it": "Client autorizzati a indirizzare questo Resource Server"
     },
     "oidcRPMetaDataOptionsRIScopes": {
       "en": "RS scopes (JSON: scope → description)",

@@ -18,6 +18,20 @@ the subset that requires a decision.
   users allowed to read the reports, for example `$groups =~ /\badmins\b/`.
   The Manager virtual host rules suggested before never applied to these
   portal routes and can be removed.
+- **oidc-resource-indicators** binds a token to a resource server only when
+  that RS lists the requesting client in the new option
+  `oidcRPMetaDataOptionsRIAuthorizedRP` (configuration keys of the clients,
+  separated by commas or spaces). The list is empty by default: **set it on
+  every RP that has `oidcRPMetaDataOptionsEnableRI`**, otherwise its
+  identifier silently disappears from the `aud` of every token, along with
+  the scopes it declares in `oidcRPMetaDataOptionsRIScopes`, and the API
+  rejects them. A client may still target itself without being listed.
+  The RS access rule (`oidcRPMetaDataOptionsRule`) is now evaluated too,
+  against the user, or against the client session with `$_oidc_grant_type`
+  set to `clientcredentials` for the client credentials grant: an RS rule
+  written for users must accept that grant type to serve machine-to-machine
+  clients. Existing refresh tokens keep working, but their next access
+  tokens lose any audience that the RS no longer accepts.
 
 ## v0.7.2
 
