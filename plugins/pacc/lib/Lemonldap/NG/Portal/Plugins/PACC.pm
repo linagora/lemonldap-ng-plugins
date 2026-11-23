@@ -69,7 +69,7 @@ sub checkRegistrationAllowed {
     if ($all_loopback) {
         if ( $self->conf->{paccAllowNativeClientRegistration} ) {
             return PE_OIDC_SERVICE_NOT_ALLOWED
-              if $self->conf->{paccStrictNativeClientOnly}
+              if ( $self->conf->{paccStrictNativeClientOnly} // 1 )
               and !$self->_checkNativeMetadata($client_metadata);
             $self->logger->debug(
 "PACC: Allowing registration for native client with loopback redirect_uris"
@@ -81,7 +81,7 @@ sub checkRegistrationAllowed {
         );
         return PE_OIDC_SERVICE_NOT_ALLOWED;
     }
-    elsif ( $self->conf->{paccStrictNativeClientOnly} ) {
+    elsif ( ( $self->conf->{paccStrictNativeClientOnly} // 1 ) ) {
 
         # Reject if strict mode and not all URIs are loopback
         $self->logger->error(

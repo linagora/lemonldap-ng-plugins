@@ -5,6 +5,8 @@
 - **pacc**: in strict mode, native clients cannot register `request_uris`,
   `jwks_uri`, `backchannel_logout_uri`, `frontchannel_logout_uri` or a
   malformed `logo_uri` (LLNG #3827, #3838).
+  `paccStrictNativeClientOnly` now defaults to on when the key is absent from
+  the configuration.
 
 ## v0.7.2 - 2026-11-14
 

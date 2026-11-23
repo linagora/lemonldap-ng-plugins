@@ -272,6 +272,41 @@ subtest 'PACC does not filter native metadata out of strict mode' => sub {
     is( $res->[0], 201, 'front-channel logout URI accepted' );
 };
 
+my $reg_op_unset = LLNG::Manager::Test->new( {
+        ini => {
+            domain                              => 'op.com',
+            portal                              => 'http://auth.op.com/',
+            authentication                      => 'Demo',
+            userDB                              => 'Same',
+            issuerDBOpenIDConnectActivation     => 1,
+            oidcServiceMetaDataIssuer           => 'http://auth.op.com',
+            oidcServiceMetaDataRegistrationURI  => 'register',
+            oidcServiceAllowDynamicRegistration => 2,
+            customPlugins => 'Lemonldap::NG::Portal::Plugins::PACC',
+            paccEnabled   => 1,
+            paccAllowNativeClientRegistration => 1,
+            oidcServicePrivateKeySig          => oidc_key_op_private_sig(),
+            oidcServicePublicKeySig           => oidc_cert_op_public_sig(),
+        }
+    }
+);
+
+subtest 'PACC strict mode is on when the option is absent' => sub {
+    my %native = (
+        redirect_uris              => ['http://127.0.0.1/'],
+        token_endpoint_auth_method => 'none',
+    );
+    my $res = register_native( $reg_op_unset,
+        { %native, jwks_uri => 'https://client.example.org/jwks' } );
+    is( $res->[0], 400, 'native metadata refused by default' );
+    $res = register_native( $reg_op_unset,
+        { redirect_uris => ['http://evil.example.com/'],
+          token_endpoint_auth_method => 'none' } );
+    is( $res->[0], 400, 'non-loopback refused by default' );
+    $res = register_native( $reg_op_unset, {%native} );
+    is( $res->[0], 201, 'plain native client accepted' );
+};
+
 my $reg_op_no_native = LLNG::Manager::Test->new( {
         ini => {
             domain                              => 'op.com',
