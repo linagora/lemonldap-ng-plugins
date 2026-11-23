@@ -138,6 +138,36 @@ subtest 'Signed request object via `request_uri`' => sub {
     expectRedirection( $res, qr,http://redirect.uri/.*state=uri1, );
 };
 
+subtest 'request_uri still works after the plugin is initialised twice' => sub {
+    my $jar = $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCJar'};
+    my $before = $i->can('getRequestJWT');
+    ok( $jar->_installCoreFetchGuard, 'second install succeeds' );
+    ok( $jar->_installCoreFetchGuard, 'third install succeeds' );
+    is( $i->can('getRequestJWT'), $before, 'wrapper is not stacked' );
+
+    local %mockResponse = (
+        body => signedRequestObject( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+            }
+        ),
+        content_type => 'application/jwt',
+        status       => 200,
+    );
+    my $idpId = login( $op, 'french' );
+    my $res   = authorize(
+        $op, $idpId,
+        {
+            response_type => 'code',
+            client_id     => 'rpid',
+            scope         => 'openid',
+            state         => 'twice',
+            request_uri   => 'http://request.uri/valid',
+        }
+    );
+    expectRedirection( $res, qr,http://redirect.uri/.*state=twice, );
+};
+
 subtest 'request_uri: invalid Content-Type' => sub {
     local %mockResponse = (
         body         => 'foo',

@@ -281,18 +281,29 @@ sub _checkAndStoreJti {
     return undef;
 }
 
-# Wrap the issuer's getRequestJWT once per process. The wrapper resolves the
-# plugin instance from the issuer it is called on, so a portal without this
-# plugin keeps the core behaviour.
-our $coreFetchWrapper;
+# The core has no hook around request_uri fetching (getRequestJWT is called
+# directly from Issuer::OpenIDConnect, both before and after oidcGotRequest),
+# so the method itself is wrapped. This is done once per process: the core
+# method is kept in $coreGetRequestJWT and the wrapper always delegates to
+# that original, so a second init (or another portal in the same process)
+# never stacks wrappers. The wrapper resolves the plugin instance from the
+# issuer it is called on, so a portal without this plugin keeps the core
+# behaviour.
+our ( $coreGetRequestJWT, $coreFetchWrapper );
 
 sub _installCoreFetchGuard {
     my ($self) = @_;
 
     my $issuer = $self->oidc or return;
     my $pkg    = ref($issuer)   or return;
-    my $orig   = $pkg->can('getRequestJWT') or return;
-    return 1 if $coreFetchWrapper and $orig == $coreFetchWrapper;
+    my $cur    = $pkg->can('getRequestJWT') or return;
+
+    # Already installed (our wrapper is still the active method)
+    return 1 if $coreFetchWrapper and $cur == $coreFetchWrapper;
+
+    # Keep the genuine core method only the first time
+    $coreGetRequestJWT = $cur unless $coreGetRequestJWT;
+    my $orig = $coreGetRequestJWT;
 
     my $wrapper = sub {
         my ( $issuer, $uri ) = @_;
@@ -304,9 +315,10 @@ sub _installCoreFetchGuard {
         return $orig->( $issuer, $uri );
     };
 
-    no strict 'refs';
+    # Symbol table assignment needs symbolic refs: keep the override of
+    # strict limited to this single statement.
     no warnings 'redefine';
-    *{"${pkg}::getRequestJWT"} = $wrapper;
+    { no strict 'refs'; *{"${pkg}::getRequestJWT"} = $wrapper; }
     $coreFetchWrapper = $wrapper;
     return 1;
 }
