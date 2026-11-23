@@ -281,10 +281,19 @@ sub _checkAndStoreJti {
     return undef;
 }
 
-# Wrap the issuer's getRequestJWT once per process. The wrapper resolves the
-# plugin instance from the issuer it is called on, so a portal without this
-# plugin keeps the core behaviour.
-our $coreFetchWrapper;
+# The core has no hook around request_uri fetching (getRequestJWT is called
+# directly from Issuer::OpenIDConnect, both before and after oidcGotRequest),
+# so the method itself is wrapped. The wrapper resolves the plugin instance
+# from the issuer it is called on, so a portal without this plugin keeps the
+# core behaviour.
+#
+# The first wrapper installed is the one that performs the hardened fetch
+# (it replaces the core download). If the method was wrapped again by another
+# module afterwards and this plugin is initialised again, the current method
+# (third-party wrapper included) is wrapped as is and the new layer is a pure
+# pass-through: nothing is dropped and the JAR fetch still happens exactly
+# once, in the first wrapper.
+our ( $coreFetchWrapper, $fetchInstalled );
 
 sub _installCoreFetchGuard {
     my ($self) = @_;
@@ -294,20 +303,23 @@ sub _installCoreFetchGuard {
     my $orig   = $pkg->can('getRequestJWT') or return;
     return 1 if $coreFetchWrapper and $orig == $coreFetchWrapper;
 
+    my $fetcher = $fetchInstalled ? 0 : 1;
     my $wrapper = sub {
         my ( $issuer, $uri ) = @_;
         my $jar = eval {
             $issuer->p->loadedModules
               ->{'Lemonldap::NG::Portal::Plugins::OIDCJar'};
         };
-        return $jar->_fetchRequestUri($uri) if $jar;
+        return $jar->_fetchRequestUri($uri) if $jar and $fetcher;
         return $orig->( $issuer, $uri );
     };
 
-    no strict 'refs';
+    # Symbol table assignment needs symbolic refs: keep the override of
+    # strict limited to this single statement.
     no warnings 'redefine';
-    *{"${pkg}::getRequestJWT"} = $wrapper;
+    { no strict 'refs'; *{"${pkg}::getRequestJWT"} = $wrapper; }
     $coreFetchWrapper = $wrapper;
+    $fetchInstalled   = 1;
     return 1;
 }
 
