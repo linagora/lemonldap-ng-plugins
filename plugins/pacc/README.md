@@ -49,7 +49,7 @@ In the Manager, go to **OpenID Connect Service** > **PACC Configuration**:
 | ----------------------------------- | ------- | ---------------------------------------------------------------- |
 | `paccEnabled`                       | 0       | Enable the PACC endpoint                                         |
 | `paccAllowNativeClientRegistration` | 1       | Allow loopback native clients; when disabled, loopback registrations are refused (dynamic registration must be enabled) |
-| `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations in strict mode            |
+| `paccStrictNativeClientOnly`        | 1       | Reject non-native client registrations, and native ones carrying metadata they do not need (see below) |
 | `paccLoopbackAnyPort`               | 1       | Accept any port on a declared loopback redirect URI (RFC 8252 §7.3) |
 
 ### IMAP Settings
@@ -110,7 +110,13 @@ curl https://auth.example.com/.well-known/pacc.json
 ## Security Considerations
 
 - **Strict Mode**: when `paccStrictNativeClientOnly` is enabled, registration
-  requests with non-loopback URIs are rejected
+  requests with non-loopback URIs are rejected. Native clients are also
+  refused when they send `request_uris`, `jwks_uri`, `backchannel_logout_uri`
+  or `frontchannel_logout_uri`, or a `logo_uri` that is not a plain http(s)
+  URL: a native app does not need them, the portal requests the first three
+  itself (an anonymous client could make it reach internal hosts, LLNG issue
+  #3838), and the last two are inserted in portal pages without escaping
+  before LLNG 2.24 (LLNG issue #3827)
 - **PKCE**: public clients should always use PKCE for authorization
 - **Loopback ports**: with `paccLoopbackAnyPort`, only the port may differ
   from a declared loopback redirect URI: scheme, host (no switch between
