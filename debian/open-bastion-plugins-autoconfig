@@ -331,8 +331,16 @@ sub server_admin_rule {
 # default the script used to write; `0`/empty/absent (nobody) only when the
 # admin asked for a rule on the command line. An expression is the admin's and
 # is never touched (short of --force).
-sub _is_open        { my $v = shift; defined $v && "$v" eq '1' }
-sub _is_placeholder { my $v = shift; !defined $v || "$v" =~ /\A[01]?\z/ }
+sub _trim {
+    my $v = shift;
+    return undef unless defined $v;
+    $v = "$v";
+    $v =~ s/^\s+|\s+$//g;
+    return $v;
+}
+sub _is_open        { my $v = _trim(shift); defined $v && $v eq '1' }
+sub _is_placeholder { my $v = _trim(shift); !defined $v || $v =~ /\A[01]?\z/ }
+sub _is_closed      { my $v = _trim(shift); !defined $v || $v =~ /\A0?\z/ }
 
 sub ensure_pam_rp {
     my ($conf) = @_;
@@ -374,16 +382,18 @@ sub ensure_pam_rp {
         log_change("oidcRPMetaDataScopeRules.$rp");
         log_info("server enrollment on RP '$rp' denies everyone: see the "
             . 'checklist below') unless $rule;
+        log_warn("--server-admin-rule 1 lets ANY authenticated user enroll a "
+            . 'server') if _is_open($rule);
     } else {
         # RP treated as atomic: if the admin has it defined we leave it
         # alone -- except for who may enroll a server, below.
         log_keep("oidcRPMetaDataOptions.$rp");
         log_keep("oidcRPMetaDataExportedVars.$rp");
         log_keep("oidcRPMetaDataScopeRules.$rp");
-        lock_pam_rp_enrollment($conf, $rp, $rule);
+        log_warn("--server-admin-rule 1 lets ANY authenticated user enroll "
+            . 'a server')
+            if lock_pam_rp_enrollment($conf, $rp, $rule) && _is_open($rule);
     }
-    log_warn("--server-admin-rule 1 lets ANY authenticated user enroll a "
-        . 'server') if _is_open($rule);
 }
 
 # Existing RP: replace the open (`1`) enrollment settings with $rule, and the
@@ -403,13 +413,15 @@ sub lock_pam_rp_enrollment {
             . ($explicit && "$cur" ne "$rule"
                 ? ' (--server-admin-rule ignored; use --force to replace)'
                 : ''));
-        return;
+        return 0;
     }
     # Device grant disabled and no rule asked for: nothing can be enrolled.
-    return unless _is_open($cur) || $explicit;
+    return 0 unless _is_open($cur) || $explicit;
 
+    my $wrote = 0;
     my $was = $cur // '(unset)';
     if (!_eq($cur, $rule)) {
+        $wrote = 1;
         $o->{$key} = $rule;
         log_change("oidcRPMetaDataOptions.$rp.$key: $was -> $rule");
         log_warn("RP '$rp': $key was $was, now $rule") if _is_open($cur);
@@ -419,11 +431,13 @@ sub lock_pam_rp_enrollment {
     for my $scope ('pam', 'pam:server') {
         my $v = $s->{$scope};
         next unless _is_placeholder($v);
-        next if defined $v && "$v" eq "$rule";
+        next if defined $v && _trim($v) eq "$rule";
+        $wrote = 1;
         $s->{$scope} = "$rule";
         log_change("oidcRPMetaDataScopeRules.$rp.$scope: "
             . ($v // '(unset)') . " -> $rule");
     }
+    return $wrote;
 }
 
 # --- Step: SSH CA ---------------------------------------------------------
@@ -502,7 +516,6 @@ sub pam_already_deployed {
 
 sub ensure_pam_access {
     my ($conf, $deployed) = @_;
-    my $rp = $opt{'rp-name'};
     my %defaults = (
         pamAccessActivation        => 1,
         pamAccessRp                => $opt{'rp-name'},
@@ -515,6 +528,10 @@ sub ensure_pam_access {
     for my $k (sort keys %defaults) {
         set_if_missing($conf, $k, $defaults{$k}, $k);
     }
+    # The RP PamAccess actually uses: an existing pamAccessRp wins over
+    # --rp-name, and the allowlist below must name that one.
+    my $rp = _trim($conf->{pamAccessRp});
+    $rp = $opt{'rp-name'} unless defined $rp && length $rp;
 
     # SSH: default-deny, admin fills per-group rules later.
     # Sudo: intentionally not initialised. In an open-bastion deployment
@@ -599,7 +616,7 @@ sub print_checklist {
     my $who = $ro->{oidcRPMetaDataOptionsAllowDeviceAuthorization};
     my @items;
 
-    if (!$who) {
+    if (_is_closed($who)) {
         push @items, ['todo', "Server enrollment on RP '$rp' denies "
             . 'everyone. To let administrators enroll hosts, set '
             . 'oidcRPMetaDataOptionsAllowDeviceAuthorization and the pam and '

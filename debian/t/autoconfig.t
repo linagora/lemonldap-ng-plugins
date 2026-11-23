@@ -247,4 +247,53 @@ subtest '--dry-run saves nothing' => sub {
     like( $out, qr/before production/, 'checklist still printed' );
 };
 
+subtest 'existing pamAccessRp differing from --rp-name: allowlist follows it' =>
+  sub {
+    my $dir = portal( { pamAccessRp => 'other-rp' } );
+    my ( $rc, $out ) = autoconfig( $dir, '--rp-name', $RP );
+    is( $rc, 0, 'exit 0' ) or diag $out;
+    my ( undef, $c ) = latest($dir);
+    is( $c->{pamAccessRp},         'other-rp', 'pamAccessRp kept' );
+    is( $c->{pamAccessAllowedRps}, 'other-rp', 'allowlist = effective RP' );
+  };
+
+subtest 'padded placeholder values are trimmed' => sub {
+    my $old = old_bootstrap();
+    $old->{oidcRPMetaDataOptions}{$RP}{$DA} = '1 ';
+    $old->{oidcRPMetaDataScopeRules}{$RP} =
+      { pam => ' 1', 'pam:server' => ' 1 ' };
+    my $dir = portal($old);
+    my ( $rc, $out ) = autoconfig($dir);
+    is( $rc, 0, 'exit 0' ) or diag $out;
+    my ( undef, $c ) = latest($dir);
+    is( $c->{oidcRPMetaDataOptions}{$RP}{$DA}, 0, '"1 " recognised as open' );
+    is_deeply(
+        $c->{oidcRPMetaDataScopeRules}{$RP},
+        { pam => '0', 'pam:server' => '0' },
+        'padded scope rules closed'
+    );
+
+    $old = old_bootstrap();
+    $old->{oidcRPMetaDataOptions}{$RP}{$DA} = ' 0 ';
+    $dir = portal($old);
+    ( $rc, $out ) = autoconfig($dir);
+    like( $out, qr/\[todo\] Server enrollment on RP 'pam-access' denies/,
+        '" 0 " reported as closed' );
+    autoconfig( $dir, '--server-admin-rule', $ADMIN );
+    ( undef, $c ) = latest($dir);
+    is( $c->{oidcRPMetaDataOptions}{$RP}{$DA},
+        $ADMIN, '" 0 " is a placeholder' );
+};
+
+subtest '--server-admin-rule 1 warns only when written' => sub {
+    my $old = old_bootstrap();
+    $old->{oidcRPMetaDataOptions}{$RP}{$DA} = '$uid eq "root"';
+    my ( $rc, $out ) = autoconfig( portal($old), '--server-admin-rule', '1' );
+    unlike( $out, qr/lets ANY authenticated user/,
+        'no warning: expression kept' );
+
+    ( $rc, $out ) = autoconfig( portal(), '--server-admin-rule', '1' );
+    like( $out, qr/lets ANY authenticated user/, 'warning: rule 1 written' );
+};
+
 done_testing();
