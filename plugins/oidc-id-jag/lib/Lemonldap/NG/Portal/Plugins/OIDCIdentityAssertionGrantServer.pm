@@ -16,7 +16,7 @@ use Digest::SHA qw(sha256_hex);
 use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::JWT qw(getJWTHeader getJWTPayload);
 use Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrant::Util
-  qw(numeric_date);
+  qw(numeric_date ID_JAG_TYP RAR_SESSION_KEY);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_SENDRESPONSE
@@ -28,8 +28,6 @@ extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant JWT_BEARER_GRANT =>
   'urn:ietf:params:oauth:grant-type:jwt-bearer';
-use constant ID_JAG_TYP        => 'oauth-id-jag+jwt';
-use constant RAR_SESSION_KEY   => '_rar_details';
 use constant JTI_INDEX_PREFIX  => 'idjag-jti:';
 
 # INTERFACE
