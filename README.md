@@ -38,6 +38,16 @@ lemonldap-ng-store list
 sudo lemonldap-ng-store install <plugin-name>
 ```
 
+Every archive of this store is signed. `add-store` imports the store key
+into a keyring of its own and records its fingerprint (trust on first use);
+`install` then requires a signature by that key. `gpgVerify = required` (in
+the `[store]` section of `lemonldap-ng.ini`) is the default of the
+`linagora-lemonldap-ng-store` backport; set it explicitly with any other
+`lemonldap-ng-store`. With the backport, an installed plugin stays bound to
+the store it came from, and a plugin name published by two configured
+stores needs `--store=URL`. Upgrading the backport from 0.7.2 or earlier:
+see [UPGRADING.md](UPGRADING.md#unreleased).
+
 ### Plugin activation: autoload vs. `customPlugins`
 
 Most plugins in this store ship an `autoload` rule. Each rule is the JSON

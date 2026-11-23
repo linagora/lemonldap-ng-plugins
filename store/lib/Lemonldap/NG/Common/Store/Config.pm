@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Config::IniFiles;
 use Lemonldap::NG::Common::Conf::Constants qw(DEFAULTCONFFILE DEFAULTSECTION);
+use Lemonldap::NG::Common::Store::State;
 
 our $VERSION = '2.23.0';
 
@@ -13,7 +14,7 @@ my %DEFAULTS = (
     managerOverridesDir => '/etc/lemonldap-ng/manager-overrides.d',
     autoloadDir         => '/etc/lemonldap-ng/autoload.d',
     stateFile           => '/var/lib/lemonldap-ng/plugins-state.json',
-    gpgVerify           => 'optional',
+    gpgVerify           => 'required',
     httpTimeout         => 30,
     cacheDir            => '/var/lib/lemonldap-ng/store',
 );
@@ -72,13 +73,17 @@ sub _load {
     $conf{gpgKeyring} = $ENV{LLNG_STORE_GPGKEYRING}
       if $ENV{LLNG_STORE_GPGKEYRING};
 
-    # Parse storeUrls into array
+    # Parse storeUrls into array of canonical URLs (see State::normUrl),
+    # dropping empty entries and duplicates
+    $conf{_storeUrls} = [];
     if ( $conf{storeUrls} ) {
-        $conf{_storeUrls} =
-          [ map { s/^\s+|\s+$//gr } split /,/, $conf{storeUrls} ];
-    }
-    else {
-        $conf{_storeUrls} = [];
+        my %seen;
+        $conf{_storeUrls} = [
+            grep { length($_) && !$seen{$_}++ }
+              map { Lemonldap::NG::Common::Store::State::normUrl($_) }
+              split /,/,
+            $conf{storeUrls}
+        ];
     }
 
     $self->{conf} = \%conf;
@@ -108,6 +113,8 @@ sub get { return $_[0]->{conf}{ $_[1] } }
 sub addStore {
     my ( $self, $url ) = @_;
     my $file = $self->{confFile};
+    $url = Lemonldap::NG::Common::Store::State::normUrl($url);
+    return ( 0, "Invalid store URL" ) unless length $url;
 
     # Check for duplicates
     my @current = $self->storeUrls;
@@ -156,6 +163,7 @@ sub addStore {
 sub removeStore {
     my ( $self, $url ) = @_;
     my $file = $self->{confFile};
+    $url = Lemonldap::NG::Common::Store::State::normUrl($url);
 
     my @current = $self->storeUrls;
     my @new     = grep { $_ ne $url } @current;

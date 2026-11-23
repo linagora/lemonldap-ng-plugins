@@ -39,7 +39,40 @@ sub _load {
     else {
         $self->{state} = { installed => {}, stores => {} };
     }
-    $self->{state}{stores} ||= {};
+    $self->{state}{installed} ||= {};
+    $self->{state}{stores}    ||= {};
+    $self->_migrate();
+}
+
+# Canonical form of a store URL: surrounding blanks and trailing slashes
+# removed. Every store URL that is stored, looked up or compared goes through
+# this function, so "https://x/" and "https://x" name the same store.
+sub normUrl {
+    my ($url) = @_;
+    $url //= '';
+    $url =~ s/^\s+|\s+$//g;
+    $url =~ s|/+$||;
+    return $url;
+}
+
+# Bring a state written by an older client to the canonical URL form. Older
+# clients recorded the fingerprint under the URL as typed (often with a
+# trailing slash) but looked it up without it. The canonical entry wins when
+# both forms exist: it is the one older clients actually read. Done in
+# memory; the next write persists it.
+sub _migrate {
+    my ($self) = @_;
+    my $stores = $self->{state}{stores};
+    for my $url ( sort keys %$stores ) {
+        my $norm = normUrl($url);
+        next if $norm eq $url;
+        my $entry = delete $stores->{$url};
+        $stores->{$norm} //= $entry;
+    }
+    for my $info ( values %{ $self->{state}{installed} } ) {
+        next unless ref $info eq 'HASH' && defined $info->{installed_from};
+        $info->{installed_from} = normUrl( $info->{installed_from} );
+    }
 }
 
 sub _save {
@@ -75,7 +108,7 @@ sub add {
     my ( $self, $name, %info ) = @_;
     $self->{state}{installed}{$name} = {
         version        => $info{version},
-        installed_from => $info{installed_from},
+        installed_from => normUrl( $info{installed_from} ),
         installed_date => _now(),
         archive_sha256 => $info{archive_sha256},
         files          => $info{files} || [],
@@ -107,13 +140,13 @@ sub isInstalled {
 # Get store info (fingerprint, etc.)
 sub getStore {
     my ( $self, $url ) = @_;
-    return $self->{state}{stores}{$url};
+    return $self->{state}{stores}{ normUrl($url) };
 }
 
 # Record a store with its GPG fingerprint
 sub addStore {
     my ( $self, $url, %info ) = @_;
-    $self->{state}{stores}{$url} = {
+    $self->{state}{stores}{ normUrl($url) } = {
         gpgFingerprint => $info{gpgFingerprint},
         added_date     => _now(),
     };
@@ -123,7 +156,7 @@ sub addStore {
 # Remove a store record
 sub removeStore {
     my ( $self, $url ) = @_;
-    delete $self->{state}{stores}{$url};
+    delete $self->{state}{stores}{ normUrl($url) };
     $self->_save();
 }
 
@@ -131,7 +164,7 @@ sub removeStore {
 # Returns (ok, message)
 sub checkStoreFingerprint {
     my ( $self, $url, $fingerprint ) = @_;
-    my $store = $self->{state}{stores}{$url};
+    my $store = $self->getStore($url);
     return ( 1, undef ) unless $store && $store->{gpgFingerprint};
     if ( lc( $store->{gpgFingerprint} ) ne lc($fingerprint) ) {
         return ( 0,
