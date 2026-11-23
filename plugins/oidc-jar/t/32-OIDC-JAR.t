@@ -168,6 +168,47 @@ subtest 'request_uri still works after the plugin is initialised twice' => sub {
     expectRedirection( $res, qr,http://redirect.uri/.*state=twice, );
 };
 
+subtest 'a wrapper installed after JAR is kept on re-init' => sub {
+    my $jar = $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::OIDCJar'};
+    my $pkg = ref $i;
+    my $cur = $i->can('getRequestJWT');
+    my ( $foreign, $fetches ) = ( 0, 0 );
+    {
+        no strict 'refs';
+        no warnings 'redefine';
+        *{"${pkg}::getRequestJWT"} = sub { $foreign++; $cur->(@_) };
+    }
+    my $orig_fetch = \&Lemonldap::NG::Portal::Plugins::OIDCJar::_fetchRequestUri;
+    {
+        no warnings 'redefine';
+        *Lemonldap::NG::Portal::Plugins::OIDCJar::_fetchRequestUri =
+          sub { $fetches++; $orig_fetch->(@_) };
+    }
+    ok( $jar->_installCoreFetchGuard, 're-init after a foreign wrapper' );
+    my $now = $i->can('getRequestJWT');
+    ok( $jar->_installCoreFetchGuard, 'another re-init' );
+    is( $i->can('getRequestJWT'), $now, 'no further stacking' );
+
+    local %mockResponse = (
+        body => signedRequestObject( {
+                client_id    => 'rpid',
+                redirect_uri => 'http://redirect.uri/',
+            }
+        ),
+        content_type => 'application/jwt',
+        status       => 200,
+    );
+    my $jwt = $i->getRequestJWT('http://request.uri/valid');
+    ok( $jwt, 'request object fetched through the wrapper chain' );
+    is( $foreign, 1, 'foreign wrapper is still called once' );
+    is( $fetches, 1, 'JAR fetch runs exactly once' );
+    {
+        no warnings 'redefine';
+        *Lemonldap::NG::Portal::Plugins::OIDCJar::_fetchRequestUri =
+          $orig_fetch;
+    }
+};
+
 subtest 'request_uri: invalid Content-Type' => sub {
     local %mockResponse = (
         body         => 'foo',

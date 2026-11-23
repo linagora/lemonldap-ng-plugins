@@ -283,35 +283,34 @@ sub _checkAndStoreJti {
 
 # The core has no hook around request_uri fetching (getRequestJWT is called
 # directly from Issuer::OpenIDConnect, both before and after oidcGotRequest),
-# so the method itself is wrapped. This is done once per process: the core
-# method is kept in $coreGetRequestJWT and the wrapper always delegates to
-# that original, so a second init (or another portal in the same process)
-# never stacks wrappers. The wrapper resolves the plugin instance from the
-# issuer it is called on, so a portal without this plugin keeps the core
-# behaviour.
-our ( $coreGetRequestJWT, $coreFetchWrapper );
+# so the method itself is wrapped. The wrapper resolves the plugin instance
+# from the issuer it is called on, so a portal without this plugin keeps the
+# core behaviour.
+#
+# The first wrapper installed is the one that performs the hardened fetch
+# (it replaces the core download). If the method was wrapped again by another
+# module afterwards and this plugin is initialised again, the current method
+# (third-party wrapper included) is wrapped as is and the new layer is a pure
+# pass-through: nothing is dropped and the JAR fetch still happens exactly
+# once, in the first wrapper.
+our ( $coreFetchWrapper, $fetchInstalled );
 
 sub _installCoreFetchGuard {
     my ($self) = @_;
 
     my $issuer = $self->oidc or return;
     my $pkg    = ref($issuer)   or return;
-    my $cur    = $pkg->can('getRequestJWT') or return;
+    my $orig   = $pkg->can('getRequestJWT') or return;
+    return 1 if $coreFetchWrapper and $orig == $coreFetchWrapper;
 
-    # Already installed (our wrapper is still the active method)
-    return 1 if $coreFetchWrapper and $cur == $coreFetchWrapper;
-
-    # Keep the genuine core method only the first time
-    $coreGetRequestJWT = $cur unless $coreGetRequestJWT;
-    my $orig = $coreGetRequestJWT;
-
+    my $fetcher = $fetchInstalled ? 0 : 1;
     my $wrapper = sub {
         my ( $issuer, $uri ) = @_;
         my $jar = eval {
             $issuer->p->loadedModules
               ->{'Lemonldap::NG::Portal::Plugins::OIDCJar'};
         };
-        return $jar->_fetchRequestUri($uri) if $jar;
+        return $jar->_fetchRequestUri($uri) if $jar and $fetcher;
         return $orig->( $issuer, $uri );
     };
 
@@ -320,6 +319,7 @@ sub _installCoreFetchGuard {
     no warnings 'redefine';
     { no strict 'refs'; *{"${pkg}::getRequestJWT"} = $wrapper; }
     $coreFetchWrapper = $wrapper;
+    $fetchInstalled   = 1;
     return 1;
 }
 
