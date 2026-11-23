@@ -19,7 +19,7 @@ use Encode qw(encode_utf8);
 use Lemonldap::NG::Common::Apache::Session;
 use Lemonldap::NG::Common::JWT qw(getJWTHeader);
 use Lemonldap::NG::Portal::Plugins::OIDCIdentityAssertionGrant::Util
-  qw(numeric_date);
+  qw(numeric_date ID_JAG_TYP RAR_SESSION_KEY);
 use Lemonldap::NG::Portal::Main::Constants qw(
   PE_OK
   PE_SENDRESPONSE
@@ -30,15 +30,8 @@ our $VERSION = '0.1.0';
 extends 'Lemonldap::NG::Portal::Lib::OIDCPlugin';
 
 use constant ID_JAG_TOKEN_TYPE => 'urn:ietf:params:oauth:token-type:id-jag';
-use constant ID_JAG_TYP        => 'oauth-id-jag+jwt';
 use constant TOKEN_EXCHANGE_GRANT =>
   'urn:ietf:params:oauth:grant-type:token-exchange';
-
-# Session key used by the oidc-rar plugin to carry RFC 9396 granted
-# authorization_details across the code / refresh / access token sessions.
-# Read-only coupling: no code dependency, and everything below degrades to
-# "no authorization_details" when oidc-rar is not installed.
-use constant RAR_SESSION_KEY => '_rar_details';
 
 # Prefix of the fixed-id sessions indexing `sid` -> user session id. See
 # indexIdTokenSid().
