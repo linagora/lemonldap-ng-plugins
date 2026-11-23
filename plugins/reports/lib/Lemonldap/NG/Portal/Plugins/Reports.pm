@@ -26,7 +26,7 @@ sub init {
     # empty rule denies everybody.
     my $rule = $self->conf->{reportsRule};
     $rule = 0 unless defined $rule and $rule =~ /\S/;
-    $self->rule( $self->p->buildRule( $rule, 'reports' ) );
+    $self->rule( $self->_buildRule($rule) );
     return 0 unless $self->rule;
 
     $self->addAuthRoute(
@@ -38,6 +38,20 @@ sub init {
         [ 'GET', 'POST' ]
     );
     1;
+}
+
+# Compile a rule, or return undef if it does not compile. Portal::buildRule
+# does not exist in older cores: compile through the handler there.
+sub _buildRule {
+    my ( $self, $rule ) = @_;
+    return $self->p->buildRule( $rule, 'reports' )
+      if $self->p->can('buildRule');
+    my $hd  = $self->p->HANDLER;
+    my $sub = $hd->buildSub( $hd->substitute($rule) );
+    $self->logger->error( 'Bad reports rule: '
+          . ( $hd->tsv->{jail}->error || 'Unable to compile rule' ) )
+      unless $sub;
+    return $sub;
 }
 
 # Answer 403 to a user that does not match reportsRule

@@ -43,6 +43,7 @@ sub portal {
     # replace the stubs.
     {
         no warnings 'redefine';
+        no warnings 'once';
         *Lemonldap::NG::Portal::Plugins::Reports::queryDb = sub { [] };
     }
     $op->p->{loadedModules}->{'Lemonldap::NG::Portal::UserDB::LDAP'} =
@@ -77,7 +78,7 @@ sub codes {
 }
 
 subtest 'reportsRule grants the matching users only' => sub {
-    my $op = portal( reportsRule => '$groups =~ /\btimelords\b/' );
+    my $op = portal( reportsRule => '$uid eq "dwho"' );
 
     my $admin = login( $op, 'dwho' );
     is_deeply( codes( $op, $admin ), [ 200, 200, 200 ],
@@ -100,6 +101,16 @@ subtest 'an empty reportsRule denies everybody' => sub {
     my $id = login( $op, 'dwho' );
     is_deeply( codes( $op, $id ), [ 403, 403, 403 ],
         'empty reportsRule: 403 on the three reports' );
+};
+
+subtest 'a rule that does not compile is refused' => sub {
+    my $op = portal( reportsRule => '$uid eq "dwho"' );
+    my $plugin =
+      $op->p->loadedModules->{'Lemonldap::NG::Portal::Plugins::Reports'};
+    ok( $plugin, 'the plugin is loaded' );
+    is( $plugin->_buildRule('$uid eq'), undef,
+        'an invalid rule does not compile, so init would fail' );
+    ok( !$plugin->_buildRule('0')->(), 'the default rule denies' );
 };
 
 clean_sessions();
