@@ -7,6 +7,7 @@ use JSON;
 use File::Path     qw(make_path);
 use File::Basename qw(dirname);
 use Digest::SHA    qw(sha256_hex);
+use Lemonldap::NG::Common::Store::State;
 
 our $VERSION = '2.23.0';
 
@@ -136,9 +137,9 @@ sub fetchSignature {
 
 sub _cacheFile {
     my ( $self, $store_url ) = @_;
-    my $key = $store_url;
-    $key =~ s|[^a-zA-Z0-9._-]|_|g;
-    return "$self->{cacheDir}/$key.json";
+    return
+      "$self->{cacheDir}/"
+      . Lemonldap::NG::Common::Store::State::urlFileKey($store_url) . '.json';
 }
 
 sub _writeCache {

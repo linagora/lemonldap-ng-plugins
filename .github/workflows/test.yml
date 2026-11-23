@@ -172,6 +172,23 @@ jobs:
           PERL5LIB="$RUNNER_TEMP/lemonldap-ng/lemonldap-ng-common/lib" \
             prove -v debian/t
 
+  # The store client (linagora-lemonldap-ng-store) is tested without an LLNG
+  # checkout: throw-away GPG keys and file:// stores.
+  store-tests:
+    runs-on: ubuntu-latest
+    name: store client tests
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libjson-perl libconfig-inifiles-perl libwww-perl gpg gpgv gpg-agent
+
+      - name: Run store tests
+        run: prove -l store/t
+
   test:
     needs: discover
     if: needs.discover.outputs.has_tests == 'true'

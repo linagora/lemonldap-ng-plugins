@@ -70,6 +70,8 @@ Conflicts:      lemonldap-ng-common >= 2.24.0
 Requires:       perl(JSON)
 Requires:       perl(Config::IniFiles)
 Requires:       perl(LWP::UserAgent)
+# gpg (store key import) and gpgv (signature checks, gpgVerify=required)
+Requires:       gnupg2
 
 %description
 Provides lemonldap-ng-store for LemonLDAP::NG versions prior to 2.24.0,

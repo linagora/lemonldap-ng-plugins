@@ -25,6 +25,18 @@
   New deployments get `pamAccessAllowedRps`. `--require-fingerprint` sets
   `pamAccessRequireFingerprint`. Every run prints the checklist of portal and
   backend settings still to make (**see [UPGRADING.md](UPGRADING.md#unreleased)**).
+- **linagora-lemonldap-ng-store**: GPG verification now protects installs.
+  `gpgVerify` defaults to `required`, and in every mode except `disabled` a
+  bad signature or a signature by another key is refused (`optional` only
+  tolerates an unsigned archive). Each store gets its own keyring, and the
+  signer's full fingerprint, read from gpg's status output, must equal the
+  one recorded at `add-store`. Store URLs are compared without trailing
+  slashes, so a store added as `https://…/` (as documented) keeps its pin;
+  existing state files are migrated. An installed plugin stays bound to its
+  store, a name published by two stores needs `--store`, `check --store`
+  only checks the plugins of that store, and `verify` exits non-zero on
+  failure. The package now depends on `gpg` and `gpgv`. **Check
+  [UPGRADING.md](UPGRADING.md#unreleased) before upgrading.**
 
 ## v0.7.2 - 2026-11-14
 

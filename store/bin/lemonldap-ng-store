@@ -64,7 +64,16 @@ Stores are configured in the C<[store]> section of C<lemonldap-ng.ini>:
 
   [store]
   storeUrls = https://plugins.lemonldap-ng.org/v2/
-  gpgVerify = optional
+  gpgVerify = required
+
+C<gpgVerify> accepts C<required> (default), C<optional> and C<disabled>.
+C<required> installs only archives signed by the key recorded for their
+store. C<optional> also accepts an archive the store publishes without a
+signature, or a store without a recorded key, with a warning; a signature
+that does not verify, or that another key made, is refused in both modes.
+Any other value counts as C<required>.
+
+A store URL is compared without its trailing slashes.
 
 See L<Lemonldap::NG::Common::Store::Config> for all options.
 
@@ -75,11 +84,15 @@ See L<Lemonldap::NG::Common::Store::Config> for all options.
 =item B<add-store> URL
 
 Add an approved store URL. Creates the C<[store]> section in
-C<lemonldap-ng.ini> if it does not exist. Requires root.
+C<lemonldap-ng.ini> if it does not exist. The GPG key published by the
+store is imported into a keyring of its own
+(C<cacheDir/keyrings/>) and its fingerprint is recorded (trust on first
+use). With C<gpgVerify = required>, a store whose key cannot be recorded is
+not added. Requires root.
 
 =item B<remove-store> URL
 
-Remove a store URL. Requires root.
+Remove a store URL, its recorded fingerprint and its keyring. Requires root.
 
 =item B<list> [--store=URL] [--search=TERM] [--tag=TAG]
 
@@ -92,6 +105,10 @@ Show detailed information about a plugin.
 =item B<install> PLUGIN_NAME [--store=URL] [--version=X.Y.Z] [--force]
 
 Download, verify (SHA256 + GPG), and install a plugin.
+An installed plugin stays bound to the store it was installed from: a
+reinstall or upgrade takes it from that store only, and C<--store> is
+needed to move it to another one. A plugin that several configured stores
+publish is not installed without C<--store>.
 Requires root.
 
 =item B<remove> PLUGIN_NAME
@@ -106,13 +123,19 @@ List locally installed plugins.
 
 Force refresh of cached store index files.
 
-=item B<check> [PLUGIN_NAME]
+=item B<check> [PLUGIN_NAME] [--store=URL]
 
-Check if updates are available for installed plugins.
+Check if updates are available for installed plugins, each in the store it
+was installed from. With C<--store>, which must be a configured store, only
+the plugins installed from that store (and those without a recorded store
+that it publishes) are checked. A store whose index cannot be fetched is
+reported.
 
-=item B<verify> ARCHIVE_FILE
+=item B<verify> ARCHIVE_FILE [--store=URL]
 
-Verify a local plugin archive (structure + GPG if .asc available).
+Verify a local plugin archive: structure, and the C<ARCHIVE_FILE.asc>
+signature against the key of the given store (or of any configured store).
+Exits with status 1 if a check fails.
 
 =item B<rebuild>
 
@@ -130,7 +153,9 @@ Requires root.
 
 =item * SHA256 checksums are always verified
 
-=item * GPG signature verification is configurable (required/optional/disabled)
+=item * GPG signatures are required by default, and checked against the key
+recorded for the archive's own store only (per-store keyring, full
+fingerprint comparison)
 
 =item * Archives are validated for path traversal attacks
 

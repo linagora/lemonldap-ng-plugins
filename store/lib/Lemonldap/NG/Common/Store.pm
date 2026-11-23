@@ -79,9 +79,11 @@ sub run {
     $config->override( 'stateFile',           $state_file )  if $state_file;
     $config->override( 'cacheDir',            $cache_dir )   if $cache_dir;
     $config->override( 'managerOverridesDir', $plugins_dir ) if $plugins_dir;
+    $store_url = Lemonldap::NG::Common::Store::State::normUrl($store_url)
+      if defined $store_url;
     my $opts = {
         config          => $config,
-        store_url       => $store_url,
+        store_url       => ( length( $store_url // '' ) ? $store_url : undef ),
         search          => $search,
         tag             => $tag,
         version         => $version,
@@ -96,8 +98,8 @@ sub run {
 
 sub cmd_addStore {
     my ($opts) = @_;
-    my $url = $opts->{args}[0]
-      or die "Usage: lemonldap-ng-store add-store URL\n";
+    my $url = Lemonldap::NG::Common::Store::State::normUrl( $opts->{args}[0] );
+    die "Usage: lemonldap-ng-store add-store URL\n" unless length $url;
 
     # Warn about HTTP
     if ( $url =~ m|^http://|i ) {
@@ -108,81 +110,92 @@ sub cmd_addStore {
         }
     }
 
-    my ( $ok, $msg ) = $opts->{config}->addStore($url);
-    unless ($ok) {
-        die "Error: $msg\n";
+    my $config = $opts->{config};
+    if ( grep { $_ eq $url } $config->storeUrls ) {
+        die "Error: Store URL already configured: $url\n";
     }
-    print "$msg\n";
+    my $mode =
+      Lemonldap::NG::Common::Store::Verify->new(
+        gpgVerify => $config->gpgVerify )->mode;
 
     # Fetch index to get GPG key URL
-    my $config = $opts->{config};
     my $remote = Lemonldap::NG::Common::Store::Remote->new(
         timeout  => $config->httpTimeout,
         cacheDir => $config->cacheDir,
     );
+    my $keyring =
+      Lemonldap::NG::Common::Store::Verify->storeKeyring( $config->cacheDir,
+        $url );
 
+    # The key is imported into a keyring dedicated to this store and its
+    # fingerprint is recorded (trust on first use). Under gpgVerify=required
+    # a store whose key cannot be recorded is not added: nothing could be
+    # installed from it.
+    my $fingerprint;
     my ( $idx_ok, $data ) = $remote->fetchIndex($url);
-    if ( $idx_ok && $data->{store}{gpgKey} ) {
-        my $gpg_url = $data->{store}{gpgKey};
+    my $gpg_url =
+      ( $idx_ok && ref( $data->{store} ) eq 'HASH' )
+      ? $data->{store}{gpgKey}
+      : undef;
+    if ($gpg_url) {
         print "Importing GPG key from $gpg_url...\n";
-
-        # Download key to temp file
-        my $tmpfile  = File::Temp->new( SUFFIX => '.asc' );
-        my $tmp_path = $tmpfile->filename;
-        my ( $dl_ok, $dl_err ) = $remote->downloadFile( $gpg_url, $tmp_path );
-        if ($dl_ok) {
-
-            # Import the key and capture fingerprint from import output
-            my $import_out =
-              _capture( 'gpg', '--batch', '--import', $tmp_path );
-            my $import_ok = $? == 0;
-
-            # Extract fingerprint: try gpg --with-colons on the file
-            my $fp_output =
-              _capture( 'gpg', '--with-colons', '--show-keys', $tmp_path )
-              || _capture( 'gpg', '--with-colons', '--import-options',
-                'show-only', '--import', $tmp_path )
-              || '';
-            my ($fingerprint) = $fp_output =~ /^fpr:+([A-F0-9]+)/m;
-
-            # Fallback: extract from import output
-            if ( !$fingerprint && $import_out =~ /([A-F0-9]{40})/i ) {
-                $fingerprint = $1;
-            }
-
-            if ( $import_ok && $fingerprint ) {
-                print "  Imported key: $fingerprint\n";
-
-                # Store fingerprint associated with this store URL
-                my $state = Lemonldap::NG::Common::Store::State->new(
-                    stateFile => $config->stateFile, );
-                $state->addStore( $url, gpgFingerprint => $fingerprint );
-                print "  GPG fingerprint saved for this store\n";
-            }
-            elsif ($import_ok) {
-                print
-                  "  Warning: key imported but could not extract fingerprint\n";
-            }
-            else {
-                print "  Warning: GPG import failed: $import_out\n";
-            }
+        my $tmpfile = File::Temp->new( SUFFIX => '.asc' );
+        my ( $ok, $res ) =
+          $remote->downloadFile( $gpg_url, $tmpfile->filename );
+        if ($ok) {
+            ( $ok, $res ) =
+              Lemonldap::NG::Common::Store::Verify->importStoreKey(
+                $tmpfile->filename, $keyring );
         }
         else {
-            print "  Warning: could not download GPG key: $dl_err\n";
+            $res = "could not download GPG key: $res";
+        }
+        if ($ok) {
+            $fingerprint = $res;
+            print "  Imported key: $fingerprint\n";
+        }
+        elsif ( $mode eq 'required' ) {
+            die "Error: $res\nStore not added (gpgVerify=required).\n";
+        }
+        else {
+            print "  Warning: $res\n";
         }
     }
-    elsif ($idx_ok) {
-        print "Note: this store does not publish a GPG key\n";
+    else {
+        my $why =
+          $idx_ok
+          ? 'this store does not publish a GPG key'
+          : "could not fetch store index: $data";
+        die "Error: $why\nStore not added (gpgVerify=required).\n"
+          if $mode eq 'required';
+        print "Warning: $why\n";
+    }
+
+    my ( $ok, $msg ) = $config->addStore($url);
+    unless ($ok) {
+        unlink $keyring if $fingerprint;
+        die "Error: $msg\n";
+    }
+    print "$msg\n";
+
+    # Store fingerprint associated with this store URL
+    my $state =
+      Lemonldap::NG::Common::Store::State->new( stateFile => $config->stateFile,
+      );
+    if ($fingerprint) {
+        $state->addStore( $url, gpgFingerprint => $fingerprint );
+        print "  GPG fingerprint saved for this store\n";
     }
     else {
-        print "Warning: could not fetch store index: $data\n";
+        $state->removeStore($url) if $state->getStore($url);
+        unlink $keyring;
     }
 }
 
 sub cmd_removeStore {
     my ($opts) = @_;
-    my $url = $opts->{args}[0]
-      or die "Usage: lemonldap-ng-store remove-store URL\n";
+    my $url = Lemonldap::NG::Common::Store::State::normUrl( $opts->{args}[0] );
+    die "Usage: lemonldap-ng-store remove-store URL\n" unless length $url;
 
     my ( $ok, $msg ) = $opts->{config}->removeStore($url);
     unless ($ok) {
@@ -190,10 +203,12 @@ sub cmd_removeStore {
     }
     print "$msg\n";
 
-    # Remove stored fingerprint
+    # Remove stored fingerprint and the store keyring
     my $state = Lemonldap::NG::Common::Store::State->new(
         stateFile => $opts->{config}->stateFile, );
     $state->removeStore($url);
+    unlink Lemonldap::NG::Common::Store::Verify->storeKeyring(
+        $opts->{config}->cacheDir, $url );
 }
 
 sub cmd_list {
@@ -266,8 +281,10 @@ sub cmd_info {
     my $name = $opts->{args}[0]
       or die "Usage: lemonldap-ng-store info PLUGIN_NAME\n";
 
-    my $plugin = _findPlugin( $opts, $name );
-    die "Plugin not found: $name\n" unless $plugin;
+    my $state = Lemonldap::NG::Common::Store::State->new(
+        stateFile => $opts->{config}->stateFile, );
+    my ( $plugin, $err ) = _findPlugin( $opts, $name, undef, $state );
+    die "$err\n" unless $plugin;
 
     my $llng_version = _getLlngVersion();
     my $compat       = _checkCompat( $plugin->{llng_compat}, $llng_version );
@@ -284,6 +301,7 @@ sub cmd_info {
           } qw(Name Version Summary Description Author License LLNG_compat
           Compatible Tags Homepage Published SHA256)
     ) . "\n";
+    printf "%-14s: %s\n", 'Store', $plugin->{_store_url};
 
     if ( $plugin->{perl_requires} && %{ $plugin->{perl_requires} } ) {
         print "Perl requires :\n";
@@ -297,8 +315,6 @@ sub cmd_info {
     }
 
     # Check if locally installed
-    my $state = Lemonldap::NG::Common::Store::State->new(
-        stateFile => $opts->{config}->stateFile, );
     my $installed = $state->get($name);
     printf "%-14s: %s\n", 'Installed',
       ( $installed ? "Yes (version $installed->{version})" : 'No' );
@@ -345,13 +361,23 @@ sub cmd_install {
 sub _installOne {
     my ( $opts, $name, $config, $installer, $state ) = @_;
 
-    # 1. Find plugin in stores
-    my $plugin = _findPlugin( $opts, $name, $opts->{version} );
-    die "Plugin not found: $name\n" unless $plugin;
+    # 1. Find plugin in stores (bound to the store it was installed from)
+    my ( $plugin, $find_err ) =
+      _findPlugin( $opts, $name, $opts->{version}, $state );
+    die "Error: $find_err\n" unless $plugin;
 
     my $store_url = $plugin->{_store_url};
 
-    print "Installing $plugin->{name} version $plugin->{version}...\n";
+    print "Installing $plugin->{name} version $plugin->{version}"
+      . " from $store_url...\n";
+    my $previous = $state->get($name);
+    if (   $previous
+        && $previous->{installed_from}
+        && $previous->{installed_from} ne $store_url )
+    {
+        print "  Note: switching from store $previous->{installed_from}"
+          . " (--store)\n";
+    }
 
     # 2. Check LLNG version compatibility
     my $llng_version = _getLlngVersion();
@@ -394,8 +420,6 @@ sub _installOne {
     }
 
     # 4. Download archive
-    $store_url =~ s|/+$||;
-
     # Sanitize archive/signature filenames from remote index
     my $archive_basename = basename( $plugin->{archive} || '' );
     die "Invalid archive name\n"
@@ -416,25 +440,16 @@ sub _installOne {
     die "Error: $err\n" unless $ok;
 
     # 5. Verify SHA256
-    # Get trusted fingerprint for this store (TOFU from add-store)
-    my $store_info = $state->getStore($store_url);
-    my @fingerprints =
-      $store_info && $store_info->{gpgFingerprint}
-      ? ( $store_info->{gpgFingerprint} )
-      : ();
-
-    my $verify = Lemonldap::NG::Common::Store::Verify->new(
-        gpgVerify       => $config->gpgVerify,
-        gpgKeyring      => $config->gpgKeyring,
-        gpgFingerprints => \@fingerprints,
-    );
+    # Verifier bound to this store: its own keyring and the fingerprint
+    # recorded by add-store (TOFU)
+    my $verify = _storeVerifier( $config, $state, $store_url );
 
     print "  Verifying SHA256...\n";
     ( $ok, $err ) = $verify->verifySha256( $archive_file, $plugin->{sha256} );
     die "Error: $err\n" unless $ok;
 
     # 6. Verify GPG
-    if ( $config->gpgVerify ne 'disabled' ) {
+    if ( $verify->mode ne 'disabled' ) {
         my $sig_file;
         if ( $plugin->{signature} ) {
             my $sig_basename = basename( $plugin->{signature} || '' );
@@ -445,10 +460,10 @@ sub _installOne {
             print "  Downloading GPG signature...\n";
             my ( $sig_ok, $sig_err ) =
               $remote->downloadFile( $sig_url, $sig_file );
-            unless ($sig_ok) {
-                $sig_file = undef;
-                print "  Warning: Could not download signature: $sig_err\n";
-            }
+
+            # The index announces a signature: it must be checked
+            die "Error: could not download signature: $sig_err\n"
+              unless $sig_ok;
         }
 
         print "  Verifying GPG signature...\n";
@@ -653,54 +668,86 @@ sub cmd_check {
         %installed = ( $name => $installed{$name} );
     }
 
-    my @stores = $config->storeUrls;
-    unless (@stores) {
+    my @configured = $config->storeUrls;
+    unless (@configured) {
         die "No stores configured.\n";
     }
 
-    my $remote = Lemonldap::NG::Common::Store::Remote->new(
-        timeout  => $config->httpTimeout,
-        cacheDir => $config->cacheDir,
-    );
-
-    # Build remote plugin catalog
-    my %remote_plugins;
-    for my $store_url (@stores) {
-        my ( $ok, $data ) = $remote->fetchIndexCached($store_url);
-        next unless $ok;
-        for my $p ( @{ $data->{plugins} || [] } ) {
-            $remote_plugins{ $p->{name} } = $p
-              unless $remote_plugins{ $p->{name} }
-              && _versionCmp( $remote_plugins{ $p->{name} }{version},
-                $p->{version} ) >= 0;
-        }
+    # --store restricts the check to the plugins of one configured store:
+    # those installed from it, and those without a recorded store that it
+    # publishes
+    my $explicit = $opts->{store_url};
+    if ( $explicit && !grep { $_ eq $explicit } @configured ) {
+        die "Not a configured store: $explicit\n";
     }
+    my @stores = $explicit ? ($explicit) : @configured;
 
-    my $updates = 0;
+    # Compare each plugin with the store it was installed from only: another
+    # store publishing the same name at a higher version is not an update
+    my ( $found,   $errors ) = _candidates( $config, \@stores );
+    my ( $updates, @notes )  = (0);
     for my $pname ( sort keys %installed ) {
-        my $local  = $installed{$pname};
-        my $remote = $remote_plugins{$pname};
-        if ( $remote
-            && _versionCmp( $remote->{version}, $local->{version} ) > 0 )
-        {
+        my $local      = $installed{$pname};
+        my $from       = $local->{installed_from};
+        my @publishers = sort grep { $found->{$_}{$pname} } keys %$found;
+        my $store;
+        if ( $from && $explicit && $from ne $explicit ) {
+            push @notes, "$pname: installed from $from, not checked"
+              if $name;
+            next;
+        }
+        if ($from) {
+            unless ( grep { $_ eq $from } @configured ) {
+                push @notes,
+                  "$pname: installed from $from, which is no longer configured";
+                next;
+            }
+            $store = $from;
+        }
+        elsif ( @publishers == 1 ) {
+            $store = $publishers[0];
+        }
+        elsif (@publishers) {
+            push @notes,
+                "$pname: published by several stores ("
+              . join( ', ', @publishers )
+              . '), use install --store=URL';
+            next;
+        }
+        else {
+            push @notes,
+              "$pname: not found in the stores that could be fetched"
+              . _fetchErrors( $errors, @stores )
+              if %$errors;
+            next;
+        }
+        if ( my $err = $errors->{$store} ) {
+            push @notes, "$pname: cannot fetch the index of $store: $err";
+            next;
+        }
+        my $candidate = _best( $found->{$store}{$pname} ) or next;
+        if ( _versionCmp( $candidate->{version}, $local->{version} ) > 0 ) {
             printf "%-25s %s -> %s\n", $pname, $local->{version},
-              $remote->{version};
+              $candidate->{version};
             $updates++;
         }
     }
 
     if ( $updates == 0 ) {
-        print "All installed plugins are up to date.\n";
+        print "All installed plugins"
+          . ( $explicit ? " from $explicit" : '' )
+          . " are up to date.\n";
     }
     else {
         print "\n$updates update(s) available.\n";
     }
+    print "\nNote: $_\n" for @notes;
 }
 
 sub cmd_verify {
     my ($opts) = @_;
     my $file = $opts->{args}[0]
-      or die "Usage: lemonldap-ng-store verify ARCHIVE_FILE\n";
+      or die "Usage: lemonldap-ng-store verify ARCHIVE_FILE [--store=URL]\n";
 
     unless ( -r $file ) {
         die "Cannot read file: $file\n";
@@ -726,20 +773,62 @@ sub cmd_verify {
         exit 1;
     }
 
-    # GPG verification (if .asc file exists alongside)
+    # GPG verification of the .asc file alongside, against the key of the
+    # store given by --store, or of any configured store
+    my $mode =
+      Lemonldap::NG::Common::Store::Verify->new(
+        gpgVerify => $config->gpgVerify )->mode;
     my $sig_file = "${file}.asc";
-    if ( -r $sig_file ) {
-        my $verify = Lemonldap::NG::Common::Store::Verify->new(
-            gpgVerify  => $config->gpgVerify,
-            gpgKeyring => $config->gpgKeyring,
-        );
-        ( $ok, my $gpg_msg ) = $verify->verifyGpg( $file, $sig_file );
-        print "  GPG:       $gpg_msg\n";
+    my $gpg_ok   = 1;
+    if ( $mode eq 'disabled' ) {
+        print "  GPG:       verification disabled\n";
+    }
+    elsif ( !-r $sig_file ) {
+        if ( $mode eq 'required' ) {
+            print "  GPG:       FAILED - no .asc signature file found\n";
+            $gpg_ok = 0;
+        }
+        else {
+            print "  GPG:       Warning: no .asc signature file found"
+              . " (gpgVerify=optional)\n";
+        }
     }
     else {
-        print "  GPG:       No .asc signature file found\n";
+        my $state = Lemonldap::NG::Common::Store::State->new(
+            stateFile => $config->stateFile, );
+        my @stores =
+          $opts->{store_url} ? ( $opts->{store_url} ) : $config->storeUrls;
+        my ( $verified, @fail, @warn );
+        for my $url (@stores) {
+            my ( $v_ok, $msg, $fpr ) =
+              _storeVerifier( $config, $state, $url )
+              ->verifyGpg( $file, $sig_file );
+            if ( $v_ok && $fpr ) {
+                $verified = "$msg, store $url";
+                last;
+            }
+            push @{ $v_ok ? \@warn : \@fail }, "$url: $msg";
+        }
+        if ($verified) {
+            print "  GPG:       $verified\n";
+        }
+        elsif ( @fail || $mode eq 'required' ) {
+            print "  GPG:       FAILED\n";
+            print "    $_\n" for @fail;
+            print "    no store configured to check the signature against\n"
+              unless @stores;
+            $gpg_ok = 0;
+        }
+        else {
+            print "  GPG:       Warning: signature not checked\n";
+            print "    $_\n" for @warn;
+        }
     }
 
+    unless ($gpg_ok) {
+        print "Archive NOT valid.\n";
+        exit 1;
+    }
     print "Archive valid.\n";
 }
 
@@ -764,38 +853,158 @@ sub cmd_rebuild {
 # Helper functions
 #
 
-sub _findPlugin {
-    my ( $opts, $name, $wanted_version ) = @_;
-    my $config = $opts->{config};
-
-    my @stores =
-      $opts->{store_url}
-      ? ( $opts->{store_url} )
-      : $config->storeUrls;
-
+# Plugin entries published by each store: { store_url => { name => [entries] } }
+# Restricted to $name when given. Also returns the stores whose index could
+# not be fetched: { store_url => error }, so that a network failure is not
+# reported as "the store does not publish it".
+# Returns ($found, $errors)
+sub _candidates {
+    my ( $config, $stores, $name ) = @_;
     my $remote = Lemonldap::NG::Common::Store::Remote->new(
         timeout  => $config->httpTimeout,
         cacheDir => $config->cacheDir,
     );
-
-    my $best;
-    for my $store_url (@stores) {
+    my ( %found, %errors );
+    for my $store_url (@$stores) {
         my ( $ok, $data ) = $remote->fetchIndexCached($store_url);
-        next unless $ok;
-
+        unless ($ok) {
+            $errors{$store_url} = $data // 'unknown error';
+            next;
+        }
+        unless ( ref($data) eq 'HASH' ) {
+            $errors{$store_url} = 'invalid store index';
+            next;
+        }
         for my $p ( @{ $data->{plugins} || [] } ) {
-            next unless $p->{name} eq $name;
-            if ($wanted_version) {
-                next unless $p->{version} eq $wanted_version;
-            }
-            if ( !$best || _versionCmp( $p->{version}, $best->{version} ) > 0 )
-            {
-                $best = { %$p, _store_url => $store_url };
-            }
+            next unless ref($p) eq 'HASH' && defined $p->{name};
+            next if defined $name && $p->{name} ne $name;
+            push @{ $found{$store_url}{ $p->{name} } },
+              { %$p, _store_url => $store_url };
         }
     }
+    return ( \%found, \%errors );
+}
 
+# " (could not fetch the index of URL: error; ...)" for the given stores
+sub _fetchErrors {
+    my ( $errors, @stores ) = @_;
+    my @msg = map { "$_: $errors->{$_}" } grep { $errors->{$_} } @stores;
+    return @msg
+      ? ' (could not fetch the index of ' . join( '; ', @msg ) . ')'
+      : '';
+}
+
+# Highest version among entries, or the entry with the wanted version
+sub _best {
+    my ( $entries, $wanted_version ) = @_;
+    my $best;
+    for my $p ( @{ $entries || [] } ) {
+        next if $wanted_version && ( $p->{version} // '' ) ne $wanted_version;
+        $best = $p
+          if !$best || _versionCmp( $p->{version}, $best->{version} ) > 0;
+    }
     return $best;
+}
+
+# Resolve the store a plugin is taken from. A plugin is bound to the store it
+# was installed from (installed_from), and a name published by several stores
+# is not installed without --store, so that a store cannot shadow a plugin of
+# another one by publishing the same name at a higher version.
+# Returns ($plugin) or (undef, $error)
+sub _findPlugin {
+    my ( $opts, $name, $wanted_version, $state ) = @_;
+    my $config     = $opts->{config};
+    my @configured = $config->storeUrls;
+    my $explicit   = $opts->{store_url};
+
+    my @stores = $explicit ? ($explicit) : @configured;
+    my ( $found, $errors ) = _candidates( $config, \@stores, $name );
+    my @publishers = sort grep { $found->{$_}{$name} } keys %$found;
+    return ( undef,
+        "Plugin not found: $name" . _fetchErrors( $errors, @stores ) )
+      unless @publishers;
+
+    my $installed = $state ? $state->get($name) : undef;
+    my $bound     = $installed && $installed->{installed_from};
+    my $from;
+    if ($explicit) {
+        $from = $explicit;
+    }
+    elsif ($bound) {
+        unless ( grep { $_ eq $bound } @configured ) {
+            return ( undef,
+                    "$name was installed from $bound, which is no longer a "
+                  . "configured store. Use --store=URL to install it from "
+                  . "another store." );
+        }
+        if ( my $err = $errors->{$bound} ) {
+            return ( undef,
+                    "$name was installed from $bound, whose index could not "
+                  . "be fetched: $err" );
+        }
+        unless ( $found->{$bound}{$name} ) {
+            return ( undef,
+                    "$name was installed from $bound, which does not publish "
+                  . "it (published by: "
+                  . join( ', ', @publishers )
+                  . "). Use --store=URL to switch stores." );
+        }
+        $from = $bound;
+    }
+    elsif ( @publishers > 1 ) {
+        return ( undef,
+                "$name is published by several stores ("
+              . join( ', ', @publishers )
+              . "). Use --store=URL to choose one." );
+    }
+    else {
+        $from = $publishers[0];
+    }
+
+    my $best = _best( $found->{$from}{$name}, $wanted_version );
+    return ( undef,
+            "Plugin not found: $name"
+          . ( $wanted_version ? " version $wanted_version" : '' )
+          . " in $from"
+          . _fetchErrors( $errors, $from ) )
+      unless $best;
+    return ($best);
+}
+
+# Verifier bound to one store: its keyring and its recorded fingerprint.
+# A store added by a client without per-store keyrings has its key in the
+# GnuPG keyring of the user who ran add-store: it is moved, by fingerprint,
+# into the store keyring the first time it is needed.
+sub _storeVerifier {
+    my ( $config, $state, $store_url ) = @_;
+    my $info = $state->getStore($store_url);
+    my $fpr  = $info && $info->{gpgFingerprint};
+    my $keyring =
+      Lemonldap::NG::Common::Store::Verify->storeKeyring( $config->cacheDir,
+        $store_url );
+    my $verify = Lemonldap::NG::Common::Store::Verify->new(
+        gpgVerify       => $config->gpgVerify,
+        gpgKeyring      => $keyring,
+        gpgFingerprints => [ $fpr || () ],
+    );
+    if ( $fpr && !-s $keyring && $verify->mode ne 'disabled' ) {
+        my $tmp = File::Temp->new( SUFFIX => '.gpg' );
+        my ( $ok, $err ) =
+          Lemonldap::NG::Common::Store::Verify->exportFromDefaultKeyring( $fpr,
+            $tmp->filename, $config->gpgKeyring );
+        ( $ok, $err ) =
+          Lemonldap::NG::Common::Store::Verify->importStoreKey( $tmp->filename,
+            $keyring, $fpr )
+          if $ok;
+        if ($ok) {
+            print "  Key $fpr of $store_url moved to its own keyring\n";
+        }
+        else {
+            print STDERR "  Warning: no keyring for $store_url and key $fpr"
+              . " not found in the GnuPG keyring: $err\n";
+        }
+    }
+    return $verify;
 }
 
 sub _getLlngVersion {
@@ -932,12 +1141,16 @@ Commands:
   remove PLUGIN            Remove an installed plugin
   installed                List installed plugins
   update                   Refresh store indexes
-  check [PLUGIN]           Check for updates
-  verify ARCHIVE           Verify a local archive
+  check [PLUGIN]           Check for updates (--store: of that store's
+                           plugins only)
+  verify ARCHIVE           Verify a local archive (exit 1 if it fails)
   rebuild                  Rebuild manager files (after LLNG upgrade)
 
 Options:
-  --store=URL              Use a specific store URL
+  --store=URL              Use a specific store URL (install: required when
+                           several stores publish the plugin, or to move an
+                           installed plugin to another store; check: only the
+                           plugins installed from that store)
   --search=TERM            Filter plugins by search term
   --tag=TAG                Filter plugins by tag
   --version=X.Y.Z          Install a specific version
@@ -955,8 +1168,10 @@ Environment variables (override lemonldap-ng.ini):
   LLNG_STORE_STATEFILE     State file path
   LLNG_STORE_CACHEDIR      Cache directory
   LLNG_STORE_OVERRIDESDIR  Manager overrides directory
-  LLNG_STORE_GPGVERIFY     GPG verification mode (required/optional/disabled)
-  LLNG_STORE_GPGKEYRING    GPG keyring path
+  LLNG_STORE_GPGVERIFY     GPG verification mode (required/optional/disabled,
+                           default: required)
+  LLNG_STORE_GPGKEYRING    Legacy keyring, only read to migrate a store added
+                           before per-store keyrings
 USAGE
     exit $exitcode;
 }

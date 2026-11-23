@@ -62,6 +62,41 @@ the subset that requires a decision.
      optional `pamAccessRequireFingerprint` (only when every host logs users
      in with SSH certificates: it refuses token-mode and desktop logins) and
      `pamAccessBastionCertPinSourceAddress`.
+- **linagora-lemonldap-ng-store** (the `lemonldap-ng-store` backport for
+  LLNG < 2.24.0) now defaults to `gpgVerify = required`: `install` only
+  accepts an archive signed by the key recorded for its store. `optional`
+  still accepts an unsigned archive or a store without a recorded key, but
+  no longer a bad signature or a signature by another key. To keep the old
+  behaviour for a store that does not sign, set `gpgVerify = optional` in
+  the `[store]` section of `lemonldap-ng.ini`.
+- Store keys now live in one keyring per store, under
+  `<cacheDir>/keyrings/` (`/var/lib/lemonldap-ng/store/keyrings/` by
+  default), instead of root's default GnuPG keyring. Existing stores need
+  nothing in the usual case: on the first `install` or `verify`, the key
+  whose fingerprint `add-store` recorded is copied, by that fingerprint,
+  from root's GnuPG keyring (or from `gpgKeyring`, which is otherwise no
+  longer read) into the store keyring. If that fails, or if the store has no
+  recorded fingerprint (the key download failed at `add-store` time),
+  `install` refuses and asks to re-register the store:
+
+  ```bash
+  sudo lemonldap-ng-store remove-store https://linagora.github.io/lemonldap-ng-plugins/
+  sudo lemonldap-ng-store add-store https://linagora.github.io/lemonldap-ng-plugins/
+  ```
+
+  Installed plugins are kept. With `required`, `add-store` refuses a store
+  whose key cannot be imported.
+- Store URLs are compared without trailing slashes. A fingerprint recorded
+  under `https://…/` is now found, so the pin is enforced for stores added
+  with the URL as documented; the state file is rewritten with the
+  canonical URLs on the next change.
+- An installed plugin is reinstalled, upgraded and checked from the store
+  it was installed from only. Use `install --store=URL` to move it to
+  another store. A plugin name published by two configured stores is not
+  installed without `--store=URL`.
+- `lemonldap-ng-store verify` exits with status 1 when the signature fails
+  (or, with `required`, when there is none), and checks it against the
+  store keys only (`--store=URL` to pick one).
 
 ## v0.7.2
 

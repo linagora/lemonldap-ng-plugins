@@ -94,7 +94,7 @@ Package: linagora-lemonldap-ng-store
 Version: ${COMMON_VERSION}
 Architecture: all
 Maintainer: Linagora <https://linagora.com>
-Depends: liblemonldap-ng-common-perl (>= 2.23.2~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl
+Depends: liblemonldap-ng-common-perl (>= 2.23.2~), liblemonldap-ng-common-perl (<< 2.24.0~), libjson-perl, libconfig-inifiles-perl, libwww-perl, gpg, gpgv
 Conflicts: liblemonldap-ng-common-perl (>= 2.24.0~)
 Section: web
 Priority: optional

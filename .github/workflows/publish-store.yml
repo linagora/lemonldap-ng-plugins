@@ -255,9 +255,13 @@ jobs:
           sudo lemonldap-ng-store remove &lt;plugin-name&gt; # Remove a plugin</pre>
 
               <h2>GPG Verification</h2>
-              <p>All archives are signed. The key is imported automatically on
-              <code>add-store</code> (Trust On First Use). Set
-              <code>gpgVerify = required</code> in <code>[store]</code> to enforce it.</p>
+              <p>All archives are signed. On <code>add-store</code> the key is imported
+              into a keyring dedicated to this store and its fingerprint is recorded
+              (Trust On First Use). <code>install</code> then requires a signature by
+              that key: <code>gpgVerify = required</code> is the default of
+              <code>linagora-lemonldap-ng-store</code>. With another
+              <code>lemonldap-ng-store</code>, set <code>gpgVerify = required</code>
+              in <code>[store]</code>.</p>
               <p>Public key: <a href="store-key.asc"><code>store-key.asc</code></a></p>
 
               <h2>Debian Repository</h2>
