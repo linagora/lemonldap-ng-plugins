@@ -46,7 +46,7 @@ the `[store]` section of `lemonldap-ng.ini`) is the default of the
 `lemonldap-ng-store`. With the backport, an installed plugin stays bound to
 the store it came from, and a plugin name published by two configured
 stores needs `--store=URL`. Upgrading the backport from 0.7.2 or earlier:
-see [UPGRADING.md](UPGRADING.md#unreleased).
+see [UPGRADING.md](UPGRADING.md#v073).
 
 ### Plugin activation: autoload vs. `customPlugins`
 

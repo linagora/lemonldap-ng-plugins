@@ -1,42 +1,52 @@
 # Changelog
 
-## Unreleased
+## v0.7.3 - 2026-11-23
 
-- **pacc**: in strict mode, native clients cannot register `request_uris`,
-  `jwks_uri`, `backchannel_logout_uri`, `frontchannel_logout_uri` or a
-  malformed `logo_uri` (LLNG #3827, #3838).
-  `paccStrictNativeClientOnly` now defaults to on when the key is absent from
-  the configuration.
-- **reports**: `/reports/apps`, `/reports/browsers` and `/reports/lastcnx`
-  are only served to users matching the new `reportsRule` option, and refused
-  with 403 when it is unset; any authenticated user could read them before.
-  The session database connection is closed after each report.
-  **Check [UPGRADING.md](UPGRADING.md#unreleased) before deploying.**
+Touched plugins bumped to **0.7.3** in lockstep: `oidc-id-jag`, `oidc-jar`,
+`oidc-resource-indicators`, `pacc`; `reports` keeps its own version line and
+goes to **1.0.2**. `linagora-lemonldap-ng-store` and `open-bastion-plugins`
+follow the tag. Security fixes from the 2026-11-21 review: several components
+now refuse what they used to accept, **check [UPGRADING.md](UPGRADING.md#v073)
+before deploying**.
+
+- **linagora-lemonldap-ng-store**: GPG verification now protects installs
+  (#262). `gpgVerify` defaults to `required`, and in every mode except
+  `disabled` a bad signature or a signature by another key is refused
+  (`optional` only tolerates an unsigned archive). Each store gets its own
+  keyring, and the signer's full fingerprint, read from gpg's status output,
+  must equal the one recorded at `add-store`. Store URLs are compared without
+  trailing slashes, so a store added as `https://…/` (as documented) keeps its
+  pin; existing state files are migrated. An installed plugin stays bound to
+  its store, a name published by two stores needs `--store`, `check --store`
+  only checks the plugins of that store, and `verify` exits non-zero on
+  failure. The package now depends on `gpg` and `gpgv`.
+- **oidc-id-jag**: the `typ` and RAR session-key constants are defined once
+  (#256, #257).
+- **oidc-jar**: the `getRequestJWT` override is installed once, keeps
+  third-party wrappers on re-init, and limits `no strict 'refs'` to one
+  statement (#255, #258).
 - **oidc-resource-indicators**: a resource server must list the clients
   allowed to target it (`oidcRPMetaDataOptionsRIAuthorizedRP`, empty = none)
   and its access rule must accept the user; any other `resource` is dropped
   from the token audience, on `/authorize`, `client_credentials` and refresh,
   and the scopes of that resource server are removed from the token.
   `resource` on `client_credentials` now reaches the token (it was never
-  read). **Check [UPGRADING.md](UPGRADING.md#unreleased).**
+  read) (#260).
 - **open-bastion-plugins-autoconfig**: server enrollment on the `pam-access`
   RP is closed by default instead of open to every user, and set to the new
   `--server-admin-rule`; a re-run closes an RP left open by earlier versions.
   New deployments get `pamAccessAllowedRps`. `--require-fingerprint` sets
   `pamAccessRequireFingerprint`. Every run prints the checklist of portal and
-  backend settings still to make (**see [UPGRADING.md](UPGRADING.md#unreleased)**).
-- **linagora-lemonldap-ng-store**: GPG verification now protects installs.
-  `gpgVerify` defaults to `required`, and in every mode except `disabled` a
-  bad signature or a signature by another key is refused (`optional` only
-  tolerates an unsigned archive). Each store gets its own keyring, and the
-  signer's full fingerprint, read from gpg's status output, must equal the
-  one recorded at `add-store`. Store URLs are compared without trailing
-  slashes, so a store added as `https://…/` (as documented) keeps its pin;
-  existing state files are migrated. An installed plugin stays bound to its
-  store, a name published by two stores needs `--store`, `check --store`
-  only checks the plugins of that store, and `verify` exits non-zero on
-  failure. The package now depends on `gpg` and `gpgv`. **Check
-  [UPGRADING.md](UPGRADING.md#unreleased) before upgrading.**
+  backend settings still to make (#261).
+- **pacc**: in strict mode, native clients cannot register `request_uris`,
+  `jwks_uri`, `backchannel_logout_uri`, `frontchannel_logout_uri` or a
+  malformed `logo_uri` (LLNG #3827, #3838); `paccStrictNativeClientOnly` now
+  defaults to on when the key is absent from the configuration (#254).
+- **reports**: `/reports/apps`, `/reports/browsers` and `/reports/lastcnx`
+  are only served to users matching the new `reportsRule` option, and refused
+  with 403 when it is unset; any authenticated user could read them before.
+  The session database connection is closed after each report, and a
+  database error is reported instead of crashing `lastcnx` (#259).
 
 ## v0.7.2 - 2026-11-14
 

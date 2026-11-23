@@ -7,7 +7,7 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
-## Unreleased
+## v0.7.3
 
 - **pacc** in strict mode (`paccStrictNativeClientOnly`, on by default)
   refuses native client registrations that carry `request_uris`, `jwks_uri`,
