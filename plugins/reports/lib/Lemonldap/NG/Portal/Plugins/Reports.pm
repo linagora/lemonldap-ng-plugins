@@ -14,12 +14,21 @@ use constant TIMEZONE => undef;    # Use "ZP4" for example for Dubai
 
 extends 'Lemonldap::NG::Portal::Main::Plugin';
 
+# Compiled reportsRule: decides which authenticated users may read the reports
+has rule => ( is => 'rw' );
+
 # Initialization: declare APIs
 sub init {
     my ($self) = @_;
 
-    # Only authentified users can access to this API
-    # then manager restrict access to admins only
+    # These routes are served by the portal, so Manager or handler vhost rules
+    # never apply to them: the plugin enforces reportsRule itself. An unset or
+    # empty rule denies everybody.
+    my $rule = $self->conf->{reportsRule};
+    $rule = 0 unless defined $rule and $rule =~ /\S/;
+    $self->rule( $self->_buildRule($rule) );
+    return 0 unless $self->rule;
+
     $self->addAuthRoute(
         'reports' => {
             apps     => 'appsByUa',
@@ -31,9 +40,32 @@ sub init {
     1;
 }
 
+# Compile a rule, or return undef if it does not compile. Portal::buildRule
+# does not exist in older cores: compile through the handler there.
+sub _buildRule {
+    my ( $self, $rule ) = @_;
+    return $self->p->buildRule( $rule, 'reports' )
+      if $self->p->can('buildRule');
+    my $hd  = $self->p->HANDLER;
+    my $sub = $hd->buildSub( $hd->substitute($rule) );
+    $self->logger->error( 'Bad reports rule: '
+          . ( $hd->tsv->{jail}->error || 'Unable to compile rule' ) )
+      unless $sub;
+    return $sub;
+}
+
+# Answer 403 to a user that does not match reportsRule
+sub _deny {
+    my ( $self, $req ) = @_;
+    $self->userLogger->warn( 'Reports access refused to '
+          . ( $req->userData->{ $self->conf->{whatToTrace} } // '?' ) );
+    return $self->p->sendError( $req, 'Forbidden', 403 );
+}
+
 # /reports/apps : send list of User-Agents stored in refresh_token list (Tmail app on phones)
 sub appsByUa {
     my ( $self, $req ) = @_;
+    return $self->_deny($req) unless $self->rule->( $req, $req->userData );
     return $self->_userAgents( $req,
 q"SELECT a_session->>'UA' as UA, count(id) as NB FROM oidcsessions WHERE a_session->>'_type' = 'refresh_token' group by a_session->>'UA' ORDER BY a_session->>'UA'"
     );
@@ -42,6 +74,7 @@ q"SELECT a_session->>'UA' as UA, count(id) as NB FROM oidcsessions WHERE a_sessi
 # /reports/browsers : send list of User-Agents stored in web sessions
 sub webUa {
     my ( $self, $req ) = @_;
+    return $self->_deny($req) unless $self->rule->( $req, $req->userData );
     return $self->_userAgents( $req,
 q"SELECT a_session->>'UA' as UA, count(id) as NB FROM sessions group by a_session->>'UA' ORDER BY a_session->>'UA'"
     );
@@ -107,21 +140,31 @@ sub _userAgents {
     return $self->_csvResponse($csv);
 }
 
-# Internal method to query sessions database
+# Internal method to query sessions database. The connection is closed once
+# the rows are read, so repeated reports do not pile up database connections.
 sub queryDb {
     my ( $self, $query ) = @_;
     my $dbi = $self->conf->{globalStorageOptions};
     my $dbh =
       DBI->connect( $dbi->{DataSource}, $dbi->{UserName}, $dbi->{Password} )
       or die "No access to DB";
-    my $sth = $dbh->prepare($query);
-    $sth->execute;
-    return $sth->fetchall_arrayref;
+    my $rows = eval {
+        my $sth = $dbh->prepare($query) or die $dbh->errstr || "prepare failed";
+        $sth->execute                   or die $sth->errstr || "query failed";
+        $sth->fetchall_arrayref;
+    };
+    my $err = $@;
+    eval { $dbh->disconnect };
+
+    # $err already ends with " at ... line N.": rethrow it untouched
+    die $err if $err;
+    return $rows;
 }
 
 # /reports/lastcnx : last conexion for each user (web or IMAP/SMTP)
 sub lastCnx {
     my ( $self, $req ) = @_;
+    return $self->_deny($req) unless $self->rule->( $req, $req->userData );
     my $j = JSON->new;
 
     # Collect last web connections from SSO database
@@ -130,6 +173,7 @@ sub lastCnx {
 q"SELECT a_session->>'_session_uid' AS uid, a_session->>'_loginHistory' AS t FROM psessions"
         );
     };
+    return $self->p->sendError( $req, $@ ) if $@;
     my $res  = {};
     my $data = {};
     foreach my $row (@$queryResult) {

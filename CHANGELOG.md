@@ -7,6 +7,11 @@
   malformed `logo_uri` (LLNG #3827, #3838).
   `paccStrictNativeClientOnly` now defaults to on when the key is absent from
   the configuration.
+- **reports**: `/reports/apps`, `/reports/browsers` and `/reports/lastcnx`
+  are only served to users matching the new `reportsRule` option, and refused
+  with 403 when it is unset; any authenticated user could read them before.
+  The session database connection is closed after each report.
+  **Check [UPGRADING.md](UPGRADING.md#unreleased) before deploying.**
 
 ## v0.7.2 - 2026-11-14
 

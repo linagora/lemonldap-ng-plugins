@@ -14,6 +14,10 @@ the subset that requires a decision.
   `backchannel_logout_uri` or `frontchannel_logout_uri`, or a `logo_uri` that
   is not a plain http(s) URL. Such clients now get `400`. A native client
   that really needs these fields must be declared by an administrator.
+- **reports** denies `/reports/*` until `reportsRule` is set: give it the
+  users allowed to read the reports, for example `$groups =~ /\badmins\b/`.
+  The Manager virtual host rules suggested before never applied to these
+  portal routes and can be removed.
 
 ## v0.7.2
 

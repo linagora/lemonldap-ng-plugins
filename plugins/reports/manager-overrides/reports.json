@@ -1,0 +1,35 @@
+{
+  "attributes": {
+    "reportsRule": {
+      "type": "boolOrExpr",
+      "default": 0,
+      "documentation": "Reports access rule: users allowed to read /reports/* (unset or 0 = nobody)"
+    }
+  },
+  "tree": [
+    {
+      "insert_into": "generalParameters/plugins",
+      "nodes": [
+        {
+          "title": "reportsParams",
+          "form": "simpleInputContainer",
+          "nodes": ["reportsRule"]
+        }
+      ]
+    }
+  ],
+  "lang": {
+    "reportsParams": {
+      "en": "Reports",
+      "fr": "Rapports",
+      "es": "Informes",
+      "it": "Rapporti"
+    },
+    "reportsRule": {
+      "en": "Access rule",
+      "fr": "Règle d'accès",
+      "es": "Regla de acceso",
+      "it": "Regola di accesso"
+    }
+  }
+}

@@ -23,8 +23,18 @@ Manually: copy `lib/` into your Perl `@INC` path and add `::Plugins::Reports` to
 
 ## Configuration
 
-Protect `/reports/*` endpoints in your Manager virtual host rules to restrict
-access to administrators.
+The `/reports/*` endpoints are served by the portal, so Manager or handler
+virtual host rules do not apply to them. Access is controlled by the
+`reportsRule` option (_General Parameters_ > _Plugins_ > _Reports_ in the
+Manager), a rule evaluated against the session of the authenticated user:
+
+```
+reportsRule = $groups =~ /\badmins\b/
+```
+
+When `reportsRule` is unset, empty or `0`, every request gets `403
+Forbidden`. A rule that does not compile makes the portal fail to start, as
+for any plugin whose initialization fails.
 
 ## CSV format
 
@@ -36,4 +46,5 @@ encoded as UTF-8 and `Content-Type` is `text/csv; charset=utf-8`.
 ## Files
 
 - `lib/Lemonldap/NG/Portal/Plugins/Reports.pm` — Plugin module
+- `manager-overrides/reports.json` — Manager declaration of `reportsRule`
 - `plugin.json` — Plugin metadata

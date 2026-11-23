@@ -34,6 +34,7 @@ my $op = LLNG::Manager::Test->new( {
             userDB         => 'Same',
             customPlugins  => '::Plugins::Reports',
             ldapBase       => 'dc=example,dc=com',
+            reportsRule    => '$uid eq "dwho"',
         }
     }
 );
