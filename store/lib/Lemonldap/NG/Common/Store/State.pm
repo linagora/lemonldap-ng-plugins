@@ -3,6 +3,7 @@ package Lemonldap::NG::Common::Store::State;
 use strict;
 use warnings;
 use JSON;
+use Digest::SHA    qw(sha256_hex);
 use File::Path     qw(make_path);
 use File::Basename qw(dirname);
 
@@ -53,6 +54,22 @@ sub normUrl {
     $url =~ s/^\s+|\s+$//g;
     $url =~ s|/+$||;
     return $url;
+}
+
+# File name stem for data kept per store (keyring, index cache): the
+# canonical URL with every character outside [A-Za-z0-9._-] replaced by "_",
+# followed by the first 12 hex digits of the SHA-256 of the canonical URL.
+# The readable part alone is not unique ("https://a/x" and "https://a_x" give
+# the same one); the hash keeps two stores from sharing, overwriting or
+# deleting each other's files.
+sub urlFileKey {
+    my ($url) = @_;
+    $url = normUrl($url);
+    ( my $slug = $url ) =~ s|[^a-zA-Z0-9._-]|_|g;
+    $slug = substr( $slug, 0, 200 );    # file name length; the hash is unique
+    my $bytes = $url;
+    utf8::encode($bytes) if utf8::is_utf8($bytes);
+    return "$slug-" . substr( sha256_hex($bytes), 0, 12 );
 }
 
 # Bring a state written by an older client to the canonical URL form. Older

@@ -121,4 +121,36 @@ subtest 'gpgVerify defaults to required' => sub {
     );
 };
 
+subtest 'per-store file names are unique' => sub {
+    my $key = \&Lemonldap::NG::Common::Store::State::urlFileKey;
+    my $kr  = sub {
+        Lemonldap::NG::Common::Store::Verify->storeKeyring( '/c', @_ );
+    };
+    like(
+        $kr->('https://a/x'),
+        qr{^/c/keyrings/https___a_x-[0-9a-f]{12}\.gpg$},
+        'readable name followed by a hash'
+    );
+    isnt( $kr->('https://a/x'), $kr->('https://a_x'),
+        'URLs with the same readable name get distinct keyrings' );
+    isnt( $key->('https://a/x'), $key->('https://a_x'), '... and cache files' );
+    is( $kr->('https://a/x/'), $kr->('https://a/x'), 'trailing slash ignored' );
+    is( $key->(' https://a/x// '), $key->('https://a/x'), '... and blanks' );
+    my $long = 'https://a/' . ( 'x' x 1000 );
+    cmp_ok( length( $key->($long) ), '<=', 213, 'long URL: bounded length' );
+    isnt( $key->($long), $key->( $long . 'y' ), '... still unique' );
+};
+
+subtest '_run reports a command killed by a signal as a failure' => sub {
+    my ( $exit, undef, $err ) =
+      Lemonldap::NG::Common::Store::Verify::_run( $^X, '-e',
+        'kill 9, $$; sleep 5' );
+    is( $exit, 128 + 9, 'non-zero exit' );
+    like( $err, qr/killed by signal 9/, '... reported' );
+    ($exit) = Lemonldap::NG::Common::Store::Verify::_run( $^X, '-e', 'exit 3' );
+    is( $exit, 3, 'exit code kept' );
+    ($exit) = Lemonldap::NG::Common::Store::Verify::_run( $^X, '-e', '1' );
+    is( $exit, 0, 'success' );
+};
+
 done_testing;

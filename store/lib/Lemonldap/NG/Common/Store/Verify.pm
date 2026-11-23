@@ -7,6 +7,7 @@ use File::Basename qw(dirname);
 use File::Path     qw(make_path);
 use File::Temp;
 use POSIX ();
+use Lemonldap::NG::Common::Store::State;
 
 our $VERSION = '2.23.0';
 
@@ -279,11 +280,9 @@ sub exportFromDefaultKeyring {
 # Path of the keyring that holds the key of one store
 sub storeKeyring {
     my ( $class, $cacheDir, $url ) = @_;
-    my $key = $url // '';
-    $key =~ s/^\s+|\s+$//g;
-    $key =~ s|/+$||;
-    $key =~ s|[^a-zA-Z0-9._-]|_|g;
-    return "$cacheDir/keyrings/$key.gpg";
+    return
+      "$cacheDir/keyrings/"
+      . Lemonldap::NG::Common::Store::State::urlFileKey($url) . '.gpg';
 }
 
 # Check HTTPS transport security
@@ -335,10 +334,17 @@ sub _run {
     local $/;
     my $out = <$fh> // '';
     close $fh;
-    my $exit = $? >> 8;
+    my $status = $?;
     seek $errfh, 0, 0;
     my $err = <$errfh> // '';
-    return ( $exit, $out, $err );
+
+    # A command killed by a signal has no exit code ($? >> 8 is 0): report
+    # it as a failure, with the shell convention 128 + signal
+    if ( my $sig = $status & 127 ) {
+        $err .= "$cmd[0] killed by signal $sig\n";
+        return ( 128 + $sig, $out, $err );
+    }
+    return ( $status >> 8, $out, $err );
 }
 
 1;

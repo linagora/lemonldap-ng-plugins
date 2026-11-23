@@ -123,10 +123,13 @@ List locally installed plugins.
 
 Force refresh of cached store index files.
 
-=item B<check> [PLUGIN_NAME]
+=item B<check> [PLUGIN_NAME] [--store=URL]
 
 Check if updates are available for installed plugins, each in the store it
-was installed from.
+was installed from. With C<--store>, which must be a configured store, only
+the plugins installed from that store (and those without a recorded store
+that it publishes) are checked. A store whose index cannot be fetched is
+reported.
 
 =item B<verify> ARCHIVE_FILE [--store=URL]
 

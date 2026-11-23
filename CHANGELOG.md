@@ -10,8 +10,9 @@
   one recorded at `add-store`. Store URLs are compared without trailing
   slashes, so a store added as `https://…/` (as documented) keeps its pin;
   existing state files are migrated. An installed plugin stays bound to its
-  store, a name published by two stores needs `--store`, and `verify` exits
-  non-zero on failure. The package now depends on `gpg` and `gpgv`. **Check
+  store, a name published by two stores needs `--store`, `check --store`
+  only checks the plugins of that store, and `verify` exits non-zero on
+  failure. The package now depends on `gpg` and `gpgv`. **Check
   [UPGRADING.md](UPGRADING.md#unreleased) before upgrading.**
 
 ## v0.7.2 - 2026-11-14

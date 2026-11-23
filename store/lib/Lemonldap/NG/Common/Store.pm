@@ -668,22 +668,36 @@ sub cmd_check {
         %installed = ( $name => $installed{$name} );
     }
 
-    my @stores = $config->storeUrls;
-    unless (@stores) {
+    my @configured = $config->storeUrls;
+    unless (@configured) {
         die "No stores configured.\n";
     }
 
+    # --store restricts the check to the plugins of one configured store:
+    # those installed from it, and those without a recorded store that it
+    # publishes
+    my $explicit = $opts->{store_url};
+    if ( $explicit && !grep { $_ eq $explicit } @configured ) {
+        die "Not a configured store: $explicit\n";
+    }
+    my @stores = $explicit ? ($explicit) : @configured;
+
     # Compare each plugin with the store it was installed from only: another
     # store publishing the same name at a higher version is not an update
-    my $found = _candidates( $config, \@stores );
-    my ( $updates, @notes ) = (0);
+    my ( $found,   $errors ) = _candidates( $config, \@stores );
+    my ( $updates, @notes )  = (0);
     for my $pname ( sort keys %installed ) {
         my $local      = $installed{$pname};
         my $from       = $local->{installed_from};
         my @publishers = sort grep { $found->{$_}{$pname} } keys %$found;
         my $store;
+        if ( $from && $explicit && $from ne $explicit ) {
+            push @notes, "$pname: installed from $from, not checked"
+              if $name;
+            next;
+        }
         if ($from) {
-            unless ( grep { $_ eq $from } @stores ) {
+            unless ( grep { $_ eq $from } @configured ) {
                 push @notes,
                   "$pname: installed from $from, which is no longer configured";
                 next;
@@ -701,6 +715,14 @@ sub cmd_check {
             next;
         }
         else {
+            push @notes,
+              "$pname: not found in the stores that could be fetched"
+              . _fetchErrors( $errors, @stores )
+              if %$errors;
+            next;
+        }
+        if ( my $err = $errors->{$store} ) {
+            push @notes, "$pname: cannot fetch the index of $store: $err";
             next;
         }
         my $candidate = _best( $found->{$store}{$pname} ) or next;
@@ -712,7 +734,9 @@ sub cmd_check {
     }
 
     if ( $updates == 0 ) {
-        print "All installed plugins are up to date.\n";
+        print "All installed plugins"
+          . ( $explicit ? " from $explicit" : '' )
+          . " are up to date.\n";
     }
     else {
         print "\n$updates update(s) available.\n";
@@ -830,17 +854,27 @@ sub cmd_rebuild {
 #
 
 # Plugin entries published by each store: { store_url => { name => [entries] } }
-# Restricted to $name when given.
+# Restricted to $name when given. Also returns the stores whose index could
+# not be fetched: { store_url => error }, so that a network failure is not
+# reported as "the store does not publish it".
+# Returns ($found, $errors)
 sub _candidates {
     my ( $config, $stores, $name ) = @_;
     my $remote = Lemonldap::NG::Common::Store::Remote->new(
         timeout  => $config->httpTimeout,
         cacheDir => $config->cacheDir,
     );
-    my %found;
+    my ( %found, %errors );
     for my $store_url (@$stores) {
         my ( $ok, $data ) = $remote->fetchIndexCached($store_url);
-        next unless $ok && ref($data) eq 'HASH';
+        unless ($ok) {
+            $errors{$store_url} = $data // 'unknown error';
+            next;
+        }
+        unless ( ref($data) eq 'HASH' ) {
+            $errors{$store_url} = 'invalid store index';
+            next;
+        }
         for my $p ( @{ $data->{plugins} || [] } ) {
             next unless ref($p) eq 'HASH' && defined $p->{name};
             next if defined $name && $p->{name} ne $name;
@@ -848,7 +882,16 @@ sub _candidates {
               { %$p, _store_url => $store_url };
         }
     }
-    return \%found;
+    return ( \%found, \%errors );
+}
+
+# " (could not fetch the index of URL: error; ...)" for the given stores
+sub _fetchErrors {
+    my ( $errors, @stores ) = @_;
+    my @msg = map { "$_: $errors->{$_}" } grep { $errors->{$_} } @stores;
+    return @msg
+      ? ' (could not fetch the index of ' . join( '; ', @msg ) . ')'
+      : '';
 }
 
 # Highest version among entries, or the entry with the wanted version
@@ -874,10 +917,12 @@ sub _findPlugin {
     my @configured = $config->storeUrls;
     my $explicit   = $opts->{store_url};
 
-    my @stores     = $explicit ? ($explicit) : @configured;
-    my $found      = _candidates( $config, \@stores, $name );
+    my @stores = $explicit ? ($explicit) : @configured;
+    my ( $found, $errors ) = _candidates( $config, \@stores, $name );
     my @publishers = sort grep { $found->{$_}{$name} } keys %$found;
-    return ( undef, "Plugin not found: $name" ) unless @publishers;
+    return ( undef,
+        "Plugin not found: $name" . _fetchErrors( $errors, @stores ) )
+      unless @publishers;
 
     my $installed = $state ? $state->get($name) : undef;
     my $bound     = $installed && $installed->{installed_from};
@@ -891,6 +936,11 @@ sub _findPlugin {
                     "$name was installed from $bound, which is no longer a "
                   . "configured store. Use --store=URL to install it from "
                   . "another store." );
+        }
+        if ( my $err = $errors->{$bound} ) {
+            return ( undef,
+                    "$name was installed from $bound, whose index could not "
+                  . "be fetched: $err" );
         }
         unless ( $found->{$bound}{$name} ) {
             return ( undef,
@@ -915,7 +965,8 @@ sub _findPlugin {
     return ( undef,
             "Plugin not found: $name"
           . ( $wanted_version ? " version $wanted_version" : '' )
-          . " in $from" )
+          . " in $from"
+          . _fetchErrors( $errors, $from ) )
       unless $best;
     return ($best);
 }
@@ -1090,14 +1141,16 @@ Commands:
   remove PLUGIN            Remove an installed plugin
   installed                List installed plugins
   update                   Refresh store indexes
-  check [PLUGIN]           Check for updates
+  check [PLUGIN]           Check for updates (--store: of that store's
+                           plugins only)
   verify ARCHIVE           Verify a local archive (exit 1 if it fails)
   rebuild                  Rebuild manager files (after LLNG upgrade)
 
 Options:
   --store=URL              Use a specific store URL (install: required when
                            several stores publish the plugin, or to move an
-                           installed plugin to another store)
+                           installed plugin to another store; check: only the
+                           plugins installed from that store)
   --search=TERM            Filter plugins by search term
   --tag=TAG                Filter plugins by tag
   --version=X.Y.Z          Install a specific version

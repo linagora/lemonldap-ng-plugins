@@ -118,11 +118,24 @@ sub _sign {
 }
 
 # Import a public key file into a GnuPG home (e.g. $env->{gnupg}, the
-# "default keyring")
+# "default keyring"), or into the keyring $keyring of that home (e.g.
+# "trustedkeys.kbx", the default keyring of gpgv)
 sub gpg_import {
-    my ( $home, $file ) = @_;
-    _quiet( 'gpg', '--homedir', $home, '--batch', '--quiet', '--import', $file )
-      == 0
+    my ( $home, $file, $keyring ) = @_;
+    _quiet(
+        'gpg',
+        '--homedir',
+        $home,
+        '--batch',
+        '--quiet',
+        (
+            $keyring
+            ? ( '--no-default-keyring', '--keyring', $keyring )
+            : ()
+        ),
+        '--import',
+        $file
+      ) == 0
       or die "Cannot import $file";
 }
 

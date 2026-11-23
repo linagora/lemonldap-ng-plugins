@@ -5,12 +5,13 @@
 # - a store added with a trailing slash still pins its key;
 # - under the default mode, an archive signed by another key, a bad
 #   signature or an unsigned archive is refused, even if the other key is in
-#   the default GnuPG keyring;
+#   the default keyrings of gpg and gpgv;
 # - "optional" only tolerates a missing signature;
 # - a correctly signed archive is installed;
 # - `verify` exits non-zero when the signature fails;
 # - a store added by an older client (pin under the slash URL, key in the
-#   default keyring, no per-store keyring) is migrated.
+#   default keyring, no per-store keyring) is migrated;
+# - two store URLs with the same readable file name get distinct keyrings.
 
 use strict;
 use warnings;
@@ -22,6 +23,7 @@ BEGIN { push @INC, "$FindBin::Bin/stub" }
 
 use File::Copy qw(copy);
 use JSON;
+use POSIX ();
 use StoreTest;
 
 plan skip_all => 'gpg not installed' unless have_gpg();
@@ -45,10 +47,32 @@ my $url = make_store(
 like( $url, qr{/$}, 'store URL has a trailing slash' );
 ( my $canon = $url ) =~ s{/+$}{};
 
-# The other key sits in the default keyring, as an older add-store of another
-# store would have left it: it must not validate archives of this store
+# The other key sits in the default keyrings, as an older add-store of
+# another store (or a local gpgv setup) would have left it: in gpg's
+# (pubring.kbx) and in gpgv's (trustedkeys.kbx). It must not validate
+# archives of this store
 export_key( $other, "$env->{dir}/other.asc" );
 gpg_import( $env->{gnupg}, "$env->{dir}/other.asc" );
+gpg_import( $env->{gnupg}, "$env->{dir}/other.asc", 'trustedkeys.kbx' );
+ok( -s "$env->{gnupg}/trustedkeys.kbx", 'other key in gpgv default keyring' );
+SKIP: {
+    my ($gpgv) = grep { -x } map { "$_/gpgv" } split /:/, $ENV{PATH} || '';
+    skip 'gpgv not installed', 1 unless $gpgv;
+
+    # Make sure that the refusals below are not vacuous: gpgv on its default
+    # keyring does accept the archive signed by the other key
+    my $a   = "$env->{dir}/storeA/llng-plugin-wrongkey-1.0.tar.gz";
+    my $pid = fork // die "fork: $!";
+    if ( $pid == 0 ) {
+        $ENV{GNUPGHOME} = $env->{gnupg};
+        open STDOUT, '>', '/dev/null';
+        open STDERR, '>', '/dev/null';
+        { exec $gpgv, "$a.asc", $a }
+        POSIX::_exit(127);
+    }
+    waitpid $pid, 0;
+    is( $?, 0, 'gpgv with its default keyring accepts the other key' );
+}
 
 my ( $code, $out ) = run_store( $env, {}, 'add-store', $url );
 is( $code, 0, 'add-store with trailing slash' ) or diag $out;
@@ -177,6 +201,46 @@ subtest 'store added by an older client is migrated' => sub {
     is( $c, 0, 'migrated store: good archive installed' ) or diag $o;
     my $s = read_state($env2);
     is_deeply( [ keys %{ $s->{stores} } ], [$canon], 'state key migrated' );
+};
+
+subtest 'stores whose URLs differ only by "/" vs "_" are kept apart' => sub {
+    my $env4 = new_env();
+    my $u1   = make_store(
+        $env4, 'col/x',
+        key     => $key,
+        plugins => [ { name => 'p1', version => '1.0', signer => $key } ]
+    );
+    my $u2 = make_store(
+        $env4, 'col_x',
+        key     => $other,
+        plugins => [ { name => 'p2', version => '1.0', signer => $other } ]
+    );
+    my $kr = sub {
+        Lemonldap::NG::Common::Store::Verify->storeKeyring( $env4->{cache},
+            @_ );
+    };
+    isnt( $kr->($u1), $kr->($u2), 'distinct keyrings' );
+    for my $u ( $u1, $u2 ) {
+        my ( $c, $o ) = run_store( $env4, {}, 'add-store', $u );
+        is( $c, 0, "add-store $u" ) or diag $o;
+    }
+    ok( -s $kr->($u1) && -s $kr->($u2), 'both keyrings written' );
+    for my $p (qw(p1 p2)) {
+        my ( $c, $o ) = run_store( $env4, {}, 'install', $p );
+        is( $c, 0, "$p installed with the key of its own store" ) or diag $o;
+    }
+
+    my ( $c, $o ) = run_store( $env4, {}, 'remove-store', $u1 );
+    is( $c, 0, 'remove-store of the first one' ) or diag $o;
+    ok( !-e $kr->($u1), '... its keyring removed' );
+    ok( -s $kr->($u2),  '... the other keyring kept' );
+    ( $c, $o ) = run_store( $env4, {}, 'install', 'p2' );
+    is( $c, 0, 'the other store still verifies its archives' ) or diag $o;
+    like(
+        $o,
+        qr/GPG signature verified \(key $other->{fpr}\)/,
+        '... with its key'
+    );
 };
 
 subtest 'add-store refuses a store without key under required' => sub {
