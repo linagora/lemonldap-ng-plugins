@@ -7,6 +7,13 @@ by replacing the files.
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) — this document is
 the subset that requires a decision.
 
+## Unreleased
+
+- **reports** denies `/reports/*` until `reportsRule` is set: give it the
+  users allowed to read the reports, for example `$groups =~ /\badmins\b/`.
+  The Manager virtual host rules suggested before never applied to these
+  portal routes and can be removed.
+
 ## v0.7.2
 
 - **twake** refuses a user-supplied `HIDDEN__` account name: the prefix is

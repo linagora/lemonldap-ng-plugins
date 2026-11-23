@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **reports**: `/reports/apps`, `/reports/browsers` and `/reports/lastcnx`
+  are only served to users matching the new `reportsRule` option, and refused
+  with 403 when it is unset; any authenticated user could read them before.
+  The session database connection is closed after each report.
+  **Check [UPGRADING.md](UPGRADING.md#unreleased) before deploying.**
+
 ## v0.7.2 - 2026-11-14
 
 Touched plugins bumped to **0.7.2** in lockstep: `mail-autodiscover`,
