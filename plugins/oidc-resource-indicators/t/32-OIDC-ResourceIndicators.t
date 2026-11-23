@@ -56,6 +56,9 @@ my $op = LLNG::Manager::Test->new( {
                     oidcRPMetaDataOptionsEnableRI     => 1,
                     oidcRPMetaDataOptionsRIIdentifier =>
                       "https://api.example.com",
+
+                    # Clients allowed to request a token for this RS
+                    oidcRPMetaDataOptionsRIAuthorizedRP => "rp",
                     oidcRPMetaDataOptionsAccessTokenJWT => 1,
                     oidcRPMetaDataOptionsBypassConsent  => 1,
                     oidcRPMetaDataOptionsRedirectUris   =>

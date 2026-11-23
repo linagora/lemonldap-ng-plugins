@@ -22,6 +22,7 @@ sub rs {
         oidcRPMetaDataOptionsClientSecret    => $id,
         oidcRPMetaDataOptionsEnableRI        => 1,
         oidcRPMetaDataOptionsRIIdentifier    => $identifier,
+        oidcRPMetaDataOptionsRIAuthorizedRP  => 'rp',
         oidcRPMetaDataOptionsAccessTokenJWT  => 1,
         oidcRPMetaDataOptionsBypassConsent   => 1,
         oidcRPMetaDataOptionsRedirectUris    => "http://$id.example.com/",
