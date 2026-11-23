@@ -145,6 +145,33 @@ jobs:
       - name: Run mcp unit tests
         run: npm --prefix mcp run test:unit
 
+  # open-bastion-plugins-autoconfig (debian/) against a File configuration
+  # backend. Only LLNG's common library is needed, straight from a release tag.
+  autoconfig:
+    runs-on: ubuntu-latest
+    name: open-bastion-plugins-autoconfig
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install Perl dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libconfig-inifiles-perl libcrypt-rijndael-perl \
+            libcrypt-urandom-perl libjson-perl libmouse-perl openssl
+
+      - name: Clone LLNG
+        run: |
+          git clone --depth 1 --branch v2.23.4 "$LLNG_REPO" \
+            "$RUNNER_TEMP/lemonldap-ng"
+
+      - name: Run tests
+        env:
+          AUTOCONFIG_TEST_STRICT: 1
+        run: |
+          PERL5LIB="$RUNNER_TEMP/lemonldap-ng/lemonldap-ng-common/lib" \
+            prove -v debian/t
+
   test:
     needs: discover
     if: needs.discover.outputs.has_tests == 'true'

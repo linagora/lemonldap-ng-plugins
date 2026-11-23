@@ -32,6 +32,36 @@ the subset that requires a decision.
   written for users must accept that grant type to serve machine-to-machine
   clients. Existing refresh tokens keep working, but their next access
   tokens lose any audience that the RS no longer accepts.
+- **open-bastion-plugins-autoconfig**: earlier versions bootstrapped the
+  `pam-access` RP with `oidcRPMetaDataOptionsAllowDeviceAuthorization = 1`
+  and the scope rules `pam = 1`, `pam:server = 1`, and wrote no
+  `pamAccessAllowedRps`. With that configuration **any SSO user can enroll a
+  machine of their own as a server**, read any account's groups through
+  `/pam/authorize`, and, once a rule exists for the `bastion` group, pose as a
+  bastion to obtain SSH certificates for other users. On a portal set up that
+  way:
+  1. Set `oidcRPMetaDataOptionsAllowDeviceAuthorization` of the RP, and its
+     `pam` and `pam:server` scope rules, to the rule of the users allowed to
+     enroll servers, e.g. `inGroup("server-admins")`. Re-running the script
+     does it: with `--server-admin-rule 'inGroup("server-admins")'`, or
+     without, which sets `0` and closes enrollment until you choose the
+     rule. The script only replaces values equal to `1` (or `0` when a rule is
+     given); an expression you wrote is kept. Enrolled servers keep working:
+     the rule is only checked when a new device is approved.
+  2. Set `pamAccessAllowedRps` to the RPs your hosts are enrolled under. The
+     script does not add it to an existing deployment: from then on, a host
+     can no longer declare a bastion group in its request, so each bastion
+     needs a `client_id` of its own mapped in `pamAccessServerGroups`. Enroll
+     the bastions under such an RP first, or their hops stop; this changes
+     their bastion id, so update `allowed_bastions` on the backends too.
+  3. Closing enrollment does not evict a host already enrolled: review the
+     hosts enrolled while it was open (the refresh-token sessions of the RP)
+     and revoke those no server administrator approved.
+  4. Follow the checklist the script now prints on every run:
+     `pamAccessServerGroups`, `allowed_bastions` on every backend, and the
+     optional `pamAccessRequireFingerprint` (only when every host logs users
+     in with SSH certificates: it refuses token-mode and desktop logins) and
+     `pamAccessBastionCertPinSourceAddress`.
 
 ## v0.7.2
 

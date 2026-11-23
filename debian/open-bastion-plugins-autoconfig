@@ -3,14 +3,17 @@
 # open-bastion-plugins-autoconfig
 #
 # Bootstrap a LemonLDAP::NG configuration for an open-bastion deployment.
-# Idempotent: only adds what is missing. Use --force to overwrite existing
-# values, --dry-run to preview, --verbose for details.
+# Idempotent: only adds what is missing, except that it closes server
+# enrollment when an existing pam-access RP lets any user approve it (see
+# ensure_pam_rp). Use --force to overwrite existing values, --dry-run to
+# preview, --verbose for details.
 #
 use strict;
 use warnings;
 use Getopt::Long qw(:config bundling);
 use JSON;
 use File::Temp qw(tempdir);
+use Text::Wrap ();
 
 use Lemonldap::NG::Common::Conf;
 
@@ -25,6 +28,8 @@ my %opt = (
     'rp-name'           => 'pam-access',
     'ssh-key-ref'       => 'ssh-ca',
     'ssh-dir'           => '/var/lib/lemonldap-ng/ssh',
+    'server-admin-rule' => undef,     # undef = nobody may enroll a server
+    'require-fingerprint' => 0,
 );
 GetOptions(
     \%opt,
@@ -36,8 +41,15 @@ GetOptions(
     'rp-name=s',
     'ssh-key-ref=s',
     'ssh-dir=s',
+    'server-admin-rule=s',
+    'require-fingerprint',
 ) or usage(2);
 usage(0) if $opt{help};
+if (defined $opt{'server-admin-rule'}) {
+    $opt{'server-admin-rule'} =~ s/^\s+|\s+$//g;
+    fatal('--server-admin-rule must not be empty (omit it to deny everyone)')
+        if $opt{'server-admin-rule'} eq '';
+}
 
 sub usage {
     my $code = shift // 0;
@@ -55,6 +67,11 @@ Options:
       --rp-name NAME        OIDC RP client_id for pam-access (default: pam-access).
       --ssh-key-ref NAME    Ref of the SSH CA key in 'keys' (default: ssh-ca).
       --ssh-dir DIR         Serial/KRL dir (default: /var/lib/lemonldap-ng/ssh).
+      --server-admin-rule RULE
+                            Rule of the users allowed to enroll servers, e.g.
+                            'inGroup("server-admins")'. Default: nobody.
+      --require-fingerprint Set pamAccessRequireFingerprint (certificate-only
+                            deployments: it refuses token and desktop logins).
   -h, --help                This message.
 EOF
     exit $code;
@@ -66,6 +83,8 @@ my @kept;      # list of unchanged keys (verbose only)
 sub log_change { push @changes, $_[0]; print "  + $_[0]\n" if $opt{verbose} }
 sub log_keep   { push @kept,    $_[0]; print "  = $_[0]\n" if $opt{verbose} }
 sub log_info   { print "  i $_[0]\n" if $opt{verbose} }
+# Security-relevant: printed whatever --verbose says.
+sub log_warn   { print "  ! $_[0]\n" }
 sub fatal      { print STDERR "ERROR: $_[0]\n"; exit 1 }
 
 # --- Helpers ---------------------------------------------------------------
@@ -286,9 +305,47 @@ sub generate_oidc_keys {
 
 # --- Step: RP pam-access --------------------------------------------------
 
+# Enrolling a server is approving a device-authorization request on this RP:
+# whoever approves it gives the host its PAM identity, and the host can then
+# query /pam/authorize for any user. Three settings decide who that is, and
+# they all take the same rule:
+#
+# - oidcRPMetaDataOptionsAllowDeviceAuthorization, a boolOrExpr evaluated
+#   against the approving user's session. `1` means ANY authenticated user
+#   (oidc-device-authorization README, "Who may approve an enrollment"); `0`
+#   turns the device grant off for the RP.
+# - the `pam` and `pam:server` scope rules, also evaluated against the
+#   approving user. A rule of `1` grants the scope even when the device did
+#   not ask for it, and PamAccess accepts either scope, so both are set: one
+#   left at `1` would undo the other.
+#
+# There is no sensible default population, so the default is to deny, as for
+# sshCaAdminRule below: the admin passes --server-admin-rule (or edits the RP)
+# to let server administrators enroll hosts.
+sub server_admin_rule {
+    return $opt{'server-admin-rule'} // 0;
+}
+
+# A value this script may replace on an existing RP: the bootstrap
+# placeholders. `1` (anyone) is always replaced, because it is the unsafe
+# default the script used to write; `0`/empty/absent (nobody) only when the
+# admin asked for a rule on the command line. An expression is the admin's and
+# is never touched (short of --force).
+sub _trim {
+    my $v = shift;
+    return undef unless defined $v;
+    $v = "$v";
+    $v =~ s/^\s+|\s+$//g;
+    return $v;
+}
+sub _is_open        { my $v = _trim(shift); defined $v && $v eq '1' }
+sub _is_placeholder { my $v = _trim(shift); !defined $v || $v =~ /\A[01]?\z/ }
+sub _is_closed      { my $v = _trim(shift); !defined $v || $v =~ /\A0?\z/ }
+
 sub ensure_pam_rp {
     my ($conf) = @_;
-    my $rp = $opt{'rp-name'};
+    my $rp   = $opt{'rp-name'};
+    my $rule = server_admin_rule();
 
     my $opts = {
         oidcRPMetaDataOptionsDisplayName            => 'PAM Access',
@@ -296,7 +353,7 @@ sub ensure_pam_rp {
         oidcRPMetaDataOptionsClientSecret           => '',
         oidcRPMetaDataOptionsPublic                 => 1,
         oidcRPMetaDataOptionsRequirePKCE            => 2,
-        oidcRPMetaDataOptionsAllowDeviceAuthorization => 1,
+        oidcRPMetaDataOptionsAllowDeviceAuthorization => $rule,
         oidcRPMetaDataOptionsAccessTokenExpiration  => 86400,
         oidcRPMetaDataOptionsRefreshToken           => 1,
         oidcRPMetaDataOptionsIDTokenExpiration      => 3600,
@@ -308,8 +365,8 @@ sub ensure_pam_rp {
         groups => 'groups',
     };
     my $scopes = {
-        pam          => '1',
-        'pam:server' => '1',
+        pam          => "$rule",
+        'pam:server' => "$rule",
     };
 
     $conf->{oidcRPMetaDataOptions}     //= {};
@@ -323,12 +380,64 @@ sub ensure_pam_rp {
         log_change("oidcRPMetaDataOptions.$rp");
         log_change("oidcRPMetaDataExportedVars.$rp");
         log_change("oidcRPMetaDataScopeRules.$rp");
+        log_info("server enrollment on RP '$rp' denies everyone: see the "
+            . 'checklist below') unless $rule;
+        log_warn("--server-admin-rule 1 lets ANY authenticated user enroll a "
+            . 'server') if _is_open($rule);
     } else {
-        # RP treated as atomic: if the admin has it defined we leave it alone.
+        # RP treated as atomic: if the admin has it defined we leave it
+        # alone -- except for who may enroll a server, below.
         log_keep("oidcRPMetaDataOptions.$rp");
         log_keep("oidcRPMetaDataExportedVars.$rp");
         log_keep("oidcRPMetaDataScopeRules.$rp");
+        log_warn("--server-admin-rule 1 lets ANY authenticated user enroll "
+            . 'a server')
+            if lock_pam_rp_enrollment($conf, $rp, $rule) && _is_open($rule);
     }
+}
+
+# Existing RP: replace the open (`1`) enrollment settings with $rule, and the
+# closed ones too when the admin gave --server-admin-rule. Already-enrolled
+# servers are not affected: these settings are only read while a new device
+# is enrolled, and refresh tokens keep the scope they were issued with.
+sub lock_pam_rp_enrollment {
+    my ($conf, $rp, $rule) = @_;
+    my $explicit = defined $opt{'server-admin-rule'};
+    my $o   = $conf->{oidcRPMetaDataOptions}{$rp} //= {};
+    my $key = 'oidcRPMetaDataOptionsAllowDeviceAuthorization';
+    my $cur = $o->{$key};
+
+    # An approver expression already restricts enrollment: the admin's.
+    if (!_is_placeholder($cur)) {
+        log_info("oidcRPMetaDataOptions.$rp.$key is an expression, kept"
+            . ($explicit && "$cur" ne "$rule"
+                ? ' (--server-admin-rule ignored; use --force to replace)'
+                : ''));
+        return 0;
+    }
+    # Device grant disabled and no rule asked for: nothing can be enrolled.
+    return 0 unless _is_open($cur) || $explicit;
+
+    my $wrote = 0;
+    my $was = $cur // '(unset)';
+    if (!_eq($cur, $rule)) {
+        $wrote = 1;
+        $o->{$key} = $rule;
+        log_change("oidcRPMetaDataOptions.$rp.$key: $was -> $rule");
+        log_warn("RP '$rp': $key was $was, now $rule") if _is_open($cur);
+    }
+
+    my $s = $conf->{oidcRPMetaDataScopeRules}{$rp} //= {};
+    for my $scope ('pam', 'pam:server') {
+        my $v = $s->{$scope};
+        next unless _is_placeholder($v);
+        next if defined $v && _trim($v) eq "$rule";
+        $wrote = 1;
+        $s->{$scope} = "$rule";
+        log_change("oidcRPMetaDataScopeRules.$rp.$scope: "
+            . ($v // '(unset)') . " -> $rule");
+    }
+    return $wrote;
 }
 
 # --- Step: SSH CA ---------------------------------------------------------
@@ -393,8 +502,20 @@ sub generate_ed25519_key {
 
 # --- Step: PAM access -----------------------------------------------------
 
-sub ensure_pam_access {
+# Whether hosts may already be enrolled: the PAM RP exists. Decides whether
+# pamAccessAllowedRps can be written safely (see ensure_pam_access). Must be
+# called before ensure_pam_rp creates the RP.
+sub pam_already_deployed {
     my ($conf) = @_;
+    my $rps = $conf->{oidcRPMetaDataOptions} || {};
+    return 1 if exists $rps->{ $opt{'rp-name'} };
+    my $r = $conf->{pamAccessRp};
+    return 1 if defined $r && length $r && exists $rps->{$r};
+    return 0;
+}
+
+sub ensure_pam_access {
+    my ($conf, $deployed) = @_;
     my %defaults = (
         pamAccessActivation        => 1,
         pamAccessRp                => $opt{'rp-name'},
@@ -407,6 +528,10 @@ sub ensure_pam_access {
     for my $k (sort keys %defaults) {
         set_if_missing($conf, $k, $defaults{$k}, $k);
     }
+    # The RP PamAccess actually uses: an existing pamAccessRp wins over
+    # --rp-name, and the allowlist below must name that one.
+    my $rp = _trim($conf->{pamAccessRp});
+    $rp = $opt{'rp-name'} unless defined $rp && length $rp;
 
     # SSH: default-deny, admin fills per-group rules later.
     # Sudo: intentionally not initialised. In an open-bastion deployment
@@ -434,6 +559,123 @@ sub ensure_pam_access {
     } else {
         log_keep('pamAccessExportedVars');
     }
+
+    # pamAccessAllowedRps: the RPs whose tokens may call /pam/*. Empty (the
+    # plugin default) accepts any device-grant token carrying a pam scope,
+    # whatever RP issued it, and lets a host declare itself a bastion in the
+    # request body. Setting it refuses that self-declared bastion group too,
+    # so a bastion then needs a client_id of its own mapped in
+    # pamAccessServerGroups.
+    #
+    # On a new deployment nothing is enrolled yet: write it. Where the PAM RP
+    # already existed, hosts may be enrolled, possibly under other RPs and
+    # with bastions declaring their group in the body; writing it would cut
+    # them off, so only say what is missing.
+    # The Manager may have saved the empty default, so '' counts as unset.
+    my $allowed = $conf->{pamAccessAllowedRps};
+    my $empty   = !defined $allowed || $allowed eq '';
+    if ($opt{force} || ($empty && !$deployed)) {
+        if (_eq($allowed, $rp)) {
+            log_keep('pamAccessAllowedRps');
+        } else {
+            $conf->{pamAccessAllowedRps} = $rp;
+            log_change("pamAccessAllowedRps = $rp");
+        }
+    } elsif ($empty) {
+        log_warn('pamAccessAllowedRps is empty and the PAM RP already '
+            . 'existed: not set, as it would cut off hosts enrolled under '
+            . 'another RP and bastions that declare their own group. See '
+            . 'the checklist below');
+    } else {
+        log_keep('pamAccessAllowedRps');
+    }
+
+    # pamAccessRequireFingerprint is opt-in: it is portal-wide and refuses
+    # every /pam/verify and /pam/authorize without an SSH fingerprint, i.e.
+    # token-mode (password) logins, desktop logins and offline revalidation,
+    # which never carry one.
+    if ($opt{'require-fingerprint'}) {
+        if (!$conf->{pamAccessRequireFingerprint}) {
+            $conf->{pamAccessRequireFingerprint} = 1;
+            log_change('pamAccessRequireFingerprint');
+        } else {
+            log_keep('pamAccessRequireFingerprint');
+        }
+    }
+}
+
+# --- Checklist ------------------------------------------------------------
+
+# What open-bastion requires before production (its UPGRADE-NOTES, "B0", and
+# share/ob-portal-prerequisites.txt) and this script does not, or cannot, set.
+# Printed on every run, from the configuration as it stands after the run.
+sub print_checklist {
+    my ($conf) = @_;
+    my $rp  = $opt{'rp-name'};
+    my $ro  = ($conf->{oidcRPMetaDataOptions} || {})->{$rp} || {};
+    my $who = $ro->{oidcRPMetaDataOptionsAllowDeviceAuthorization};
+    my @items;
+
+    if (_is_closed($who)) {
+        push @items, ['todo', "Server enrollment on RP '$rp' denies "
+            . 'everyone. To let administrators enroll hosts, set '
+            . 'oidcRPMetaDataOptionsAllowDeviceAuthorization and the pam and '
+            . 'pam:server scope rules of the RP to their rule, e.g. '
+            . 'inGroup("server-admins"), or re-run with --server-admin-rule.'];
+    } elsif (_is_open($who)) {
+        push @items, ['RISK', "Server enrollment on RP '$rp' is open to ANY "
+            . 'authenticated user, who can then query /pam/authorize for every '
+            . 'account. Set oidcRPMetaDataOptionsAllowDeviceAuthorization and '
+            . 'the pam and pam:server scope rules to an administrators\' rule.'];
+    } else {
+        push @items, ['ok', "Server enrollment on RP '$rp' restricted to: $who"];
+    }
+
+    my $allowed = $conf->{pamAccessAllowedRps} // '';
+    push @items, $allowed ne ''
+        ? ['ok', "pamAccessAllowedRps = $allowed"]
+        : ['RISK', 'pamAccessAllowedRps is empty: any device-grant token with '
+            . 'a pam scope reaches /pam/*, and any enrolled host can declare '
+            . "itself a bastion. List the PAM RPs (e.g. $rp) once every host "
+            . 'enrolled under another RP and every bastion is accounted for.'];
+
+    my $sg = $conf->{pamAccessServerGroups};
+    push @items, (ref $sg eq 'HASH' && %$sg)
+        ? ['ok', 'pamAccessServerGroups maps '
+            . join(', ', map { "$_ -> $sg->{$_}" } sort keys %$sg)]
+        : ['todo', 'pamAccessServerGroups is empty: the server group comes '
+            . 'from the request body. Before adding a bastion, enroll it '
+            . 'under an RP of its own (enrollment restricted as above), add '
+            . 'that RP to pamAccessAllowedRps and map its client_id to the '
+            . 'bastion group here; once the map is set, every enrolled '
+            . 'client_id must be in it.'];
+
+    push @items, ['todo', 'On every backend host, /etc/open-bastion/'
+        . 'allowed_bastions must be non-empty: ob-backend-setup '
+        . '--allowed-bastions <bastion_id>[,<id>...]. An empty file accepts '
+        . 'a voucher from any bastion. Not checkable from the portal.'];
+
+    push @items, $conf->{pamAccessRequireFingerprint}
+        ? ['ok', 'pamAccessRequireFingerprint is on']
+        : ['opt', 'pamAccessRequireFingerprint is off: turn it on '
+            . '(--require-fingerprint) once every host logs users in with SSH '
+            . 'certificates and runs the fingerprint spool. It refuses '
+            . 'token-mode (password) and desktop logins.'];
+
+    push @items, $conf->{pamAccessBastionCertPinSourceAddress}
+        ? ['ok', 'pamAccessBastionCertPinSourceAddress is on']
+        : ['opt', 'pamAccessBastionCertPinSourceAddress is off: turn it on '
+            . 'when there is no NAT between bastions and backends.'];
+
+    print "\n== Open Bastion: before production ==\n";
+    local $Text::Wrap::columns  = 78;
+    local $Text::Wrap::unexpand = 0;
+    for my $i (@items) {
+        my $tag = sprintf '  [%-4s] ', $i->[0];
+        print Text::Wrap::wrap($tag, ' ' x length($tag), $i->[1]), "\n";
+    }
+    print "  See open-bastion's UPGRADE-NOTES.md (B0) and "
+        . "doc/security/09-portail-llng.rst.\n";
 }
 
 # --- Utils ----------------------------------------------------------------
@@ -483,11 +725,15 @@ log_info("current cfgNum: $old_cfg_num");
 my ($has_autoloader, $llng_version) = detect_autoloader();
 my $modules = plan_custom_plugins($has_autoloader, $llng_version);
 
+# Before anything creates the RP
+my $pam_deployed = pam_already_deployed($conf);
+log_info('PAM RP already present: existing deployment') if $pam_deployed;
+
 # Apply changes in order
 ensure_oidc_service($conf);
 ensure_pam_rp($conf);
 ensure_ssh_ca($conf);
-ensure_pam_access($conf);
+ensure_pam_access($conf, $pam_deployed);
 apply_custom_plugins($conf, $modules);
 
 # Author & metadata
@@ -499,6 +745,7 @@ $conf->{cfgLog}       = 'Bootstrap for open-bastion (autoconfig)';
 print "\n== Summary ==\n";
 printf "  changes: %d\n", scalar @changes;
 printf "  kept:    %d\n", scalar @kept;
+print_checklist($conf);
 if ($opt{'dry-run'}) {
     print "\nDry-run: no save performed. Re-run without --dry-run to apply.\n";
     exit 0;
@@ -527,6 +774,7 @@ open-bastion-plugins-autoconfig - Bootstrap LLNG for open-bastion
 =head1 SYNOPSIS
 
   open-bastion-plugins-autoconfig [--dry-run] [--force] [--verbose]
+      [--server-admin-rule RULE] [--require-fingerprint]
 
 =head1 DESCRIPTION
 
@@ -535,6 +783,22 @@ deployment: OIDC service keys, the pam-access OIDC RP (public + PKCE),
 the SSH CA key and activation flags for the PAM Access and SSH CA
 plugins.
 
-Safe to re-run: existing values are preserved unless B<--force> is given.
+Server enrollment is closed by default: the RP's
+C<oidcRPMetaDataOptionsAllowDeviceAuthorization> and its C<pam> and
+C<pam:server> scope rules are set to B<--server-admin-rule>, or to C<0>
+(nobody) without it. On a new deployment C<pamAccessAllowedRps> is set to the
+RP. A checklist of what remains to be done before production
+(C<pamAccessServerGroups>, C<allowed_bastions> on the backends...) is printed
+on every run.
+
+Safe to re-run: existing values are preserved unless B<--force> is given,
+with one exception, on an existing RP. When its device authorization setting
+is C<1> (any user may approve an enrollment: what earlier versions of this
+script wrote), or C<0> and B<--server-admin-rule> is given, that setting and
+the C<pam> / C<pam:server> scope rules that are C<0>, C<1> or unset are
+replaced by the rule above. Expressions are kept. Servers already enrolled
+keep working.
+C<pamAccessAllowedRps> is never added to an existing deployment: the
+checklist says what to set.
 
 =cut
