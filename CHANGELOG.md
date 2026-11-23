@@ -5,7 +5,8 @@
 - **oidc-resource-indicators**: a resource server must list the clients
   allowed to target it (`oidcRPMetaDataOptionsRIAuthorizedRP`, empty = none)
   and its access rule must accept the user; any other `resource` is dropped
-  from the token audience, on `/authorize`, `client_credentials` and refresh.
+  from the token audience, on `/authorize`, `client_credentials` and refresh,
+  and the scopes of that resource server are removed from the token.
   `resource` on `client_credentials` now reaches the token (it was never
   read). **Check [UPGRADING.md](UPGRADING.md#unreleased).**
 

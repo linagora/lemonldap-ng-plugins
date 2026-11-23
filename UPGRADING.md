@@ -14,7 +14,8 @@ the subset that requires a decision.
   `oidcRPMetaDataOptionsRIAuthorizedRP` (configuration keys of the clients,
   separated by commas or spaces). The list is empty by default: **set it on
   every RP that has `oidcRPMetaDataOptionsEnableRI`**, otherwise its
-  identifier silently disappears from the `aud` of every token and the API
+  identifier silently disappears from the `aud` of every token, along with
+  the scopes it declares in `oidcRPMetaDataOptionsRIScopes`, and the API
   rejects them. A client may still target itself without being listed.
   The RS access rule (`oidcRPMetaDataOptionsRule`) is now evaluated too,
   against the user, or against the client session with `$_oidc_grant_type`

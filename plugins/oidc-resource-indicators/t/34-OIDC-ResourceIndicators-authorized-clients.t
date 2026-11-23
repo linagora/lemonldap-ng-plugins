@@ -19,6 +19,8 @@ my $API     = 'https://api.example.com';
 my $M2M     = 'https://m2m.example.com';
 my $CLOSED  = 'https://closed.example.com';
 my $SELF_RS = 'https://self.example.com';
+my %FLOW    = map { $_ => "https://$_.example.com" }
+  qw(authorizationcode implicit hybrid);
 
 sub client {
     my ( $id, %extra ) = @_;
@@ -55,10 +57,13 @@ my $op = LLNG::Manager::Test->new( {
             userDB                          => 'Same',
             issuerDBOpenIDConnectActivation => 1,
             customPlugins => '::Plugins::OIDCResourceIndicators',
-            oidcServiceAllowOffline    => 1,
-            oidcRPMetaDataExportedVars => {
+            oidcServiceAllowOffline      => 1,
+            oidcServiceAllowImplicitFlow => 1,
+            oidcServiceAllowHybridFlow   => 1,
+            oidcRPMetaDataExportedVars   => {
                 map { $_ => { name => 'cn' } }
-                  qw(listed unlisted api m2m closed selfrs)
+                  qw(listed unlisted api m2m closed selfrs),
+                keys %FLOW
             },
             oidcRPMetaDataOptions => {
                 listed   => client('listed'),
@@ -69,6 +74,8 @@ my $op = LLNG::Manager::Test->new( {
                     'api', $API,
                     oidcRPMetaDataOptionsRIAuthorizedRP => 'listed, other',
                     oidcRPMetaDataOptionsRule           => '$uid ne "dwho"',
+                    oidcRPMetaDataOptionsRIScopes       =>
+                      '{"api:read":"Read the API","shared":"Shared scope"}',
                 ),
 
                 # Machine-to-machine only
@@ -80,10 +87,24 @@ my $op = LLNG::Manager::Test->new( {
                 ),
 
                 # Nobody listed
-                closed => rs( 'closed', $CLOSED ),
+                closed => rs(
+                    'closed', $CLOSED,
+                    oidcRPMetaDataOptionsRIScopes =>
+                      '{"closed:read":"Read","shared":"Shared scope"}',
+                ),
 
                 # A resource server that is also the requesting client
                 selfrs => rs( 'selfrs', $SELF_RS ),
+
+                # One per flow, through $_oidc_grant_type
+                map {
+                    $_ => rs(
+                        $_, $FLOW{$_},
+                        oidcRPMetaDataOptionsRIAuthorizedRP => 'listed',
+                        oidcRPMetaDataOptionsRule           =>
+                          "\$_oidc_grant_type eq \"$_\"",
+                      )
+                } keys %FLOW
             },
             oidcServicePrivateKeySig => oidc_key_op_private_sig,
             oidcServicePublicKeySig  => oidc_cert_op_public_sig,
@@ -129,6 +150,40 @@ sub grant {
     );
     my ($code) = expectRedirection( $res, qr#http://.*code=([^\&]*)# );
     return expectJSON( codeGrant( $op, $client, $code, "http://$client.com/" ) );
+}
+
+# authorize with an implicit or hybrid response type, returns the parameters
+# of the fragment
+sub front_channel {
+    my ( $user, $client, $response_type, $scope, @resources ) = @_;
+    my $query = join '&',
+      buildForm( {
+            response_type => $response_type,
+            scope         => $scope,
+            client_id     => $client,
+            state         => 's',
+            nonce         => 'n',
+            redirect_uri  => "http://$client.com/",
+        }
+      ),
+      resources(@resources);
+    my $res = $op->_get(
+        '/oauth2/authorize',
+        query  => $query,
+        accept => 'text/html',
+        cookie => "lemonldap=$sid{$user}",
+    );
+    my ($fragment) =
+      expectRedirection( $res, qr#^http://$client\.com/\#(.*)$# );
+    return map { URI::Escape::uri_unescape($_) }
+      map { split /=/, $_, 2 } split /&/, $fragment;
+}
+
+# scopes of an access token, from introspection
+sub scopes {
+    my ( $client, $token ) = @_;
+    my $intro = expectJSON( introspect( $op, $client, $token ) );
+    return map { $_ => 1 } split /\s+/, $intro->{scope} // '';
 }
 
 sub token_request {
@@ -210,6 +265,66 @@ subtest 'only the authorized resources are kept' => sub {
     ok( has_aud( $t->{access_token}, $API ), 'authorized RS in aud' );
     ok( !has_aud( $t->{access_token}, $CLOSED ), 'unlisted RS not in aud' );
     ok( !has_aud( $t->{access_token}, $M2M ), 'rule-denied RS not in aud' );
+};
+
+subtest 'refused RS: its scopes are stripped too' => sub {
+    my $t = grant( 'french', 'unlisted', 'openid api:read shared', $API );
+    ok( !has_aud( $t->{access_token}, $API ), 'RS not in aud' );
+    my %scope = scopes( 'unlisted', $t->{access_token} );
+    ok( $scope{openid},      'other scopes kept' );
+    ok( !$scope{'api:read'}, 'RS scope stripped' );
+    ok( !$scope{shared},     'shared RS scope stripped' );
+
+    $t = grant( 'dwho', 'listed', 'openid api:read', $API );
+    ok( !has_aud( $t->{access_token}, $API ), 'RS refused by its rule' );
+    %scope = scopes( 'listed', $t->{access_token} );
+    ok( !$scope{'api:read'}, 'RS scope stripped' );
+};
+
+subtest 'refused RS: a scope granted by an authorized RS is kept' => sub {
+
+    # Both orders: the decision must not depend on the order of resources
+    for my $order ( [ $CLOSED, $API ], [ $API, $CLOSED ] ) {
+        my $t = grant( 'french', 'listed', 'openid api:read closed:read shared',
+            @$order );
+        ok( has_aud( $t->{access_token}, $API ),     'authorized RS in aud' );
+        ok( !has_aud( $t->{access_token}, $CLOSED ), 'refused RS not in aud' );
+        my %scope = scopes( 'listed', $t->{access_token} );
+        ok( $scope{'api:read'},     'scope of the authorized RS kept' );
+        ok( $scope{shared},         'scope also granted by the RS kept' );
+        ok( !$scope{'closed:read'}, 'scope of the refused RS stripped' );
+    }
+};
+
+subtest 'RS rule sees the authorizationcode grant type' => sub {
+    my $t = grant( 'french', 'listed', 'openid', values %FLOW );
+    ok( has_aud( $t->{access_token}, $FLOW{authorizationcode} ),
+        'code flow allowed' );
+    ok( !has_aud( $t->{access_token}, $FLOW{$_} ), "$_ RS refused" )
+      for qw(implicit hybrid);
+};
+
+subtest 'RS rule sees the implicit and hybrid grant types' => sub {
+    for my $flow (
+        [ implicit => 'id_token token' ],
+        [ hybrid   => 'code id_token token' ]
+      )
+    {
+        my ( $name, $response_type ) = @$flow;
+        my %prms = front_channel( 'french', 'listed', $response_type, 'openid',
+            values %FLOW );
+        ok( $prms{access_token}, "$name: access token issued" );
+        for ( sort keys %FLOW ) {
+            if ( $_ eq $name ) {
+                ok( has_aud( $prms{access_token}, $FLOW{$_} ),
+                    "$name: $_ RS allowed" );
+            }
+            else {
+                ok( !has_aud( $prms{access_token}, $FLOW{$_} ),
+                    "$name: $_ RS refused" );
+            }
+        }
+    }
 };
 
 subtest 'client_credentials: listed client gets the RS audience' => sub {

@@ -33,7 +33,7 @@ A `resource` value is bound to the token only when the RS accepts it:
 - the requesting client is listed in the RS's `oidcRPMetaDataOptionsRIAuthorizedRP` (or is the RS itself). The list is empty by default, so an RS accepts no client until it names them;
 - the RS's access rule (`oidcRPMetaDataOptionsRule`), when set, accepts the subject of the token. It sees the same variables as the client's own rule in core: the user session and `$_oidc_grant_type` (`authorizationcode`, `implicit`, `hybrid`), or, for `client_credentials`, the session built for the client (`$_clientId`, `$_clientConfKey`) with `$_oidc_grant_type` set to `clientcredentials`. A rule written for users must accept `clientcredentials` explicitly to let machine-to-machine clients through.
 
-A refused `resource` is dropped, exactly like an unknown one: the token is still issued, without that audience, so the RS rejects it. The same check runs again on each refresh: an RS that stops accepting a client, or whose rule stops accepting the user, is removed from the audience of the next access tokens.
+A refused `resource` is dropped, exactly like an unknown one: the token is still issued, without that audience, so the RS rejects it. The scopes it declares in `oidcRPMetaDataOptionsRIScopes` are removed from the token too, unless another RS of the request, which accepts the client, declares and grants them. The same check runs again on each refresh: an RS that stops accepting a client, or whose rule stops accepting the user, is removed from the audience of the next access tokens.
 
 ## Flow
 

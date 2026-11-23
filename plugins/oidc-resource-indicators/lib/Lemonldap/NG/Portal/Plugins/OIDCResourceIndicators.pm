@@ -319,7 +319,10 @@ sub handleRefreshRSScopes {
     }
 
     # No new resource param: restore the audiences of the grant, minus those
-    # an RS no longer accepts (client removed from its list, rule changed)
+    # an RS no longer accepts (client removed from its list, rule changed).
+    # The refresh session keeps the original list on purpose: it is the
+    # grant, and it is filtered again on every refresh, so an RS that
+    # accepts the client again gets its audience back.
     else {
         my $vars = $self->_ruleVariables($req);
         my @kept = grep {
@@ -431,6 +434,9 @@ sub evaluateRSScopes {
     # Track scope decisions per RS
     my %rs_scope_decisions;    # scope => 1 (granted) or 0 (denied)
 
+    # Requested scopes of refused resource servers
+    my %refused_scopes;
+
     for my $aud (@$audiences) {
 
         # Find the RP corresponding to this audience
@@ -444,8 +450,14 @@ sub evaluateRSScopes {
 
         # The RS must accept this client and the subject of the token. A
         # refused RS is dropped like an unknown one: the token is issued
-        # without that audience, so the RS rejects it.
-        next unless $self->_rsAuthorized( $req, $rp, $rs_rp, $vars );
+        # without that audience, so the RS rejects it. Its own scopes are
+        # stripped too, unless an authorized RS grants them (see below).
+        unless ( $self->_rsAuthorized( $req, $rp, $rs_rp, $vars ) ) {
+            my $rs_scopes = $self->_rsScopes->{$rs_rp} // {};
+            $refused_scopes{$_} = 1
+              for grep { exists $rs_scopes->{$_} } @$scopeList;
+            next;
+        }
 
         push @resolved_audiences, $aud;
 
@@ -480,6 +492,11 @@ sub evaluateRSScopes {
             }
         }
     }
+
+    # A scope of a refused RS is denied, unless an authorized RS decided on
+    # it: its decision stands (granted, or already denied by its rule).
+    # Done after the loop so that the order of the resources does not matter.
+    $rs_scope_decisions{$_} //= 0 for keys %refused_scopes;
 
     # Now modify the scope list to remove denied RS scopes
     if (%rs_scope_decisions) {
@@ -571,7 +588,7 @@ sub _rsAuthorized {
     my ( $self, $req, $rp, $rs_rp, $vars ) = @_;
 
     if ( $rs_rp ne $rp ) {
-        my $list = $self->oidc->rpOptions->{$rs_rp}
+        my $list = ( $self->oidc->rpOptions->{$rs_rp} // {} )
           ->{oidcRPMetaDataOptionsRIAuthorizedRP} // '';
         unless ( grep { $_ eq $rp } split /[,;\s]+/, $list ) {
             $self->userLogger->warn( "OIDCResourceIndicators: RP $rp is not "
