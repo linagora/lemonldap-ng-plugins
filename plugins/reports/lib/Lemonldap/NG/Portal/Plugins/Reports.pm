@@ -154,7 +154,9 @@ sub queryDb {
         $sth->fetchall_arrayref;
     };
     my $err = $@;
-    $dbh->disconnect;
+    eval { $dbh->disconnect };
+
+    # $err already ends with " at ... line N.": rethrow it untouched
     die $err if $err;
     return $rows;
 }
@@ -171,6 +173,7 @@ sub lastCnx {
 q"SELECT a_session->>'_session_uid' AS uid, a_session->>'_loginHistory' AS t FROM psessions"
         );
     };
+    return $self->p->sendError( $req, $@ ) if $@;
     my $res  = {};
     my $data = {};
     foreach my $row (@$queryResult) {

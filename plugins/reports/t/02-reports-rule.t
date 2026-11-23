@@ -113,5 +113,22 @@ subtest 'a rule that does not compile is refused' => sub {
     ok( !$plugin->_buildRule('0')->(), 'the default rule denies' );
 };
 
+subtest 'a database error is reported, not a crash' => sub {
+    my $op = portal( reportsRule => '$uid eq "dwho"' );
+    my $id = login( $op, 'dwho' );
+    {
+        no warnings 'redefine';
+        *Lemonldap::NG::Portal::Plugins::Reports::queryDb =
+          sub { die "DB unavailable\n" };
+    }
+    my $res = eval {
+        $op->_get( '/reports/lastcnx',
+            accept => 'text/csv',
+            cookie => "lemonldap=$id" );
+    };
+    ok( $res, 'lastcnx does not die' ) or diag $@;
+    isnt( $res && $res->[0], 200, 'lastcnx returns an error response' );
+};
+
 clean_sessions();
 done_testing();
